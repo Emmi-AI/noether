@@ -14,12 +14,13 @@ from .default import (
 )
 from .early_stoppers import EarlyStopIteration, EarlyStopperBase, FixedEarlyStopper, MetricEarlyStopper
 from .online import BestMetricCallback, UpdateOutputCallback
-from .periodic import PeriodicCallback
+from .periodic import PeriodicCallback, PeriodicIteratorCallback
 
 __all__ = [
     # --- from base:
     "CallbackBase",
     "PeriodicCallback",
+    "PeriodicIteratorCallback",
     # --- from checkpoint callbacks:
     "BestCheckpointCallback",
     "CheckpointCallback",

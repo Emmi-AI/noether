@@ -779,7 +779,6 @@ class BaseTrainer:
             # Check end of training
             if self.update_counter.is_finished:
                 self._skip_remaining_batches(data_iter, remaining_batches, accumulation_steps, batch_size)
-                return True
 
         return self._handle_end_of_epoch(
             model=model,
