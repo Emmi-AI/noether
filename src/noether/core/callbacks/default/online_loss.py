@@ -6,7 +6,7 @@ from collections import defaultdict
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_nograd
 from noether.core.schemas.callbacks import OnlineLossCallbackConfig
 
@@ -29,7 +29,9 @@ class OnlineLossCallback(PeriodicCallback):
         for name, loss in losses.items():
             self.tracked_losses[name].append(loss.detach())
 
-    def _periodic_callback(self, **_) -> None:
+    def _periodic_callback(self, *, interval_type: IntervalType, **_) -> None:
+        if interval_type == "eval":
+            return  # online losses are only logged during training
         for name, tracked_loss in self.tracked_losses.items():
             mean_loss = all_reduce_mean_nograd(torch.stack(tracked_loss).mean())
             if not self.trainer.config.skip_nan_loss and torch.isnan(mean_loss):

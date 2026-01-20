@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 
-from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.utils.training import UpdateCounter
 
 
@@ -27,9 +27,12 @@ class EarlyStopperBase(PeriodicCallback, metaclass=abc.ABCMeta):
     def _periodic_callback(
         self,
         *,
+        interval_type: IntervalType,
         update_counter: UpdateCounter,
         **kwargs,
     ) -> None:
+        if interval_type == "eval":
+            return  # early stopping is only applied during training
         if self._should_stop(update_counter=update_counter):
             raise EarlyStopIteration
 

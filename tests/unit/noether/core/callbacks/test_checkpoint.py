@@ -93,6 +93,6 @@ class TestCheckpointCallbacks:
         )
 
         callback._periodic_callback(
-            interval_tpye="update", trainer=mock_trainer, update_counter=mock_trainer.update_counter
+            interval_type="update", trainer=mock_trainer, update_counter=mock_trainer.update_counter
         )
         mock_checkpoint_writer.save.assert_called()

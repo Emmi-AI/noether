@@ -35,13 +35,14 @@ if TYPE_CHECKING:
     from noether.training.trainers import BaseTrainer
 
 
-IntervalType = Literal["epoch", "update", "sample"]
+IntervalType = Literal["epoch", "update", "sample", "eval"]
 """Type alias for periodic callback interval types.
 
 Defines the unit of training progress used to trigger periodic callbacks:
 * "epoch": Callback is triggered based on completed epochs
 * "update": Callback is triggered based on optimizer update steps
 * "sample": Callback is triggered based on number of samples processed
+* "eval": Callback is triggered independ of schedule for post-training evaluation
 """
 
 
@@ -131,7 +132,6 @@ class PeriodicCallback(CallbackBase):
         every_n_updates: If set, callback is invoked every N optimizer updates.
         every_n_samples: If set, callback is invoked every N samples processed.
         batch_size: Batch size used during training.
-        evaluation: Evaluation configuration.
 
     Note:
         Child classes should NOT override the public methods (`after_update`, `after_epoch`,
@@ -172,7 +172,6 @@ class PeriodicCallback(CallbackBase):
         self.every_n_updates = callback_config.every_n_updates
         self.every_n_samples = callback_config.every_n_samples
         self.batch_size = callback_config.batch_size
-        self.evaluation = callback_config.evaluation
 
         # check that children only override their implementation methods
         if not (type(self).track_after_accumulation_step == PeriodicCallback.track_after_accumulation_step):
@@ -267,8 +266,7 @@ class PeriodicCallback(CallbackBase):
         overwrite this method to calculate metrics periodically during training and log them.
 
         Args:
-            interval_type: "epoch", "update" or "sample" depending on if `every_n_epochs`, `every_n_updates` or
-                `every_n_samples` is defined as field of the `PeriodicCallback`.
+            interval_type: "epoch", "update", "sample" or "eval" indicating which interval triggered this callback.
             update_counter: UpdateCounter instance to access current training progress.
         """
 
@@ -341,6 +339,10 @@ class PeriodicCallback(CallbackBase):
             update_counter.effective_batch_size,
         ):
             self._periodic_callback(interval_type="sample", update_counter=update_counter, **kwargs)
+
+    @torch.no_grad()
+    def at_eval(self, update_counter: UpdateCounter, **kwargs) -> None:
+        self._periodic_callback(interval_type="eval", update_counter=update_counter, **kwargs)
 
     def updates_till_next_log(self, update_counter: UpdateCounter) -> int:
         """Calculates how many updates remain until this callback is invoked.

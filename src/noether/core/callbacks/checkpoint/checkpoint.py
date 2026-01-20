@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.schemas.callbacks import CheckpointCallbackConfig
 from noether.core.utils.logging import short_number_str
 from noether.core.utils.training import UpdateCounter  # fixme: consider moving it to noether/training/?
@@ -78,7 +78,9 @@ class CheckpointCallback(PeriodicCallback):
             f"{checkpoint_size_str}"
         )
 
-    def _periodic_callback(self, *, update_counter: UpdateCounter, **kwargs) -> None:
+    def _periodic_callback(self, *, interval_type: IntervalType, update_counter: UpdateCounter, **kwargs) -> None:
+        if interval_type == "eval":
+            return  # checkpoints are only saved during training
         self.checkpoint_writer.save(
             model=self.model,
             trainer=self.trainer,

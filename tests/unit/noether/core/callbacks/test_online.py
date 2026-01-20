@@ -136,7 +136,7 @@ class TestOnlineLossCallback:
         callback._track_after_accumulation_step(losses=losses)
 
         with pytest.raises(RuntimeError, match="encountered nan loss"):
-            callback._periodic_callback(trainer=mock_trainer)
+            callback._periodic_callback(interval_type="update", trainer=mock_trainer)
 
 
 class TestBestMetricCallback:
@@ -356,8 +356,8 @@ class TestBestMetricCallback:
         # Missing optional metric should not cause issues
 
 
-class TestUpdateOutputCallback:
-    """Tests for UpdateOutputCallback."""
+class TestTrackAdditionalOutputsCallback:
+    """Tests for TrackAdditionalOutputsCallback."""
 
     def test_update_output_callback_tracks_by_keys(
         self,
@@ -369,11 +369,11 @@ class TestUpdateOutputCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test UpdateOutputCallback tracks outputs by exact key match."""
-        from noether.core.callbacks.online.update_output import UpdateOutputCallback
-        from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+        """Test TrackAdditionalOutputsCallback tracks outputs by exact key match."""
+        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
+        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 
-        config = UpdateOutputCallbackConfig.model_validate(
+        config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(
                 keys=["grad_norm", "param_norm"],
                 every_n_updates=10,
@@ -385,7 +385,7 @@ class TestUpdateOutputCallback:
         mock_trainer.update_counter = Mock()
         mock_trainer.update_counter.update = 1
 
-        callback = UpdateOutputCallback(
+        callback = TrackAdditionalOutputsCallback(
             callback_config=config,
             trainer=mock_trainer,
             model=mock_model,
@@ -422,11 +422,11 @@ class TestUpdateOutputCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test UpdateOutputCallback tracks outputs by pattern matching."""
-        from noether.core.callbacks.online.update_output import UpdateOutputCallback
-        from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+        """Test TrackAdditionalOutputsCallback tracks outputs by pattern matching."""
+        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
+        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 
-        config = UpdateOutputCallbackConfig.model_validate(
+        config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(
                 patterns=["loss"],
                 every_n_updates=10,
@@ -438,7 +438,7 @@ class TestUpdateOutputCallback:
         mock_trainer.update_counter = Mock()
         mock_trainer.update_counter.update = 1
 
-        callback = UpdateOutputCallback(
+        callback = TrackAdditionalOutputsCallback(
             callback_config=config,
             trainer=mock_trainer,
             model=mock_model,

@@ -13,7 +13,7 @@ from .default import (
     TrainTimeCallback,
 )
 from .early_stoppers import EarlyStopIteration, EarlyStopperBase, FixedEarlyStopper, MetricEarlyStopper
-from .online import BestMetricCallback, UpdateOutputCallback
+from .online import BestMetricCallback, TrackAdditionalOutputsCallback
 from .periodic import PeriodicCallback, PeriodicIteratorCallback
 
 __all__ = [
@@ -41,5 +41,5 @@ __all__ = [
     "TrainTimeCallback",
     # --- from online callbacks:
     "BestMetricCallback",
-    "UpdateOutputCallback",
+    "TrackAdditionalOutputsCallback",
 ]

@@ -45,8 +45,6 @@ class ProgressCallback(PeriodicCallback):
                 f"Sample {update_counter.cur_iteration.sample}/{self.trainer.end_checkpoint.sample} "
                 f"({update_counter.cur_iteration})"
             )
-        else:
-            raise NotImplementedError
 
         assert self._last_log_time is not None
         assert self._start_time is not None

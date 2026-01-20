@@ -18,8 +18,6 @@ class CallBackBaseConfig(BaseModel):
     """Sample-based interval. Invokes the callback after every n samples. Mutually exclusive with other intervals."""
     batch_size: int | None = None
     """Batch size to use for this callback. Default: None (use the same batch_size as for training)."""
-    evaluation: bool = Field(False)
-    """Whether to run this callback during evaluation."""
 
     model_config = {"extra": "forbid"}
 
@@ -29,10 +27,6 @@ class CallBackBaseConfig(BaseModel):
         Ensures that exactly one frequency ('every_n_*') is specified and
         that 'batch_size' is present if 'every_n_samples' is used.
         """
-        # Ignore interval during evaluation
-        if self.evaluation:
-            self.every_n_epochs = 1
-            return self
 
         # 1. Mutual Exclusivity and Presence Validation
         frequency_fields = [self.every_n_epochs, self.every_n_updates, self.every_n_samples]
@@ -132,8 +126,8 @@ class BestMetricCallbackConfig(CallBackBaseConfig):
     optional_target_metric_keys: list[str] | None = Field(None)
 
 
-class UpdateOutputCallbackConfig(CallBackBaseConfig):
-    name: Literal["UpdateOutputCallback"] = Field("UpdateOutputCallback", frozen=True)
+class TrackAdditionalOutputsCallbackConfig(CallBackBaseConfig):
+    name: Literal["TrackAdditionalOutputsCallback"] = Field("TrackAdditionalOutputsCallback", frozen=True)
     keys: list[str] | None = Field(None)
     """List of patterns to track. Matched if it is contained in one of the update_outputs keys."""
     patterns: list[str] | None = Field(None)
@@ -204,7 +198,7 @@ CallbacksConfig = Union[
     | EmaCallbackConfig
     | OnlineLossCallbackConfig
     | BestMetricCallbackConfig
-    | UpdateOutputCallbackConfig
+    | TrackAdditionalOutputsCallbackConfig
     | OfflineLossCallbackConfig
     | MetricEarlyStopperConfig
     | FixedEarlyStopperConfig

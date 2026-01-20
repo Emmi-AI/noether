@@ -8,11 +8,11 @@ import torch
 
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_grad
-from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 from noether.core.utils.training import UpdateCounter  # fixme?
 
 
-class UpdateOutputCallback(PeriodicCallback):
+class TrackAdditionalOutputsCallback(PeriodicCallback):
     """Callback that is invoked during training after every gradient step to track certain outputs from the update step.
 
     The provided `update_outputs` are assumed to be a dictionary and outputs that match keys or patterns are tracked.
@@ -24,10 +24,10 @@ class UpdateOutputCallback(PeriodicCallback):
 
     def __init__(
         self,
-        callback_config: UpdateOutputCallbackConfig,
+        callback_config: TrackAdditionalOutputsCallbackConfig,
         **kwargs,
     ):
-        """Initializes the UpdateOutputCallback class.
+        """Initializes the TrackAdditionalOutputsCallback class.
 
         Args:
             callback_config: The configuration for the callback.

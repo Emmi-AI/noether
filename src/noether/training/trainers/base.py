@@ -187,9 +187,6 @@ class BaseTrainer:
     def get_user_callbacks(self, model: ModelBase, evaluation=False) -> list[CallbackBase]:
         callback_default_args = self._get_default_callback_kwargs(model)
         callbacks: list[CallbackBase] = Factory().create_list(self.config.callbacks, **callback_default_args)
-        for cb in callbacks:
-            if not evaluation and isinstance(cb, PeriodicCallback) and cb.evaluation:
-                self.logger.warning(f"Callback {cb} is marked for evaluation but added to training callbacks.")
         return callbacks
 
     def get_all_callbacks(self, model: ModelBase) -> list[CallbackBase]:
@@ -989,4 +986,4 @@ class BaseTrainer:
                 if isinstance(callback, PeriodicIteratorCallback)
                 else {}
             )
-            callback.after_epoch(self.update_counter, **iterator_callback_args)
+            callback.at_eval(self.update_counter, **iterator_callback_args)

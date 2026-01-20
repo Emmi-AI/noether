@@ -56,10 +56,6 @@ def main(inference_config: DictConfig):
     # resolve and convert to dict
     config_dict = OmegaConf.to_container(merged_config, resolve=True)
 
-    for cb in config_dict.get("trainer", {}).get("callbacks", []):  # type: ignore
-        # Ensure evaluation callbacks are marked correctly
-        cb["evaluation"] = True
-
     # run
     InferenceRunner().run(config_dict)  # type: ignore[arg-type]
 

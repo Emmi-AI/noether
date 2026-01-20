@@ -9,7 +9,7 @@ from noether.core.utils.logging import tensor_like_to_string
 
 
 class TrainTimeCallback(PeriodicCallback):
-    """Callback to log the time spent on dataloading during training."""
+    """Callback to log the time spent on dataloading."""
 
     def __init__(self, callback_config: CallBackBaseConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)

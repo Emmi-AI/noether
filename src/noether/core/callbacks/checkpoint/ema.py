@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.distributed import is_rank0
 from noether.core.models.base import ModelBase
 from noether.core.providers.path import PathProvider
@@ -132,7 +132,9 @@ class EmaCallback(PeriodicCallback):
                         ema=target_factor,
                     )
 
-    def _periodic_callback(self, *, update_counter, **_) -> None:
+    def _periodic_callback(self, *, interval_type: IntervalType, update_counter, **_) -> None:
+        if interval_type == "eval":
+            return  # checkpoints are only saved during training
         checkpoint = update_counter.cur_iteration
         self._save(checkpoint, model=self.model)
 
