@@ -97,7 +97,7 @@ The tutorial project follows the following directory structure:
     train_caeml.yaml
     train_drivaerml.yaml
     train_drivaernet.yaml # Additional dataset (not covered in tutorial)
-    train_shapenet.yaml   # Additional dataset (not covered in tutorial)
+    train_shapenet.yaml  
     train_wing.yaml   # Additional dataset (not covered in tutorial)
 └── jobs/             # SLURM job scripts for running experiments on clusters
 └── model/            # Model architecture definitions
@@ -202,7 +202,7 @@ Let's break down its key components:
 
 # Define key values here that are used multiple times in the config files.
 dataset_root: <path to your shapenet dataset root>
-dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset #class path to the dataset
+dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset # class path to the dataset
 config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema # class path to the config schema in your down stream project
 excluded_properties: 
   - surface_friction
