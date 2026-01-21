@@ -4,7 +4,7 @@
 
 **Authors**: Maurits Bleeker, Markus Hennerbichler, and Pavel Kuksa
 
-For questions, please create an issue on [GitHub](https://github.com/Emmi-AI/noether/issues).
+For questions, please create an issue in our [GitHub repo](https://github.com/Emmi-AI/noether/issues).
 </div>
 
 # Table of Contents
@@ -123,7 +123,7 @@ The tutorial project follows the following directory structure:
 └── trainers/         # Required: defines training logic
 ```
 
-The [`configs/`](./configs) directory roughly mirrors the root folder structure—for each module or class defined in the project, there is a corresponding configuration file. 
+The [`configs/`](./configs) directory roughly mirrors the root folder structure; for each module or class defined in the project, there is a corresponding configuration file. 
 This organizational pattern makes it easy to locate and manage configurations.
 
 ### Core components
@@ -140,16 +140,16 @@ Every `Noether` project consists of the following core modules (in alphabetical 
 
 ## Project setup
 
-**Prerequisites**: Python 3.12 or higher
+**Prerequisites**: Python 3.12
 
 Clone the repository and set up the environment:
 
 ```bash
 git clone https://github.com/Emmi-AI/core.git
-cd core/tutorial
+cd noether/tutorial
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install noether
+uv pip install emmi_ai
 ```
 
 ### Boilerplate project
@@ -169,7 +169,7 @@ uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +se
 # Tutorial
 
 This tutorial covers each module of the `Noether Framework` in a logical progression. 
-While we've organized the content to flow naturally, you may need to reference earlier or later sections every now and then, as some components interact with multiple parts of the pipeline.
+While we have organized the content to flow naturally, you may need to reference earlier or later sections every now and then, as some components interact with multiple parts of the pipeline.
 
 ## Configuration ([`configs/`](./configs/))
 
@@ -201,7 +201,7 @@ Let's break down its key components:
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root:  <add dataset path>
+dataset_root: <path to your shapenet dataset root>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset #class path to the dataset
 config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema # class path to the config schema in your down stream project
 excluded_properties: 
@@ -245,7 +245,7 @@ For example, when training different models on ShapeNet-Car, only the `model` an
 
 **Example: Dataset configuration**
 
-The base dataset configuration [**`configs/datasets/shapenet_dataset.yaml`](./configs/datasets/shapenet_dataset.yaml) demonstrates config composition:
+The base dataset configuration [`configs/datasets/shapenet_dataset.yaml`](./configs/datasets/shapenet_dataset.yaml) demonstrates config composition:
 
 ```yaml
 train:
@@ -265,6 +265,8 @@ test:
 ```
 
 Notice the `${variable_name}` references? These resolve to values defined in the top-level `train_shapenet.yaml`. This pattern avoids duplication: `dataset_root` is defined once, used everywhere. 
+To make the training work, add the `dataset_root` folder where the preprocessed data is stored to `train_shapenet.yaml`.
+To preprocess the data, have a look at [preprocessing.py)](../src/noether/data/datasets/cfd/shapenet_car/preprocessing.py) of the ShapeNet-Car dataset.
 
 **Config groups and directory structure:**
 
@@ -297,12 +299,12 @@ When you specify `datasets: shapenet_dataset` in the defaults list, Hydra automa
 Experiment-specific configurations compose base configs and apply targeted overrides. An experiment file should:
 
 1. Select a specific model variant
-2. Choose a tracking backend (W&B, disabled, etc.)
+2. Choose a tracker (W&B or disabled)
 3. Override any experiment-specific hyperparameters
 
 **Example: Transformer experiment**
 
-The Transformer experiment configuration [**`configs/experiments/shapenet/transformer.yaml`**](./configs/experiments/shapenet/transformer.yaml):
+The Transformer experiment configuration [**`configs/experiments/shapenet/transformer.yaml`**](./configs/experiment/shapenet/transformer.yaml):
 
 ```yaml
 # @package _global_
@@ -354,6 +356,10 @@ To enable experiment tracking, simply remove the `tracker=disabled` override:
 ```bash
 uv run noether-train --hp tutorial/configs/train_shapenet.yaml +experiment/shapenet=transformer
 ```
+
+
+> [!WARNING]
+> Make sure to either set `dataset_root` in `train_shapenet.yaml` or add it to the command line via `dataset_root=\"<path to dataset root>\"
 
 You'll need to configure your W&B API key on first run and update [**`configs/tracker/development_tracker.yaml`**](./configs/tracker/development_tracker.yaml) with your project details.
 
@@ -511,22 +517,6 @@ num_heads: 3
 optimizer_config: ${optimizer}
 ```
 
-```yaml
-kind: tutorial.model.Transformer
-name: transformer
-hidden_dim: 192
-depth: 12
-num_heads: 3
-mlp_expansion_factor: 4  # Already defaulted to 4, but can override
-optimizer_config: ${optimizer}
-use_rope: true  # Override default False
-forward_properties:
-  - surface_position
-  - volume_position
-  - surface_features
-  - volume_features
-```
-
 ### Tutorial configuration schema
 
 Your downstream project must define a top-level configuration schema that specifies the complete experiment structure. 
@@ -584,12 +574,12 @@ The `kind` field in most configs specifies the class path for instantiation. The
 
 ## Object instantiation
 
-The objects we instantiate in the `Noether Framework` via configs (i.e., datasets, pipelines, trainers, models, callbacks, etc.) are instantiated via a factory.
+The objects we instantiate in the `Noether Framework` via configs are instantiated via a factory.
 To do this, the config of the object needs to contain a `kind`, i.e., the class path of the class.
 The remaining variables are passed to the constructor of the class via the config object we created after the pydantic schema evaluation.
 An example is given above in the Transformer config, where `kind: tutorial.model.Transformer` indicates which model class to instantiate.
 
-## The Dataset ([`datasets/`](./datasets/))
+## The Dataset ([`datasets/`](../src/noether/data/datasets/cfd/shapenet_car/dataset.py))
 
 The `Dataset` class serves as the bridge between raw (or preprocessed) data stored on disk and the **multi-stage pipeline** that transforms individual samples into batches for model training (which we discuss in the next section). 
 It defines how to load and access individual data tensors for each sample.
@@ -760,7 +750,7 @@ excluded_properties:
   - surface_normals
   - volume_normals
 ```
-A point-based Transformer might only need positions and pressure:
+A point-based Transformer might only need positions and surface pressure and volume velocity:
 ```yaml
 # Load only essential tensors
 excluded_properties:
@@ -768,8 +758,7 @@ excluded_properties:
   - volume_normals
   - volume_sdf
 ```
-
-While a more complex model uses all available features:
+Now those additional features are excluded from data loading, while a more complex model uses all available features:
 ```yaml
 # Load everything
 excluded_properties: []
@@ -799,7 +788,7 @@ Most other methods follow standard PyTorch `Dataset` patterns. If you're unfamil
 
 ### Tensor normalization with decorators
 
-In `Noether`, most of the normalization happens at the **tensor level** immediately after loading, using a decorator pattern for clean, declarative code.
+In the `Noethern Framework`, most of the normalization happens at the **tensor level** immediately after loading, using a decorator pattern for clean, declarative code.
 
 **The `@with_normalizers` decorator:**
 
@@ -821,7 +810,7 @@ def getitem_surface_position(self, idx: int) -> torch.Tensor:
 
 **Configuring normalizers:**
 
-Define normalizers in [**`shapenet_dataset_normalizers.yaml`**](./configs/dataset_normalizers/shapenet_dataset_normalizers.yaml):
+All normalizers are defined in [`noether.data.preprocessors.normalizers`](../src/noether/data/preprocessors/normalizers.py).
 
 ```yaml
 surface_pressure:
@@ -834,8 +823,7 @@ surface_position:
     mean: ${dataset_statistics.surface_position_mean}
     std: ${dataset_statistics.surface_position_std}
 ```
-
-All normalizers are defined in [`noether.data.preprocessors.normalizers`](../src/noether/data/preprocessors/normalizers.py).
+We now defined the `surface_pressure`, which maps to a `MeanStdNormalization`, using a configurable mean and std. 
 
 **Composing multiple normalizers:**
 
@@ -896,6 +884,7 @@ To implement a custom dataset:
 3. Override `__init__` to discover and filter your data samples
 4. Add `@with_normalizers` decorators where normalization is needed
 5. Create corresponding Pydantic schema in your `schemas/datasets/` directory
+6. Configure the normalizers 
 
 See the [boilerplate project](../boilerplate_project/datasets/) for a minimal dataset implementation example.
 
@@ -942,7 +931,7 @@ Each point in these fields has three coordinates `(x, y, z)`, one or more target
 The target values and features can vary depending on whether the point belongs to the surface or volume and which dataset is used.
 From now on, we'll refer to these additional features as **physics features**.
 We do not consider global features for this project.
-The data structure for our tasks is defined in, for example, [**`configs/data_specs/shapenet_car.yaml`**](./configs/data_specs/shapenet_car.yaml), which corresponds to the [**`AeroDataSpecs`**](../src/noether/core/schemas/dataset.py) schema.
+The data structure for our tasks is defined in, for example, [**`configs/data_specs/shapenet_car.yaml`**](./configs/data_specs/shapenet_car.yaml), which corresponds to the [**`AeroDataSpecs`**](../src/noether/core/schemas/dataset.py#186) schema.
 
 The models we use can be roughly **divided** into two classes:
 1. **Point-based models**, where the input points to the model's encoder are also the points used for predicting the output values (e.g., `Transformer`, `Transolver`).
@@ -965,8 +954,10 @@ The high-level pipeline is visualized in the image below:
 
 ![Pipeline data flow](./images/shapenet_car_models_data_flow.png)
 
-This entire pipeline is implemented in the [**`_build_sample_processor_pipeline`**](./pipeline/multistage_pipelines/aero_multistage.py#176) method in the `AeroMultistagePipeline` class, which composes the list of sample processors based on the three steps listed above.
+This entire pipeline is implemented in the [**`_build_sample_processor_pipeline`**](./pipeline/multistage_pipelines/aero_multistage.py#176) method in the `AeroMultistagePipeline` class, which composes the list of sample processors classes based on the three steps listed above.
+Please have a look at the code to understand what it is doing.
 This method returns a list of individual [**`SampleProcessor`**](../src/noether/data/pipeline/sample_processor.py) instances.
+Each sample processor takes a sample as input (which is a dictionary with the resul of all the `getitem_*` methods called by the dataset for one data point) and does some form of processing on one or more tensors of the sample.
 Note that the order is important, as the sample processors are called sequentially.
 
 When the multi-stage pipeline runs, the sample processors are called as [follows](../src/noether/data/pipeline/multistage.py#100): 
@@ -976,6 +967,8 @@ When the multi-stage pipeline runs, the sample processors are called as [follows
 samples = [deepcopy(sample) for sample in samples]  # copy to avoid changing method input
 for sample_processor in self.sample_processors:
   for idx, sample in enumerate(samples):
+    # sample = {'surface_pressure: torch. Tensor[...], 'surface_position': torch.Tensor[...], .....}
+    # each key in the sample is the output of a getitem_* method of the dataset 
     samples[idx] = sample_processor(sample)
 ```
 
@@ -1022,7 +1015,7 @@ for batch_processor in self.batch_processors:
 
 ## The Trainer ([`trainers/`](./trainers/))
 
-The [`AutomotiveAerodynamicsCFDTrainer`](./trainers/automotive_aerodynamics_cfd_trainer.py) is a specialized trainer designed for automotive Computational Fluid Dynamics (CFD) tasks, specifically for the AhmedML, DrivAerML, DrivAerNet++, ShapeNet-Car, and Emmi-Wing datasets.
+The [`AutomotiveAerodynamicsCFDTrainer`](./trainers/automotive_aerodynamics_cfd.py) is a specialized trainer designed for automotive Computational Fluid Dynamics (CFD) tasks, specifically for the AhmedML, DrivAerML, DrivAerNet++, ShapeNet-Car, and Emmi-Wing datasets.
 Its primary role is to manage the training step by processing model outputs, computing a flexible weighted loss, and returning the results.
 
 ### BaseTrainer implementation
@@ -1086,7 +1079,7 @@ def train_step(self, batch: dict[str, Tensor], model: torch.nn.Module) -> Traine
 
 **Understanding the two key methods:**
 
-As an end-user, you need to implement two methods: **`loss_compute`** and sometimes **`train_step`**.
+As an end-user, you need to implement the methods: **`loss_compute`** and sometimes **`train_step`**.
 
 The **`train_step`** method receives the batch from the multi-stage pipeline and the **`model`** being trained (which can be a `DistributedDataParallel` model when training on multiple GPUs).
 
@@ -1096,6 +1089,9 @@ In the base implementation, the batch is split into two sub-batches:
 2. **Targets batch**: Contains tensors needed for loss computation. The **`loss_compute`** method computes the custom loss for your task.
 
 For task-specific implementations, see the [`AutomotiveAerodynamicsCFDTrainer`](./trainers/automotive_aerodynamics_cfd_trainer.py) example.
+
+> [!IMPORTANT]
+> We give a warming if there are keys in the batch that do not end in either the `forward batch` or the `target batch`. This means that the collator returns tensors that are not used during the forward pass. 
 
 **Return value requirements:**
 
@@ -1112,7 +1108,7 @@ If not, you can always implement a custom **`train_step`** method in the child t
 
 ### BaseTrainer configuration
 
-When using the default **`train_step`** method, you must define both the **`forward_properties`** and the **`target_properties`**.
+When using the default **`train_step`** method, you must define both the **`forward_properties`** and the **`target_properties`** to define which tensors are part of the `forward_batch` and which tensors are part of the `target_batch`.
 
 In this tutorial, the target properties are fixed per dataset, while the **`forward_properties`** depend on the model.
 Therefore, we define them as follows:
@@ -1122,7 +1118,6 @@ target_properties:
   - surface_pressure_target
   - volume_velocity_target
 forward_properties: ${model.forward_properties}
-
 ```
 
 **Required BaseTrainer parameters:**
@@ -1220,24 +1215,24 @@ class CustomModel(Model):
         self.encoder = torch.nn.Linear(model_config.input_dim, model_config.hidden_dim)
         self.decoder = torch.nn.Linear(model_config.hidden_dim, model_config.output_dim)
     
-    def forward(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
+    def forward(self, input_tensor: torch.Tensor) -> dict[str, torch.Tensor]:
         """
         Forward pass of the model.
         
         Args:
-            **batch: Dictionary containing input tensors from the pipeline.
+            input_tensor: torch tensor with data 
         
         Returns:
             Dictionary containing model outputs.
         """
         # Example: extract inputs from batch
-        x = batch['input_tensor']
+        x = input_tensor
         
         # Forward pass
         hidden = self.encoder(x)
         output = self.decoder(hidden)
         
-        return output
+        return {'output':output}
 ```
 
 ```yaml
@@ -1332,7 +1327,7 @@ The `Noether Framework` includes base implementations for several state-of-the-a
 | **AB-UPT** | [arXiv:2502.09692](https://arxiv.org/abs/2502.09692) | [tutorial/model/ab_upt.py](./model/ab_upt.py) | Wrapper around base implementation |
 | **Transformer** | - | [tutorial/model/transformer.py](./model/transformer.py) | Wrapper around base implementation and adding RoPE |
 | **Transolver** | [arXiv:2402.02366](https://arxiv.org/abs/2402.02366) | [tutorial/model/transolver.py](./model/transolver.py) | Wrapper around base implementation |
-| **Transolver++** | [arXiv:2402.02366](https://arxiv.org/abs/2402.02366) | Schema only: [transolver.py](../src/noether/core/schemas/models/transolver.py#21) | Extension of Transolver with different attention class |
+| **Transolver++** | [arXiv:2502.02414](https://arxiv.org/abs/2502.02414) | Schema only: [transolver.py](../src/noether/core/schemas/models/transolver.py#21) | Extension of Transolver with different attention class |
 | **UPT** | [arXiv:2402.12365](https://arxiv.org/abs/2402.12365) | [tutorial/model/upt.py](./model/upt.py) | Extended `forward` method for tutorial compatibility |
 
 **Implementation approaches:**
@@ -1431,6 +1426,35 @@ class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
 
 You need to define a Union of your custom-implemented callbacks and the default callbacks implemented in the `Noether Framework` to ensure all callbacks have proper schema validation.
 
+### _forward implementation
+
+The `_forward` method of the `SurfaceVolumeEvaluationMetricsCallback` method simply looks like:
+```python
+def _forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+        """
+        Execute forward pass and compute metrics.
+
+        Args:
+            batch: Input batch dictionary
+            **_: Additional unused arguments
+
+        Returns:
+            Dictionary mapping metric names to computed values
+        """
+        model_outputs = self._run_model_inference(batch)
+
+        metrics = {}
+        for mode in self.evaluation_modes:
+            metrics.update(self._compute_mode_metrics(batch, model_outputs, mode))
+
+        return metrics
+
+```
+
+First it computes the module outputs, and next it adds the desired metrics to an output dictionary.
+All the substeps are implemented by individual methods in the callback itself.
+Please have a look at the [implementation](./callbacks/surface_volume_evaluation_metrics.py)
+
 ### Denormalization for metrics
 
 Metrics are usually computed on unnormalized data. 
@@ -1502,8 +1526,11 @@ The flag `#SBATCH --array=...` defines how to run the job array:
 To run a single experiment, execute the following command:
 
 ```bash
-uv run noether-train --hp {user path to tutorial}/configs/train_shapenet.yaml +experiment/shapenet=pointnet tracker=disabled +seed=1
+uv run noether-train --hp {user path to tutorial}/configs/train_shapenet.yaml +experiment/shapenet=transformer tracker=disabled +seed=1
 ```
+
+> [!IMPORTANT]
+> Please set the `dataset_root` in either the config files or via the command line override
 
 ### Running multi-GPU experiments
 
@@ -1573,7 +1600,7 @@ Simply add your own WandB entity and project to start logging.
 
 ## Extra utilities and tips
 
-- **Output path**: The output path is undefined by default and must be configured. In this tutorial, we set it to `./outputs`. The `Noether Framework` will use the generated `run_id` to store the checkpoints for each training run.
+- **Output path**: The output path is undefined by default and must be configured. In this tutorial, we set it to `./outputs`. The `Noether Framework` will use the generated `run_id` to store the checkpoints for each training run in subfolders.
 - **Physics features**: You can set `physics_features` to `true` for the multi-stage `AeroMultistagePipeline`. This only works for ShapeNet-Car and will add the SDF and normal vectors to the coordinate inputs. However, we never properly utilized these features in our experiments, and they are not implemented for other datasets. Therefore, this code is not fully polished or optimized.
 - **Code snapshots**: By default, a snapshot of the codebase is stored as part of the checkpoints for reproducibility.
 - **Batch size considerations**: Almost all experiments we ran for the AB-UPT paper use a batch size of 1. However, the data loading pipeline is implemented to work with batches larger than 1 (including with physics features). Note that we never thoroughly validated these results or checked for potential training/data loading instabilities with larger batch sizes.
