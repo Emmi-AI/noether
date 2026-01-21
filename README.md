@@ -236,9 +236,9 @@ Please see [LICENSE.txt](./LICENSE.txt) for the full legal terms.
 <div align="center" style="gap: 15px; display: flex; justify-content: center; flex-wrap: wrap;">
   <img src="docs/source/_static/logos/jku.jpg" height="50" alt="JKU Linz" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
   <img src="docs/source/_static/logos/eth.png" height="50" alt="ETH Zurich" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/upenn.png" height="50" alt="UPenn" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
+  <img src="docs/source/_static/logos/upenn.png" height="50" alt="UPenn" style="background: white; padding: 0px; border-radius: 4px; margin: 0 10px;">
   <img src="docs/source/_static/logos/uw.png" height="50" alt="University of Washington" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/tum.jpg" height="50" alt="TUM Munich" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
+  <img src="docs/source/_static/logos/tum.jpg" height="50" alt="TUM Munich" style="background: white; padding: 0px; border-radius: 4px; margin: 0 10px;">
   <img src="docs/source/_static/logos/sorbonne.png" height="50" alt="Sorbonne University" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
 </div>
 
