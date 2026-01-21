@@ -31,6 +31,8 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :caption: How-to Guides
    :hidden:
 
+   guides/hardware_setup
+   guides/linux_cuda_setup
    guides/working_with_cli
 
    .. guides/data/how_to_load_custom_dataset
