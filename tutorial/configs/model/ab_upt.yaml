@@ -2,7 +2,7 @@ kind: tutorial.model.ABUPT
 name: ab_upt
 geometry_depth: 1
 hidden_dim: 192
-bias_layers: false
+use_bias_layers: false
 transformer_block_config:
   hidden_dim: ${model.hidden_dim}
   num_heads: 3

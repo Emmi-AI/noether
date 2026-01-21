@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any, Union
+from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field
 
@@ -26,7 +26,9 @@ class InitializerConfig(BaseModel):
 
 
 class CheckpointInitializerConfig(InitializerConfig):
-    kind: str = Field(default="noether.core.initializers.CheckpointInitializer")
+    kind: Literal["noether.core.initializers.CheckpointInitializer"] = Field(
+        default="noether.core.initializers.CheckpointInitializer", frozen=True
+    )
     load_optim: bool = Field(...)
     """Whether or not to load the optimizer state from the checkpoint. Default is True, as this is usually used to resume a training run"""
     pop_ckpt_kwargs_keys: list[str] | None = Field(None)
@@ -34,23 +36,17 @@ class CheckpointInitializerConfig(InitializerConfig):
 
 
 class ResumeInitializerConfig(CheckpointInitializerConfig):
-    kind: str = Field(default="noether.core.initializers.ResumeInitializer", frozen=True)
+    kind: Literal["noether.core.initializers.ResumeInitializer"] = Field(
+        default="noether.core.initializers.ResumeInitializer", frozen=True
+    )  # type: ignore[assignment]
     load_optim: bool = Field(True, frozen=True)
     model_name: str = Field(...)
 
 
 class PreviousRunInitializerConfig(CheckpointInitializerConfig):
-    """
-    Example YAML configuration:
-        initializers:
-        - kind: noether.core.initializers.PreviousRunInitializer
-            model_info: ema=0.9999
-            checkpoint: latest
-            model_name: pointnet
-            run_id: 2025-11-01_8zlau
-    """
-
-    kind: str = Field(default="noether.core.initializers.PreviousRunInitializer", frozen=True)
+    kind: Literal["noether.core.initializers.PreviousRunInitializer"] = Field(
+        default="noether.core.initializers.PreviousRunInitializer", frozen=True
+    )  # type: ignore[assignment]
     load_optim: bool = Field(False, frozen=True)
     keys_to_remove: list[str] | None = Field(
         None,

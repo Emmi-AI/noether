@@ -1,7 +1,7 @@
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root:  /nfs-gpu/research/datasets/shapenet_car/
+dataset_root: <path to your shapenet dataset root>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
 config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema
 excluded_properties: 
@@ -10,7 +10,7 @@ excluded_properties:
   - volume_vorticity
 defaults:
   - data_specs: shapenet_car
-  - dataset_normalizer: shapenet_dataset_normalizers
+  - dataset_normalizers: shapenet_dataset_normalizers
   - dataset_statistics: shapenet_car_stats
   - model: ??? # models are undefined and will be defined per experiment 
   - trainer: shapenet_trainer

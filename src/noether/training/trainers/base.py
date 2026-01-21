@@ -372,6 +372,11 @@ class BaseTrainer:
 
         # load callback state_dicts
         callback_state_dicts = state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
+
+        if len(callback_state_dicts) != len(self.callbacks):
+            raise ValueError(
+                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(self.callbacks)})"
+            )
         for callback, sd in zip(self.callbacks, callback_state_dicts, strict=True):
             callback.load_state_dict(sd)
 
@@ -456,30 +461,32 @@ class BaseTrainer:
         self, forward_output: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
     ) -> LossResult | tuple[LossResult, dict[str, torch.Tensor]]:
         """
-        Each trainer that extends this class needs to implement a custom loss computation by using the targers and the output of the model.
+        Each trainer that extends this class needs to implement a custom loss computation using the targets and the model output.
+
         Args:
             forward_output: Output of the model after the forward pass.
-            targets: Dict with target tensors needed to compute the loss for this trainer
+            targets: Dict with target tensors needed to compute the loss for this trainer.
 
         Returns:
             A dict with the (weighted) sub-losses to log.
         """
         raise NotImplementedError("Subclasses must implement loss_compute.")
 
-    def train_step(self, batch: dict[str, Tensor], dist_model: torch.nn.Module) -> TrainerResult:
-        """Overriding this function is optional and, by default, the `train_step` of the model will be called and is
+    def train_step(self, batch: dict[str, Tensor], model: torch.nn.Module) -> TrainerResult:
+        """Overriding this function is optional. By default, the `train_step` of the model will be called and is
         expected to return a TrainerResult. Trainers can override this method to implement custom training logic.
-        Args:
 
+        Args:
             batch: Batch of data from which the loss is calculated.
-            dist_model: Model to use for processing the data.
+            model: Model to use for processing the data.
+
         Returns:
-            Loss for backpropagation, (optionally) individual losses if multiple losses are used and (optionally)
-                additional infos about the model forward pass that is passed to the callbacks (e.g., the logits and
-                targets to calculate a training accuracy in a callback).
+            TrainerResult dataclass with the loss for backpropagation, (optionally) individual losses if multiple
+            losses are used, and (optionally) additional information about the model forward pass that is passed
+            to the callbacks (e.g., the logits and targets to calculate a training accuracy in a callback).
         """
         forward_batch, targets_batch = self._split_batch(batch)
-        forward_output = dist_model(**forward_batch)
+        forward_output = model(**forward_batch)
         additional_outputs = None
         losses = self.loss_compute(forward_output=forward_output, targets=targets_batch)
 
@@ -487,7 +494,9 @@ class BaseTrainer:
             losses, additional_outputs = losses
 
         if isinstance(losses, torch.Tensor):
-            return TrainerResult(total_loss=losses, additional_outputs=additional_outputs)
+            return TrainerResult(
+                total_loss=losses, additional_outputs=additional_outputs, losses_to_log={"loss": losses}
+            )
         elif isinstance(losses, list):
             losses = {f"loss_{i}": loss for i, loss in enumerate(losses)}
 
@@ -854,7 +863,7 @@ class BaseTrainer:
 
         # Forward pass
         with self.autocast_context:
-            trainer_result = self.train_step(batch, dist_model)
+            trainer_result = self.train_step(batch, model=dist_model)
         if not isinstance(trainer_result, TrainerResult):
             raise TypeError("model forward needs to return a TrainerResult")
         if training:

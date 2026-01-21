@@ -14,8 +14,8 @@ class DefaultTensorSampleProcessor(SampleProcessor):
         self,
         item_key_name: str,
         feature_dim: int,
-        size: int = None,
-        matching_item_key: str = None,
+        size: int | None = None,
+        matching_item_key: str | None = None,
         default_value: float = 0.0,
     ):
         """
@@ -28,7 +28,7 @@ class DefaultTensorSampleProcessor(SampleProcessor):
             matching_item_key: _description_
         """
         assert size is not None or matching_item_key is not None, (
-            "feature_dim or matching_item_key must be specified. Otherwise size cannot be determined."
+            "size or matching_item_key must be specified. Otherwise size cannot be determined."
         )
         assert item_key_name is not None, "key_name must be specified."
 
@@ -50,8 +50,14 @@ class DefaultTensorSampleProcessor(SampleProcessor):
         # copy to avoid changing method input
 
         output_sample = self.save_copy(input_sample)
-
-        dim = self.size or output_sample[self.matching_item_key].shape[0]
+        # mypy doesn't narrow types for instance attributes, so we need a local variable
+        matching_item_key = self.matching_item_key
+        if self.size is not None:
+            dim = self.size
+        elif matching_item_key is not None:
+            dim = output_sample[matching_item_key].shape[0]
+        else:
+            raise ValueError("Either size or matching_item_key must be defined.")
         output_sample[self.item_key_name] = torch.empty(dim, self.feature_dim).fill_(self.default_value)
 
         return output_sample

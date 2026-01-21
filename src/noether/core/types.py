@@ -24,7 +24,7 @@ class CheckpointKeys:
     """ The model configuration used to instantiate the model. A serialized dict of the pydantic model config. """
     CONFIG_KIND = "config_kind"
     """ The kind (i.e., class path) of the model configuration. Used to instantiate the correct model configuration. """
-    CALLBACK_STATE_DICT = "callback_state_dict"
+    CALLBACK_STATE_DICT = "callback_state_dicts"
     """ The state dicts of the callbacks. """
     GRAD_SCALER = "grad_scaler"
     """ The state dict of the grad scaler (if used). """

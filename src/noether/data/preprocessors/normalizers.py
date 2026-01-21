@@ -159,4 +159,5 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
         output = super().__call__(x)  # type: ignore[return-value]
         if torch.any(output < 0) or torch.any(output > self.resizing_scale):
             raise ValueError("Normalized positions are out of bounds [0, scale].")
+
         return output

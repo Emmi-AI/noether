@@ -1,13 +1,12 @@
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root:  /nfs-gpu/research/datasets/drivaernet/preprocessed/subsampled_volume10x
+dataset_root:  <path to your drivaernet dataset root>
 dataset_kind: noether.data.datasets.cfd.DrivAerNetDataset
 
 defaults:
   - train_caeml 
   - dataset_statistics: drivaernet++_stats
-
 
 trainer:
   max_epochs: 50

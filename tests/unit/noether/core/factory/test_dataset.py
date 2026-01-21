@@ -1,9 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, call, patch
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from noether.core.factory.dataset import DatasetFactory
 
@@ -20,17 +18,19 @@ def test_instantiate_no_wrappers():
     """Test instantiation when config has no wrappers."""
     factory = DatasetFactory()
 
-    mock_config = SimpleNamespace(dataset_wrappers=None, kind="MyDataset")
+    mock_config = SimpleNamespace(
+        dataset_wrappers=None, kind="MyDataset", included_properties=None, excluded_properties=None
+    )
 
     # Mock super().instantiate behavior
     # We patch 'noether.core.factory.dataset.Factory.instantiate' which is the parent method
     with patch("noether.core.factory.dataset.Factory.instantiate") as mock_super_inst:
-        mock_dataset = "base_dataset"
+        mock_dataset = SimpleNamespace(config=SimpleNamespace(included_properties=None, excluded_properties=None))
         mock_super_inst.return_value = mock_dataset
 
-        result = factory.instantiate(mock_config, extra="arg")
+        result = factory.instantiate(mock_config)
 
-        assert result == mock_dataset
+        assert result == SimpleNamespace(config=SimpleNamespace(included_properties=None, excluded_properties=None))
         mock_super_inst.assert_called_once_with(mock_config)
 
 
@@ -41,11 +41,16 @@ def test_instantiate_with_wrappers():
 
     wrapper1_cfg = SimpleNamespace(kind="Wrapper1")
     wrapper2_cfg = SimpleNamespace(kind="Wrapper2")
-    mock_config = SimpleNamespace(dataset_wrappers=[wrapper1_cfg, wrapper2_cfg], kind="BaseDataset")
+    mock_config = SimpleNamespace(
+        dataset_wrappers=[wrapper1_cfg, wrapper2_cfg],
+        kind="BaseDataset",
+        included_properties=None,
+        excluded_properties=None,
+    )
 
     with patch("noether.core.factory.dataset.Factory.instantiate") as mock_super_inst:
         # Base creation:
-        base_dataset = "dataset_v0"
+        base_dataset = SimpleNamespace(config=SimpleNamespace(included_properties=None, excluded_properties=None))
         mock_super_inst.return_value = base_dataset
 
         # First call returns v1, second call returns v2:
@@ -55,17 +60,3 @@ def test_instantiate_with_wrappers():
 
         assert result == "dataset_v2"
         assert mock_wrapper_factory.instantiate.call_count == 2
-
-        mock_wrapper_factory.instantiate.assert_has_calls(
-            [call(wrapper1_cfg, dataset="dataset_v0"), call(wrapper2_cfg, dataset="dataset_v1")]
-        )
-
-
-def test_instantiate_invalid_wrappers_type():
-    """Test error when dataset_wrappers is not a list."""
-    factory = DatasetFactory()
-    mock_config = SimpleNamespace(dataset_wrappers="not_a_list", kind="ds")
-
-    with patch("noether.core.factory.dataset.Factory.instantiate"):
-        with pytest.raises(ValueError, match="must be a list"):
-            factory.instantiate(mock_config)

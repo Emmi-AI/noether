@@ -1,5 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from .concat_tensor import ConcatTensorSampleProcessor
+from .default_tensor import DefaultTensorSampleProcessor
 from .drop_outliers import DropOutliersSampleProcessor
 from .duplicate_keys import DuplicateKeysSampleProcessor
 from .moment_normalization import MomentNormalizationSampleProcessor
@@ -20,4 +22,7 @@ __all__ = [
     "ReplaceKeySampleProcessor",
     "SamplewiseNormalizationSampleProcessor",
     "SupernodeSamplingSampleProcessor",
+    "ConcatTensorSampleProcessor",
+    "DefaultTensorSampleProcessor",
+    "SparseTensorOffsetCollator",
 ]

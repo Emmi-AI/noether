@@ -44,7 +44,8 @@ class Transolver(BaseModel):
         self,
         surface_position: torch.Tensor,
         volume_position: torch.Tensor,
-        physics_features: torch.Tensor | None = None,
+        surface_features: torch.Tensor | None = None,
+        volume_features: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """forward pass of the Transolver model.
 
@@ -62,9 +63,12 @@ class Transolver(BaseModel):
         surface_mask_input[:, : surface_position.shape[1]] = 1.0
         input_position = torch.concat([surface_position, volume_position], dim=1)
         x = self.pos_embed(input_position)
+
         if self.use_physics_features:
-            assert physics_features is not None, "Physics features must be provided if use_physics_features is True."
-            x = x + self.project_physics_features(physics_features)
+            surface_features = self.project_surface_features(surface_features)
+            volume_features = self.project_volume_features(volume_features)
+            physics_features = torch.concat([surface_features, volume_features], dim=1)
+            x = x + physics_features
 
         x = self.surface_and_volume_bias(x=x, surface_mask=surface_mask_input)
 

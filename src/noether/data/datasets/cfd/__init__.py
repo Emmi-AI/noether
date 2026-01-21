@@ -2,7 +2,7 @@
 
 from .caeml.ahmedml import AhmedMLDataset, AhmedMLDefaultSplitIDs
 from .caeml.drivaerml import DrivAerMLDataset, DrivAerMLDefaultSplitIDs
-from .drivaernet.drivaernet_dataset import DrivAerNetDataset
+from .drivaernet.dataset import DrivAerNetDataset
 from .emmi_wing import EmmiWingDataset
 from .shapenet_car import ShapeNetCarDataset, ShapeNetCarDefaultSplitIDs
 

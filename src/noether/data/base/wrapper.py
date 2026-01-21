@@ -1,9 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+from __future__ import annotations
 
 from functools import partial
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from noether.data.base.dataset import Dataset
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
 
 
 class DatasetWrapper:
@@ -14,11 +16,13 @@ class DatasetWrapper:
     What exactly is changed depends on the specific implementation of the DatasetWrapper child class.
     """
 
-    def __init__(self, dataset: Dataset):
+    def __init__(self, dataset: Dataset | DatasetWrapper):
         """
         Args:
             dataset: base dataset to be wrapped
         """
+        from noether.data.base.dataset import Dataset  # avoid circular import
+
         super().__init__()
         if not isinstance(dataset, (Dataset, DatasetWrapper)):
             raise ValueError(f"dataset must be of type noether.data.Dataset but got {type(dataset)}")

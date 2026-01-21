@@ -29,7 +29,9 @@ class AnchorPointSamplingSampleProcessor(SampleProcessor):
             seed: Random seed for deterministic sampling for evaluation. Default None (i.e., no seed). If not None,
                 requires sample index to be present in batch.
         """
-        assert num_points >= 0, "Number of points to sample must be positive."
+        if not num_points >= 0:
+            raise ValueError("Number of points to sample must be non-negative.")
+
         self.items = items
         self.num_points = num_points
         self.keep_queries = keep_queries

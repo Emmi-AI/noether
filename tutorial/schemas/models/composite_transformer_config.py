@@ -3,7 +3,7 @@
 from typing import Literal
 
 from noether.core.schemas.dataset import AeroDataSpecs
-from noether.core.schemas.models import ModelBaseConfig
+from noether.core.schemas.models.base import ModelBaseConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 
 
@@ -16,7 +16,7 @@ class CompositeTransformerBlockConfig(ModelBaseConfig):
     output_dim: int | None = None
     use_rope: bool = False
     projection_bias: bool = False
-    output_projection: bool = False
+    use_output_projection: bool = False
 
 
 class CompositeTransformerConfig(ModelBaseConfig):
@@ -28,6 +28,5 @@ class CompositeTransformerConfig(ModelBaseConfig):
     num_heads: int | None = None
     hidden_dim: int | None = None
     mlp_expansion_factor: int | None = None
-    output_dim: int | None = None
     data_specs: AeroDataSpecs
     """Data specifications for the model. If None, default data specifications will be used."""

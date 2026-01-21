@@ -5,7 +5,7 @@ import unittest
 import torch
 
 from noether.core.models import CompositeModel, Model, ModelBase
-from noether.core.schemas.models import ModelBaseConfig
+from noether.core.schemas.models.base import ModelBaseConfig
 from noether.core.schemas.optimizers import OptimizerConfig
 
 

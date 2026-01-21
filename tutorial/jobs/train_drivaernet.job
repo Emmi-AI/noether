@@ -7,8 +7,7 @@
 #SBATCH --mem=64GB
 #SBATCH --output=/home/%u/logs/drivaernet/%x_%j.out
 #SBATCH --nice=0
-#SBATCH --array=1-20%5
+#SBATCH --array=1
 
-EXPERIMENT_FILE=tutorial/jobs/experiments/drivaerml_experiments.txt
 # run
-srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run main_train --hp tutorial/configs/train_drivaernet.yaml $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 
+srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run main_train --hp tutorial/configs/train_drivaernet.yaml 

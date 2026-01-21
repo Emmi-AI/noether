@@ -68,8 +68,8 @@ class CompositeTransformer(CompositeModel):
                 depth=model_config.high_level_blocks.depth,
                 optimizer_config=model_config.high_level_blocks.optimizer_config,
                 use_rope=model_config.use_rope,
-                output_projection=True,
-                output_dim=model_config.output_dim,
+                use_output_projection=True,
+                output_dim=model_config.data_specs.total_output_dim,
                 is_frozen=model_config.high_level_blocks.is_frozen,
             ),
             **kwargs,
@@ -100,15 +100,26 @@ class CompositeTransformer(CompositeModel):
             volume_velocity=x[:, ~surface_mask.bool(), 1:4],
         )
 
-    def forward(self, input_position: torch.Tensor, surface_mask_input: torch.Tensor) -> dict[str, torch.Tensor]:
+    def forward(
+        self,
+        surface_position: torch.Tensor,
+        volume_position: torch.Tensor,
+        physics_features: torch.Tensor | None = None,
+    ) -> dict[str, torch.Tensor]:
         """Forward pass of the composite transformer model.
 
         Args:
-            input_position: input coordinates of the surface and volume points.
-            surface_mask_input: surface mask for the input points, indicating which points are surface points.
+            surface_position: Tensor of shape (B, N_surface, 3) representing the positions of surface points.
+            volume_position: Tensor of shape (B, N_volume, 3) representing the positions of volume points.
+            physics_features: Optional tensor of shape (B, N, D_phys) representing additional physics features.
         Returns:
             dict[str, torch.Tensor]: dictionary with the output tensors, containing the surface pressure and volume velocity.
         """
+        surface_mask_input = torch.zeros(
+            surface_position.shape[0], surface_position.shape[1] + volume_position.shape[1]
+        )
+        surface_mask_input[:, : surface_position.shape[1]] = 1.0
+        input_position = torch.concat([surface_position, volume_position], dim=1)
 
         attn_kwargs = {}
         # rope does not have trainable parameters, and hence it can be part of the composite forward. If a module has trainable parameters, it should be part of a single model.

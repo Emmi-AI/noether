@@ -1,10 +1,10 @@
 # @package _global_
 defaults:
   - override /model: ab_upt  
-  - override /tracker: shapenet_car_development_tracker
+  - override /tracker: development_tracker
   - override /optimizer: lion
 
-name: wing-ab-upt
+name: emmi-wing-ab-upt
 
 pipeline:
     num_geometry_points: 65536

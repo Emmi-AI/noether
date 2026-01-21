@@ -10,7 +10,7 @@ volume_velocity_weight: 1.0
 volume_vorticity_weight: 1.0
 volume_pressure_weight: 1.0
 use_physics_features: false # whether to use the physics features (e.g., surface normals, volume normals, SDF) as input to the model
-effective_batch_size: 1 
+effective_batch_size: 1
 log_every_n_epochs: 1
 callbacks:  ${callbacks} 
 forward_properties: ${model.forward_properties}
@@ -20,4 +20,3 @@ target_properties:
   - volume_pressure_target
   - surface_friction_target
   - volume_vorticity_target
-data_specs: ${data_specs}

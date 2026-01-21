@@ -21,7 +21,7 @@ class AeroCFDPipelineConfig(BaseModel):
     dataset_statistics: AeroStatsSchema | None = None
     """Dataset statistics (mean, std, max, min, etc) for normalization of input features."""
     sample_query_points: bool = True
-    """whether to sample query points. Defaults to True. If False, the query points are simply duplicated from the surface and volume points."""
+    """Whether to sample query points. Defaults to True. If False, the query points are simply duplicated from the surface and volume points that serve as inputs for the encoder. This only applies for models that can query (e.g., UPT)."""
     num_supernodes: int = 0
     """ Number of supernodes (for UPT). """
     num_geometry_supernodes: int | None = None

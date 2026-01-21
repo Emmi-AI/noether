@@ -2,13 +2,12 @@
 
 from typing import Literal
 
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 from noether.core.schemas.dataset import AeroDataSpecs
-from noether.core.schemas.models import ModelBaseConfig
 
 
-class TutorialBaseModelConfig(ModelBaseConfig):
+class TutorialBaseModelConfig(BaseModel):
     name: str = Field(...)
     """Name of the model, also used as identifier when saving/loading checkpoints and finding the correct model schema."""
     hidden_dim: int = Field(...)
@@ -17,9 +16,9 @@ class TutorialBaseModelConfig(ModelBaseConfig):
     """Kind of model to use, i.e. class path (tutorials.models.<model_class>)."""
     position_projection: Literal["linear", "sincos"] = "sincos"
     """String to indicate the type of position projection to use. Can be "sincos" or "linear". Defaults to "sincos"."""
-    output_projection: bool = False
+    use_output_projection: bool = False
     """Boolean to indicate to use the output projection. Defaults to False."""
-    bias_layers: bool = Field(True)
+    use_bias_layers: bool = Field(True)
     """Boolean to indicate to use bias layers. Defaults to True."""
     data_specs: AeroDataSpecs
     """Data specifications for the model. If None, default data specifications will be used."""

@@ -6,9 +6,11 @@ num_heads: 3
 attention_arguments:
   num_slices: 512
 mlp_expansion_factor: 4
-output_projection: true
+use_output_projection: true
 optimizer_config: ${optimizer}
 data_specs: ${data_specs}
 forward_properties:
   - surface_position
   - volume_position
+  - surface_features
+  - volume_features

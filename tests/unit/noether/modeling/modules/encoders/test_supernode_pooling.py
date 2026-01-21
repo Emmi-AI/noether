@@ -164,7 +164,7 @@ def test_features_forward_abspos(setup_module):
         init_weights="torch",
         readd_supernode_pos=True,
         aggregation="mean",
-        num_input_features=2,
+        input_features_dim=2,
     )
     module = SupernodePooling(config=config)
 
@@ -201,7 +201,7 @@ def test_features_forward_relpos(setup_module):
         init_weights="torch",
         readd_supernode_pos=True,
         aggregation="mean",
-        num_input_features=2,
+        input_features_dim=2,
     )
     module = SupernodePooling(config=config)
 

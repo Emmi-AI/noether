@@ -5,6 +5,7 @@ import numpy as np
 
 from noether.core.schemas.dataset import SubsetWrapperConfig
 from noether.data.base import Dataset, Subset
+from noether.data.base.wrapper import DatasetWrapper
 
 
 class SubsetWrapper(Subset):
@@ -12,7 +13,7 @@ class SubsetWrapper(Subset):
 
     def __init__(
         self,
-        dataset: Dataset,
+        dataset: Dataset | DatasetWrapper,
         config: SubsetWrapperConfig,
     ):
         """
@@ -76,7 +77,7 @@ class SubsetWrapper(Subset):
             indices = np.array(config.indices, dtype=int)  # type: ignore
         if indices is None:
             raise RuntimeError("No valid indices were provided to create the SubsetWrapper.")
-        super().__init__(dataset=dataset, indices=indices)
+        super().__init__(dataset=dataset, indices=indices)  # type: ignore
 
     def __str__(self) -> str:
         dataset_str = (

@@ -10,11 +10,11 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 class CallBackBaseConfig(BaseModel):
     name: str = Field(default="BaseCallbacksConfig")
     kind: str | None = None
-    every_n_epochs: int | None = Field(None)
+    every_n_epochs: int | None = Field(None, ge=0)
     """Epoch-based interval. Invokes the callback after every n epochs. Mutually exclusive with other intervals."""
-    every_n_updates: int | None = Field(None)
+    every_n_updates: int | None = Field(None, ge=0)
     """Update-based interval. Invokes the callback after every n updates. Mutually exclusive with other intervals."""
-    every_n_samples: int | None = Field(None)
+    every_n_samples: int | None = Field(None, ge=0)
     """Sample-based interval. Invokes the callback after every n samples. Mutually exclusive with other intervals."""
     batch_size: int | None = None
     """Batch size to use for this callback. Default: None (use the same batch_size as for training)."""

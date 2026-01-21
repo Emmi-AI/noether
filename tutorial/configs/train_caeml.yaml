@@ -8,7 +8,7 @@ excluded_properties:
   - surface_normals
 defaults:
   - data_specs: caeml
-  - dataset_normalizer: caeml_dataset_normalizers
+  - dataset_normalizers: caeml_dataset_normalizers
   - model: ??? # models are undefined and will be defined per experiment 
   - trainer: caeml_trainer
   - datasets: caeml_dataset

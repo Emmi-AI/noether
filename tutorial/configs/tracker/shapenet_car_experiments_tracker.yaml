@@ -1,3 +1,0 @@
-kind: noether.core.trackers.WandBTracker
-entity: emmi-ai 
-project: tutorial-development

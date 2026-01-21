@@ -4,8 +4,10 @@ from pydantic import ConfigDict, model_validator
 
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 
+from .base import ModelBaseConfig
 
-class TransformerConfig(TransformerBlockConfig):
+
+class TransformerConfig(TransformerBlockConfig, ModelBaseConfig):
     """Configuration for a Transformer model."""
 
     model_config = ConfigDict(extra="forbid")
