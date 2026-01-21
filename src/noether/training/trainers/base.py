@@ -868,7 +868,7 @@ class BaseTrainer:
         if training:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
-                model=model if model is not None else dist_model.model,
+                model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
                 accumulation_steps=accumulation_steps,
                 iter_step=iter_step,
                 **kwargs,

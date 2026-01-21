@@ -3,8 +3,8 @@
 import logging
 import os
 
-import yaml
 import torch
+import yaml
 
 logger = logging.getLogger(__name__)
 
