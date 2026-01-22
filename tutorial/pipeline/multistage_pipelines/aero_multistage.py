@@ -202,7 +202,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         sample_processors.extend(self._get_normalizer_sample_processors())
         sample_processors.extend(self._get_point_sampling_sample_processors())
         # certain tensors need to be concatenated to create the input tensors for the model
-        sample_processors.extend(self._get_concatate_tensors_sample_processors())
+        sample_processors.extend(self._get_concatenated_tensors_sample_processors())
         # We need to rename the target tensors to match the model output keys.
         sample_processors.extend(self._get_target_renaming_sample_processors())
 
@@ -366,7 +366,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         else:
             return []
 
-    def _get_concatate_tensors_sample_processors(self) -> list[SampleProcessor]:
+    def _get_concatenated_tensors_sample_processors(self) -> list[SampleProcessor]:
         """
         For most models, the input to the encoder, the query points, and hence the output targets are the concatenation of the surface and volume points.
         We concatenate the surface and volume positions, features, and physics features.
