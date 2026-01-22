@@ -36,6 +36,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    .. guides/data/how_to_load_custom_dataset
 
    guides/data/how_to_use_private_data_source
+   guides/data/how_to_load_custom_dataset
 
    .. guides/data/how_to_write_data_preprocessors
    .. guides/data/how_to_write_data_collators

@@ -40,24 +40,24 @@ The ``Factory.instantiate`` method uses the ``kind`` field in configurations to 
 
 .. code-block:: python
 
-   # Config:
-   kind = "noether.core.callbacks.checkpoint.CheckpointCallback"
+   # Get kind from the config:
+   kind = object_config.kind
 
-   # Factory logic:
+   # Factory logic: get the class contructor and pass the config to the class when instantiating 
    class_constructor = class_constructor_from_class_path(kind)
-   instance = class_constructor(**kwargs)
+   instance = class_constructor(object_config, **kwargs)
 
 3. Strict Type Safety & Runtime Validation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 **Principle:** Catch errors at initialization, not during training.
 
-We aggressively use Python type hints (``list[torch.Tensor]``, ``Literal``) and Pydantic validators to ensure invalid
+We use Python type hints (``list[torch.Tensor]``, ``Literal``) and Pydantic validators to ensure invalid
 states are impossible to represent.
 
 **Implementation:**
 
-- **Pydantic Validators:** ``@model_validator(mode="after")`` ensures fields like ``ndim`` are valid (e.g., only 1, 2,
+- **Pydantic Validators:** ``@model_validator(mode="after")`` ensures fields like, for example, ``ndim`` are valid (e.g., only 1, 2,
 or 3).
 - **Type Guards:** Utility functions like ``validate_path`` allow strictly typed filesystem operations.
 
@@ -111,3 +111,7 @@ While the architecture ensures robustness, it introduces specific trade-offs tha
 - **Boilerplate Overhead:**
     Adding a simple new feature often requires modifying three distinct files: the **Implementation Class**,
     the **Configuration Schema**, and the **Factory** logic. This favors stability over rapid prototyping speed.
+
+- **Nested Configuration Schema complexity:**
+    In our root config schule, we define the modules needed for the `Noether Framework`, each module having their own config schema. 
+    This can lead to deeply nested configurations that can be hard to navigate and understand in the beginning, especially for new users.

@@ -9,9 +9,9 @@ The **Noether Framework** is organized into the following submodules:
 - ``core`` - low-level components responsible for the heavy-lifting of the framework
 - ``data`` - data serving utilities (e.g., datasets, preprocessors, utils, etc.)
 - ``io`` - data fetching and storage utilities
-- ``inference`` - utilities for CLI/tooling to run inference pipeline
-- ``modeling`` - model building blocks and some of the SOTA architectures
-- ``training`` - trainers, callbacks, and CLI/tooling to run the training pipeline
+- ``inference`` - utilities for CLI/tooling to run inference
+- ``modeling`` - model building blocks and some of the state-of-the-art architectures 
+- ``training`` - trainers and CLI/tooling to run the training pipeline
 
 .. figure:: /_static/noether_architecture.png
    :alt: Noether Architecture
@@ -36,7 +36,7 @@ schemas, etc. All of which have **Base** classes that can be used as abstract cl
 as well as ready-to-use implementations with clearly defined usage patterns. Those are usually located next to their
 typical application, e.g. training callbacks will be in the ``training`` submodule, and so on.
 
-To account for various levels of expertise (e.g. a seasoned ML engineer, a MSc/PhD student, a CFD expert, etc.)
+To account for various levels of expertise (e.g. a seasoned ML engineer, a MSc/PhD student, a simulation expert, etc.)
 we provide multiple abstraction levels. The higher-level modules, like ``data``, ``modeling``, etc., give a list of
 convenient and frequently used blocks to get things going. They fully rely on ``core`` and are ready to be extended
 with some custom logic when necessary. In most cases it is recommended to extend those modules first rather than diving
