@@ -163,7 +163,7 @@ We recommend reviewing the boilerplate project alongside this tutorial to see wh
 
 To run the boilerplate project, use the following command: 
 ```bash
-uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\"
+uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\" tracker=disabled
 ```
 
 # Tutorial
