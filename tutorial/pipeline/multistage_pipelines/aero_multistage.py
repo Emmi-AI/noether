@@ -21,6 +21,15 @@ from tutorial.pipeline.sample_processors import (
 from tutorial.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfig
 
 
+def _split_by_underscore(item: str) -> list[str]:
+    return item.split("_")
+
+
+def _split_three_or_none(item: str) -> list[str | None]:
+    parts = item.split("_")
+    return parts if len(parts) == 3 else [None] * 3
+
+
 class DataKeys:
     """A central repository for data dictionary keys."""
 
@@ -448,8 +457,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
                     items={"surface_position"} | set(self.surface_targets),
                     num_points=self.num_surface_anchor_points,
                     keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=lambda item: item.split("_"),
-                    to_prefix_midfix_postfix=lambda item: item.split("_") if len(item.split("_")) == 3 else [None] * 3,
+                    to_prefix_and_postfix=_split_by_underscore,
+                    to_prefix_midfix_postfix=_split_three_or_none,
                     seed=None if self.seed is None else self.seed + 3,
                 ),
                 # subsample volume data
@@ -457,8 +466,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
                     items={"volume_position"} | set(self.volume_targets),
                     num_points=self.num_volume_anchor_points,
                     keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=lambda item: item.split("_"),
-                    to_prefix_midfix_postfix=lambda item: item.split("_") if len(item.split("_")) == 3 else [None] * 3,
+                    to_prefix_and_postfix=_split_by_underscore,
+                    to_prefix_midfix_postfix=_split_three_or_none,
                     seed=None if self.seed is None else self.seed + 4,
                 ),
                 RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.volume_targets}),

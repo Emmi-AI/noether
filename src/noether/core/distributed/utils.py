@@ -3,6 +3,7 @@
 import logging
 import os
 
+import torch
 import yaml
 
 logger = logging.getLogger(__name__)
@@ -67,16 +68,9 @@ def parse_devices(accelerator: str, devices: str | None):
     # GPU + no explicit devices -> use all visible GPUs on node
     if accelerator == "gpu" and devices is None:
         logger.info("no device subset defined -> use all devices on node")
-
-        all_devices = os.popen("nvidia-smi --query-gpu=gpu_name --format=csv,noheader").read().strip().split("\n")
-        device_ids = [str(i) for i in range(len(all_devices))]
-        logger.info(f"found {len(device_ids)} device(s)")
-
-        nvidia_smi_output = os.popen("nvidia-smi").read().strip().split("\n")
-        assert all("MIG device" not in line for line in nvidia_smi_output), (
-            "using all devices on node is not supported with MIG"
-        )
-        return len(device_ids), device_ids
+        count = torch.cuda.device_count()
+        devices_ids = [str(idx) for idx in range(count)]
+        return count, devices_ids
 
     # If devices is None for CPU (or any other accelerator), default to single "0":
     if devices is None:

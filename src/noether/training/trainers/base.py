@@ -530,6 +530,7 @@ class BaseTrainer:
             dist_model = DistributedDataParallel(
                 model,
                 find_unused_parameters=self.config.find_unused_params,
+                # device_ids=[self.device.index] if self.device.type == "cuda" else None,  # added for completeness
                 static_graph=self.config.static_graph,
             )
         else:
@@ -867,7 +868,7 @@ class BaseTrainer:
         if training:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
-                model=model if model is not None else dist_model.model,
+                model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
                 accumulation_steps=accumulation_steps,
                 iter_step=iter_step,
                 **kwargs,

@@ -4,20 +4,23 @@ build-backend = "setuptools.build_meta"
 
 
 [project]
-name = "noether"
+name = "emmiai-noether"
 version = "0.0.0"  # only a placeholder, actual versioning happens on github
 requires-python = ">=3.12"
 dependencies = [
+    "setuptools",
+    "wheel",
+    # ---
     "loguru>=0.7.3",
     "einops>=0.8.1",
     "wandb>=0.19.6",
     "neptune-scale>=0.10.2",
     "hydra-core>=1.3.2",
     "numpy==2.3.1",
-    "torch==2.4.1",
-    "torch-geometric==2.4.0",
-    "torch-cluster==1.6.3",
-    "torch-scatter==2.1.2",
+    "torch==2.8.0",
+    "torch-geometric>=2.7.0",
+    "torch-cluster",
+    "torch-scatter",
     "pandas>=2.3.3",
     # ---
     "aistore>=1.13.5",
@@ -72,11 +75,10 @@ docs = [
 # --- Centralized UV Configuration ---
 # This configuration is inherited by all sub-packages, avoiding repetition.
 [tool.uv]
-find-links = [
-    "https://data.pyg.org/whl/torch-2.4.1+cpu.html",
-    "https://data.pyg.org/whl/torch-2.4.1+cu124.html"
+no-build-isolation-package = [
+    "torch-scatter",
+    "torch-cluster",
 ]
-no-build-isolation-package = ["torch-scatter", "torch-cluster"]
 
 [[tool.uv.index]]
 name = "torch-cpu"
@@ -84,13 +86,13 @@ url = "https://download.pytorch.org/whl/cpu"
 explicit = true
 
 [[tool.uv.index]]
-name = "torch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
+name = "torch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
 explicit = true
 
 [tool.uv.sources]
 torch = [
-    { index = "torch-cu124", marker = "sys_platform != 'darwin'" },
+    { index = "torch-cu129", marker = "sys_platform != 'darwin'" },
     { index = "torch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 
@@ -129,9 +131,6 @@ warn_unused_ignores = false
 show_error_codes = true
 exclude = [
     "^_build/|^build/|^dist/|^docs/|^\\.venv/",
-    # avoid duplicate analysis of tests under src:
-    "^src/.*/tests_.*",
-    "(^|/)src/.*/(tests|tests_.*|_tests)(/|$)",
 ]
 
 [tool.ruff]
