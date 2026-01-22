@@ -145,7 +145,7 @@ Every `Noether` project consists of the following core modules (in alphabetical 
 Clone the repository and set up the environment:
 
 ```bash
-git clone https://github.com/Emmi-AI/noeter.git
+git clone https://github.com/Emmi-AI/noether.git
 cd noether/tutorial
 uv venv --python 3.12
 source .venv/bin/activate
