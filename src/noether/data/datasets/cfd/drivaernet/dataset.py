@@ -2,10 +2,10 @@
 
 import torch
 
+from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common.path import validate_path
 from noether.data.datasets.cfd.dataset import AeroDataset
-from tutorial.schemas.datasets.aero_dataset_config import AeroDatasetConfig
 
 VALID_CATEGORIES = {
     "F_S_WWS_WM",
@@ -33,7 +33,7 @@ class DrivAerNetDataset(AeroDataset):
         volume_vorticity="volume_vorticity.pt",
     )
 
-    def __init__(self, dataset_config: AeroDatasetConfig):
+    def __init__(self, dataset_config: DatasetBaseConfig):
         super().__init__(dataset_config=dataset_config, filemap=self.FILEMAP)
 
         self.source_root = validate_path(dataset_config.root)  # type: ignore[arg-type]
@@ -42,12 +42,12 @@ class DrivAerNetDataset(AeroDataset):
 
         datasplits = self._load_all_datasplits()
 
-        if dataset_config.filter_categories is not None:
-            for category in dataset_config.filter_categories:
+        if dataset_config.filter_categories is not None:  # type: ignore[attr-defined]
+            for category in dataset_config.filter_categories:  # type: ignore[attr-defined]
                 if category not in VALID_CATEGORIES:
                     raise ValueError(f"Invalid category: {category}. Valid categories: {VALID_CATEGORIES}")
             datasplits = {
-                k: [id for id in v if "_".join(id.split("_")[:-1]) in dataset_config.filter_categories]
+                k: [id for id in v if "_".join(id.split("_")[:-1]) in dataset_config.filter_categories]  # type: ignore[attr-defined]
                 for k, v in datasplits.items()
             }
             assert all(len(v) > 0 for v in datasplits.values()), "No samples left after filtering"

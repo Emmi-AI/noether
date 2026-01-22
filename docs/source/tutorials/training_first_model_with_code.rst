@@ -413,7 +413,7 @@ The output directory will be populated with files like this:
 
 .. code-block:: bash
 
-    shapenet_car/outputs/YYYY-MM-DD_<SHORT_UUID>
+    shapenet_car/outputs/YYYY-MM-DD_<SHORT_ID>
     └── train
         ├── basetracker
         │   └── config.yaml
@@ -422,5 +422,3 @@ The output directory will be populated with files like this:
 
 After the training progresses, check this folder again - you will find the checkpoints and other training artifacts
 there.
-
-That's it for this tutorial, see you in the next one!

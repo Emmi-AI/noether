@@ -1,10 +1,10 @@
 # @package _global_
 defaults:
   - override /model: transformer  
-  - override /tracker: ahmed_development_tracker
+  - override /tracker: development_tracker
   - override /optimizer: lion
 
-name: ahmedml-transformer-float16
+name: ahmedml-transformer
 
 inference_pipeline:
   num_surface_points: 1000000000

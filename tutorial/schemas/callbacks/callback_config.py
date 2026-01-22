@@ -12,6 +12,7 @@ class SurfaceVolumeEvaluationMetricsCallbackConfig(CallBackBaseConfig):
     dataset_key: str = Field(...)
     """Key of the dataset to evaluate on"""
     forward_properties: list[str] = []
+    """List of properties in the dataset to be forwarded during inference."""
     chunked_inference: bool = False
     "If True, perform inference in chunks over the full simulation geometry"
     chunk_properties: list[str] = []

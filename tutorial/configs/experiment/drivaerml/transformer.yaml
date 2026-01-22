@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - override /model: transformer  
-  - override /tracker: shapenet_car_development_tracker
+  - override /tracker: development_tracker
   - override /optimizer: lion
 
 name: drivaerml-transformer

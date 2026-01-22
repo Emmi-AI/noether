@@ -1,7 +1,7 @@
 # @package _global_
 defaults:
   - override /model: upt  
-  - override /tracker: shapenet_car_development_tracker 
+  - override /tracker: development_tracker 
   - override /optimizer: lion
 
 name: shapenet-car-upt-no-query-sampling 
@@ -13,4 +13,4 @@ pipeline:
   num_supernodes: 3586
   num_surface_queries: 3586
   num_volume_queries: 4096
-  sample_query_points: false
+  sample_query_points: true

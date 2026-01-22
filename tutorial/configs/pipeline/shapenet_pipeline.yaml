@@ -1,4 +1,4 @@
-kind: tutorial.pipelines.AeroMultistagePipeline
+kind: tutorial.pipeline.AeroMultistagePipeline
 num_surface_points: 3586 # max = 3586
 num_volume_points: 4096   # max = 28504
 num_surface_queries: 0

@@ -26,6 +26,9 @@ class AeroDataset(Dataset):
         raise NotImplementedError
 
     def _load_from_disk(self, idx: int, filename: str) -> torch.Tensor:
+        """
+        Method to load data from disk. Must be implemented by subclasses (i.e., specific datasets).
+        """
         raise NotImplementedError
 
     def _load(self, idx: int, filename: str) -> torch.Tensor:

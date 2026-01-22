@@ -122,11 +122,7 @@ class ResumeInitializer(CheckpointInitializer):
         if isinstance(self.checkpoint, str):
             trainer_ckpt = torch.load(self._get_trainer_ckpt_file())
             self.logger.info(f"loaded checkpoint from trainer_state_dict: {trainer_ckpt}")
-            return TrainingIteration(
-                epoch=trainer_ckpt["epoch"],
-                update=trainer_ckpt["update"],
-                sample=trainer_ckpt["sample"],
-            )
+            return TrainingIteration.from_dict(trainer_ckpt[CheckpointKeys.TRAINING_ITERATION])
         else:
             return TrainingIteration.to_fully_specified_from_filenames(
                 directory=self.path_provider.with_run(
@@ -153,8 +149,13 @@ class ResumeInitializer(CheckpointInitializer):
             callbacks: the callbacks to initialize.
             model: the model to initialize the callbacks for.
         """
-        trainer_state_dict = torch.load(self._get_trainer_ckpt_file())
+        trainer_state_dict: dict = torch.load(self._get_trainer_ckpt_file())
         callback_state_dicts = trainer_state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
+
+        if len(callback_state_dicts) != len(callbacks):
+            raise ValueError(
+                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(callbacks)})"
+            )
 
         for callback, state_dict in zip(callbacks, callback_state_dicts, strict=True):
             callback.load_state_dict(state_dict)

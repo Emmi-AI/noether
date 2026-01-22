@@ -33,7 +33,7 @@ class BaseTrainerConfig(BaseModel):
     """Whether to add trainer specific callbacks (e.g., a callback to log the training accuracy for a classification task)."""
 
     effective_batch_size: int = Field(...)
-    """ The effective batch size to use for training, which is the number of samples that are processed before an update step is taken, i.e., the "global batch size". In multi-GPU setups, the batch size per device, ("local batch size") is `effective_batch_size / world_size`. If gradient accumulation is used, the batch size is additionally divided by the number of gradient accumulation steps."""
+    """The effective batch size used for optimization. This is the number of samples that are processed before an update step is taken: the "global batch size". In multi-GPU setups, the batch size per device, ("local batch size") is `effective_batch_size / number of devices`. If gradient accumulation is used, the forward-pass batch size is derived by dividing by the number of gradient accumulation steps."""
     precision: Literal["float32", "fp32", "float16", "fp16", "bfloat16", "bf16"] = Field("float32")
     """The precision to use for training (e.g., "float32"). Mixed precision training (e.g., "float16" or "bfloat16") can be used to speed up training and reduce memory usage on supported hardware (e.g., NVIDIA GPUs)."""
     callbacks: list[CallbacksConfig] | None = Field(..., description="List of callback configurations")
@@ -55,7 +55,7 @@ class BaseTrainerConfig(BaseModel):
     """The integer number of samples to periodically track metrics at."""
 
     max_batch_size: int | None = Field(None)
-    """The maximum batch size to use for training."""
+    """The maximum batch size to use for model forward pass in training. If the effective_batch_size is larger than max_batch_size, gradient accumulation will be used to simulate the larger batch size. For example, if effective_batch_size=8 and max_batch_size=2, 4 gradient accumulation steps will be taken before each optimizer step."""
     skip_nan_loss: bool = Field(False)
     """Whether to skip NaN losses. These can sometimes occur due to unlucky coincidences. If true, NaN losses will be skipped without terminating the training up until 100 NaN losses occurred in a row."""
     skip_nan_loss_max_count: int = Field(100)

@@ -1,6 +1,6 @@
-# TODO(markus): should we decrease the min a bit to avoid pos<0 issues?
-raw_pos_min:  [-17.400585174560547]
-raw_pos_max: [17.40044593811035]
+
+raw_pos_min:  [-17.5]
+raw_pos_max: [17.5]
 
 surface_pressure_mean: [92656.34610807039]
 surface_pressure_std: [11929.058756240694]

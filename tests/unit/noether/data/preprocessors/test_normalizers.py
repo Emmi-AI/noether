@@ -197,6 +197,16 @@ class TestPositionNormalizerInit:
                 PositionNormalizerConfig(raw_pos_min=raw_pos_min, raw_pos_max=raw_pos_max), normalization_key="test_key"
             )
 
+    def test_call_raises_value_error_for_out_of_bounds(self):
+        """Tests that a ValueError is raised if input tensor has values outside the defined min/max range."""
+        normalizer = PositionNormalizer(
+            PositionNormalizerConfig(raw_pos_min=[0.0], raw_pos_max=[10.0]), normalization_key="test_key"
+        )
+
+        test_tensor = torch.tensor([-1.0, 5.0, 11.0])
+        with pytest.raises(ValueError):
+            normalizer(test_tensor)
+
 
 def test_init_with_tensors():
     """Tests that the normalizer can be initialized with tensors for shift and scale."""

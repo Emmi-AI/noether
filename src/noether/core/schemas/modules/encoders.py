@@ -8,15 +8,15 @@ from noether.core.types import InitWeightsMode
 
 
 class SupernodePoolingConfig(BaseModel):
-    hidden_dim: int = Field(...)
+    hidden_dim: int = Field(..., ge=1)
     """Hidden dimension for positional embeddings, messages and the resulting output vector."""
-    input_dim: int = Field(...)
+    input_dim: int = Field(..., ge=1)
     """Number of positional dimension (e.g., input_dim=2 for a 2D position, input_dim=3 for a 3D position)"""
-    radius: float | None = Field(None)
+    radius: float | None = Field(None, ge=0.0)
     """Radius around each supernode. From points within this radius, messages are passed to the supernode."""
-    k: int | None = Field(None)
+    k: int | None = Field(None, ge=1)
     """Number of neighbors for each supernode. From the k-NN points, messages are passed to the supernode."""
-    max_degree: int = Field(32)
+    max_degree: int = Field(32, ge=1)
     """Maximum degree of the radius graph. Defaults to 32."""
     spool_pos_mode: Literal["abspos", "relpos", "absrelpos"] = Field("abspos")
     """Type of position embedding: absolute space ("abspos"), relative space ("relpos") or both ("absrelpos")."""
@@ -28,7 +28,7 @@ class SupernodePoolingConfig(BaseModel):
     """Aggregation for message passing ("mean" or "sum")."""
     message_mode: Literal["mlp", "linear", "identity"] = Field("mlp")
     """How messages are created. "mlp" (2 layer MLP), "linear" (nn.Linear), "identity" (nn.Identity). Defaults to "mlp"."""
-    num_input_features: int | None = Field(None)
+    input_features_dim: int | None = Field(None, ge=0)
     """Number of input features per point. None will fall back to a version without features. Defaults to None, which means no input features."""
 
     @model_validator(mode="after")

@@ -46,9 +46,3 @@ Hardware Requirements
    1.  Check your NVIDIA driver's CUDA capability by running this command in your terminal: ``nvidia-smi``
    2.  Note the CUDA Version shown in the top right.
    3.  Compare this to the PyTorch version specified in the ``pyproject.toml`` file(s) to ensure compatibility.
-
-Optional
---------
-
-* **GitHub Account**: A free account at `github.com <https://github.com/>`_ is useful for reporting issues or
-  communicating with the developers.

@@ -3,39 +3,8 @@ defaults:
   - override /model: composite_transformer  
   - override /tracker: shapenet_car_development_tracker
   - override /optimizer: null 
-  - override /pipeline: shapenet_pipeline
 
 name: shapenet-car-transformer-composite-pre-training 
 
 trainer:
   precision: bfloat16
-  
-
-
-dataset_normalizer:
-  surface_position:
-    - kind: emmi.modules.preprocessors.normalizers.PositionNormalizer
-      raw_pos_min: ${dataset_statistics.raw_pos_min}
-      raw_pos_max: ${dataset_statistics.raw_pos_max}
-      scale: 1000
-  volume_position:
-    - kind: noether.data.preprocessors.normalizers.PositionNormalizer
-      raw_pos_min: ${dataset_statistics.raw_pos_min}
-      raw_pos_max: ${dataset_statistics.raw_pos_max}
-      scale: 1000
-
-
-# example of how to initialize from a previous run's best model
-
-#model:
-#  low_level_blocks:
-#    is_frozen: true 
-#    optimizer_config: null
-
-#  initializers:
-#    - kind: noether.core.initializers.PreviousRunInitializer
-#      #model_info: ema=0.9999
-#      checkpoint: best_model.loss.test.total
-#      model_name: composite_transformer
-#      run_id: 2025-11-01_8zlau
-#      

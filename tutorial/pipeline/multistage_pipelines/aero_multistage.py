@@ -4,22 +4,30 @@ from noether.data.pipeline import MultiStagePipeline, SampleProcessor
 from noether.data.pipeline.collators import (
     ConcatSparseTensorCollator,
     DefaultCollator,
+    SparseTensorOffsetCollator,
 )
 from noether.data.pipeline.sample_processors import (
+    ConcatTensorSampleProcessor,
+    DefaultTensorSampleProcessor,
     DuplicateKeysSampleProcessor,
     MomentNormalizationSampleProcessor,
     PointSamplingSampleProcessor,
     RenameKeysSampleProcessor,
     SupernodeSamplingSampleProcessor,
 )
-from tutorial.pipelines.collators import SparseTensorOffsetCollator
-from tutorial.pipelines.sample_processors import (
+from tutorial.pipeline.sample_processors import (
     AnchorPointSamplingSampleProcessor,
-    ConcatTensorSampleProcessor,
-    DefaultTensorSampleProcessor,
-    SurfaceMaskSampleProcessor,
 )
 from tutorial.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfig
+
+
+def _split_by_underscore(item: str) -> list[str]:
+    return item.split("_")
+
+
+def _split_three_or_none(item: str) -> list[str | None]:
+    parts = item.split("_")
+    return parts if len(parts) == 3 else [None] * 3
 
 
 class DataKeys:
@@ -29,11 +37,10 @@ class DataKeys:
     SURFACE_POS = "surface_position"
     VOLUME_POS = "volume_position"
     GEOMETRY_POS = "geometry_position"
-
-    # Input/Output
-    INPUT_POS = "input_position"
-    SURFACE_MASK_INPUT = "surface_mask_input"
-    PHYSICS_FEATURES = "physics_features"
+    SURFACE_FEATURES = "surface_features"
+    VOLUME_FEATURES = "volume_features"
+    SURFACE_QUERY_FEATURES = "surface_query_features"
+    VOLUME_QUERY_FEATURES = "volume_query_features"
 
     # Geometry
     GEOMETRY_BATCH_IDX = "geometry_batch_idx"
@@ -137,39 +144,52 @@ class AeroMultistagePipeline(MultiStagePipeline):
                 DataKeys.VOLUME_POS,
             }
             | self.volume_targets
-            | self.volume_features
             if self.num_volume_points > 0
             else set()
         )
 
+        self.volume_sampling_items |= self.volume_features if self.use_physics_features else set()
         self.surface_sampling_items = (
             {
                 DataKeys.SURFACE_POS,
             }
             | self.surface_targets
-            | self.surface_features
             if self.num_surface_points > 0
             else set()
         )
+        self.surface_sampling_items |= self.surface_features if self.use_physics_features else set()
 
         self.volume_query_items = {DataKeys.as_query(item) for item in self.volume_sampling_items}
 
         self.surface_query_items = {DataKeys.as_query(item) for item in self.surface_sampling_items}
 
         # By default we collate the input positions and the surface mask of the input points.
-        self.default_collator_items = [
-            DataKeys.INPUT_POS,
-            DataKeys.VOLUME_POS,
-        ]
-        self.default_collator_items += (
-            [DataKeys.SURFACE_POS] if self.num_supernodes == 0 else ["surface_query_position", "volume_query_position"]
+        self.default_collator_items = (
+            [
+                DataKeys.VOLUME_POS,
+            ]
+            if self.num_volume_anchor_points == 0
+            else []
         )
+
+        if self.num_volume_anchor_points == 0 or self.num_surface_anchor_points == 0:
+            self.default_collator_items += (
+                [DataKeys.SURFACE_POS]
+                if self.num_supernodes == 0
+                else ["surface_query_position", "volume_query_position"]
+            )
+
         # next to that we also collate the physics features, which are the concatenation of the surface and volume features. The targets are also included.
         self.default_collator_items += [DataKeys.as_target(item) for item in self.surface_targets | self.volume_targets]
-        self.default_collator_items += [DataKeys.PHYSICS_FEATURES] if self.use_physics_features else []
+        self.default_collator_items += (
+            [DataKeys.VOLUME_FEATURES, DataKeys.SURFACE_FEATURES] if self.use_physics_features else []
+        )
+        self.default_collator_items += (
+            [DataKeys.SURFACE_QUERY_FEATURES, DataKeys.VOLUME_QUERY_FEATURES]
+            if self.has_query_points and self.use_physics_features
+            else []
+        )
         self.default_collator_items += self.conditioning_dims.keys() if self.conditioning_dims else []
-        # self.default_collator_items += ["surface_features"] if self.num_supernodes > 0 else []
-        # TODO: [#397](https://github.com/Emmi-AI/core/issues/397) make this work again if we add the physics features again
 
     def _build_sample_processor_pipeline(self) -> list[SampleProcessor]:
         """
@@ -178,11 +198,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
         sample_processors = []
         # Some tensors are always present with the same value (i.e., the SDF value on the surface is always 0.0), we first create get the sample processors for these tensors.
         sample_processors.extend(self._get_default_tensors_sample_processors())
-        # We work with concatanted tensors for the surface and volume points. Hence, we need a mask to know which points are surface and which are volume points.
-        # The negation of the surface mask is the volume mask by definition.
-        # sample_processors.extend(self._get_surface_mask_sample_processors())
         # We need to normalize the input tensors individually, so we create the normalizers for the surface and volume tensors.
-        # sample_processors.extend(self._get_normalizer_sample_processors()) # TODO: make this work again if we add the physics features again
+        sample_processors.extend(self._get_normalizer_sample_processors())
         sample_processors.extend(self._get_point_sampling_sample_processors())
         # certain tensors need to be concatenated to create the input tensors for the model
         sample_processors.extend(self._get_concatate_tensors_sample_processors())
@@ -260,33 +277,10 @@ class AeroMultistagePipeline(MultiStagePipeline):
         else:
             return [*self._get_query_sampling_sample_processor(), *self._get_input_sampling_sample_processor()]
 
-    def _get_surface_mask_sample_processors(self) -> list[SampleProcessor]:
-        """
-        Get the surface mask sample processor. We retrieve the surface mask for both the input points and the query points.
-        """
-        sample_processors = []
-        sample_processors.append(
-            SurfaceMaskSampleProcessor(
-                item="surface_mask_input",
-                num_surface_points=self.num_surface_points,
-                num_volume_points=self.num_volume_points,
-            )
-        )
-        if self.has_query_points:
-            # if we have query points, we also need to retrieve the surface mask for the query points
-            sample_processors.append(
-                SurfaceMaskSampleProcessor(
-                    item="surface_mask_query",
-                    num_surface_points=self.num_surface_queries,
-                    num_volume_points=self.num_volume_queries,
-                )
-            )
-            # add the surface mask query to the default pipeline items
-            self.default_collator_items.append("surface_mask_query")
-        return sample_processors
-
     def _get_default_tensors_sample_processors(self) -> list[SampleProcessor]:
         """Some tensors are always present in the dataset with a default value, so we create a default tensor to create it"""
+        if self.use_physics_features is False:
+            return []
         return [
             # the SDF of the surface is always 0.0, so we create a default tensor for it.
             DefaultTensorSampleProcessor(
@@ -301,6 +295,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
         """
         Get the normalizer for surface quantities.
         """
+        if self.use_physics_features is False:
+            return []
         return [
             MomentNormalizationSampleProcessor(
                 item="surface_sdf",
@@ -376,15 +372,6 @@ class AeroMultistagePipeline(MultiStagePipeline):
         We concatenate the surface and volume positions, features, and physics features.
         """
         sample_processors = []
-        sample_processors.extend(
-            [
-                ConcatTensorSampleProcessor(
-                    items=["surface_position", "volume_position"],
-                    target_key="input_position",
-                    dim=0,
-                ),
-            ]
-        )
         if self.use_physics_features:
             sample_processors.extend(
                 [
@@ -398,28 +385,11 @@ class AeroMultistagePipeline(MultiStagePipeline):
                         target_key="surface_features",
                         dim=1,
                     ),
-                    ConcatTensorSampleProcessor(
-                        items=[
-                            "surface_features",
-                            "volume_features",
-                        ],
-                        target_key="physics_features",
-                        dim=0,
-                    ),
                 ]
             )
 
         if self.has_query_points:
             # if we have query points, we also concatenate the query positions and features
-            sample_processors.extend(
-                [
-                    ConcatTensorSampleProcessor(
-                        items=["surface_query_position", "volume_query_position"],
-                        target_key="query_position",
-                        dim=0,
-                    ),
-                ]
-            )
             if self.use_physics_features:
                 sample_processors.extend(
                     [
@@ -433,14 +403,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
                             target_key="surface_query_features",
                             dim=1,
                         ),
-                        ConcatTensorSampleProcessor(
-                            items=["surface_query_features", "volume_query_features"],
-                            target_key="query_physics_features",
-                            dim=0,
-                        ),
                     ]
                 )
-            self.default_collator_items.append("query_position")
 
         return sample_processors
 
@@ -470,6 +434,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
     def _get_anchor_point_sampling_sample_processor(self) -> list[SampleProcessor]:
         """Get the anchor point sampling sample processor."""
         if self.num_volume_anchor_points > 0 and self.num_surface_anchor_points > 0:
+            # make sure defa
             self.default_collator_items += [
                 "surface_anchor_position",
                 "volume_anchor_position",
@@ -492,8 +457,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
                     items={"surface_position"} | set(self.surface_targets),
                     num_points=self.num_surface_anchor_points,
                     keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=lambda item: item.split("_"),
-                    to_prefix_midfix_postfix=lambda item: item.split("_") if len(item.split("_")) == 3 else [None] * 3,
+                    to_prefix_and_postfix=_split_by_underscore,
+                    to_prefix_midfix_postfix=_split_three_or_none,
                     seed=None if self.seed is None else self.seed + 3,
                 ),
                 # subsample volume data
@@ -501,8 +466,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
                     items={"volume_position"} | set(self.volume_targets),
                     num_points=self.num_volume_anchor_points,
                     keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=lambda item: item.split("_"),
-                    to_prefix_midfix_postfix=lambda item: item.split("_") if len(item.split("_")) == 3 else [None] * 3,
+                    to_prefix_and_postfix=_split_by_underscore,
+                    to_prefix_midfix_postfix=_split_three_or_none,
                     seed=None if self.seed is None else self.seed + 4,
                 ),
                 RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.volume_targets}),

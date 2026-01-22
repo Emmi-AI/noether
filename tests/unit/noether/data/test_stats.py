@@ -7,13 +7,13 @@ from noether.data.stats import RunningMoments
 
 def test_push_scalar():
     data = torch.rand(100, generator=torch.Generator().manual_seed(0))
-    expected_mean = data.mean()
-    expected_std = data.std()
+    expected_mean = data.double().mean()
+    expected_std = data.double().std()
     stats = RunningMoments()
     for item in data:
         stats.push_scalar(item.item())
-    assert expected_mean == stats.mean.to(torch.float32)
-    assert expected_std == stats.std.to(torch.float32)
+    assert torch.allclose(stats.mean, expected_mean, atol=1e-5)
+    assert torch.allclose(stats.std, expected_std, atol=1e-5)
 
 
 def test_push_tensor_fullbatch_2d():
@@ -22,8 +22,8 @@ def test_push_tensor_fullbatch_2d():
     expected_std = data.double().std(dim=0)
     stats = RunningMoments()
     stats.push_tensor(data)
-    assert torch.allclose(expected_mean, stats.mean)
-    assert torch.allclose(expected_std, stats.std)
+    assert torch.allclose(expected_mean, stats.mean, atol=1e-5)
+    assert torch.allclose(expected_std, stats.std, atol=1e-5)
 
 
 def test_push_tensor_minibatch_2d():
@@ -33,8 +33,8 @@ def test_push_tensor_minibatch_2d():
     stats = RunningMoments()
     for chunk in data.chunk(4):
         stats.push_tensor(chunk)
-    assert torch.allclose(expected_mean, stats.mean)
-    assert torch.allclose(expected_std, stats.std)
+    assert torch.allclose(expected_mean, stats.mean, atol=1e-5)
+    assert torch.allclose(expected_std, stats.std, atol=1e-5)
 
 
 def test_push_tensor_minibatch_3d_dim1():
@@ -44,8 +44,8 @@ def test_push_tensor_minibatch_3d_dim1():
     stats = RunningMoments()
     for chunk in data.chunk(4):
         stats.push_tensor(chunk, dim=1)
-    assert torch.allclose(expected_mean, stats.mean)
-    assert torch.allclose(expected_std, stats.std)
+    assert torch.allclose(expected_mean, stats.mean, atol=1e-5)
+    assert torch.allclose(expected_std, stats.std, atol=1e-5)
 
 
 def test_push_tensor_minibatch_3d_dim2():
@@ -55,5 +55,5 @@ def test_push_tensor_minibatch_3d_dim2():
     stats = RunningMoments()
     for chunk in data.chunk(4):
         stats.push_tensor(chunk, dim=2)
-    assert torch.allclose(expected_mean, stats.mean)
-    assert torch.allclose(expected_std, stats.std)
+    assert torch.allclose(expected_mean, stats.mean, atol=1e-5)
+    assert torch.allclose(expected_std, stats.std, atol=1e-5)

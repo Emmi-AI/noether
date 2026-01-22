@@ -9,10 +9,13 @@ from noether.training.trainers.types import TrainerResult
 
 
 class BoilerplateTrainer(BaseTrainer):
-    """A base trainer implementation for the `ksuit` framework that runs a simple forward pass and computes a loss value."""
+    """A base trainer implementation for the `Noether` framework that runs a simple forward pass and computes a loss value.
+    This implementation overrides the `train_step` method to defined in the `BaseTrainer` class.
+    However, one could also use the default implementation of the `BaseTrainer` class which performs a similar a forward pass and and the user needs to implement the `compute_loss` method instead.
+    """
 
     @staticmethod
-    def train_step(batch: dict[str, torch.Tensor], dist_model: torch.nn.Module) -> TrainerResult:
+    def train_step(batch: dict[str, torch.Tensor], model: torch.nn.Module) -> TrainerResult:
         """Forward method of the trainer that runs a forward pass on the model and computes the loss.
 
         Args:
@@ -27,7 +30,7 @@ class BoilerplateTrainer(BaseTrainer):
         target = batch["y"]
 
         # forward
-        y_hat = dist_model(x)
+        y_hat = model(x)
 
         # calculate loss
         loss = F.cross_entropy(y_hat, target)

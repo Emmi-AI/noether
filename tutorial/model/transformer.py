@@ -40,14 +40,14 @@ class Transformer(BaseModel):
             else None
         )
 
-        ## models
         self.transfomer_backbone = TransformerBackbone(config=model_config)
 
     def forward(
         self,
         surface_position: torch.Tensor,
         volume_position: torch.Tensor,
-        physics_features: torch.Tensor | None = None,
+        surface_features: torch.Tensor | None = None,
+        volume_features: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Forward pass of the Transformer model.
 
@@ -55,7 +55,8 @@ class Transformer(BaseModel):
             surface_position: input coordinates of the surface points.
             volume_position: input coordinates of the volume points.
             surface_mask_input: surface mask for the input points, indicating which points are surface points.
-            physics_features: physics features for the input points. Defaults to None.
+            surface_features: optional input features of the surface points.
+            volume_features: optional input features of the volume points.
 
         Returns:
             dict[str, torch.Tensor]: dictionary with the output tensors, containing the surface pressure and volume velocity.
@@ -72,9 +73,13 @@ class Transformer(BaseModel):
             attn_kwargs["freqs"] = rope
 
         x = self.encoder(input_position)
-        if self.use_physics_features:
-            x = x + self.project_physics_features(physics_features)
 
+        if self.use_physics_features:
+            surface_features = self.project_surface_features(surface_features)
+            volume_features = self.project_volume_features(volume_features)
+            physics_features = torch.concat([surface_features, volume_features], dim=1)
+            x = x + physics_features
+        # this step is redudant if the SDF is part of the physics_features. Without SDF, this step is needed.
         x = self.surface_and_volume_bias(x=x, surface_mask=surface_mask_input)
 
         x = self.transfomer_backbone(x=x, attn_kwargs=attn_kwargs)

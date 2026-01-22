@@ -18,12 +18,6 @@ To get started, clone the repo to your machine:
 Navigate to your fresh repo, here we will assume the working path as `/home/user/repos/noether`, and use `uv` to set up
 the project.
 
-Optionally setup Python using uv (for more options consult the official documentation):
-
-.. code-block:: bash
-
-   uv python install
-
 Create a virtual environment with relevant packages:
 
 .. code-block:: bash
@@ -40,7 +34,7 @@ See if the installation was successful by running the tests:
 
 .. code-block:: bash
 
-   pytests -q tests/
+   pytest -q tests/
 
 .. warning::
    The information below is for reference only as the CLI is not final yet.

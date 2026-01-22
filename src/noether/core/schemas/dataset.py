@@ -190,20 +190,25 @@ class AeroDataSpecs(BaseModel):
     """Dimension of the input position vectors."""
     surface_feature_dim: FieldDimSpec | None = None
     volume_feature_dim: FieldDimSpec | None = None
+
     surface_output_dims: FieldDimSpec
     volume_output_dims: FieldDimSpec | None = None
     conditioning_dims: FieldDimSpec | None = None
+    use_physics_features: bool = False
 
     @property
-    def physics_dim(self) -> int | None:
-        # TODO: fix this once we have physics conditioning
-        """Calculates the total physics dimension from conditioning dimensions."""
-        return None
+    def surface_feature_dim_total(self) -> int:
+        """Calculates the total surface feature dimension."""
+        if self.surface_feature_dim:
+            return self.surface_feature_dim.total_dim
+        return 0
 
     @property
-    def use_physics_features(self) -> bool:
-        """Determines if physics features are used based on conditioning dimensions."""
-        return False
+    def volume_feature_dim_total(self) -> int:
+        """Calculates the total volume feature dimension."""
+        if self.volume_feature_dim:
+            return self.volume_feature_dim.total_dim
+        return 0
 
     @property
     def total_output_dim(self) -> int:

@@ -2,22 +2,24 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.types import InitWeightsMode
 
+from .base import ModelBaseConfig
 
-class AnchorBranchedUPTConfig(BaseModel):
+
+class AnchorBranchedUPTConfig(ModelBaseConfig):
     model_config = ConfigDict(extra="forbid")
 
     supernode_pooling_config: SupernodePoolingConfig
 
     transformer_block_config: TransformerBlockConfig
 
-    geometry_depth: int = Field(...)
+    geometry_depth: int = Field(..., ge=0)
     """Number of transformer blocks in the geometry encoder."""
 
     hidden_dim: int = Field(...)

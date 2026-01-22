@@ -10,3 +10,4 @@ surface_output_dims:
   pressure: 1
 volume_output_dims:
   velocity: 3
+use_physics_features: ${trainer.use_physics_features}

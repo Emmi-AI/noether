@@ -7,7 +7,7 @@
 #SBATCH --mem=64GB
 #SBATCH --output=/home/%u/logs/shapenet/%x_%j.out
 #SBATCH --nice=0
-#SBATCH --array=1-5%5
+#SBATCH --array=1-20%5
 
 EXPERIMENT_FILE=tutorial/jobs/experiments/shapenet_experiments.txt
 # run

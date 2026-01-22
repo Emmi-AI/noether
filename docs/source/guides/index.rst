@@ -5,6 +5,8 @@ How-to Guides
    :maxdepth: 1
    :titlesonly:
 
+   hardware_setup
+   linux_cuda_setup
    working_with_cli
 
    .. data/how_to_load_custom_dataset

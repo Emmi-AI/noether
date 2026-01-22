@@ -35,7 +35,6 @@ class ABUPT(BaseModel):
         geometry_batch_idx: torch.Tensor | None,
         # anchors
         surface_anchor_position: torch.Tensor,
-        # volume
         volume_anchor_position: torch.Tensor,
         # design parameters
         geometry_design_parameters: torch.Tensor | None = None,

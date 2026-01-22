@@ -33,7 +33,6 @@ class BaseModel(Model):
 
         self.input_dim = model_config.data_specs.position_dim
         self.output_dim = model_config.data_specs.total_output_dim
-        self.physics_dim = model_config.data_specs.physics_dim
         self.use_physics_features = model_config.data_specs.use_physics_features
         self.position_projection = model_config.position_projection
         self.name = model_config.name
@@ -54,7 +53,7 @@ class BaseModel(Model):
                     f"Unknown position projection: {self.position_projection}. Only 'sincos' and 'linear' are supported."
                 )
 
-            if model_config.bias_layers:
+            if model_config.use_bias_layers:
                 self.surface_bias = MLP(
                     config=MLPConfig(
                         input_dim=model_config.hidden_dim,
@@ -72,20 +71,30 @@ class BaseModel(Model):
                 )
 
         if self.use_physics_features:
-            if self.physics_dim is None:
-                raise ValueError("physics_dim must be provided if use_physics_features is True.")
-            if not (self.input_dim - self.physics_dim == 3):
-                raise ValueError(
-                    "input dim is 3 + physics_dim, if use_physics_features is True. 3 for the x,y,z coordinates."
+            self.project_volume_features = None
+            self.project_surface_features = None
+            if model_config.data_specs.volume_feature_dim_total > 0:
+                self.project_volume_features = LinearProjection(
+                    config=LinearProjectionConfig(
+                        input_dim=model_config.data_specs.volume_feature_dim_total,
+                        output_dim=model_config.hidden_dim,
+                        init_weights="truncnormal002",
+                    )
                 )
-            self.project_physics_features = LinearProjection(
-                input_dim=self.physics_dim,
-                output_dim=model_config.hidden_dim,
-                init_weights="truncnormal002",
-            )
+            if model_config.data_specs.surface_feature_dim_total > 0:
+                self.project_surface_features = LinearProjection(
+                    config=LinearProjectionConfig(
+                        input_dim=model_config.data_specs.surface_feature_dim_total,
+                        output_dim=model_config.hidden_dim,
+                        init_weights="truncnormal002",
+                    )
+                )
+            if not self.project_volume_features and not self.project_surface_features:
+                raise ValueError("use_physics_features is True, but both surface and volume feature dims are zero.")
 
-        if model_config.output_projection:
-            # if output_projection is True, we assume that the model has an output projection layer.
+        if model_config.use_output_projection:
+            # if use_output_projection is True, we assume that the model has an output projection layer.
+            self.use_output_projection = True
             self.norm = nn.LayerNorm(model_config.hidden_dim, eps=1e-6)
             self.out = LinearProjection(
                 config=LinearProjectionConfig(
@@ -103,7 +112,8 @@ class BaseModel(Model):
         Returns:
             tensor of shape (batch_size, num_points, output_dim) containing the projected features into (normalized) physics space.
         """
-        assert self.output_projection, "Output projection is not enabled for this model."
+        if not self.use_output_projection:
+            raise ValueError("output_projection called, but use_output_projection is set to False in the model config.")
         return self.out(self.norm(x))
 
     def surface_and_volume_bias(self, x: torch.Tensor, surface_mask: torch.Tensor) -> torch.Tensor:

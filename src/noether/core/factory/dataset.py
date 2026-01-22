@@ -1,5 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 from typing import Any
 
 from noether.core.factory.base import Factory
@@ -20,6 +22,14 @@ class DatasetFactory(Factory):
         dataset_wrappers = dataset_config.dataset_wrappers
         dataset = super().instantiate(dataset_config)
 
+        if dataset_config.included_properties is not None or dataset_config.excluded_properties is not None:
+            from noether.data.base.wrappers.property_subset import PropertySubsetWrapper  # avoid circular import
+
+            dataset = PropertySubsetWrapper.from_included_excluded(
+                dataset,
+                included_properties=dataset.config.included_properties,
+                excluded_properties=dataset.config.excluded_properties,
+            )
         # wrap with dataset_wrappers
         if dataset_wrappers is not None:
             if not isinstance(dataset_wrappers, list):

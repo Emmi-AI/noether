@@ -144,6 +144,14 @@ class TrainingIteration:
             sample=total_updates * effective_batch_size,
         )
 
+    @classmethod
+    def from_dict(cls, data: dict[str, int]) -> TrainingIteration:
+        return TrainingIteration(
+            epoch=data.get("epoch"),
+            update=data.get("update"),
+            sample=data.get("sample"),
+        )
+
     def has_same_specified_properties(self, other: TrainingIteration) -> bool:
         """Checks if the specified properties of two TrainingIteration objects are the same.
 

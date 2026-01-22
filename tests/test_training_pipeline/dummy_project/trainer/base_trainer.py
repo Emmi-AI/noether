@@ -8,7 +8,7 @@ from noether.training.trainers import BaseTrainer, TrainerResult
 
 
 class TestTrainer(BaseTrainer):
-    def train_step(self, batch: dict[str, torch.Tensor], dist_model: torch.nn.Module) -> TrainerResult:
+    def train_step(self, batch: dict[str, torch.Tensor], model: torch.nn.Module) -> TrainerResult:
         """Forward method of the trainer that runs a forward pass on the model and computes the loss.
 
         Args:
@@ -23,7 +23,7 @@ class TestTrainer(BaseTrainer):
         target = batch["y"]
 
         # forward
-        y_hat = dist_model(x)
+        y_hat = model(x)
 
         # calculate loss
         loss = F.cross_entropy(y_hat, target)

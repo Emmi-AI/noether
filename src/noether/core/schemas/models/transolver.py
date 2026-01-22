@@ -6,8 +6,10 @@ from pydantic import ConfigDict
 
 from noether.core.schemas.models.transformer import TransformerConfig
 
+from .base import ModelBaseConfig
 
-class TransolverConfig(TransformerConfig):
+
+class TransolverConfig(TransformerConfig, ModelBaseConfig):
     """Configuration for a Transolver model."""
 
     model_config = ConfigDict(extra="forbid")

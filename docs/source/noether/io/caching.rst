@@ -26,7 +26,7 @@ Available Implementations
 =========================
 
 :py:class:`noether.io.diskcache.lru_cache.LRUCacheFileSystem`
-------------------
+------------------------------------------------------------
 
 A basic LRU cache implementation that uses filesystem metadata (modification times) to track file access patterns.
 This is recommended in most scenarios, unless you have a high number of files you want to cache.
@@ -38,7 +38,7 @@ This is recommended in most scenarios, unless you have a high number of files yo
 - Cache eviction has to scan the entire cache directory
 
 :py:class:`noether.io.diskcache.lru_cache.SqliteLRUCacheFileSystem`
-------------------------
+------------------------------------------------------------------
 
 An enhanced implementation that uses SQLite to track cache metadata instead of relying on filesystem modification times.
 

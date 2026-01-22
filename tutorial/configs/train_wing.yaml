@@ -1,13 +1,14 @@
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root:  /nfs-gpu/research/datasets/aero_wing/parametric/preprocessed
+dataset_root:  <path to your emmi wing dataset root>
 dataset_kind: noether.data.datasets.cfd.EmmiWingDataset
+
 defaults:
-  - train_caeml 
+  - train_caeml  
   - dataset_statistics: wing_stats
   - override data_specs: emmi_wing
-  - override dataset_normalizer: wing_dataset_normalizers
+  - override dataset_normalizers: wing_dataset_normalizers
   - override optimizer: lion
 
 trainer:

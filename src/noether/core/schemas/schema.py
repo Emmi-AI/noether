@@ -60,11 +60,11 @@ class ConfigSchema(BaseModel):
     stage_name: str | None = None
     """Name of the current stage. I.e., train, finetune, test, etc"""
     dataset_kind: str | None = None
-    """Kind of dataset to use."""
+    """Kind of dataset to use i.e., class path."""
     dataset_root: str | None = None
     """Root directory of the dataset."""
     resume_run_id: str | None = None
-    """Run ID to resume from. If None, start a new run."""
+    """Run ID to resume from. If None, start a new run. This can be used to resume training from the last checkpoint of a previous run when training was interrupted/failed."""
     resume_stage_name: str | None = None
     """Stage name to resume from. If None, resume from the default stage."""
     resume_checkpoint: str | None = None

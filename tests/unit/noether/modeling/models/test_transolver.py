@@ -13,9 +13,18 @@ def transolver_model(request):
     use_transolver_plusplus = request.param
 
     config = (
-        TransolverConfig(hidden_dim=3, num_heads=1, depth=2, attention_constructor="transolver")
+        TransolverConfig(
+            hidden_dim=3, num_heads=1, depth=2, attention_constructor="transolver", kind="single", name="transolver"
+        )
         if not use_transolver_plusplus
-        else (TransolverPlusPlusConfig(hidden_dim=3, num_heads=1, depth=2, attention_constructor="transolver_plusplus"))
+        else TransolverPlusPlusConfig(
+            hidden_dim=3,
+            num_heads=1,
+            depth=2,
+            attention_constructor="transolver_plusplus",
+            kind="single",
+            name="transolver_plusplus",
+        )
     )
 
     return Transolver(config)

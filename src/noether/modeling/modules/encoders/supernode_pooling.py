@@ -36,7 +36,7 @@ class SupernodePooling(nn.Module):
         self.spool_pos_mode = config.spool_pos_mode
         self.readd_supernode_pos = config.readd_supernode_pos
         self.aggregation = config.aggregation
-        self.num_input_features = config.num_input_features
+        self.input_features_dim = config.input_features_dim
 
         self.pos_embed = ContinuousSincosEmbed(
             config=ContinuousSincosEmbeddingConfig(
@@ -45,10 +45,10 @@ class SupernodePooling(nn.Module):
             )  # type: ignore[call-arg]
         )
 
-        if self.num_input_features is not None:
+        if self.input_features_dim is not None:
             self.feature_projection: LinearProjection | None = LinearProjection(
                 config=LinearProjectionConfig(
-                    input_dim=self.num_input_features, output_dim=config.hidden_dim, init_weights=config.init_weights
+                    input_dim=self.input_features_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
                 )  # type: ignore[call-arg]
             )
             if self.spool_pos_mode == "relpos":
@@ -200,7 +200,7 @@ class SupernodePooling(nn.Module):
         if self.spool_pos_mode == "abspos":
             x = self.pos_embed(input_pos)
 
-            if self.num_input_features is not None:
+            if self.input_features_dim is not None:
                 if callable(self.feature_projection):
                     x = torch.concat([x, self.feature_projection(input_features)], dim=1)
                 if callable(self.feature_projection):
@@ -211,7 +211,7 @@ class SupernodePooling(nn.Module):
             supernode_pos_embed = x[supernode_idx]
             x = torch.concat([x[src_idx], x[dst_idx]], dim=1)
         elif self.spool_pos_mode == "absrelpos":
-            if self.num_input_features is not None or input_features is not None and self.rel_pos_embed is not None:
+            if self.input_features_dim is not None or input_features is not None and self.rel_pos_embed is not None:
                 raise NotImplementedError
             src_pos = input_pos[src_idx]
             dst_pos = input_pos[dst_idx]
@@ -226,7 +226,7 @@ class SupernodePooling(nn.Module):
             dst_pos = input_pos[dst_idx]
             dist = dst_pos - src_pos
             mag = dist.norm(dim=1).unsqueeze(-1)
-            if self.num_input_features is not None and input_features is not None and self.rel_pos_embed is not None:
+            if self.input_features_dim is not None and input_features is not None and self.rel_pos_embed is not None:
                 x = input_features.clone()
                 if callable(self.feature_projection):
                     x = self.feature_projection(x)  # type: ignore[misc]
@@ -306,11 +306,16 @@ class SupernodePooling(nn.Module):
         """
         assert input_pos.ndim == 2, f"input_pos has to be 2D, but has shape {input_pos.shape}"
         assert supernode_idx.ndim == 1, f"supernode_idx has to be 1D, but has shape {supernode_idx.shape}"
-        assert self.num_input_features is None or input_features is not None, (
+        assert self.input_features_dim is None or input_features is not None, (
             "input_features has to be set if num_input_features is set"
         )
+        if input_features is not None and input_features.ndim == 3:
+            input_features = einops.rearrange(
+                input_features, "batch_size num_points features -> (batch_size num_points) features"
+            )
+
         assert (
-            input_features is None or input_features.ndim == 2 and input_features.shape[1] == self.num_input_features
+            input_features is None or input_features.ndim == 2 and input_features.shape[1] == self.input_features_dim
         ), "input_features must match num_input_features"
 
         src_idx, dst_idx = self.compute_src_and_dst_indices(

@@ -50,7 +50,6 @@ class CallbackBase:
                 format_str=".2f",
             )
 
-
     As evaluations are pretty much always done in torch.no_grad() contexts, the hooks implemented by callbacks
     automatically apply the torch.no_grad() context. Therefore, the `CallbackBase` class makes use of the "template
     method" design pattern, where templates (e.g. `before_training`) implement the invariant behavior (e.g., applying

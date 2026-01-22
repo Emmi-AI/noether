@@ -5,13 +5,12 @@ from typing import Union
 from pydantic import Field
 
 from noether.core.schemas.callbacks import CallbacksConfig
-from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.trainers import BaseTrainerConfig
-from tutorial.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
+from tutorial.schemas.callbacks import TutorialCallbacksConfig
 
 AllCallbacks = Union[
-    SurfaceVolumeEvaluationMetricsCallbackConfig | CallbacksConfig
-]  # TODO: This is the only way to merge the configs of the tutorial and noether, but ideally we would not need to do this?
+    TutorialCallbacksConfig, CallbacksConfig
+]  # custom callbacks need to be added here to one union type with the base noether CallbacksConfig
 
 
 class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
@@ -32,6 +31,5 @@ class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
     use_physics_features: bool = False
     """ If true, additional features are used next to the input coordidates (i.e., SDF, surfacer normals, etc.). Defaults to False."""
     callbacks: list[AllCallbacks] | None = Field(
-        ..., description="List of callback configurations"
+        ...,
     )  # we need to override this to include the tutorial callback; ideally we would not need to do this? But I also don't know how to fix this otherwise?
-    data_specs: AeroDataSpecs

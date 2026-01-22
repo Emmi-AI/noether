@@ -4,7 +4,6 @@ use_rope: true
 hidden_dim: 192
 num_heads: 3
 mlp_expansion_factor: 4
-output_dim: 4 # TODO: fix this to be dynamic based on data specs
 data_specs: ${data_specs}
 low_level_blocks:
   name: low_level_blocks
@@ -15,7 +14,7 @@ low_level_blocks:
     weight_decay: 0.05
     clip_grad_norm: 1.0
     schedule_config:
-      kind: ksuit.schedules.LinearWarmupCosineDecaySchedule
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
       warmup_percent: 0.05
       end_value: 1.0e-5
       max_value: ${model.low_level_blocks.optimizer_config.lr}
@@ -28,10 +27,10 @@ high_level_blocks:
     weight_decay: 0.05
     clip_grad_norm: 1.0
     schedule_config:
-      kind: ksuit.schedules.LinearWarmupCosineDecaySchedule
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
       warmup_percent: 0.05
       end_value: 1.0e-4
       max_value: ${model.high_level_blocks.optimizer_config.lr}
 forward_properties:
-  - input_position
-  - surface_mask_input
+  - surface_position
+  - volume_position

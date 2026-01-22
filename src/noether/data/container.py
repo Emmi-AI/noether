@@ -2,7 +2,6 @@
 
 import functools
 import logging
-from typing import Any
 
 import torch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sampler, SequentialSampler
@@ -12,6 +11,7 @@ from noether.core.schemas.dataset import ShuffleWrapperConfig, SubsetWrapperConf
 from noether.core.utils.common.stopwatch import Stopwatch
 from noether.core.utils.platform import get_fair_cpu_count, get_total_cpu_count
 from noether.data import Dataset
+from noether.data.base.wrapper import DatasetWrapper
 from noether.data.base.wrappers import (
     META_GETITEM_TIME,
     PropertySubsetWrapper,
@@ -70,7 +70,7 @@ class DataContainer:
         properties: set[str] | None = None,
         max_size: int | None = None,
         shuffle_seed: int | None = None,
-    ) -> Dataset:
+    ) -> Dataset | DatasetWrapper:
         """Returns the dataset identified by key (or the first dataset if no key is provided) with optional wrapping
         into a :class:`ShuffleWrapper` (via `shuffle_seed`), a :class:`SubsetWrapper` (via `max_size`) or a
         :class:`PropertySubsetWrapper`. Note that the wrappers can be used at once or individually, in case when all
@@ -91,25 +91,20 @@ class DataContainer:
             Dataset: Dataset of the DataContainer optionally wrapped into dataset wrappers.
         """
         key = key or next(iter(self.datasets.keys()))
-        dataset: Any = self.datasets[key]
+        dataset: Dataset = self.datasets[key]
         if shuffle_seed is not None:
             dataset = ShuffleWrapper(
-                dataset=dataset, config=ShuffleWrapperConfig(kind="", seed=shuffle_seed)
-            )  # FIXME: kind?
+                dataset=dataset,
+                config=ShuffleWrapperConfig(kind="", seed=shuffle_seed),  # type: ignore[arg-type]
+            )  # type: ignore  # FIXME: kind
         if max_size is not None:
-            dataset = SubsetWrapper(dataset, config=SubsetWrapperConfig(kind="", end_index=max_size))  # FIXME: kind?
+            dataset = SubsetWrapper(dataset, config=SubsetWrapperConfig(kind="", end_index=max_size))  # type: ignore[assignment]
         if properties is not None:
-            dataset = PropertySubsetWrapper(dataset=dataset, properties=properties)
-        elif dataset.config.included_properties is not None or dataset.config.excluded_properties is not None:
-            dataset = PropertySubsetWrapper.from_included_excluded(
-                dataset,
-                included_properties=dataset.config.included_properties,
-                excluded_properties=dataset.config.excluded_properties,
-            )
-        dataset = TimingWrapper(dataset=dataset)
+            dataset = PropertySubsetWrapper(dataset=dataset, properties=properties)  # type: ignore[assignment]
+        dataset = TimingWrapper(dataset=dataset)  # type: ignore[assignment]
         return dataset  # type: ignore
 
-    def get_main_sampler(self, train_dataset: Dataset, shuffle: bool = True) -> Sampler[int]:
+    def get_main_sampler(self, train_dataset: Dataset | DatasetWrapper, shuffle: bool = True) -> Sampler[int]:
         """Creates the `main_sampler` for data loading.
 
         Args:
@@ -124,7 +119,7 @@ class DataContainer:
             # NOTE: drop_last is required as otherwise len(sampler) can be larger than len(dataset)
             # which results in unconsumed batches from InterleavedSampler
             return DistributedSampler(
-                train_dataset,
+                train_dataset,  # type: ignore[arg-type]
                 shuffle=shuffle,
                 drop_last=True,
             )

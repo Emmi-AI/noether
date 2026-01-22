@@ -53,7 +53,7 @@ class CompositeTransformerBlock(Model):
             ]
         )
         self.output_projection = None
-        if model_config.output_projection:
+        if model_config.use_output_projection:
             self.norm = nn.LayerNorm(model_config.transformer_config.hidden_dim, eps=1e-6)
             self.output_projection = LinearProjection(
                 config=LinearProjectionConfig(
@@ -128,9 +128,10 @@ class CompositeTransformerBlock(Model):
         """Forward pass of the Composite Transformer Block Model.
 
         Args:
-            input_position: Input positions tensor.
-            surface_mask_input: Surface mask input tensor.
-            physics_features: Optional physics features tensor.
+            x: Input tensor of shape (B, N, D_in) or (N, D_in) where B is the batch size, N is the number of points,
+                and D_in is the input feature dimension.
+            attn_kwargs: Optional dictionary containing additional arguments for attention mechanisms.
+            surface_mask: Optional tensor indicating which points belong to the surface (used if projection_bias is True).
 
         Returns:
             A dictionary containing the output tensors.

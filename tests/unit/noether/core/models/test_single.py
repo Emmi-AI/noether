@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from noether.core.models import Model
-from noether.core.schemas.models import ModelBaseConfig
+from noether.core.schemas.models.base import ModelBaseConfig
 
 
 class SimpleSingleModel(Model):

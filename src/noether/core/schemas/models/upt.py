@@ -1,13 +1,15 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import ConfigDict, Field
 
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 
+from .base import ModelBaseConfig
 
-class UPTConfig(BaseModel):
+
+class UPTConfig(ModelBaseConfig):
     """Configuration for a Transolver model."""
 
     model_config = ConfigDict(extra="forbid")

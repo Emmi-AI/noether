@@ -5,7 +5,7 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=64GB
-#SBATCH --output=/home/%u/logs/ahmedml/%x_%j.out
+#SBATCH --output=/home/%u/logs/drivaerml/%x_%j.out
 #SBATCH --nice=0
 #SBATCH --array=1-20%10
 

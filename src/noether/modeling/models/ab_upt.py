@@ -87,8 +87,10 @@ class AnchoredBranchedUPT(nn.Module):
 
         self.num_perceivers = 0
         self.physics_blocks = nn.ModuleList()
+        self.use_geometry_branch = False
         for block in config.physics_blocks:
             if block == "perceiver":
+                self.use_geometry_branch = True
                 block = PerceiverBlock(
                     config=PerceiverBlockConfig(
                         hidden_dim=config.hidden_dim,
@@ -287,7 +289,7 @@ class AnchoredBranchedUPT(nn.Module):
         self,
         surface_position_all: torch.Tensor,
         volume_position_all: torch.Tensor,
-        geometry_encoding: torch.Tensor,
+        geometry_encoding: torch.Tensor | None,
         physics_token_specs: list[TokenSpec],
         physics_attn_kwargs: dict[str, torch.Tensor],
         physics_perceiver_attn_kwargs: dict[str, torch.Tensor],
@@ -430,7 +432,6 @@ class AnchoredBranchedUPT(nn.Module):
         geometry_batch_idx: torch.Tensor | None,
         # anchors
         surface_anchor_position: torch.Tensor,
-        # volume
         volume_anchor_position: torch.Tensor,
         # design parameters
         geometry_design_parameters: torch.Tensor | None = None,
@@ -483,13 +484,16 @@ class AnchoredBranchedUPT(nn.Module):
             geometry_position, geometry_supernode_idx, surface_position_all, volume_position_all
         )
         # geometry branch
-        geometry_encoding = self.geometry_branch_forward(
-            geometry_position=geometry_position,
-            geometry_supernode_idx=geometry_supernode_idx,
-            geometry_batch_idx=geometry_batch_idx,  # type: ignore[arg-type]
-            condition=condition,
-            geometry_attn_kwargs=geometry_attn_kwargs,
-        )
+        geometry_encoding = None
+        if self.use_geometry_branch:
+            assert geometry_batch_idx is not None, "geometry_batch_idx must be provided when using the geometry branch."
+            geometry_encoding = self.geometry_branch_forward(
+                geometry_position=geometry_position,
+                geometry_supernode_idx=geometry_supernode_idx,
+                geometry_batch_idx=geometry_batch_idx,
+                condition=condition,
+                geometry_attn_kwargs=geometry_attn_kwargs,
+            )
 
         # physics blocks
         x_physics = self.physics_blocks_forward(

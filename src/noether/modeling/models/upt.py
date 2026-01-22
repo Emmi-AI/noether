@@ -4,15 +4,14 @@ import torch
 from torch import nn
 
 from noether.core.schemas.models import UPTConfig
+from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.schemas.modules.layers import (
     ContinuousSincosEmbeddingConfig,
     LinearProjectionConfig,
     RopeFrequencyConfig,
 )
-from noether.core.schemas.modules.mlp import MLPConfig
 from noether.modeling.modules import DeepPerceiverDecoder, SupernodePooling, TransformerBlock
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
-from noether.modeling.modules.mlp import MLP
 
 
 class UPT(nn.Module):
@@ -30,7 +29,14 @@ class UPT(nn.Module):
 
         super().__init__()
 
-        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
+        self.encoder = SupernodePooling(
+            config=SupernodePoolingConfig(
+                **config.supernode_pooling_config.model_dump(exclude={"input_features_dim"}),
+                input_features_dim=config.data_specs.surface_feature_dim_total
+                if config.data_specs.use_physics_features
+                else None,
+            )
+        )  # type: ignore[call-arg]
         self.use_rope = config.use_rope
 
         self.pos_embed = ContinuousSincosEmbed(
@@ -74,42 +80,6 @@ class UPT(nn.Module):
                 init_weights=config.decoder_config.perceiver_block_config.init_weights,
             )  # type: ignore[call-arg]
         )
-        self.bias_layers = False
-        if config.bias_layers:
-            self.bias_layers = True
-            self.surface_bias = MLP(
-                config=MLPConfig(
-                    input_dim=config.hidden_dim,
-                    hidden_dim=config.hidden_dim,
-                    output_dim=config.hidden_dim,
-                )
-            )
-
-            self.volume_bias = MLP(
-                config=MLPConfig(
-                    input_dim=config.hidden_dim,
-                    hidden_dim=config.hidden_dim,
-                    output_dim=config.hidden_dim,
-                )
-            )
-
-    def surface_and_volume_bias(self, x: torch.Tensor, surface_mask: torch.Tensor) -> torch.Tensor:
-        """Apply separate bias layers for surface and volume points."""
-        # TODO: This method needs to be removed after we refactor the tutorial. We need one module that does
-        #  the biasing for all of our models, not an implementation in each model.
-        unbatch = False
-        if x.ndim == 2:
-            # if we have a single point, we need to add a batch dimension
-            unbatch = True
-            x = x.unsqueeze(0)
-
-        surface_mask = surface_mask[0]  #
-        x_surface = self.surface_bias(x[:, surface_mask.bool(), :])
-        x_volume = self.volume_bias(x[:, ~surface_mask.bool(), :])
-        x = torch.concat([x_surface, x_volume], dim=1)
-        if unbatch:
-            x = x.squeeze(0)
-        return x
 
     def compute_rope_args(
         self,
@@ -155,8 +125,6 @@ class UPT(nn.Module):
         surface_position_supernode_idx: torch.Tensor,
         surface_position: torch.Tensor,
         query_position: torch.Tensor,
-        surface_mask_query: torch.Tensor,
-        input_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the UPT model.
 
@@ -168,8 +136,6 @@ class UPT(nn.Module):
             surface_position_supernode_idx: supernode indices for the surface positions.
             geometry_position: geometry position information.
             query_position: input coordinates of the query points.
-            surface_features: surface features for the input points. Defaults to None.
-
         Returns:
             dict[str, torch.Tensor]: dictionary with the output tensors, containing the surface pressure and volume
             velocity.
@@ -184,16 +150,12 @@ class UPT(nn.Module):
             input_pos=surface_position,
             supernode_idx=surface_position_supernode_idx,
             batch_idx=surface_position_batch_idx,
-            input_features=input_features,
         )
         # approximator blocks
         for block in self.approximator_blocks:
             x = block(x, attn_kwargs=encoder_attn_kwargs)
 
         queries = self.pos_embed(query_position)
-
-        if self.bias_layers:
-            queries = self.surface_and_volume_bias(queries, surface_mask_query)
 
         # perceiver decoder
         x = self.decoder(

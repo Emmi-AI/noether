@@ -1,5 +1,3 @@
-
-# TODO: move to emmi?
 raw_pos_min:  [-4.5,]
 raw_pos_max: [6.0,]
 surface_pressure_mean: [-36.4098]

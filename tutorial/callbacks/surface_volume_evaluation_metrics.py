@@ -57,7 +57,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicIteratorCallback):
 
         self._config = callback_config
         self.dataset_key = callback_config.dataset_key
-        self.evaluation_modes = DEFAULT_EVALUATION_MODES  # TODO: make this dynamic based on the forward properties
+        self.evaluation_modes = DEFAULT_EVALUATION_MODES
         self.dataset_normalizers = self.data_container.get_dataset(self.dataset_key).normalizers
         self.forward_properties = callback_config.forward_properties
         self.chunked_inference = callback_config.chunked_inference
