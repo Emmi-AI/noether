@@ -224,11 +224,17 @@ have to find workarounds yourself.
 ---
 # Licensing
 
-**Noether** is released under a custom license to balance open research with sustainable development. We encourage 
-free use for research and academic exploration. However, a commercial license or explicit permission is required for 
-distribution, integration into commercial products, or using pre-trained models for profit. 
+> [!NOTE]
+> TL;DR: Research & development ✅| Production deployment ❌ (without commercial license)
 
-Please see [LICENSE.txt](./LICENSE.txt) for the full legal terms.
+The Noether Framework is licensed under a Non-Production License (based on Mistral AI's MNPL). This means you're free 
+to use, modify, and research with the framework, but commercial/production use requires a separate commercial license 
+from Emmi AI.
+
+We're committed to open AI innovation while sustainably growing our business. For commercial licensing, contact 
+us at partner@emmi.ai .
+
+Read the full license [here](./LICENSE.txt).
 
 ---
 # Endorsed by
