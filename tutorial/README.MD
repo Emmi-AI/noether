@@ -145,11 +145,11 @@ Every `Noether` project consists of the following core modules (in alphabetical 
 Clone the repository and set up the environment:
 
 ```bash
-git clone https://github.com/Emmi-AI/core.git
+git clone https://github.com/Emmi-AI/noeter.git
 cd noether/tutorial
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install emmi_ai
+uv pip install emmiai-noether
 ```
 
 ### Boilerplate project
@@ -165,6 +165,9 @@ To run the boilerplate project, use the following command:
 ```bash
 uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\"
 ```
+
+> [!IMPORTANT]
+> The `Noether Framework` by defaults runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.
 
 # Tutorial
 
