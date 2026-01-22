@@ -122,7 +122,6 @@ uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
     +experiment/shapenet=upt \
     dataset_root=./data \
     +accelerator=mps \
-    +devices=1
 ```
 
 Learn more about different hardware support [here](https://noether-docs.emmi.ai/guides/hardware_setup.html).
