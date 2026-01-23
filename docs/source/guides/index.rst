@@ -17,6 +17,7 @@ How-to Guides
    data/how_to_write_a_sample_processor
    
    training/implementing_a_custom_model
+   training/use_callbacks
 
    .. data/how_to_write_data_preprocessors
    .. data/how_to_write_data_collators
