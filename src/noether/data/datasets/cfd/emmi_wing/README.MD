@@ -42,6 +42,11 @@ run_X.zip
 ## Computing the Statistics of the Dataset
 
 ```bash
-noether-dataset-stats --dataset_kind=noether.data.datasets.cfd.emmi_wing.EmmiWingDataset --split=train --exclude_attributes=surface_normals,volume_normals,volume_sdf --log_scale=volume_vorticity --root=<root to dataset>
+noether-dataset-stats \
+    --dataset_kind=noether.data.datasets.cfd.emmi_wing.EmmiWingDataset \
+    --split=train \
+    --exclude_attributes=surface_normals,volume_normals,volume_sdf \
+    --log_scale=volume_vorticity \
+    --root=<root to dataset>
 ```
 
