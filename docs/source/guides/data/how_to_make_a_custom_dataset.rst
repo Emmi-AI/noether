@@ -1,4 +1,4 @@
-How to Build a Custom Dataset
+How to Implement a Custom Dataset
 ==============================
 
 Below we provide a minimal (dummy code) example of how to create a custom dataset by extending the base ``Dataset`` class.
@@ -64,3 +64,16 @@ The key provided to the decorator must match the key of the configured normalize
         - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
           mean: 1.0
           std: 2.0
+
+
+Let's say we run a trianing pipeline with the above dataset configuration and a batch size of 4.
+Then the outout will be a list of 4 dictionaries (a batch), where each dictionary has the following structure:
+.. code-block:: python
+
+    [
+        {
+            "tensor_x": <tensor_x_sample_0>,
+            "tensor_y": <tensor_y_sample_0>,
+        },
+        # ... (3 more samples)
+    ]

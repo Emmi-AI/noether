@@ -6,7 +6,8 @@ Main Components
 
 The **Noether Framework** is organized into the following submodules:
 
-- ``core`` - low-level components responsible for the heavy-lifting of the framework
+- ``core`` - low-level components: responsible for the heavy-lifting of the framework, enabling
+  the other modules, and providing low level blocks to use or extend.
 - ``data`` - data serving utilities (e.g., datasets, preprocessors, utils, etc.)
 - ``io`` - data fetching and storage utilities
 - ``inference`` - utilities for CLI/tooling to run inference
@@ -31,7 +32,7 @@ to train a model, like `AB-UPT <https://arxiv.org/abs/2502.09692>`_, to do so th
 
 In either case, the same underlying shared codebase is used to ensure consistent behavior.
 
-Our main buildings blocks are located in ``core``. It takes care of things like object factories, callbacks, trackers,
+Our main buildings blocks are located in ``core``. It takes care of things like object factories, base callbacks, trackers,
 schemas, etc. All of which have **Base** classes that can be used as abstract classes to create custom variations,
 as well as ready-to-use implementations with clearly defined usage patterns. Those are usually located next to their
 typical application, e.g. training callbacks will be in the ``training`` submodule, and so on.

@@ -8,11 +8,20 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :class-container: sd-mb-4
 
    .. grid-item-card:: 🚀 Start Here: Introduction to Noether
-      :link: explanation/introduction_to_noether_framework
+      :link: noether/introduction_to_noether_framework
       :link-type: doc
       :class-card: sd-bg-primary sd-text-white sd-shadow-lg
 
       A high-level overview of the core architecture, key concepts, and design principles.
+
+.. toctree::
+   :maxdepth: 2
+   :caption: The Noether Framework 
+   :hidden:
+
+   noether/introduction_to_noether_framework
+   noether/design_principles_and_limitations
+   noether/key_concepts
 
 
 .. toctree::
@@ -25,6 +34,8 @@ Welcome to the Noether Framework documentation. Here you will find available API
    tutorials/training_first_model_with_configs
    tutorials/training_first_model_with_code
    .. tutorials/running_first_inference
+   
+
 
 .. toctree::
    :maxdepth: 1
@@ -36,7 +47,11 @@ Welcome to the Noether Framework documentation. Here you will find available API
    .. guides/data/how_to_load_custom_dataset
 
    guides/data/how_to_use_private_data_source
-   guides/data/how_to_load_custom_dataset
+   guides/data/how_to_make_a_custom_dataset
+   guides/data/how_to_write_data_collators
+   guides/data/how_to_write_a_sample_processors
+
+   guides/training/implementing_a_custom_model
 
    .. guides/data/how_to_write_data_preprocessors
    .. guides/data/how_to_write_data_collators
@@ -49,14 +64,15 @@ Welcome to the Noether Framework documentation. Here you will find available API
    .. guides/inference/how_to_run_inference_via_cli
    .. guides/inference/how_to_run_inference_via_code
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Explanation
-   :hidden:
-   :glob:
 
-   explanation/introduction_to_noether_framework
-   explanation/*
+.. toctree::
+   :maxdepth: 1
+   :caption: Noehter Zoo's
+   :hidden:
+
+   zoo/dataset_zoo
+   zoo/model_zoo
+
 
 .. toctree::
    :maxdepth: 2
@@ -70,6 +86,15 @@ Welcome to the Noether Framework documentation. Here you will find available API
 .. grid:: 1 2 2 2
    :gutter: 2
    :class-container: sd-equal-height
+
+   .. grid-item::
+      .. card:: 🧠️ The Noether Framework
+        :class-card: sd-h-100
+        :link: noether/index
+        :link-type: doc
+        :shadow: md
+
+        Go deep directly. Learn about our core architecture, key concepts, and the design principles behind the framework.
 
    .. grid-item::
       .. card:: 🎓 Tutorials
@@ -89,15 +114,6 @@ Welcome to the Noether Framework documentation. Here you will find available API
 
         Step-by-step recipes for common problems, like loading custom data, using private sources, or writing your
         own data collators.
-
-   .. grid-item::
-      .. card:: 🧠️ Explanation
-        :class-card: sd-h-100
-        :link: explanation/index
-        :link-type: doc
-        :shadow: md
-
-        Go deeper. Learn about our core architecture, key concepts, and the design principles behind the framework.
 
    .. grid-item::
       .. card:: 📚 Reference
