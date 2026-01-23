@@ -52,7 +52,7 @@ class BestCheckpointCallback(PeriodicCallback):
         self.tolerance_counter = state_dict["tolerance_counter"]
         self.metric_at_exceeded_tolerance = state_dict["metric_at_exceeded_tolerance"]
 
-    def _before_training(self, *, update_counter, **kwargs) -> None:
+    def before_training(self, *, update_counter) -> None:
         if len(self.tolerances_is_exceeded) > 0 and update_counter.cur_iteration.sample > 0:
             raise NotImplementedError(f"{type(self).__name__} with tolerances resuming not implemented")
 
@@ -62,7 +62,7 @@ class BestCheckpointCallback(PeriodicCallback):
         return metric_value < self.best_metric_value
 
     # noinspection PyMethodOverriding
-    def _periodic_callback(self, **_) -> None:
+    def periodic_callback(self, **_) -> None:
         if self.writer.log_cache is None:
             raise KeyError("Log cache is empty, can't retrieve metric value.")
         if self.metric_key not in self.writer.log_cache:
@@ -105,7 +105,7 @@ class BestCheckpointCallback(PeriodicCallback):
                     self.tolerances_is_exceeded[tolerance] = True
                     self.metric_at_exceeded_tolerance[tolerance] = metric_value
 
-    def _after_training(self, **kwargs) -> None:
+    def after_training(self, **kwargs) -> None:
         # best metric doesn't need to be logged as it is summarized anyways
         for tolerance, value in self.metric_at_exceeded_tolerance.items():
             self.logger.info(f"best {self.metric_key} with tolerance={tolerance}: {value}")

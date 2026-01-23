@@ -5,7 +5,7 @@ from typing import Literal
 from noether.core.schemas.callbacks import CallBackBaseConfig
 
 
-class BaseCallbackConfig(CallBackBaseConfig):
+class BoilerplateCallbackConfig(CallBackBaseConfig):
     kind: str | None = None
     dataset_key: str
-    name: Literal["BaseCallback"] = "BaseCallback"
+    name: Literal["BoilerplateCallback"] = "BoilerplateCallback"
