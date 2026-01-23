@@ -4,7 +4,7 @@
 # Noether Framework
 
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
-[![License: ENLP](https://img.shields.io/badge/License-Custom-orange.svg)](./LICENSE.txt)
+[![License: ENLP](https://img.shields.io/badge/License-ENLP-orange.svg)](./LICENSE.txt)
 [![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](./tutorial/README.MD)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
@@ -13,14 +13,14 @@
 
 <div>
 <strong>Noether</strong> is Emmi AI’s <strong>open software framework for Engineering AI</strong>. Built on 
-<strong>modern transformer building blocks</strong>, it delivers the full engineering stack, allowing teams to build, 
+<strong>transformer building blocks</strong>, it delivers the full engineering stack, allowing teams to build, 
 train, and operate industrial simulation models across engineering verticals, eliminating the need for component 
 re-engineering or an in-house deep learning team.
 </div>
 
 ## Key Features
 
-- **Modular Transformer Architecture:** Built on modern building blocks optimized for physical systems.
+- **Modular Transformer Architecture:** Built on building blocks optimized for physical systems.
 - **Hardware Agnostic:** Seamless execution across CPU, MPS (Apple Silicon), and NVIDIA GPUs.
 - **Industrial Grade:** Designed for high-fidelity industrial simulations and engineering verticals.
 - **Ready for Scale:** Built-in support for Multi-GPU and SLURM cluster environments.
@@ -53,7 +53,7 @@ It is possible to use the framework either from source or from the pre-built pac
 ## Pre-requisites
 
 - install [uv](https://docs.astral.sh/uv/getting-started/installation/) as the package manager on your system
-- clone the repo into your desired folder: `git clone git@github.com:Emmi-AI/noether.git`
+- clone the repo into your desired folder: `git clone https://github.com/Emmi-AI/noether.git`
 - follow the next steps 🚀
 
 ## Working with pre-built packages
@@ -236,16 +236,30 @@ us at partner@emmi.ai .
 Read the full license [here](./LICENSE.txt).
 
 ---
-# Endorsed by
+# Endorsed by research groups from
 
-<div align="center" style="gap: 15px; display: flex; justify-content: center; flex-wrap: wrap;">
-  <img src="docs/source/_static/logos/jku.jpg" height="50" alt="JKU Linz" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/eth.png" height="50" alt="ETH Zurich" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/upenn.png" height="50" alt="UPenn" style="background: white; padding: 0px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/uw.png" height="50" alt="University of Washington" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/tum.jpg" height="50" alt="TUM Munich" style="background: white; padding: 0px; border-radius: 4px; margin: 0 10px;">
-  <img src="docs/source/_static/logos/sorbonne.png" height="50" alt="Sorbonne University" style="background: white; padding: 5px; border-radius: 4px; margin: 0 10px;">
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/jku.png" height="50" alt="JKU Linz">
+    </td>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/eth.png" height="50" alt="ETH Zurich">
+    </td>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/upenn.png" height="50" alt="UPenn">
+    </td>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/uw.png" height="50" alt="University of Washington">
+    </td>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/tum.png" height="50" alt="TUM Munich">
+    </td>
+    <td align="center">
+      <img src="docs/source/_static/logos_cards/sorbonne.png" height="50" alt="Sorbonne University">
+    </td>
+  </tr>
+</table>
 
 ---
 # Citing
