@@ -2,11 +2,11 @@
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import OfflineLossCallbackConfig
 
 
-class OfflineLossCallback(PeriodicIteratorCallback):
+class OfflineLossCallback(PeriodicDataIteratorCallback):
     """A periodic Callback that is invoked at the end of each epoch to calculate and track the loss and a dataset."""
 
     def __init__(self, callback_config: OfflineLossCallbackConfig, **kwargs):

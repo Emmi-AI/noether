@@ -25,11 +25,11 @@ class OnlineLossCallback(PeriodicCallback):
         self.verbose = callback_config.verbose
         self.tracked_losses: defaultdict[str, list[torch.Tensor]] = defaultdict(list)
 
-    def _track_after_accumulation_step(self, *, losses, **_) -> None:
+    def track_after_accumulation_step(self, *, losses, **_) -> None:
         for name, loss in losses.items():
             self.tracked_losses[name].append(loss.detach())
 
-    def _periodic_callback(self, *, interval_type: IntervalType, **_) -> None:
+    def periodic_callback(self, *, interval_type: IntervalType, **_) -> None:
         if interval_type == "eval":
             return  # online losses are only logged during training
         for name, tracked_loss in self.tracked_losses.items():

@@ -58,7 +58,7 @@ class EmaCallback(PeriodicCallback):
                     self.buffers[model_path][name] = sd[name]
         self._was_resumed = True
 
-    def _before_training(self, **_) -> None:
+    def before_training(self, **_) -> None:
         if not is_rank0():
             return
         if self._was_resumed:
@@ -83,7 +83,7 @@ class EmaCallback(PeriodicCallback):
         # noinspection PyProtectedMember
         torch._foreach_add_(target_param_list, source_param_list, alpha=1 - target_factor)
 
-    def _track_after_update_step(self, **_) -> None:
+    def track_after_update_step(self, **_) -> None:
         if not is_rank0():
             return
 
@@ -132,12 +132,12 @@ class EmaCallback(PeriodicCallback):
                         ema=target_factor,
                     )
 
-    def _periodic_callback(self, *, interval_type: IntervalType, update_counter, **_) -> None:
+    def periodic_callback(self, *, interval_type: IntervalType, update_counter, **_) -> None:
         if interval_type == "eval":
             return  # checkpoints are only saved during training
         checkpoint = update_counter.cur_iteration
         self._save(checkpoint, model=self.model)
 
-    def _after_training(self, **_) -> None:
+    def after_training(self, **_) -> None:
         if self.save_last_weights:
             self._save(training_iteration="last", model=self.model)

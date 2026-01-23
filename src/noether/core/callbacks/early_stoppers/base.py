@@ -24,7 +24,7 @@ class EarlyStopperBase(PeriodicCallback, metaclass=abc.ABCMeta):
         ]
         return "_".join(f"{prefix}{val}" for val, prefix in intervals if val is not None)
 
-    def _periodic_callback(
+    def periodic_callback(
         self,
         *,
         interval_type: IntervalType,

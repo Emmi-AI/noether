@@ -92,7 +92,7 @@ class TestCheckpointCallbacks:
             metric_property_provider=mock_metric_property_provider,
         )
 
-        callback._periodic_callback(
+        callback.periodic_callback(
             interval_type="update", trainer=mock_trainer, update_counter=mock_trainer.update_counter
         )
         mock_checkpoint_writer.save.assert_called()

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 class CallbackBase:
     """Base class for callbacks that log something before/after training.
 
-    Allows overwriting `_before_training` and `_after_training`.
+    Allows overwriting `before_training` and `after_training`.
 
     If the callback is stateful (i.e., it tracks something across the training process that needs to be loaded if the
     run is resumed), there are two ways to implement loading the callback state:
@@ -50,11 +50,9 @@ class CallbackBase:
                 format_str=".2f",
             )
 
-    As evaluations are pretty much always done in torch.no_grad() contexts, the hooks implemented by callbacks
-    automatically apply the torch.no_grad() context. Therefore, the `CallbackBase` class makes use of the "template
-    method" design pattern, where templates (e.g. `before_training`) implement the invariant behavior (e.g., applying
-    torch.no_grad()). The template implementations start with an underscore (e.g., `_before_training`) and only these
-    methods should be implemented by child classes. Templates (e.g., `before_training`) should not be overwritten.
+    Note:
+        As evaluations are pretty much always done in torch.no_grad() contexts, the hooks implemented by callbacks
+        are always executed within a torch.no_grad() context.
     """
 
     trainer: BaseTrainer
@@ -71,6 +69,8 @@ class CallbackBase:
     """Metric property provider of the current run. Defines properties of metrics (e.g., whether higher values are better)."""
     checkpoint_writer: CheckpointWriter
     """Checkpoint writer of the current run. Can be used to store checkpoints during training."""
+
+    _logger: logging.Logger | None = None
 
     def __init__(
         self,
@@ -103,14 +103,6 @@ class CallbackBase:
         self.writer = log_writer
         self.metric_property_provider = metric_property_provider
         self.checkpoint_writer = checkpoint_writer
-
-        # these things are initialized on property access because they require the name/full_name
-        # (which can be set from child classes)
-        self._logger = None
-
-        # check that children only override their implementation methods
-        assert type(self).before_training == CallbackBase.before_training
-        assert type(self).after_training == CallbackBase.after_training
 
     def __repr__(self):
         return str(self)
@@ -152,35 +144,35 @@ class CallbackBase:
             self._logger = logging.getLogger(str(self))
         return self._logger
 
-    @torch.no_grad()
-    def before_training(self, update_counter: UpdateCounter) -> None:
-        """Hook that is called before training starts. Applies `torch.no_grad()` context.
+    def before_training(self, *, update_counter: UpdateCounter) -> None:
+        """Hook called once before the training loop starts.
 
-        Args:
-            update_counter: UpdateCounter instance to access current training progress.
-        """
-        self._before_training(update_counter=update_counter)
+        This method is intended to be overridden by derived classes to perform initialization
+        tasks before training begins. Common use cases include:
+        * Initializing experiment tracking (e.g., logging hyperparameters)
+        * Printing model summaries or architecture details
+        * Initializing specific data structures or buffers needed during training
+        * Performing sanity checks on the data or configuration
 
-    @torch.no_grad()
-    def after_training(self, update_counter: UpdateCounter) -> None:
-        """Hook that is called after training ends. Applies `torch.no_grad()` context.
-
-        Args:
-            update_counter: UpdateCounter instance to access current training progress.
-        """
-        self._after_training(update_counter=update_counter)
-
-    def _before_training(self, *, update_counter: UpdateCounter) -> None:
-        """Template method for `before_training`. Derived classes should overwrite this method to do something before
-        training starts. Implementing this method is optional.
+        Note:
+            This method is executed within a ``torch.no_grad()`` context.
 
         Args:
             update_counter: UpdateCounter instance to access current training progress.
         """
 
-    def _after_training(self, *, update_counter: UpdateCounter) -> None:
-        """Template method for `after_training`. Derived classes should overwrite this method to do something after
-        training ends. Implementing this method is optional.
+    def after_training(self, *, update_counter: UpdateCounter) -> None:
+        """Hook called once after the training loop finishes.
+
+        This method is intended to be overridden by derived classes to perform cleanup or
+        final reporting tasks after training is complete. Common use cases include:
+        * Performing a final evaluation on the test set
+        * Saving final model weights or artifacts
+        * Sending notifications (e.g., via Slack or email) about the completed run
+        * Closing or finalizing experiment tracking sessions
+
+        Note:
+            This method is executed within a ``torch.no_grad()`` context.
 
         Args:
             update_counter: UpdateCounter instance to access current training progress.

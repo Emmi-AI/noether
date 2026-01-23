@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from tutorial.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
 
 # Constants
@@ -28,7 +28,7 @@ class MetricType:
     L2ERR = "l2err"
 
 
-class SurfaceVolumeEvaluationMetricsCallback(PeriodicIteratorCallback):
+class SurfaceVolumeEvaluationMetricsCallback(PeriodicDataIteratorCallback):
     """
     Callback for computing evaluation metrics on surface and volume predictions.
 

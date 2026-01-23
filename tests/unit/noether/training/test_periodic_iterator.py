@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.training import UpdateCounter
 
@@ -71,8 +71,8 @@ def mock_metric_property_provider():
     return Mock()
 
 
-class TestPeriodicIteratorCallback:
-    """Tests for PeriodicIteratorCallback."""
+class TestPeriodicDataIteratorCallback:
+    """Tests for PeriodicDataIteratorCallback."""
 
     def test_instantiation(
         self,
@@ -84,10 +84,10 @@ class TestPeriodicIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test that PeriodicIteratorCallback can be instantiated."""
+        """Test that PeriodicDataIteratorCallback can be instantiated."""
         config = CallBackBaseConfig.model_validate(dict(every_n_updates=10))
 
-        class TestCallback(PeriodicIteratorCallback):
+        class TestCallback(PeriodicDataIteratorCallback):
             def _forward(self, batch, **_):
                 pass
 
@@ -125,11 +125,11 @@ class TestPeriodicIteratorCallback:
 
         config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
 
-        class TestCallback(PeriodicIteratorCallback):
+        class TestCallback(PeriodicDataIteratorCallback):
             def _forward(self, batch, *, trainer_model):
                 return {"result": torch.tensor([1.0])}
 
-            def _register_sampler_config(self):
+            def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
         callback = TestCallback(
@@ -142,7 +142,7 @@ class TestPeriodicIteratorCallback:
             checkpoint_writer=mock_checkpoint_writer,
             metric_property_provider=mock_metric_property_provider,
         )
-        callback.register_sampler_config()
+        callback._sampler_config = callback.register_sampler_config()
 
         # Mock data iterator
         mock_batch = {"x": torch.randn(4, 10)}
@@ -161,19 +161,19 @@ class TestPeriodicIteratorCallback:
         """Test tensor collation."""
         # Test collating 0-dim tensors (scalars)
         tensors_0d = [torch.tensor(1.0), torch.tensor(2.0), torch.tensor(3.0)]
-        result_0d = PeriodicIteratorCallback._collate_tensors(tensors_0d)
+        result_0d = PeriodicDataIteratorCallback._collate_tensors(tensors_0d)
         assert result_0d.shape == (3,)
         assert torch.allclose(result_0d, torch.tensor([1.0, 2.0, 3.0]))
 
         # Test collating 1-dim tensors
         tensors_1d = [torch.tensor([1.0, 2.0]), torch.tensor([3.0, 4.0])]
-        result_1d = PeriodicIteratorCallback._collate_tensors(tensors_1d)
+        result_1d = PeriodicDataIteratorCallback._collate_tensors(tensors_1d)
         assert result_1d.shape == (4,)
         assert torch.allclose(result_1d, torch.tensor([1.0, 2.0, 3.0, 4.0]))
 
     @patch("noether.core.callbacks.periodic.is_distributed")
     @patch("noether.core.callbacks.periodic.is_rank0")
-    def test_periodic_callback_single_output(
+    def testperiodic_callback_single_output(
         self,
         mock_is_rank0,
         mock_is_distributed,
@@ -185,7 +185,7 @@ class TestPeriodicIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test _periodic_callback with single output from _forward."""
+        """Test periodic_callback with single output from _forward."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -193,11 +193,11 @@ class TestPeriodicIteratorCallback:
 
         processed_results = []
 
-        class TestCallback(PeriodicIteratorCallback):
+        class TestCallback(PeriodicDataIteratorCallback):
             def _forward(self, batch, *, trainer_model):
                 return {"loss": torch.tensor([1.0, 2.0, 3.0, 4.0])}
 
-            def _register_sampler_config(self):
+            def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
             def _process_results(self, results, *, interval_type, update_counter, **_):
@@ -213,7 +213,7 @@ class TestPeriodicIteratorCallback:
             checkpoint_writer=mock_checkpoint_writer,
             metric_property_provider=mock_metric_property_provider,
         )
-        callback.register_sampler_config()
+        callback._sampler_config = callback.register_sampler_config()
 
         # Mock data iterator
         mock_batch = {"x": torch.randn(4, 10)}
@@ -222,7 +222,7 @@ class TestPeriodicIteratorCallback:
         # Mock update counter
         mock_update_counter = Mock(spec=UpdateCounter)
 
-        callback._periodic_callback(
+        callback.periodic_callback(
             interval_type="update",
             update_counter=mock_update_counter,
             data_iter=mock_data_iter,
@@ -235,7 +235,7 @@ class TestPeriodicIteratorCallback:
 
     @patch("noether.core.callbacks.periodic.is_distributed")
     @patch("noether.core.callbacks.periodic.is_rank0")
-    def test_periodic_callback_multiple_outputs(
+    def testperiodic_callback_multiple_outputs(
         self,
         mock_is_rank0,
         mock_is_distributed,
@@ -247,7 +247,7 @@ class TestPeriodicIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test _periodic_callback with multiple outputs from _forward."""
+        """Test periodic_callback with multiple outputs from _forward."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -255,13 +255,13 @@ class TestPeriodicIteratorCallback:
 
         processed_results = []
 
-        class TestCallback(PeriodicIteratorCallback):
+        class TestCallback(PeriodicDataIteratorCallback):
             def _forward(self, batch, *, trainer_model):
                 predictions = torch.tensor([1.0, 2.0, 3.0, 4.0])
                 labels = torch.tensor([0, 1, 0, 1])
                 return predictions, labels
 
-            def _register_sampler_config(self):
+            def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
             def _process_results(self, results, *, interval_type, update_counter, **_):
@@ -277,7 +277,7 @@ class TestPeriodicIteratorCallback:
             checkpoint_writer=mock_checkpoint_writer,
             metric_property_provider=mock_metric_property_provider,
         )
-        callback.register_sampler_config()
+        callback._sampler_config = callback.register_sampler_config()
 
         # Mock data iterator
         mock_batch = {"x": torch.randn(4, 10)}
@@ -286,7 +286,7 @@ class TestPeriodicIteratorCallback:
         # Mock update counter
         mock_update_counter = Mock(spec=UpdateCounter)
 
-        callback._periodic_callback(
+        callback.periodic_callback(
             interval_type="update",
             update_counter=mock_update_counter,
             data_iter=mock_data_iter,
@@ -301,7 +301,7 @@ class TestPeriodicIteratorCallback:
 
     @patch("noether.core.callbacks.periodic.is_distributed")
     @patch("noether.core.callbacks.periodic.is_rank0")
-    def test_periodic_callback_passes_correct_arguments(
+    def testperiodic_callback_passes_correct_arguments(
         self,
         mock_is_rank0,
         mock_is_distributed,
@@ -313,7 +313,7 @@ class TestPeriodicIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test that _periodic_callback passes correct arguments to _process_results."""
+        """Test that periodic_callback passes correct arguments to _process_results."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -321,11 +321,11 @@ class TestPeriodicIteratorCallback:
 
         process_results_calls = []
 
-        class TestCallback(PeriodicIteratorCallback):
+        class TestCallback(PeriodicDataIteratorCallback):
             def _forward(self, batch, *, trainer_model):
                 return {"data": torch.tensor([1.0])}
 
-            def _register_sampler_config(self):
+            def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
             def _process_results(self, results, *, interval_type, update_counter, **_):
@@ -347,7 +347,7 @@ class TestPeriodicIteratorCallback:
             checkpoint_writer=mock_checkpoint_writer,
             metric_property_provider=mock_metric_property_provider,
         )
-        callback.register_sampler_config()
+        callback._sampler_config = callback.register_sampler_config()
 
         # Mock data iterator
         mock_batch = {"x": torch.randn(4, 10)}
@@ -356,7 +356,7 @@ class TestPeriodicIteratorCallback:
         # Mock update counter
         mock_update_counter = Mock(spec=UpdateCounter)
 
-        callback._periodic_callback(
+        callback.periodic_callback(
             interval_type="epoch",
             update_counter=mock_update_counter,
             data_iter=mock_data_iter,

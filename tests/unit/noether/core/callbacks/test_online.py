@@ -96,7 +96,7 @@ class TestOnlineLossCallback:
         )
 
         losses = {"total": torch.tensor(0.5)}
-        callback._track_after_accumulation_step(losses=losses)
+        callback.track_after_accumulation_step(losses=losses)
 
         assert "total" in callback.tracked_losses
         assert len(callback.tracked_losses["total"]) == 1
@@ -133,10 +133,10 @@ class TestOnlineLossCallback:
         )
 
         losses = {"total": torch.tensor(float("nan"))}
-        callback._track_after_accumulation_step(losses=losses)
+        callback.track_after_accumulation_step(losses=losses)
 
         with pytest.raises(RuntimeError, match="encountered nan loss"):
-            callback._periodic_callback(interval_type="update", trainer=mock_trainer)
+            callback.periodic_callback(interval_type="update", trainer=mock_trainer)
 
 
 class TestBestMetricCallback:
@@ -256,7 +256,7 @@ class TestBestMetricCallback:
             metric_property_provider=mock_metric_property_provider,
         )
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         assert callback.best_metric_value == 0.9
         mock_log_writer.add_scalar.assert_called()
@@ -301,7 +301,7 @@ class TestBestMetricCallback:
         callback.best_metric_value = 0.9
         callback.previous_log_values = {"test/accuracy/at_best/val/accuracy": 0.85}
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         # Best value should not change
         assert callback.best_metric_value == 0.9
@@ -347,7 +347,7 @@ class TestBestMetricCallback:
             metric_property_provider=mock_metric_property_provider,
         )
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         # Should log both mandatory and available optional metrics
         assert callback.best_metric_value == 0.9
@@ -402,7 +402,7 @@ class TestTrackAdditionalOutputsCallback:
             "other_value": torch.tensor(3.5),
         }
 
-        callback._track_after_accumulation_step(
+        callback.track_after_accumulation_step(
             update_counter=mock_trainer.update_counter,
             update_outputs=update_outputs,
         )
@@ -455,7 +455,7 @@ class TestTrackAdditionalOutputsCallback:
             "grad_norm": torch.tensor(1.5),
         }
 
-        callback._track_after_accumulation_step(
+        callback.track_after_accumulation_step(
             update_counter=mock_trainer.update_counter,
             update_outputs=update_outputs,
         )

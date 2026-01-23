@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from noether.core.callbacks import PeriodicCallback, PeriodicIteratorCallback
+from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.models.single import Model
 from noether.core.schemas import DatasetBaseConfig
 from noether.core.schemas.callbacks import CallBackBaseConfig
@@ -62,19 +62,19 @@ class TrackingCallback(PeriodicCallback):
         super().__init__(*args, **kwargs)
         self.update_calls, self.periodic_calls = [], []
 
-    def _track_after_update_step(self, *, update_counter, **_):
+    def track_after_update_step(self, *, update_counter, **_):
         self.update_calls.append(update_counter.is_finished)
 
-    def _periodic_callback(self, *, update_counter, **_):
+    def periodic_callback(self, *, update_counter, **_):
         self.periodic_calls.append(update_counter.is_finished)
 
 
-class DummyIteratorCallback(PeriodicIteratorCallback):
+class DummyIteratorCallback(PeriodicDataIteratorCallback):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.received_batches = []
 
-    def _register_sampler_config(self):
+    def register_sampler_config(self):
         return self._sampler_config_from_key(key="test")
 
     def _forward(self, batch, *, trainer_model):
@@ -177,7 +177,7 @@ def test_periodic_iterator_callback_receives_all_updates():
         metric_property_provider=Mock(),
     )
     trainer.get_all_callbacks = lambda _: [callback]
-    callback.register_sampler_config()
+    callback._sampler_config = callback.register_sampler_config()
 
     trainer.train(model)
 
@@ -234,7 +234,7 @@ def test_periodic_iterator_callback_with_gradient_accumulation():
         metric_property_provider=Mock(),
     )
     trainer.get_all_callbacks = lambda _: [callback]
-    callback.register_sampler_config()
+    callback._sampler_config = callback.register_sampler_config()
 
     trainer.train(model)
 

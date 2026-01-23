@@ -64,7 +64,7 @@ class BestMetricCallback(PeriodicCallback):
         self.previous_log_values[log_key] = value
 
     # noinspection PyMethodOverriding
-    def _periodic_callback(self, **__) -> None:
+    def periodic_callback(self, **__) -> None:
         # check that all mandatory keys are in the log_cache
         self._validate_key_exists(self.source_metric_key, "source_metric_key")
         assert self.writer.log_cache is not None

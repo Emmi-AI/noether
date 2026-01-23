@@ -32,7 +32,7 @@ class ParamCountCallback(CallbackBase):
                 )
             ]
 
-    def _before_training(self, **_) -> None:
+    def before_training(self, **_) -> None:
         param_counts = self._get_param_counts(self.model)
         new_summary_entries = {}
         for name, tcount, fcount in param_counts:

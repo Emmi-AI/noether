@@ -2,12 +2,12 @@
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 
 from ..schemas.callbacks.base_callback_config import BaseCallbackConfig
 
 
-class BaseCallback(PeriodicIteratorCallback):
+class BaseCallback(PeriodicDataIteratorCallback):
     def __init__(self, callback_config: BaseCallbackConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)
 

@@ -141,45 +141,21 @@ class TestCallbackBase:
     def test_before_training_hook(self, callback_base):
         """Test that before_training can be called without errors."""
         update_counter = Mock(spec=UpdateCounter)
-        callback_base.before_training(update_counter)
+        callback_base.before_training(update_counter=update_counter)
 
     def test_after_training_hook(self, callback_base):
         """Test that after_training can be called without errors."""
         update_counter = Mock(spec=UpdateCounter)
-        callback_base.after_training(update_counter)
-
-    def test_before_training_applies_no_grad(self, callback_base):
-        """Test that before_training is called in no_grad context."""
-        update_counter = Mock(spec=UpdateCounter)
-
-        # Create a subclass that tracks whether no_grad was active
-        class TestCallback(CallbackBase):
-            grad_enabled = None
-
-            def _before_training(self, **_):
-                self.grad_enabled = torch.is_grad_enabled()
-
-        test_callback = TestCallback(
-            trainer=callback_base.trainer,
-            model=callback_base.model,
-            data_container=callback_base.data_container,
-            tracker=callback_base.tracker,
-            log_writer=callback_base.writer,
-            checkpoint_writer=callback_base.checkpoint_writer,
-            metric_property_provider=callback_base.metric_property_provider,
-        )
-
-        test_callback.before_training(update_counter)
-        assert test_callback.grad_enabled is False
+        callback_base.after_training(update_counter=update_counter)
 
     def test_custom_implementation_methods(self):
         """Test that custom implementations of template methods work correctly."""
 
         class CustomCallback(CallbackBase):
-            def _before_training(self, **_):
+            def before_training(self, **_):
                 self.before_called = True
 
-            def _after_training(self, **_):
+            def after_training(self, **_):
                 self.after_called = True
 
         custom_callback = CustomCallback(
@@ -194,10 +170,10 @@ class TestCallbackBase:
 
         update_counter = Mock(spec=UpdateCounter)
 
-        custom_callback.before_training(update_counter)
+        custom_callback.before_training(update_counter=update_counter)
         assert hasattr(custom_callback, "before_called")
         assert custom_callback.before_called is True
 
-        custom_callback.after_training(update_counter)
+        custom_callback.after_training(update_counter=update_counter)
         assert hasattr(custom_callback, "after_called")
         assert custom_callback.after_called is True
