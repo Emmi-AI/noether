@@ -15,7 +15,7 @@ jobs:
       - uses: amannn/action-semantic-pull-request@v5
         id: lint_pr_title
         env:
-          GITHUB_TOKEN: ${{ secrets.NOETHER_PR_COMMENT_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           types: |
             feat
