@@ -227,7 +227,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
             kind="noether.data.datasets.cfd.ShapeNetCarDataset",
             root=dataset_root,
             pipeline=AeroCFDPipelineConfig(
-                kind="tutorial.pipelines.AeroMultistagePipeline",
+                kind="tutorial.pipeline.AeroMultistagePipeline",
                 num_surface_points=3586, # max = 3586
                 num_volume_points=4096,   # max = 28504
                 num_surface_queries=3586,
@@ -254,10 +254,7 @@ Step 5: Trainer config
 
 .. code-block:: python
 
-    def build_trainer_config(
-        data_specs: AeroDataSpecs,
-        model_forward_properties: list[str],
-    ) -> AutomotiveAerodynamicsCfdTrainerConfig:
+    def build_trainer_config(model_forward_properties: list[str]) -> AutomotiveAerodynamicsCfdTrainerConfig:
         batch_size = 1
         loss_and_log_every_n_epochs = 1
         save_and_ema_every_n_epochs = 10
@@ -296,14 +293,14 @@ Step 5: Trainer config
                 # test loss
                 SurfaceVolumeEvaluationMetricsCallbackConfig(
                     kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
-                    batch_size=batch_size,
+                    batch_size=1,
                     every_n_epochs=loss_and_log_every_n_epochs,
                     dataset_key="test",
                     forward_properties=model_forward_properties,
                 ),
                 SurfaceVolumeEvaluationMetricsCallbackConfig(
                     kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
-                    batch_size=batch_size,
+                    batch_size=1,
                     every_n_epochs=500,
                     dataset_key="test_repeat",
                     forward_properties=model_forward_properties,
@@ -319,7 +316,6 @@ Step 5: Trainer config
                 ),
             ],
             forward_properties=model_forward_properties,
-            data_specs=data_specs,
             target_properties=[
                 "surface_pressure_target",
                 "volume_velocity_target",
@@ -388,8 +384,8 @@ At last, we will populate the placeholder fields that we declared for the ``Hydr
             trainer=aero_trainer_config,
             debug=False,
             store_code_in_output=False,
+            output_path=output_path.as_posix(),
         ),
-        output_path=output_path.as_posix(),
     )
 
 As you can see above, there are multiple arguments that were defined with ``None``. They are present here to show
@@ -404,7 +400,14 @@ from your terminal:
 
 .. code-block:: bash
 
-    uv run python tutorial/train_shapenet_upt.py
+    uv run python -m tutorial.train_shapenet_upt
+
+This makes Python add the repo root to sys.path, so ``from tutorial.*`` works. Alternatively, you can add repo root
+to PYTHONPATH:
+
+.. code-block:: bash
+
+    PYTHONPATH=. uv run python tutorial/train_shapenet_upt.py
 
 If everything is set up correctly, you should see the logs indicating successful initialization and training
 (use your task manager and/or activity monitor to see if the hardware is properly utilized).
