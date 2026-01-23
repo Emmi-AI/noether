@@ -136,5 +136,9 @@ Each preprocessed simulation contains the following files:
 ## Computing the statistics of the dataset
 
 ```bash 
-noether-dataset-stats --dataset_kind=noether.data.datasets.cfd.shapenet_car.ShapeNetCarDataset --split=train --root=<path tod dataset root> --exclude_attributes=surface_friction,volume_pressure,volume_vorticity
+noether-dataset-stats \
+    --dataset_kind=noether.data.datasets.cfd.shapenet_car.ShapeNetCarDataset \
+    --split=train \
+    --root=<path to dataset root> \
+    --exclude_attributes=surface_friction,volume_pressure,volume_vorticity
 ```
