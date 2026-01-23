@@ -1,9 +1,9 @@
 How to Implement a Custom Model
-===========================
+===============================
 
 A minimal custom model implementation looks as follows:
-You have to extend the `noether.core.models.Model` class and implement the `__init__` and `forward` methods. 
-Additionally, you will need to create a corresponding model configuration class that extends `noether.core.schemas.models.ModelBaseConfig` to define the model-specific parameters.
+You have to extend the :py:class:`noether.core.models.Model` class and implement the `__init__` and :py:meth:`noether.core.models.Model.forward` methods
+Additionally, you will need to create a corresponding model configuration class that extends :py:class:`noether.core.schemas.models.ModelBaseConfig` to define the model-specific parameters.
 
 
 .. code-block:: python

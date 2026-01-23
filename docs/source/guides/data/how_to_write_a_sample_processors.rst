@@ -1,9 +1,9 @@
 How to Implement a Custom Sample Processor 
-========================================
+==========================================
 
 Inside the Multistage Pipeline, data samples can be processed using custom Sample Processors.
 A Sample Processor is a callable class that takes as input a single data sample (a dictionary) and returns a processed data sample (also a dictionary).
-To create your own Sample Processor, you need to extend the base ``SampleProcessor`` class and implement the ``__call__`` method.
+To create your own Sample Processor, you need to extend the base :py:class:`~noether.data.pipeline.sample_processor.SampleProcessor` class and implement the :py:meth:`~noether.data.pipeline.sample_processor.SampleProcessor.__call__` method.
 Sample processors do not receive a configuration object, but can accept arbitrary keyword arguments in their constructor.
 
 .. code-block:: python

@@ -1,5 +1,5 @@
 The Noether Framework
-=========
+=====================
 
 .. toctree::
    :maxdepth: 1

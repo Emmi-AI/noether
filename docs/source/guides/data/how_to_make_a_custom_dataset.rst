@@ -1,7 +1,7 @@
 How to Implement a Custom Dataset
-==============================
+=================================
 
-Below we provide a minimal (dummy code) example of how to create a custom dataset by extending the base ``Dataset`` class.
+Below we provide a minimal (dummy code) example of how to create a custom dataset by extending the base :py:class:`~noether.data.dataset.Dataset` class.
 Every single tensor that belongs to a 'data sample' must have its own ``getitem_*`` method, with a unique suffix.
 By default, all ``getitem_*`` will be called when fetching a data sample, unless specified otherwise in the configuration file (by configuring ``excluded_properties``).
 To apply data normalization, the ``@with_normalizers`` decorator must be used on each ``getitem_*`` method.
@@ -66,7 +66,7 @@ The key provided to the decorator must match the key of the configured normalize
           std: 2.0
 
 
-Let's say we run a trianing pipeline with the above dataset configuration and a batch size of 4.
+Let's say we run a training pipeline with the above dataset configuration and a batch size of 4.
 Then the outout will be a list of 4 dictionaries (a batch), where each dictionary has the following structure:
 .. code-block:: python
 

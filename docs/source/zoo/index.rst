@@ -1,5 +1,5 @@
-Noehter Zoo's
-=============
+Noether Zoos
+============
 
 .. toctree::
    :maxdepth: 1

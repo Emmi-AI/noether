@@ -50,8 +50,8 @@ Welcome to the Noether Framework documentation. Here you will find available API
 
    guides/data/how_to_use_private_data_source
    guides/data/how_to_make_a_custom_dataset
-   guides/data/how_to_write_data_collators
-   guides/data/how_to_write_a_sample_processors
+   guides/data/how_to_write_a_multistage_pipeline
+   guides/data/how_to_write_a_sample_processor
 
    guides/training/implementing_a_custom_model
 
@@ -69,7 +69,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
 
 .. toctree::
    :maxdepth: 1
-   :caption: Noehter Zoo's
+   :caption: Noether Zoos
    :hidden:
 
    zoo/dataset_zoo
@@ -120,8 +120,8 @@ Welcome to the Noether Framework documentation. Here you will find available API
    .. grid-item::
       .. card:: 📚 Reference
         :class-card: sd-h-100
-        :link: reference/index
+        :link: ../autoapi/noether/index
         :link-type: doc
         :shadow: md
 
-        Technical lookup. Find the complete API documentation, CLI commands, and details for all modules.
+        Technical lookup for complete API documentation

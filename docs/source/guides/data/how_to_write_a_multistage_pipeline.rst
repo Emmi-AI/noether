@@ -1,16 +1,16 @@
 How to Implement a Custom Multistage Pipeline
-====================================
+=============================================
 
-Within the `Noether Framework`, data samples loaded by the `Dataset`are processed through a Multistage Pipeline that consists of three stages: sample preprocessors, collators, and batch postprocessors.
-To create your own Multistage Pipeline, you need to extend the base `MultiStagePipeline` class and provide your custom processors and collators in the constructor.
+Within the `Noether Framework`, data samples loaded by the `Dataset` are processed through a Multistage Pipeline that consists of three stages: sample preprocessors, collators, and batch postprocessors.
+To create your own Multistage Pipeline, you need to extend the base :py:class:`~noether.data.pipeline.MultiStagePipeline` class and provide your custom processors and collators in the constructor.
 
 You have to provide three lists to the `__init__` of the partent class: one for sample preprocessors, one for collators, and one for batch postprocessors.
-In the preprocessors list,   `SampleProcessor`` classes are included that process individual data samples.
-In the collators list, `Collator` classes are included that collate the list of samples into batches.
-In the postprocessors list, `BatchProcessor` classes are included that process the entire batch after collation.
+In the preprocessors list, instances of :py:class:`~noether.data.pipeline.sample_processor.SampleProcessor` classes are included that process individual data samples.
+In the collators list, instances of :py:class:`~noether.data.pipeline.collator.Collator` classes are included that collate the list of samples into batches.
+In the postprocessors list, :py:class:`~noether.data.pipeline.batch_processor.BatchProcessor` classes are included that process the entire batch after collation.
 Those lists can also be empty if you do not wish to include any processors or collators in that stage.
 
-Below we provide a minimal (dummy code) example of how to create a custom Multistage Pipeline by extending the base ``MultiStagePipeline`` class.
+Below we provide a minimal (dummy code) example of how to create a custom Multistage Pipeline by extending the base :py:class:`~noether.data.pipeline.MultiStagePipeline` class.
 The sample processors we implemented do not take a config object as input, but can accept arbitrary keyword arguments in their constructor.
 
 .. code-block:: python

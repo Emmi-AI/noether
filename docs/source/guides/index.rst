@@ -13,8 +13,8 @@ How-to Guides
 
    data/how_to_use_private_data_source
    data/how_to_make_a_custom_dataset
-   data/how_to_write_data_collators
-   data/how_to_write_a_sample_processors
+   data/how_to_write_a_multistage_pipeline
+   data/how_to_write_a_sample_processor
    
    training/implementing_a_custom_model
 
