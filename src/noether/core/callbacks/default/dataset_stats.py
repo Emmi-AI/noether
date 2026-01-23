@@ -6,7 +6,7 @@ from noether.core.callbacks.base import CallbackBase
 class DatasetStatsCallback(CallbackBase):
     """A callback that logs the length of each dataset in the data container."""
 
-    def _before_training(self, **_) -> None:
+    def before_training(self, **_) -> None:
         for dataset_key, dataset in self.data_container.datasets.items():
             self.tracker.set_summary(key=f"ds_stats/{dataset_key}/len", value=len(dataset))
 

@@ -39,7 +39,7 @@ class CheckpointCallback(PeriodicCallback):
         if callback_config.model_name is not None:
             self.model_names.append(callback_config.model_name)
 
-    def _before_training(self, *, update_counter: UpdateCounter, **kwargs) -> None:
+    def before_training(self, *, update_counter: UpdateCounter) -> None:
         frozen_count = self.model.frozen_param_count
         trainable_count = self.model.trainable_param_count
 
@@ -78,7 +78,7 @@ class CheckpointCallback(PeriodicCallback):
             f"{checkpoint_size_str}"
         )
 
-    def _periodic_callback(self, *, interval_type: IntervalType, update_counter: UpdateCounter, **kwargs) -> None:
+    def periodic_callback(self, *, interval_type: IntervalType, update_counter: UpdateCounter, **kwargs) -> None:
         if interval_type == "eval":
             return  # checkpoints are only saved during training
         self.checkpoint_writer.save(
@@ -93,7 +93,7 @@ class CheckpointCallback(PeriodicCallback):
             save_frozen_weights=True,
         )
 
-    def _after_training(self, **_) -> None:
+    def after_training(self, **_) -> None:
         self.checkpoint_writer.save(
             model=self.model,
             trainer=self.trainer,

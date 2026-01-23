@@ -9,8 +9,8 @@
   save_latest_weights: true
   save_latest_optim: true
   name: CheckpointCallback
-- kind: boilerplate_project.callbacks.BaseCallback
+- kind: boilerplate_project.callbacks.BoilerplateCallback
   dataset_key: test
   every_n_epochs: 1
   batch_size: 1
-  name: BaseCallback
+  name: BoilerplateCallback

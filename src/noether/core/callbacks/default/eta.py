@@ -14,7 +14,7 @@ from noether.core.utils.training import UpdateCounter
 
 
 class EtaCallback(PeriodicCallback):
-    """Callback to print the progress and estimated duration until the `_periodic_callback` will be invoked. Also
+    """Callback to print the progress and estimated duration until the `periodic_callback` will be invoked. Also
     counts up the current epoch/update/samples and provides the average update duration. Only used in "unmanaged" runs,
     i.e., it is not used when the run was started via SLURM.
     """
@@ -34,7 +34,7 @@ class EtaCallback(PeriodicCallback):
         self.handler = self.LoggerWasCalledHandler()
         self._start_time: datetime | None = None
 
-    def _before_training(self, *, update_counter: UpdateCounter) -> None:
+    def before_training(self, *, update_counter: UpdateCounter) -> None:
         assert is_rank0(), "only use EtaCallback on rank0 process"
         self.epoch_format = f"{int(np.log10(max(1, update_counter.end_iteration.epoch or 0))) + 1}d"
         self.update_format = f"{int(np.log10(update_counter.end_iteration.update or 1)) + 1}d"
@@ -51,7 +51,7 @@ class EtaCallback(PeriodicCallback):
             self.updates_per_log_interval_format = f"{int(np.log10(self.updates_per_every_n_samples)) + 1}d"
         self._start_time = datetime.now()
 
-    def _track_after_update_step(self, *, update_counter: UpdateCounter, times) -> None:
+    def track_after_update_step(self, *, update_counter: UpdateCounter, times) -> None:
         cur_epoch = update_counter.cur_iteration.epoch
         assert cur_epoch is not None
         cur_update = update_counter.cur_iteration.update
@@ -61,11 +61,11 @@ class EtaCallback(PeriodicCallback):
 
         now = datetime.now()
         # reset time_since_last_log on new log interval
-        if self.should_log_after_epoch(update_counter.cur_iteration) and update_counter.is_full_epoch:
+        if self._should_log_after_epoch(update_counter.cur_iteration) and update_counter.is_full_epoch:
             self.time_since_last_log = 0.0
-        if self.should_log_after_update(update_counter.cur_iteration):
+        if self._should_log_after_update(update_counter.cur_iteration):
             self.time_since_last_log = 0.0
-        if self.should_log_after_sample(update_counter.cur_iteration, update_counter.effective_batch_size):
+        if self._should_log_after_sample(update_counter.cur_iteration, update_counter.effective_batch_size):
             self.time_since_last_log = 0.0
 
         if self.every_n_epochs:
@@ -132,9 +132,9 @@ class EtaCallback(PeriodicCallback):
         else:
             print(logstr, end="\r", file=sys.stderr)
 
-    def _periodic_callback(self, *, interval_type, **_) -> None:
+    def periodic_callback(self, *, interval_type, **_) -> None:
         if interval_type == "update":
             print(file=sys.stderr)
 
-    def _after_training(self, **_) -> None:
+    def after_training(self, **_) -> None:
         logging.getLogger().removeHandler(self.handler)

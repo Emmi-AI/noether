@@ -14,13 +14,13 @@ if TYPE_CHECKING:
 class LrCallback(PeriodicCallback):
     """Callback to log the learning rate of the optimizer."""
 
-    def should_log_after_update(self, training_iteration: TrainingIteration):
+    def _should_log_after_update(self, training_iteration: TrainingIteration):
         if training_iteration.update == 1:
             return True
-        return super().should_log_after_update(training_iteration)
+        return super()._should_log_after_update(training_iteration)
 
     # noinspection PyMethodOverriding
-    def _periodic_callback(self, **_) -> None:
+    def periodic_callback(self, **_) -> None:
         for cur_name, cur_model in self.model.get_named_models().items():
             if isinstance(cur_model, CompositeModel) or cur_model.optimizer is None:
                 continue

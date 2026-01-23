@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import numpy as np
 import torch
 
 from noether.core.callbacks import PeriodicCallback
 from noether.core.extractors import ForwardHook
 from noether.core.utils.common import select_with_path
-
-if TYPE_CHECKING:
-    from noether.core.models import ModelBase
 
 
 class SupernodePoolingCoverageCallback(PeriodicCallback):
@@ -28,13 +23,13 @@ class SupernodePoolingCoverageCallback(PeriodicCallback):
         self.tracked_degrees: list[float] = []
         self.tracked_coverages: list[float] = []
 
-    def _before_training(self, model: ModelBase, **_) -> None:  # type: ignore[override]
-        encoder = select_with_path(model, path=self.supernode_pooling_path)
+    def before_training(self, **_) -> None:
+        encoder = select_with_path(self.model, path=self.supernode_pooling_path)
         encoder.pos_embed.register_forward_hook(self.pos_embed_hook)  # type: ignore[attr-defined]
         encoder.dst_idx_hook.register_forward_hook(self.dst_idx_hook)  # type: ignore[attr-defined]
         encoder.src_idx_hook.register_forward_hook(self.src_idx_hook)  # type: ignore[attr-defined]
 
-    def _track_after_accumulation_step(self, *_, **__) -> None:
+    def track_after_accumulation_step(self, *_, **__) -> None:
         assert self.hook_outputs.keys() == {"pos_embed", "dst_idx", "src_idx"}
         pos_embed = self.hook_outputs["pos_embed"]
         src_idx = self.hook_outputs["src_idx"]
@@ -51,7 +46,7 @@ class SupernodePoolingCoverageCallback(PeriodicCallback):
         self.tracked_coverages.append(coverage)
         self.hook_outputs.clear()
 
-    def _periodic_callback(self, **_) -> None:
+    def periodic_callback(self, **_) -> None:
         degree = float(np.mean(self.tracked_degrees))
         coverage = float(np.mean(self.tracked_coverages))
         self.writer.add_scalar(
