@@ -265,7 +265,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicDataIteratorCallback):
         # Compute metrics
         return self._compute_metrics(denorm_pred, denorm_target, mode)
 
-    def _forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+    def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
 
@@ -284,7 +284,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicDataIteratorCallback):
 
         return metrics
 
-    def _process_results(self, results: dict[str, torch.Tensor], **_) -> None:
+    def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
         """
         Log computed metrics to writer.
 

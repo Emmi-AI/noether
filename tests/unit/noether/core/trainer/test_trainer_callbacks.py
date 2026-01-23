@@ -77,11 +77,11 @@ class DummyIteratorCallback(PeriodicDataIteratorCallback):
     def register_sampler_config(self):
         return self._sampler_config_from_key(key="test")
 
-    def _forward(self, batch, *, trainer_model):
+    def process_data(self, batch, *, trainer_model):
         self.received_batches.append(batch)
         return batch
 
-    def _process_results(self, results, **_):
+    def process_results(self, results, **_):
         pass
 
 

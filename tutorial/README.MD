@@ -1367,10 +1367,10 @@ Callbacks have access to the following (among others):
 
 Callbacks that inherit from **`PeriodicDataIteratorCallback`** must implement two methods:
 
-1. **`_forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]`**: Receives a batch from the dataset as input and computes metrics (or tensors) that are returned.
-2. **`_process_results(self, results: dict[str, torch.Tensor], **_) -> None`**: All computed metrics/tensors from the **`_forward`** method are aggregated into a dictionary and processed by this method.
+1. **`process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]`**: Receives a batch from the dataset as input and computes metrics (or tensors) that are returned.
+2. **`process_results(self, results: dict[str, torch.Tensor], **_) -> None`**: All computed metrics/tensors from the **`process_data`** method are aggregated into a dictionary and processed by this method.
 
-For example, the **`_process_results`** method can use **`self.writer`** to log metrics to Weights & Biases.
+For example, the **`process_results`** method can use **`self.writer`** to log metrics to Weights & Biases.
 
 ### Configuring callbacks
 
@@ -1435,11 +1435,11 @@ class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
 
 You need to define a Union of your custom-implemented callbacks and the default callbacks implemented in the `Noether Framework` to ensure all callbacks have proper schema validation.
 
-### _forward implementation
+### process_data implementation
 
-The `_forward` method of the `SurfaceVolumeEvaluationMetricsCallback` method simply looks like:
+The `process_data` method of the `SurfaceVolumeEvaluationMetricsCallback` method simply looks like:
 ```python
-def _forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
 

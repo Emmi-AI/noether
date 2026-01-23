@@ -88,7 +88,7 @@ class TestPeriodicDataIteratorCallback:
         config = CallBackBaseConfig.model_validate(dict(every_n_updates=10))
 
         class TestCallback(PeriodicDataIteratorCallback):
-            def _forward(self, batch, **_):
+            def process_data(self, batch, **_):
                 pass
 
         callback = TestCallback(
@@ -126,7 +126,7 @@ class TestPeriodicDataIteratorCallback:
         config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
 
         class TestCallback(PeriodicDataIteratorCallback):
-            def _forward(self, batch, *, trainer_model):
+            def process_data(self, batch, *, trainer_model):
                 return {"result": torch.tensor([1.0])}
 
             def register_sampler_config(self):
@@ -185,7 +185,7 @@ class TestPeriodicDataIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test periodic_callback with single output from _forward."""
+        """Test periodic_callback with single output from process_data."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -194,13 +194,13 @@ class TestPeriodicDataIteratorCallback:
         processed_results = []
 
         class TestCallback(PeriodicDataIteratorCallback):
-            def _forward(self, batch, *, trainer_model):
+            def process_data(self, batch, *, trainer_model):
                 return {"loss": torch.tensor([1.0, 2.0, 3.0, 4.0])}
 
             def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
-            def _process_results(self, results, *, interval_type, update_counter, **_):
+            def process_results(self, results, *, interval_type, update_counter, **_):
                 processed_results.append(results)
 
         callback = TestCallback(
@@ -247,7 +247,7 @@ class TestPeriodicDataIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test periodic_callback with multiple outputs from _forward."""
+        """Test periodic_callback with multiple outputs from process_data."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -256,7 +256,7 @@ class TestPeriodicDataIteratorCallback:
         processed_results = []
 
         class TestCallback(PeriodicDataIteratorCallback):
-            def _forward(self, batch, *, trainer_model):
+            def process_data(self, batch, *, trainer_model):
                 predictions = torch.tensor([1.0, 2.0, 3.0, 4.0])
                 labels = torch.tensor([0, 1, 0, 1])
                 return predictions, labels
@@ -264,7 +264,7 @@ class TestPeriodicDataIteratorCallback:
             def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
-            def _process_results(self, results, *, interval_type, update_counter, **_):
+            def process_results(self, results, *, interval_type, update_counter, **_):
                 processed_results.append(results)
 
         callback = TestCallback(
@@ -313,7 +313,7 @@ class TestPeriodicDataIteratorCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test that periodic_callback passes correct arguments to _process_results."""
+        """Test that periodic_callback passes correct arguments to process_results."""
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
@@ -322,13 +322,13 @@ class TestPeriodicDataIteratorCallback:
         process_results_calls = []
 
         class TestCallback(PeriodicDataIteratorCallback):
-            def _forward(self, batch, *, trainer_model):
+            def process_data(self, batch, *, trainer_model):
                 return {"data": torch.tensor([1.0])}
 
             def register_sampler_config(self):
                 return self._sampler_config_from_key(key="test")
 
-            def _process_results(self, results, *, interval_type, update_counter, **_):
+            def process_results(self, results, *, interval_type, update_counter, **_):
                 process_results_calls.append(
                     {
                         "results": results,

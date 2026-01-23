@@ -65,6 +65,9 @@ class PeriodicCallback(CallbackBase):
         The class provides two types of hooks:
         * Tracking hooks (`track_after_accumulation_step`, `track_after_update_step`): Called on every
           accumulation/update step to track metrics continuously (e.g., for running averages).
+          I.e., if you want to log an exponential moving average of the loss every epoch,
+          the logging is done in the periodic callback;
+          however, the tracking of the loss values for computing the moving average is done in the tracking hook.
         * Periodic hook (`periodic_callback`): Called only when the configured interval is reached, typically for
           expensive operations like evaluation or checkpointing.
 
@@ -322,6 +325,7 @@ class PeriodicCallback(CallbackBase):
             self.periodic_callback(
                 interval_type="update",
                 update_counter=update_counter,
+                **kwargs,
             )
         if self._should_log_after_sample(
             update_counter.cur_iteration,
@@ -406,7 +410,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
     data, or any operation that needs to process batches from a dataset at regular training intervals.
 
     The class integrates with the training data pipeline by registering samplers that control when and how data is
-    loaded. It handles the complete iteration workflow: data loading, forward passes, result collation across
+    loaded. It handles the complete iteration workflow: data loading, batch processing, result collation across
     distributed ranks, and final processing.
 
     Workflow:
@@ -414,9 +418,9 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
            sampler (sequential or distributed).
         2. **Iteration** (`_iterate_over_dataset`): When the periodic interval is reached, iterate through the dataset
            in batches.
-        3. **Forward Pass** (`_forward`): For each batch, perform a forward pass (typically model inference).
+        3. **Process Data** (`process_data`): Process a single batch (e.g., run model inference) and return results.
         4. **Collation** (`_collate_result`): Aggregate results across all batches and distributed ranks.
-        5. **Processing** (`_process_results`): Compute final metrics or perform actions with the aggregated results.
+        5. **Processing** (`process_results`): Compute final metrics or perform actions with the aggregated results.
 
     Key Features:
         * **Distributed Support**: Automatically handles distributed evaluation with proper gathering across ranks and
@@ -427,12 +431,12 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         * **Progress Tracking**: Provides progress bars and timing information for data loading.
 
     Template Methods to Override:
-        Child classes must implement `_forward` and typically override `register_sampler_config` and
-        `_process_results`:
+        Child classes must implement `process_data` and typically override `register_sampler_config` and
+        `process_results`:
 
-        * `_forward`: Process a single batch (e.g., run model inference).
+        * `process_data`: Process a single batch (e.g., run model inference).
         * `register_sampler_config`: Register the dataset to iterate over (default uses `self.dataset_key`).
-        * `_process_results`: Process the aggregated results from all batches.
+        * `process_results`: Process the aggregated results from all batches.
 
     Examples:
         Basic validation accuracy callback that evaluates on a test set every epoch:
@@ -448,14 +452,14 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
                     # Register test dataset for iteration
                     return self._sampler_config_from_key(key=self.dataset_key)
 
-                def _forward(self, batch, *, trainer_model):
+                def process_data(self, batch, *, trainer_model):
                     # Run inference on batch
                     x = batch["x"].to(trainer_model.device)
                     y_true = batch["class"].clone()
                     y_pred = trainer_model(x)
                     return {"predictions": y_pred, "labels": y_true}
 
-                def _process_results(self, results, *, interval_type, update_counter, **_):
+                def process_results(self, results, *, interval_type, update_counter, **_):
                     # Compute accuracy from aggregated results
                     y_pred = results["predictions"]
                     y_true = results["labels"]
@@ -480,7 +484,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         .. code-block:: python
 
             class DetailedEvaluationCallback(PeriodicDataIteratorCallback):
-                def _forward(self, batch, *, trainer_model):
+                def process_data(self, batch, *, trainer_model):
                     x = batch["x"].to(trainer_model.device)
                     y = batch["label"]
 
@@ -489,7 +493,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
                     embeddings = trainer_model.get_embeddings(x)
                     return logits, embeddings, y
 
-                def _process_results(self, results, *, interval_type, update_counter, **_):
+                def process_results(self, results, *, interval_type, update_counter, **_):
                     # results is a tuple: (all_logits, all_embeddings, all_labels)
                     logits, embeddings, labels = results
 
@@ -515,7 +519,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         total_data_time: Cumulative time spent waiting for data loading across all periodic callbacks.
 
     Note:
-        * The `_forward` method is called within a `torch.no_grad()` context automatically.
+        * The `process_data` method is called within a `torch.no_grad()` context automatically.
         * For distributed training, results are automatically gathered across all ranks with proper padding removal.
     """
 
@@ -603,7 +607,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             raise NotImplementedError
 
     @abstractmethod
-    def _forward(self, batch, *, trainer_model: torch.nn.Module) -> Any:
+    def process_data(self, batch, *, trainer_model: torch.nn.Module) -> Any:
         """Template method that is called for each batch that is loaded from the dataset.
 
         Args:
@@ -612,7 +616,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         """
         ...
 
-    def _process_results(self, results: Any, *, interval_type, update_counter: UpdateCounter, **_) -> None:
+    def process_results(self, results: Any, *, interval_type, update_counter: UpdateCounter, **_) -> None:
         """Template method that is called with the collated results that were produced by `iterate_over_dataset`.
 
         Args:
@@ -627,13 +631,12 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         data_iter: Iterator,
         trainer_model,
     ) -> Any:
-        """Iterates over the registered dataset. For each loaded batch, the provided
-        `forward_fn` is called. The result of the `forward_fn` is stored, postprocessed, collated and then returned.
+        """Iterates over the registered dataset. For each loaded batch, `process_data` is called.
+        The result of the `process_data` is stored, postprocessed, collated and then returned.
         The postprocessing step ensures that padding for distributed evaluation is cut off by gathering results across
         all ranks and cutting away padded entries.
 
         Args:
-            forward_fn: Function that maps a batch of inputs to a batch of outputs.
             batch_size: `batch_size` that is used for training. Used by default if `self.batch_size is None`.
             data_iter: Iterator of the dataloading pipeline to fetch batches according to the registered
                 sampler_configs.
@@ -641,11 +644,11 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
         Returns:
             The collated results that are produced by iterating over the dataset, passing the samples through the
-                `forward_fn` and then collating the results (i.e, concat them and gather them across ranks).
+                `process_data` and then collating the results (i.e, concat them and gather them across ranks).
 
         Notes:
-            Collation is not implemented for arbitrary objects that the `forward_fn` returns. It is suggested that
-                `forward_fn` returns a dictionary of scalars.
+            Collation is not implemented for arbitrary objects that the `process_data` returns. It is suggested that
+                `process_data` returns a dictionary of scalars.
         """
         if self._sampler_config is None:
             raise ValueError("Sampler config not registered. Did you forget to call register_sampler_config()?")
@@ -661,7 +664,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
         # iterate
         data_times = []
-        forward_results = []
+        results = []
         pbar_ctor = NoopTqdm if not sys.stdout.isatty() or not is_rank0() else tqdm
         for _ in pbar_ctor(iterable=range(num_batches)):
             with Stopwatch() as data_sw:
@@ -669,19 +672,18 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
                 batch = move_items_to_device(self.trainer.device, batch)
             data_times.append(data_sw.elapsed_seconds)
 
-            forward_results.append(self._forward(batch, trainer_model=trainer_model))
+            results.append(self.process_data(batch, trainer_model=trainer_model))
 
         mean_data_time = float(np.mean(data_times))
         self.logger.info(f"waited {mean_data_time:.2f}s for dataloading")
         self.total_data_time += mean_data_time
 
         single_output = False
-        if not isinstance(forward_results[0], tuple):
-            forward_results = [(fwr,) for fwr in forward_results]
+        if not isinstance(results[0], tuple):
+            results = [(res,) for res in results]
             single_output = True
         collated = [
-            self._collate_result(result, global_dataset_len=global_dataset_len)
-            for result in zip(*forward_results, strict=True)
+            self._collate_result(result, global_dataset_len=global_dataset_len) for result in zip(*results, strict=True)
         ]
 
         if single_output:
@@ -705,7 +707,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             trainer_model=trainer_model,
         )
 
-        self._process_results(results, interval_type=interval_type, update_counter=update_counter)
+        self.process_results(results, interval_type=interval_type, update_counter=update_counter)
 
     @staticmethod
     def _collate_tensors(tensors):
