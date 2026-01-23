@@ -33,21 +33,8 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Cache environment
-        uses: actions/cache@v4
-        id: cache
-        with:
-          # Updated path for the single root .venv
-          path: .venv
-          key: ${{ runner.os }}-venv-${{ hashFiles('**/pyproject.toml') }}
-
-      - name: Install dependencies
-        run: |
-          if [ -f uv.lock ]; then
-            uv sync --frozen      # respect lock if present
-          else
-            uv sync               # otherwise resolve fresh
-          fi
+      - name: Install docs dependencies
+        run: uv sync --only-group docs --frozen 
 
       - name: Build Sphinx documentation
         run: |
@@ -58,7 +45,7 @@ jobs:
 
           # Updated to use 'docs/source' as input and '_build/html' as output
           # This matches your Makefile's SOURCEDIR and the workflow's artifact path
-          uv run sphinx-build "${NAME_OVERRIDE[@]}" -b html docs/source _build/html
+          uv run --no-sync sphinx-build "${NAME_OVERRIDE[@]}" -b html docs/source _build/html
 
       - name: Upload sphinx docs
         uses: actions/upload-artifact@v4

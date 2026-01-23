@@ -11,27 +11,27 @@ jobs:
     runs-on: ubuntu-latest
     if: contains(github.event.pull_request.labels.*.name, 'build-docs')
     steps:
-      - name: Checkout core-docs repos
+      - name: Checkout noether-docs repos
         uses: actions/checkout@v4
         with:
-          repository: Emmi-AI/core-docs
+          repository: Emmi-AI/noether-docs
           ref: gh-pages
-          token: ${{ secrets.CORE_DOCS_REPO_TOKEN }}
-          path: core-docs
+          token: ${{ secrets.NOETHER_DOCS_REPO_TOKEN }}
+          path: noether-docs
 
-      - name: Remove docs from core-docs repos
+      - name: Remove docs from noether-docs repos
         env:
-          TARGET_REPO: 'Emmi-AI/core-docs'
+          TARGET_REPO: 'Emmi-AI/noether-docs'
           TARGET_BRANCH: 'gh-pages'
         run: |
           git config --global user.name 'github-actions'
           git config --global user.email 'github-actions@github.com'
 
-          TARGET_DIR="core-docs/${GITHUB_HEAD_REF/\//-}"
+          TARGET_DIR="noether-docs/${GITHUB_HEAD_REF/\//-}"
 
           rm -r "$TARGET_DIR"
 
-          cd core-docs/
+          cd noether-docs/
           git add .
           git commit -m 'Remove documentation of closed PR' || echo 'No changes to commit'
           git push origin ${TARGET_BRANCH}
