@@ -230,7 +230,7 @@ def save_statistics_to_json(
     print(f"\nStatistics saved to: {output_path}")
 
 
-def main(
+def calculate_dataset_statistics(
     dataset_kind: str,
     log_scale: set[str],
     exclude_attributes: set[str],
@@ -290,5 +290,10 @@ def main(
         raise
 
 
+def main() -> None:
+    """CLI entry point for calculating dataset statistics."""
+    calculate_dataset_statistics(**parse_args())
+
+
 if __name__ == "__main__":
-    main(**parse_args())
+    main()

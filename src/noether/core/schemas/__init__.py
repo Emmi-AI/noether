@@ -11,7 +11,7 @@ from .callbacks import (
     MetricEarlyStopperConfig,
     OfflineLossCallbackConfig,
     OnlineLossCallbackConfig,
-    UpdateOutputCallbackConfig,
+    TrackAdditionalOutputsCallbackConfig,
 )
 from .dataset import DatasetBaseConfig
 from .initializers import (
@@ -56,7 +56,7 @@ __all__ = [
     "MetricEarlyStopperConfig",
     "OfflineLossCallbackConfig",
     "OnlineLossCallbackConfig",
-    "UpdateOutputCallbackConfig",
+    "TrackAdditionalOutputsCallbackConfig",
     "ModelBaseConfig",
     "ConfigSchema",
     "AnyInitializer",

@@ -13,6 +13,8 @@ from noether.core.utils.torch import amp
 class RopeFrequency(nn.Module):
     """Creates frequencies for rotary embeddings (RoPE) from https://arxiv.org/abs/2104.09864 for variable positions."""
 
+    omega: torch.Tensor
+
     def __init__(
         self,
         config: RopeFrequencyConfig,
@@ -45,7 +47,7 @@ class RopeFrequency(nn.Module):
             1.0 / config.max_wavelength ** (arange / effective_dim_per_wave),
         )
 
-    def forward(self, coords: torch.Tensor) -> torch.Tensor:
+    def forward(self, coords: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
         with amp.disable(device_type=str(coords.device).split(":")[0]):
             coordinate_ndim = coords.shape[-1]
             assert self.input_dim == coordinate_ndim

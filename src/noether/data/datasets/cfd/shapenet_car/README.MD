@@ -6,7 +6,6 @@ This dataset contains Computational Fluid Dynamics (CFD) simulation data for car
 
 Original dataset: http://www.nobuyuki-umetani.com/publication/mlcfd_data.zip
 
-
 ## Dataset Overview
 
 - **Total Samples**: 889 simulations
@@ -137,6 +136,9 @@ Each preprocessed simulation contains the following files:
 ## Computing the statistics of the dataset
 
 ```bash 
-python dataset_statistics.py --dataset_kind=emmi.datasets.cfd.ShapeNetCarDataset" --root=/path/to/output/preprocessed" --split=train --exclude_attributes=volume_velocity,volume_pressure,volume_vorticity,surface_normals,volume_pressure,surface_friction"
+noether-dataset-stats \
+    --dataset_kind=noether.data.datasets.cfd.shapenet_car.ShapeNetCarDataset \
+    --split=train \
+    --root=<path to dataset root> \
+    --exclude_attributes=surface_friction,volume_pressure,volume_vorticity
 ```
-

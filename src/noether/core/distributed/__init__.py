@@ -65,10 +65,6 @@ __all__ = [
     "run",
     "run_managed",
     "run_unmanaged",
-    "accelerator_to_device",
-    "check_single_device_visible",
-    "log_device_info",
-    "parse_devices",
     # --- from utils:
     "accelerator_to_device",
     "check_single_device_visible",

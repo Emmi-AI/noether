@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from tutorial.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
 
 # Constants
@@ -28,7 +28,7 @@ class MetricType:
     L2ERR = "l2err"
 
 
-class SurfaceVolumeEvaluationMetricsCallback(PeriodicIteratorCallback):
+class SurfaceVolumeEvaluationMetricsCallback(PeriodicDataIteratorCallback):
     """
     Callback for computing evaluation metrics on surface and volume predictions.
 
@@ -265,7 +265,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicIteratorCallback):
         # Compute metrics
         return self._compute_metrics(denorm_pred, denorm_target, mode)
 
-    def _forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+    def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
 
@@ -284,7 +284,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicIteratorCallback):
 
         return metrics
 
-    def _process_results(self, results: dict[str, torch.Tensor], **_) -> None:
+    def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
         """
         Log computed metrics to writer.
 

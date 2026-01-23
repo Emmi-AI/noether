@@ -26,7 +26,7 @@ class LinearProjection(nn.Module):
 
         super().__init__()
 
-        self.project: nn.Module
+        self.project: nn.Linear | nn.Conv1d | nn.Conv2d | nn.Conv3d | nn.Identity
         self.init_weights = config.init_weights
 
         if config.optional and config.input_dim == config.output_dim:
@@ -57,6 +57,7 @@ class LinearProjection(nn.Module):
         elif self.init_weights in ["truncnormal", "truncnormal002"]:
             init_trunc_normal_zero_bias(self.project)
         elif self.init_weights == "zeros":
+            assert isinstance(self.project, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d))
             nn.init.zeros_(self.project.weight)
             if self.project.bias is not None:
                 nn.init.zeros_(self.project.bias)

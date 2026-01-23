@@ -18,7 +18,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from noether.core.callbacks import CallbackBase, PeriodicCallback
 from noether.core.callbacks.early_stoppers import EarlyStopIteration
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.distributed import (
     all_gather_nograd,
     get_num_nodes,
@@ -187,9 +187,6 @@ class BaseTrainer:
     def get_user_callbacks(self, model: ModelBase, evaluation=False) -> list[CallbackBase]:
         callback_default_args = self._get_default_callback_kwargs(model)
         callbacks: list[CallbackBase] = Factory().create_list(self.config.callbacks, **callback_default_args)
-        for cb in callbacks:
-            if not evaluation and isinstance(cb, PeriodicCallback) and cb.evaluation:
-                self.logger.warning(f"Callback {cb} is marked for evaluation but added to training callbacks.")
         return callbacks
 
     def get_all_callbacks(self, model: ModelBase) -> list[CallbackBase]:
@@ -355,12 +352,10 @@ class BaseTrainer:
     def state_dict(self) -> dict[str, Any]:
         """Get the state dict of the trainer."""
         callback_state_dicts = [callback.state_dict() for callback in self.callbacks]
-        state_dict: dict[str, Any] = dict(
-            epoch=self.update_counter.cur_iteration.epoch,
-            update=self.update_counter.cur_iteration.update,
-            sample=self.update_counter.cur_iteration.sample,
-            callback_state_dicts=callback_state_dicts,
-        )
+        state_dict: dict[str, Any] = {
+            CheckpointKeys.CALLBACK_STATE_DICT: callback_state_dicts,
+            CheckpointKeys.TRAINING_ITERATION: dict(self.update_counter.cur_iteration),
+        }
         if isinstance(self.grad_scaler, GradScaler):
             state_dict[CheckpointKeys.GRAD_SCALER] = self.grad_scaler.state_dict()
         return state_dict
@@ -406,12 +401,13 @@ class BaseTrainer:
             self.initializer.init_callbacks(self.callbacks, model=model)
 
     def get_data_loader(
-        self, iterator_callbacks: list[PeriodicIteratorCallback], batch_size: int, evaluation: bool = False
+        self, iterator_callbacks: list[PeriodicDataIteratorCallback], batch_size: int, evaluation: bool = False
     ) -> torch.utils.data.DataLoader:
         """Get the data loader for training."""
         configs = []
         for c in iterator_callbacks:
             cur_config = c.register_sampler_config()
+            c._sampler_config = cur_config
             configs.append(cur_config)
         kwargs = {}
         if self.start_checkpoint.epoch != 0:
@@ -532,6 +528,7 @@ class BaseTrainer:
             dist_model = DistributedDataParallel(
                 model,
                 find_unused_parameters=self.config.find_unused_params,
+                # device_ids=[self.device.index] if self.device.type == "cuda" else None,  # added for completeness
                 static_graph=self.config.static_graph,
             )
         else:
@@ -565,7 +562,9 @@ class BaseTrainer:
         """Train the model."""
 
         self.callbacks = self.get_all_callbacks(model)
-        iterator_callbacks = [callback for callback in self.callbacks if isinstance(callback, PeriodicIteratorCallback)]
+        iterator_callbacks = [
+            callback for callback in self.callbacks if isinstance(callback, PeriodicDataIteratorCallback)
+        ]
 
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device)
@@ -633,6 +632,7 @@ class BaseTrainer:
             for handler in logging.getLogger().handlers:
                 handler.removeFilter(context_filter)
 
+    @torch.no_grad()
     def _run_periodic_callbacks(
         self,
         periodic_callbacks: list[PeriodicCallback],
@@ -654,12 +654,12 @@ class BaseTrainer:
                 if end_of_epoch:
                     callback.after_epoch(
                         update_counter=self.update_counter,
-                        **(iterator_callback_args if isinstance(callback, PeriodicIteratorCallback) else {}),
+                        **(iterator_callback_args if isinstance(callback, PeriodicDataIteratorCallback) else {}),
                     )
                 else:
                     callback.after_update(
                         update_counter=self.update_counter,
-                        **(iterator_callback_args if isinstance(callback, PeriodicIteratorCallback) else {}),
+                        **(iterator_callback_args if isinstance(callback, PeriodicDataIteratorCallback) else {}),
                     )
             except EarlyStopIteration:
                 self.logger.info(f"Callback {callback} requested early stop of training")
@@ -749,15 +749,16 @@ class BaseTrainer:
                     )
                 times[TRAINING_UPDATE_TIME] += sw.elapsed_seconds
 
-                for callback in periodic_callbacks:
-                    callback.track_after_accumulation_step(
-                        update_counter=self.update_counter,
-                        batch=batch,
-                        losses=losses,
-                        update_outputs=update_outputs,
-                        accumulation_steps=accumulation_steps,
-                        accumulation_step=iter_step,
-                    )
+                with torch.no_grad():
+                    for callback in periodic_callbacks:
+                        callback.track_after_accumulation_step(
+                            update_counter=self.update_counter,
+                            batch=batch,
+                            losses=losses,
+                            update_outputs=update_outputs,
+                            accumulation_steps=accumulation_steps,
+                            accumulation_step=iter_step,
+                        )
                 update_outputs = None
                 batch = None
 
@@ -769,11 +770,12 @@ class BaseTrainer:
 
             # Run callbacks after update
             dist_model.eval()
-            for callback in periodic_callbacks:
-                callback.track_after_update_step(
-                    update_counter=self.update_counter,
-                    times=times,
-                )
+            with torch.no_grad():
+                for callback in periodic_callbacks:
+                    callback.track_after_update_step(
+                        update_counter=self.update_counter,
+                        times=times,
+                    )
 
             early_exit = self._run_periodic_callbacks(
                 periodic_callbacks=periodic_callbacks,
@@ -869,7 +871,7 @@ class BaseTrainer:
         if training:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
-                model=model if model is not None else dist_model.model,
+                model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
                 accumulation_steps=accumulation_steps,
                 iter_step=iter_step,
                 **kwargs,
@@ -956,13 +958,15 @@ class BaseTrainer:
         )
         return batch_size, accumulation_steps, train_batches_per_epoch
 
+    @torch.no_grad()
     def call_before_training(self, callbacks: list[CallbackBase]) -> None:
         """Hook that is called before training starts."""
         self.logger.info("Running before_training callbacks")
         for callback in callbacks:
-            callback.before_training(self.update_counter)
+            callback.before_training(update_counter=self.update_counter)
             self.logger.debug(f"Executing {callback}")
 
+    @torch.no_grad()
     def call_after_training(self, callbacks: list[CallbackBase]) -> None:
         """Hook that is called after training ends."""
         self.logger.info("Finished training. Running after_training callbacks")
@@ -977,7 +981,7 @@ class BaseTrainer:
         callbacks = self.get_user_callbacks(model, evaluation=True)
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device).eval()
-        iterator_callbacks = [callback for callback in callbacks if isinstance(callback, PeriodicIteratorCallback)]
+        iterator_callbacks = [callback for callback in callbacks if isinstance(callback, PeriodicDataIteratorCallback)]
         batch_size, _, _ = self._prepare_batch_size()
 
         data_loader = self.get_data_loader(
@@ -995,7 +999,7 @@ class BaseTrainer:
                     data_iter=map(BaseTrainer.drop_metadata, data_iter),
                     batch_size=batch_size,
                 )
-                if isinstance(callback, PeriodicIteratorCallback)
+                if isinstance(callback, PeriodicDataIteratorCallback)
                 else {}
             )
-            callback.after_epoch(self.update_counter, **iterator_callback_args)
+            callback.at_eval(self.update_counter, **iterator_callback_args)

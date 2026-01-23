@@ -8,11 +8,11 @@ import torch
 
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_grad
-from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 from noether.core.utils.training import UpdateCounter  # fixme?
 
 
-class UpdateOutputCallback(PeriodicCallback):
+class TrackAdditionalOutputsCallback(PeriodicCallback):
     """Callback that is invoked during training after every gradient step to track certain outputs from the update step.
 
     The provided `update_outputs` are assumed to be a dictionary and outputs that match keys or patterns are tracked.
@@ -24,10 +24,10 @@ class UpdateOutputCallback(PeriodicCallback):
 
     def __init__(
         self,
-        callback_config: UpdateOutputCallbackConfig,
+        callback_config: TrackAdditionalOutputsCallbackConfig,
         **kwargs,
     ):
-        """Initializes the UpdateOutputCallback class.
+        """Initializes the TrackAdditionalOutputsCallback class.
 
         Args:
             callback_config: The configuration for the callback.
@@ -70,7 +70,7 @@ class UpdateOutputCallback(PeriodicCallback):
             f"{type(self).__name__}({self.get_interval_string_verbose()}, keys={self.keys}, patterns={self.patterns})"
         )
 
-    def _track_after_accumulation_step(self, *, update_counter, update_outputs, **_) -> None:
+    def track_after_accumulation_step(self, *, update_counter, update_outputs, **_) -> None:
         if self.reduce == "last" and self.updates_till_next_log(update_counter) > 1:
             return
         if len(self.keys) > 0:
@@ -88,7 +88,7 @@ class UpdateOutputCallback(PeriodicCallback):
                             value = value.detach()
                         self.tracked_values[key].append(value)
 
-    def _periodic_callback(self, *, update_counter: UpdateCounter, **_) -> None:
+    def periodic_callback(self, *, update_counter: UpdateCounter, **_) -> None:
         for key, tracked_values in self.tracked_values.items():
             if self.reduce == "mean":
                 if torch.is_tensor(tracked_values[0]):

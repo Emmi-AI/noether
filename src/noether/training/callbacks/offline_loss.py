@@ -2,11 +2,11 @@
 
 import torch
 
-from noether.core.callbacks.periodic import PeriodicIteratorCallback
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import OfflineLossCallbackConfig
 
 
-class OfflineLossCallback(PeriodicIteratorCallback):
+class OfflineLossCallback(PeriodicDataIteratorCallback):
     """A periodic Callback that is invoked at the end of each epoch to calculate and track the loss and a dataset."""
 
     def __init__(self, callback_config: OfflineLossCallbackConfig, **kwargs):
@@ -20,7 +20,7 @@ class OfflineLossCallback(PeriodicIteratorCallback):
         self.dataset_key = callback_config.dataset_key
         self.output_patterns_to_log = callback_config.output_patterns_to_log or []
 
-    def _forward(self, batch, *, trainer_model, **_):
+    def process_data(self, batch, *, trainer_model, **_):
         all_losses, all_outputs = self.trainer.update(dist_model=trainer_model, batch=batch, training=False)
         all_outputs = all_outputs or {}
 
@@ -35,7 +35,7 @@ class OfflineLossCallback(PeriodicIteratorCallback):
                     outputs_to_log[key] = value.cpu()
         return all_losses, outputs_to_log
 
-    def _process_results(self, results: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]], **_) -> None:
+    def process_results(self, results: tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]], **_) -> None:
         losses, outputs = results
 
         # log losses

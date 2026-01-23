@@ -9,17 +9,17 @@ from noether.core.utils.logging import tensor_like_to_string
 
 
 class TrainTimeCallback(PeriodicCallback):
-    """Callback to log the time spent on dataloading during training."""
+    """Callback to log the time spent on dataloading."""
 
     def __init__(self, callback_config: CallBackBaseConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)
         self.train_data_times: list[float] = []
         self.total_train_data_time = 0.0
 
-    def _track_after_update_step(self, *, times, **_) -> None:
+    def track_after_update_step(self, *, times, **_) -> None:
         self.train_data_times.append(times["data_time"])
 
-    def _periodic_callback(self, **_) -> None:
+    def periodic_callback(self, **_) -> None:
         sum_data_time = np.sum(self.train_data_times)
         mean_data_time = sum_data_time / len(self.train_data_times)
         self.total_train_data_time += sum_data_time
@@ -32,6 +32,6 @@ class TrainTimeCallback(PeriodicCallback):
         else:
             self.logger.info(f"Waited {tensor_like_to_string(mean_data_times)} [sec] for dataloading")
 
-    def _after_training(self, **_) -> None:
+    def after_training(self, **_) -> None:
         total_data_time = all_gather_nograd(self.total_train_data_time)
         self.logger.info(f"Waited {tensor_like_to_string(total_data_time)} [sec] for dataloading in total")

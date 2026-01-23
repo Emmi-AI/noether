@@ -51,7 +51,7 @@ For questions, please create an issue in our [GitHub repo](https://github.com/Em
     - [`Noether` model zoo](#noether-model-zoo)
   - [Callbacks (`callbacks/`)](#callbacks-callbacks)
     - [Overview](#overview)
-    - [Implementing PeriodicIteratorCallback](#implementing-periodiciteratorcallback)
+    - [Implementing PeriodicDataIteratorCallback](#implementing-PeriodicDataIteratorCallback)
     - [Configuring callbacks](#configuring-callbacks)
     - [Schema validation for callbacks](#schema-validation-for-callbacks)
     - [Denormalization for metrics](#denormalization-for-metrics)
@@ -145,11 +145,17 @@ Every `Noether` project consists of the following core modules (in alphabetical 
 Clone the repository and set up the environment:
 
 ```bash
-git clone https://github.com/Emmi-AI/core.git
+git clone https://github.com/Emmi-AI/noether.git
 cd noether/tutorial
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install emmi_ai
+uv pip install emmiai-noether
+```
+
+If the built package is not available, you can build it from source:
+
+```bash
+uv pip install ..
 ```
 
 ### Boilerplate project
@@ -165,6 +171,9 @@ To run the boilerplate project, use the following command:
 ```bash
 uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\" tracker=disabled
 ```
+
+> [!IMPORTANT]
+> The `Noether Framework` by defaults runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.
 
 # Tutorial
 
@@ -865,13 +874,13 @@ The statistics need to be manually added to a YAML file in [**`configs/dataset_s
 
 The `Noether Framework` includes pre-implemented datasets for CFD aerodynamics in [`noether.data.datasets.cfd`](../src/noether/data/datasets/cfd/):
 
-| Dataset | Class Path |
-|---------|------------|
-| **ShapeNet-Car** | [noether.data.datasets.cfd.ShapeNetCarDataset](../src/noether/data/datasets/cfd/shapenet_car/dataset.py) |
-| **AhmedML** | [noether.data.datasets.cfd.AhmedMLDataset](../src/noether/data/datasets/cfd/caeml/ahmedml/dataset.py) |
-| **DrivAerML** | [noether.data.datasets.cfd.DrivAerMLDataset](../src/noether/data/datasets/cfd/caeml/drivaerml/dataset.py) |
-| **DrivAerNet++** | [noether.data.datasets.cfd.DrivAerNetDataset](../src/noether/data/datasets/cfd/drivaernet/dataset.py) |
-| **Wing Dataset** | [noether.data.datasets.cfd.EmmiWingDataset](../src/noether/data/datasets/cfd/caeml/ahmedml/dataset.py) |
+| Dataset | Class Path | Data processing README |
+|---------|------------|------------------------|
+| **ShapeNet-Car** | [noether.data.datasets.cfd.ShapeNetCarDataset](../src/noether/data/datasets/cfd/shapenet_car/dataset.py) | [README.ME](../src/noether/data/datasets/cfd/shapenet_car/README.MD) |
+| **AhmedML** | [noether.data.datasets.cfd.AhmedMLDataset](../src/noether/data/datasets/cfd/caeml/ahmedml/dataset.py) | [README.ME](../src/noether/data/datasets/cfd/caeml/README.MD) |
+| **DrivAerML** | [noether.data.datasets.cfd.DrivAerMLDataset](../src/noether/data/datasets/cfd/caeml/drivaerml/dataset.py) | [README.ME](../src/noether/data/datasets/cfd/caeml/README.MD) |
+| **DrivAerNet++** | [noether.data.datasets.cfd.DrivAerNetDataset](../src/noether/data/datasets/cfd/drivaernet/dataset.py) | [README.ME](../src/noether/data/datasets/cfd/drivaernet/README.MD) |
+| **Wing Dataset** | [noether.data.datasets.cfd.EmmiWingDataset](../src/noether/data/datasets/cfd/caeml/ahmedml/dataset.py) | [README.ME](../src/noether/data/datasets/cfd/emmi_wing/README.MD) |
 
 All datasets share the `AeroDataset` interface, ensuring consistent access patterns and easy switching between datasets.
 
@@ -1343,8 +1352,8 @@ For a full understanding of callback implementation and utilities, refer to the 
 ### Overview
 
 The [SurfaceVolumeEvaluationMetricsCallback](./callbacks/surface_volume_evaluation_metrics.py) is a specific callback that runs the current model on a separate validation or test set, computes error metrics, and logs them.
-This class inherits from **`PeriodicIteratorCallback`**, meaning its main logic is executed at regular intervals and iterates over a dataset.
-In this tutorial, we focus only on **`PeriodicIteratorCallback`**.
+This class inherits from **`PeriodicDataIteratorCallback`**, meaning its main logic is executed at regular intervals and iterates over a dataset.
+In this tutorial, we focus only on **`PeriodicDataIteratorCallback`**.
 However, you can also implement a **`PeriodicCallback`**, which does not iterate over a dataset but can be used, for example, to store an exponential moving average (EMA) of the model weights.
 
 **Callback access to training components:**
@@ -1354,14 +1363,14 @@ Callbacks have access to the following (among others):
 - **The Model (`self.model`)**: The currently trained model
 - **The Data Container (`self.data_container`)**: Object containing all datasets, allowing normalizers to be accessed for denormalization
 
-### Implementing PeriodicIteratorCallback
+### Implementing PeriodicDataIteratorCallback
 
-Callbacks that inherit from **`PeriodicIteratorCallback`** must implement two methods:
+Callbacks that inherit from **`PeriodicDataIteratorCallback`** must implement two methods:
 
-1. **`_forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]`**: Receives a batch from the dataset as input and computes metrics (or tensors) that are returned.
-2. **`_process_results(self, results: dict[str, torch.Tensor], **_) -> None`**: All computed metrics/tensors from the **`_forward`** method are aggregated into a dictionary and processed by this method.
+1. **`process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]`**: Receives a batch from the dataset as input and computes metrics (or tensors) that are returned.
+2. **`process_results(self, results: dict[str, torch.Tensor], **_) -> None`**: All computed metrics/tensors from the **`process_data`** method are aggregated into a dictionary and processed by this method.
 
-For example, the **`_process_results`** method can use **`self.writer`** to log metrics to Weights & Biases.
+For example, the **`process_results`** method can use **`self.writer`** to log metrics to Weights & Biases.
 
 ### Configuring callbacks
 
@@ -1390,7 +1399,7 @@ Below are three callback configurations:
 
 **Periodic callback triggers:**
 
-To define how often a periodic callback (i.e., **`_periodic_callback`**) should be triggered, set one of the following arguments in your configuration:
+To define how often a periodic callback (i.e., **`periodic_callback`**) should be triggered, set one of the following arguments in your configuration:
 
 - **`every_n_epochs`**: Triggers the callback every N epochs
 - **`every_n_updates`**: Triggers the callback every N model update steps
@@ -1426,11 +1435,11 @@ class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
 
 You need to define a Union of your custom-implemented callbacks and the default callbacks implemented in the `Noether Framework` to ensure all callbacks have proper schema validation.
 
-### _forward implementation
+### process_data implementation
 
-The `_forward` method of the `SurfaceVolumeEvaluationMetricsCallback` method simply looks like:
+The `process_data` method of the `SurfaceVolumeEvaluationMetricsCallback` method simply looks like:
 ```python
-def _forward(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
 

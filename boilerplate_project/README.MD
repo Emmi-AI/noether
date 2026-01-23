@@ -16,3 +16,6 @@ To run the training loop from the command line, simply execute the following com
 ```bash
 uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\" tracker=disabled
 ```
+
+> [!IMPORTANT]
+> The `Noether Framework` by defaults runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.

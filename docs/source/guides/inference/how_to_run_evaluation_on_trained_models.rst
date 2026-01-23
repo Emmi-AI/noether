@@ -22,15 +22,22 @@ The command is installed via the ``noether`` package. It utilizes Hydra for conf
 Required Arguments
 ~~~~~~~~~~~~~~~~~~
 
-The script is also using Hydra. Config can be provided via the ``--hp`` flag or directly as CLI arguments. The following argument is required:
+``noether-eval`` is also using Hydra. Config can be provided via the ``--hp`` flag or directly as CLI arguments. The following argument is required:
 
 - ``input_dir``: The absolute or relative path to the directory of the training run you wish to evaluate. This directory must contain a ``hp_resolved.yaml`` file.
 
+Supported Callbacks
+~~~~~~~~~~~~~~~~~~~
+All callbacks that are compatible with evaluation mode can be used here. This includes metric computation callbacks, visualization callbacks, and any custom callbacks you may have implemented.
+
+Not all callbacks are suitable for evaluation, for example the checkpoint saving callbacks are not relevant during evaluation and will be ignored.
+
+Callbacks can check whether they are running in evaluation mode by checking ``interval_type == "eval"`` in the :py:meth:`~noether.core.callbacks.periodic.PeriodicCallback._periodic_callback` method. More details on how to implement custom callbacks can be found in :py:class:`noether.core.callbacks.periodic.PeriodicCallback` and :py:class:`noether.core.callbacks.periodic.PeriodicIteratorCallback`.
 
 Examples
 ~~~~~~~~
 
-Basic evaluation using the latest checkpoint. This runs the same evaluation callbacks as configured during training:
+Basic evaluation using the latest checkpoint. This runs the same callbacks as configured during training:
 
 .. code-block:: bash
 
@@ -62,7 +69,8 @@ Run evaluation with modified callbacks, for example to calculate offline losses 
 Configuration Merging
 ---------------------
 
-```noether-eval``` performs a deep merge of configurations:
+``noether-eval`` performs a deep merge of configurations:
+
 1. **Base**: The stored config from the ``input_dir`` (looked up from``hp_resolved.yaml``)
 2. **Override**: The configuration provided via ``--hp`` or direct CLI arguments.
 
@@ -79,7 +87,7 @@ The ``InferenceRunner`` (found in ``src/noether/inference/runners/inference_runn
 Trainer Evaluation Mode
 -----------------------
 
-All evaluation mode is doing is executing the configured callbacks on the saved model weights.
+All evaluation mode is doing, is executing the configured callbacks on the saved model weights.
 
 This way we can reuse the same callback implementations for both training and evaluation, ensuring consistency in metrics computation and visualization generation.
 

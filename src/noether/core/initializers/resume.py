@@ -122,11 +122,7 @@ class ResumeInitializer(CheckpointInitializer):
         if isinstance(self.checkpoint, str):
             trainer_ckpt = torch.load(self._get_trainer_ckpt_file())
             self.logger.info(f"loaded checkpoint from trainer_state_dict: {trainer_ckpt}")
-            return TrainingIteration(
-                epoch=trainer_ckpt["epoch"],
-                update=trainer_ckpt["update"],
-                sample=trainer_ckpt["sample"],
-            )
+            return TrainingIteration.from_dict(trainer_ckpt[CheckpointKeys.TRAINING_ITERATION])
         else:
             return TrainingIteration.to_fully_specified_from_filenames(
                 directory=self.path_provider.with_run(

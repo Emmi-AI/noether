@@ -228,13 +228,6 @@ def skip_handler(app, what, name, obj, skip, options):
 
     WHITELIST = [
         "_sampler_config_from_key",
-        "_periodic_callback",
-        "_before_training",
-        "_after_training",
-        "_track_after_accumulation_step",
-        "_track_after_update_step",
-        "_forward",
-        "process_results",
     ]
 
     # Allow certain private methods that are important for understanding the class behavior

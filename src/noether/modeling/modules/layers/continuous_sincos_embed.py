@@ -15,6 +15,9 @@ class ContinuousSincosEmbed(nn.Module):
 
     """
 
+    omega: torch.Tensor
+    padding_tensor: torch.Tensor
+
     def __init__(
         self,
         config: ContinuousSincosEmbeddingConfig,

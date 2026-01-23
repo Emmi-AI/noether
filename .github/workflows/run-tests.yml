@@ -69,3 +69,4 @@ jobs:
           junitxml-path: ./pytest.xml
           hide-report: true
           xml-skip-covered: true
+          github-token: ${{ secrets.NOETHER_PR_COMMENT_TOKEN }}

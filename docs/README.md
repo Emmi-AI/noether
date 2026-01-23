@@ -1,30 +1,31 @@
 # How to build
 
-To build the documentation locally one have to install the dependencies of the `core`. To do so one can execute:
+To build the documentation locally, simply run:
 
 ```bash
 make -C docs clean html
 ```
 
-Note that those are two commands combined into one, if you don't want to clean the existing documentation - simply use the second part after `&&` operator.
+The documentation will be available under ``/noether/docs/_build/html/index.html`` - you can open it in your browser (
+we use Chrome for easier compatibility).
 
 ---
 
-# How maintain
+# How to maintain
 
-In order to provide users with up-to-date documentation and meaningful examples, we aim to have it close to our codebase.
-With that in mind, we have the following documentation code structure:
+In order to provide users with up-to-date documentation and meaningful examples, we aim to have it close to our 
+codebase. With that in mind, we have the following documentation code structure:
 
 ```
 /docs
     /source
         /_static               # << static files, like custom CSS or similar
         /_templates            # << specific templates for auto generated docs
-        /emmi                  # << Emmi Module documentation
-        /emmi_data_management  # << Emmi Data Management documentation
-        /emmi_inference        # << Emmi Inference Module documentation
-        /guides                # << custom guides
-        /ksuit                 # << ksuit documentation
+        /noether               # << Noether module documentation
+        /guides                 
+        /reference
+        /tutorials             
+        /explanation 
         *.rst                  # << individual documentation files unrelated to packages
         conf.py                # << Sphinx-related configuration, custom theming, etc.
         index.rst              # << the main entry point of the documentation
@@ -60,4 +61,4 @@ Examples:
 ```
 for more information check out the [Sphinx docs](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html).
 
-> Make sure to use syntax highlight based on you example.
+> Make sure to use syntax highlight based on your example.

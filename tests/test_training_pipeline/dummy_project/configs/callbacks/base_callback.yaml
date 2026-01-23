@@ -3,8 +3,8 @@
   every_n_epochs: 1
   dataset_key: test
   name: OfflineLossCallback
-- kind: dummy_project.callbacks.BaseCallback
+- kind: dummy_project.callbacks.BoilerplateCallback
   dataset_key: test
   every_n_epochs: 1
   batch_size: 1
-  name: BaseCallback
+  name: BoilerplateCallback

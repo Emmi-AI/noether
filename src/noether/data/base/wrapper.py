@@ -31,6 +31,14 @@ class DatasetWrapper:
     def __len__(self) -> int:
         return len(self.dataset)
 
+    def __getitem__(self, idx: int) -> dict[str, Any]:
+        """Calls all implemented getitem functions and returns the results.
+
+        Returns:
+            dict: dictionary of all getitem results
+        """
+        return self.dataset[idx]  # type: ignore[no-any-return]
+
     def __getattr__(self, item: str) -> Any:
         """Wraps all getitem_ methods of the wrapped dataset such that they are called with the correct indices.
         Other properties are also directly passed-through to allow property access independent of whether

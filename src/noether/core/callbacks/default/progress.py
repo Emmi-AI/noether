@@ -17,11 +17,11 @@ class ProgressCallback(PeriodicCallback):
         self._last_log_time: datetime | None = None
         self._last_log_samples = 0
 
-    def _before_training(self, **_) -> None:
+    def before_training(self, **_) -> None:
         self._start_time = self._last_log_time = datetime.now()
 
     # noinspection PyMethodOverriding
-    def _periodic_callback(self, *, interval_type, update_counter: UpdateCounter, **_) -> None:
+    def periodic_callback(self, *, interval_type, update_counter: UpdateCounter, **_) -> None:
         if self.trainer.end_checkpoint.epoch is not None:
             total_updates = self.trainer.end_checkpoint.epoch * update_counter.updates_per_epoch
         elif self.trainer.end_checkpoint.update is not None:
@@ -45,8 +45,6 @@ class ProgressCallback(PeriodicCallback):
                 f"Sample {update_counter.cur_iteration.sample}/{self.trainer.end_checkpoint.sample} "
                 f"({update_counter.cur_iteration})"
             )
-        else:
-            raise NotImplementedError
 
         assert self._last_log_time is not None
         assert self._start_time is not None

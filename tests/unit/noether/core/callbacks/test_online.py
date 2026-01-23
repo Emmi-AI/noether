@@ -96,7 +96,7 @@ class TestOnlineLossCallback:
         )
 
         losses = {"total": torch.tensor(0.5)}
-        callback._track_after_accumulation_step(losses=losses)
+        callback.track_after_accumulation_step(losses=losses)
 
         assert "total" in callback.tracked_losses
         assert len(callback.tracked_losses["total"]) == 1
@@ -133,10 +133,10 @@ class TestOnlineLossCallback:
         )
 
         losses = {"total": torch.tensor(float("nan"))}
-        callback._track_after_accumulation_step(losses=losses)
+        callback.track_after_accumulation_step(losses=losses)
 
         with pytest.raises(RuntimeError, match="encountered nan loss"):
-            callback._periodic_callback(trainer=mock_trainer)
+            callback.periodic_callback(interval_type="update", trainer=mock_trainer)
 
 
 class TestBestMetricCallback:
@@ -256,7 +256,7 @@ class TestBestMetricCallback:
             metric_property_provider=mock_metric_property_provider,
         )
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         assert callback.best_metric_value == 0.9
         mock_log_writer.add_scalar.assert_called()
@@ -301,7 +301,7 @@ class TestBestMetricCallback:
         callback.best_metric_value = 0.9
         callback.previous_log_values = {"test/accuracy/at_best/val/accuracy": 0.85}
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         # Best value should not change
         assert callback.best_metric_value == 0.9
@@ -347,7 +347,7 @@ class TestBestMetricCallback:
             metric_property_provider=mock_metric_property_provider,
         )
 
-        callback._periodic_callback(trainer=mock_trainer)
+        callback.periodic_callback(trainer=mock_trainer)
 
         # Should log both mandatory and available optional metrics
         assert callback.best_metric_value == 0.9
@@ -356,8 +356,8 @@ class TestBestMetricCallback:
         # Missing optional metric should not cause issues
 
 
-class TestUpdateOutputCallback:
-    """Tests for UpdateOutputCallback."""
+class TestTrackAdditionalOutputsCallback:
+    """Tests for TrackAdditionalOutputsCallback."""
 
     def test_update_output_callback_tracks_by_keys(
         self,
@@ -369,11 +369,11 @@ class TestUpdateOutputCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test UpdateOutputCallback tracks outputs by exact key match."""
-        from noether.core.callbacks.online.update_output import UpdateOutputCallback
-        from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+        """Test TrackAdditionalOutputsCallback tracks outputs by exact key match."""
+        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
+        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 
-        config = UpdateOutputCallbackConfig.model_validate(
+        config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(
                 keys=["grad_norm", "param_norm"],
                 every_n_updates=10,
@@ -385,7 +385,7 @@ class TestUpdateOutputCallback:
         mock_trainer.update_counter = Mock()
         mock_trainer.update_counter.update = 1
 
-        callback = UpdateOutputCallback(
+        callback = TrackAdditionalOutputsCallback(
             callback_config=config,
             trainer=mock_trainer,
             model=mock_model,
@@ -402,7 +402,7 @@ class TestUpdateOutputCallback:
             "other_value": torch.tensor(3.5),
         }
 
-        callback._track_after_accumulation_step(
+        callback.track_after_accumulation_step(
             update_counter=mock_trainer.update_counter,
             update_outputs=update_outputs,
         )
@@ -422,11 +422,11 @@ class TestUpdateOutputCallback:
         mock_checkpoint_writer,
         mock_metric_property_provider,
     ):
-        """Test UpdateOutputCallback tracks outputs by pattern matching."""
-        from noether.core.callbacks.online.update_output import UpdateOutputCallback
-        from noether.core.schemas.callbacks import UpdateOutputCallbackConfig
+        """Test TrackAdditionalOutputsCallback tracks outputs by pattern matching."""
+        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
+        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 
-        config = UpdateOutputCallbackConfig.model_validate(
+        config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(
                 patterns=["loss"],
                 every_n_updates=10,
@@ -438,7 +438,7 @@ class TestUpdateOutputCallback:
         mock_trainer.update_counter = Mock()
         mock_trainer.update_counter.update = 1
 
-        callback = UpdateOutputCallback(
+        callback = TrackAdditionalOutputsCallback(
             callback_config=config,
             trainer=mock_trainer,
             model=mock_model,
@@ -455,7 +455,7 @@ class TestUpdateOutputCallback:
             "grad_norm": torch.tensor(1.5),
         }
 
-        callback._track_after_accumulation_step(
+        callback.track_after_accumulation_step(
             update_counter=mock_trainer.update_counter,
             update_outputs=update_outputs,
         )
