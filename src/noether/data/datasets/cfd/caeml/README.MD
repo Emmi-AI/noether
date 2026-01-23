@@ -57,5 +57,10 @@ noether-dataset-stats \
 
 DrivAerML:
 ```bash 
-noether-dataset-stats --dataset_kind=noether.data.datasets.cfd.caeml.DrivAerMLDataset --split=train --root=<path to preprocessed drivaerml root> --exclude_attributes=surface_normals,volume_normals,volume_sdf --log_scale=volume_vorticity
+noether-dataset-stats \
+    --dataset_kind=noether.data.datasets.cfd.caeml.DrivAerMLDataset \
+    --split=train \
+    --root=<path to preprocessed drivaerml root> \
+    --exclude_attributes=surface_normals,volume_normals,volume_sdf \
+    --log_scale=volume_vorticity
 ```
