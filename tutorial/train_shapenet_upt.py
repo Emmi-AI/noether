@@ -83,7 +83,7 @@ def build_dataset_config(
         kind="noether.data.datasets.cfd.ShapeNetCarDataset",
         root=dataset_root,
         pipeline=AeroCFDPipelineConfig(
-            kind="tutorial.pipelines.AeroMultistagePipeline",
+            kind="tutorial.pipeline.AeroMultistagePipeline",
             num_surface_points=3586,  # max = 3586
             num_volume_points=4096,  # max = 28504
             num_surface_queries=3586,
@@ -196,10 +196,7 @@ def build_model_config(
     return model_config
 
 
-def build_trainer_config(
-    data_specs: AeroDataSpecs,
-    model_forward_properties: list[str],
-) -> AutomotiveAerodynamicsCfdTrainerConfig:
+def build_trainer_config(model_forward_properties: list[str]) -> AutomotiveAerodynamicsCfdTrainerConfig:
     batch_size = 1
     loss_and_log_every_n_epochs = 1
     save_and_ema_every_n_epochs = 10
@@ -261,7 +258,6 @@ def build_trainer_config(
             ),
         ],
         forward_properties=model_forward_properties,
-        data_specs=data_specs,
         target_properties=[
             "surface_pressure_target",
             "volume_velocity_target",
@@ -286,7 +282,7 @@ def main() -> None:
     ]
 
     upt_model_config = build_model_config(data_specs, model_forward_properties)
-    aero_trainer_config = build_trainer_config(data_specs, model_forward_properties)
+    aero_trainer_config = build_trainer_config(model_forward_properties)
 
     HydraRunner().main(
         device=torch.device("mps"),
@@ -342,8 +338,8 @@ def main() -> None:
             trainer=aero_trainer_config,
             debug=False,
             store_code_in_output=False,
+            output_path=output_path.as_posix(),
         ),
-        output_path=output_path.as_posix(),
     )
 
 
