@@ -809,7 +809,7 @@ class ShapeNetCarDefaultSplitIDs(DatasetSplitIDs):
         "param8/cf4c819d9deb6533108499aad0a89b28",
         "param8/cf698011f90ac05f253c03b7df20edd5",
     }  # type: ignore[assignment]
-    val: set[str] = {}  # type: ignore[assignment]
+    val: set[str] = set()  # type: ignore[assignment]
     test: set[str] = {
         "param0/100715345ee54d7ae38b52b4ee9d36a3",
         "param0/10247b51a42b41603ffe0e5069bf1eb5",
