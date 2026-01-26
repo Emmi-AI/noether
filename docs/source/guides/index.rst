@@ -16,7 +16,7 @@ How-to Guides
    data/how_to_write_a_multistage_pipeline
    data/how_to_write_a_sample_processor
    
-   training/implementing_a_custom_model
+   training/implement_a_custom_model
    training/implement_a_custom_trainer
    training/use_callbacks
    

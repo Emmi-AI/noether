@@ -1,7 +1,7 @@
 How to Implement a Custom Trainer
 =================================
 
-To implement a custom trainer in `Noether`, you need to create a new class that inherits from the `BaseTrainer` class and implements the `loss_compute` method to define your custom loss computation logic.
+To implement a custom trainer in **Noether**, you need to create a new class that inherits from the ``BaseTrainer`` class and implements the ``loss_compute`` method to define your custom loss computation logic.
 
 .. code-block:: python
 
@@ -32,8 +32,8 @@ To implement a custom trainer in `Noether`, you need to create a new class that 
             # Implement your custom loss computation logic here
 
 
-The default `train_step` implementation of the BaseTrainer calls the `loss_compute` method to calculate the loss.
-Best practice is to return a dictionary of losses from the `loss_compute` method, where each key is a loss name and the value is the corresponding loss tensor.
+The default ``train_step`` implementation of the BaseTrainer calls the ``loss_compute`` method to calculate the loss.
+Best practice is to return a dictionary of losses from the ``loss_compute`` method, where each key is a loss name and the value is the corresponding loss tensor.
 However, you can also return a single tensor, list or tuple, but then there is no propper naming of the individual losses for logging purposes.
 Example YAML configuration:
 
@@ -48,9 +48,9 @@ Example YAML configuration:
       target_properties:
         - labels
 
-You have to define the `forward_properties` and `target_properties` in the trainer configuration to specify which keys from the batch are used for the model's forward pass and which are used as targets for loss computation.
-Those keys are used in the 'train_step' method call the model forward `model(**forward_batch)` as key arguments, and to get the targets `targets_batch` for the `loss_compute` method.
-The default `train_step` implementation is as follows:
+You have to define the ``forward_properties`` and ``target_properties`` in the trainer configuration to specify which keys from the batch are used for the model's forward pass and which are used as targets for loss computation.
+Those keys are used in the ``train_step`` method call the model forward ``model(**forward_batch)`` as key arguments, and to get the targets ``targets_batch`` for the ``loss_compute`` method.
+The default ``train_step`` implementation is as follows:
 
 .. code-block:: python
 
@@ -91,6 +91,6 @@ The default `train_step` implementation is as follows:
             additional_outputs=additional_outputs,
         )
 
-The default `train_step` should cover most deep learning use cases, where there is a forward pass first, and next the loss(es) are computed.
-However, if your training logic requires more complex steps (e.g., multiple forward passes, custom optimization steps, etc.), you can override the `train_step` method to implement your specific training logic.
-The only recuirment is to return a `TrainerResult` dataclass containing the total loss for backpropagation. 
+The default ``train_step`` should cover most deep learning use cases, where there is a forward pass first, and next the loss(es) are computed.
+However, if your training logic requires more complex steps (e.g., multiple forward passes, custom optimization steps, etc.), you can override the ``train_step`` method to implement your specific training logic.
+The only requirement is to return a ``TrainerResult`` dataclass containing the total loss for backpropagation.

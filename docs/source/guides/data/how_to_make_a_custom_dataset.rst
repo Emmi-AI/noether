@@ -67,7 +67,8 @@ The key provided to the decorator must match the key of the configured normalize
 
 
 Let's say we run a training pipeline with the above dataset configuration and a batch size of 4.
-Then the outout will be a list of 4 dictionaries (a batch), where each dictionary has the following structure:
+Then the output will be a list of 4 dictionaries (a batch), where each dictionary has the following structure:
+
 .. code-block:: python
 
     [
