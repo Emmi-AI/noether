@@ -24,8 +24,12 @@ Create a virtual environment with relevant packages:
 
     uv venv                    # create a default virtual environment under the default .venv folder
     source .venv/bin/activate  # activate your newly created environment in your terminal
-    pre-commit install         # install git pre-commit hooks if you plan to contribute to the code base
     uv sync                    # install project dependencies
+
+.. note::
+
+    If you installing Noether for the first time, the initial build time can take a few minutes. In the follow-up
+    setups ``uv`` will cache packages and installation will be much faster.
 
 Verifying the Installation
 --------------------------
