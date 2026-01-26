@@ -125,7 +125,7 @@ class HydraRunner:
         return name
 
     @staticmethod
-    def main(device: torch.device, config: ConfigSchema) -> None:
+    def main(device: str, config: ConfigSchema) -> None:
         """Main method called from each GPU main process after being spawned and initialized for communication.
 
         Args:
@@ -143,7 +143,7 @@ class HydraRunner:
 
     @staticmethod
     def setup_experiment(
-        device: torch.device,
+        device: str,
         config: ConfigSchema,
         initializer_config_class: type[ResumeInitializerConfig]
         | type[PreviousRunInitializerConfig] = ResumeInitializerConfig,
@@ -296,7 +296,7 @@ class HydraRunner:
             dataset.pipeline = pipeline
             datasets[dataset_key] = dataset
 
-        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers)
+        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=device == "cuda")
 
         # init trainer
         trainer = Factory().create(
