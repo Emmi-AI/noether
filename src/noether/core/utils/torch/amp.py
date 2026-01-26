@@ -108,6 +108,9 @@ class NoopContext:
 class NoopGradScaler(GradScaler):
     """A no-operation gradient scaler that performs no scaling."""
 
+    def __init__(self) -> None:
+        super().__init__(enabled=False)
+
     def scale(self, outputs: Any) -> Any:
         return outputs
 
@@ -143,7 +146,7 @@ def get_grad_scaler_and_autocast_context(
     if precision == torch.float16:
         if str(device) == "cpu":
             return NoopGradScaler(), torch.autocast(str(device), dtype=precision)
-        return GradScaler(), torch.autocast(str(device), dtype=precision)
+        return GradScaler(device=device.type), torch.autocast(str(device), dtype=precision)
     raise NotImplementedError("Unsupported precision type")
 
 
