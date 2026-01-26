@@ -171,6 +171,8 @@ To run the boilerplate project, use the following command:
 ```bash
 uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +seed=1 +devices=\"0\" tracker=disabled
 ```
+> [!IMPORTANT]
+> Run all the training commands from the root of the repository. 
 
 > [!IMPORTANT]
 > The `Noether Framework` by default runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.
@@ -366,6 +368,8 @@ To enable experiment tracking, simply remove the `tracker=disabled` override:
 uv run noether-train --hp tutorial/configs/train_shapenet.yaml +experiment/shapenet=transformer
 ```
 
+> [!IMPORTANT]
+> Run all the training commands from the root of the repository. 
 
 > [!WARNING]
 > Make sure to either set `dataset_root` in `train_shapenet.yaml` or add it to the command line via `dataset_root=\"<path to dataset root>\"
@@ -851,7 +855,7 @@ To use normalizers like `MeanStdNormalization`, you need to compute statistics f
 Run the statistics calculation tool:
 
 ```bash
-python src/noether/data/tools/calculate_statistics.py \
+noether-dataset-stats \
   --dataset_kind=noether.data.datasets.cfd.ShapeNetCarDataset \
   --root=/path/to/shapenet_car/ \
   --split=train \
