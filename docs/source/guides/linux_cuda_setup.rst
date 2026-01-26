@@ -60,4 +60,4 @@ In case you need to reinstall specific components:
 
 .. code-block:: bash
 
-    uv pip install --no-binary torch-cluster,torch-scatter torch-cluster torch-scatter --force-reinstall
+    uv pip install --no-binary torch-cluster torch-cluster --force-reinstall
