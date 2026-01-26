@@ -54,6 +54,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    guides/data/how_to_write_a_sample_processor
 
    guides/training/implementing_a_custom_model
+   guides/training/implement_a_custom_trainer
    guides/training/use_callbacks
 
    .. guides/data/how_to_write_data_preprocessors
