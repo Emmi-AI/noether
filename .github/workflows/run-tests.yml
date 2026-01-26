@@ -34,7 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv sync --group dev --frozen
+          uv sync --frozen
 
       - name: Show env (brief)
         run: |
