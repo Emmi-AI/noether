@@ -64,14 +64,12 @@ Installable package is available via `pip` and can be installed as:
 pip install emmiai-noether
 ```
 
-we recommend using `uv` as your package manager for better dependencies resolution, you can use it like this:
+To work with the prebuilt PyPi package you have to install relevant PyTorch version beforehand as it is a dependency 
+to build torch-cluster. Install `emmiai-noether` as follows:
 
 ```bash
-uv add emmiai-noether
-```
-or
-```bash
-uv pip install emmiai-noether
+uv pip install torch==2.8.0
+uv pip install emmiai-noether==1.0.0 --no-build-isolation torch-cluster
 ```
 
 ## Working with the source code

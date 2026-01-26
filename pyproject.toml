@@ -5,7 +5,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emmiai-noether"
-version = "0.0.0"  # only a placeholder, actual versioning happens on github
+version = "0.0.0"
+description = "Noether: A PyTorch-based Framework for Engineering AI"
+authors = [{ name = "Emmi AI", email = "contact@emmi.ai" }]
+license-files = ["LICENSE.txt"]
+license = "LicenseRef-ENPL"
+readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "setuptools",
@@ -35,6 +40,11 @@ dependencies = [
     # ---
 ]
 
+[project.urls]
+Source = "https://github.com/Emmi-AI/noether"
+Docs = "https://noether-docs.emmi.ai/"
+
+
 [tool.setuptools_scm]
 write_to = "src/noether/_version.py"
 
@@ -49,14 +59,14 @@ noether-dataset-stats = "noether.data.tools.calculate_statistics:main"
 # Install them with `uv sync --group dev --group docs` or `uv sync --all-groups`.
 [dependency-groups]
 dev = [
-    {include-group = "docs"},
+    { include-group = "docs" },
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
-    "pytest-cov", # Added for code coverage
+    "pytest-cov",                      # Added for code coverage
     "mypy[reports]>=1.15.0",
     "ruff>=0.11.0",
     "fixit>=2.1.0",
-    "ipykernel>=6.30.0", # Useful for notebooks
+    "ipykernel>=6.30.0",               # Useful for notebooks
     "types-docutils==0.22.0.20250822",
     "types-pyyaml>=6.0.12.20241230",
     "types-tqdm>=4.67.0.20250809",
@@ -76,10 +86,7 @@ docs = [
 # --- Centralized UV Configuration ---
 # This configuration is inherited by all sub-packages, avoiding repetition.
 [tool.uv]
-no-build-isolation-package = [
-    "torch-scatter",
-    "torch-cluster",
-]
+no-build-isolation-package = ["torch-scatter", "torch-cluster"]
 
 [[tool.uv.index]]
 name = "torch-cpu"
@@ -109,10 +116,10 @@ module = [
     "torch_scatter.*",
     "torch_cluster.*",
     "aistore.*",
-    "boto3.*"
-#    "pyvista.*",
-#    "trimesh.*",
-#    "rtree.*"
+    "boto3.*",
+    #    "pyvista.*",
+    #    "trimesh.*",
+    #    "rtree.*"
 ]
 ignore_missing_imports = true
 
@@ -130,9 +137,7 @@ strict = false
 warn_return_any = true
 warn_unused_ignores = false
 show_error_codes = true
-exclude = [
-    "^_build/|^build/|^dist/|^docs/|^\\.venv/",
-]
+exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
 
 [tool.ruff]
 exclude = [
@@ -161,17 +166,19 @@ quote-style = "double"
 ignore = [
     "G004", # "Logging statement uses f-string" is not an issue for the current ML pipeline
     # these ignores are from flake8-bugbear; please fix!
-    "B007", "B008", "B017",
-    "B018", # Useless expression
+    "B007",
+    "B008",
+    "B017",
+    "B018",   # Useless expression
     "B023",
-    "B028", # No explicit `stacklevel` keyword argument found
+    "B028",   # No explicit `stacklevel` keyword argument found
     "E402",
-    "C408", # C408 ignored because we like the dict keyword argument syntax
-    "C409", # prefer [] over list()
-    "C410", # prefer () over tuple()
-    "E501", # E501 is not flexible enough, we're using B950 instead
+    "C408",   # C408 ignored because we like the dict keyword argument syntax
+    "C409",   # prefer [] over list()
+    "C410",   # prefer () over tuple()
+    "E501",   # E501 is not flexible enough, we're using B950 instead
     "E721",
-    "E731", # Assign lambda expression
+    "E731",   # Assign lambda expression
     "E741",
     "EXE001",
     "F405",
@@ -189,7 +196,9 @@ ignore = [
     "PYI036",
     "PYI041",
     "PYI056",
-    "SIM102", "SIM103", "SIM112", # flake8-simplify code styles
+    "SIM102",
+    "SIM103",
+    "SIM112", # flake8-simplify code styles
     "SIM113", # please fix
     "SIM105", # these ignores are from flake8-simplify. please fix or ignore with commented reason
     "SIM108", # SIM108 ignored because we prefer if-else-block instead of ternary expression
@@ -199,15 +208,15 @@ ignore = [
     "SIM116", # Disable Use a dictionary instead of consecutive `if` statements
     "SIM117",
     "SIM118",
-    "UP006", # keep-runtime-typing
-    "UP007", # keep-runtime-typing
+    "UP006",  # keep-runtime-typing
+    "UP007",  # keep-runtime-typing
     "TC001",
     "TC002",
     "TC003",
 ]
 select = [
     "B",
-    "B904", # Re-raised error without specifying the cause via the from keyword
+    "B904",   # Re-raised error without specifying the cause via the from keyword
     "C4",
     "G",
     "E",
@@ -251,21 +260,21 @@ select = [
     "PT025",
     "PT026",
     "PYI",
-    "Q003", # avoidable escaped quote
-    "Q004", # unnecessary escaped quote
+    "Q003",    # avoidable escaped quote
+    "Q004",    # unnecessary escaped quote
     "RSE",
-    "RUF008", # mutable dataclass default
-    "RUF015", # access first ele in constant time
-    "RUF016", # type error non-integer index
+    "RUF008",  # mutable dataclass default
+    "RUF015",  # access first ele in constant time
+    "RUF016",  # type error non-integer index
     "RUF017",
-    "RUF018", # no assignment in assert
-    "RUF019", # unnecessary-key-check
-    "RUF024", # from keys mutable
-    "RUF026", # default factory kwarg
+    "RUF018",  # no assignment in assert
+    "RUF019",  # unnecessary-key-check
+    "RUF024",  # from keys mutable
+    "RUF026",  # default factory kwarg
     "TCH",
-    "TRY002", # ban vanilla raise (todo fix NOQAs)
+    "TRY002",  # ban vanilla raise (todo fix NOQAs)
     "TRY203",
-    "TRY401", # verbose-log-message
+    "TRY401",  # verbose-log-message
     "UP",
 ]
 
