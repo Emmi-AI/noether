@@ -72,7 +72,7 @@ This tutorial demonstrates how to use the `Noether Framework` through a practica
 While this tutorial covers the core functionality of the framework, it does not cover every possible feature or use case.
 
 > [!NOTE]
-> This tutorial presents recommended practices and patterns, but it is not a full blueprint how to use the framework. 
+> This tutorial presents recommended practices and patterns, but it is not a full blueprint on how to use the framework. 
 The `Noether Framework` is flexible and supports multiple approaches to implementing the same functionality.
 
 ## File structure of the project
@@ -173,7 +173,7 @@ uv run noether-train --hp ./boilerplate_project/configs/base_experiment.yaml +se
 ```
 
 > [!IMPORTANT]
-> The `Noether Framework` by defaults runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.
+> The `Noether Framework` by default runs on GPU. If no GPU is available, please add either `+accelerator=cpu` or `+accelerator=mps` to the command.
 
 # Tutorial
 
@@ -210,9 +210,9 @@ Let's break down its key components:
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root: <path to your shapenet dataset root>
+dataset_root: <path to your ShapeNet dataset root>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset # class path to the dataset
-config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema # class path to the config schema in your down stream project
+config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema # class path to the config schema in your downstream project
 excluded_properties: 
   - surface_friction
   - volume_pressure
@@ -235,7 +235,7 @@ defaults:
 Each entry like `dataset_normalizers: shapenet_dataset_normalizers` tells Hydra to load `configs/dataset_normalizers/shapenet_dataset_normalizers.yaml` and merge it into the final configuration.
 
 The `???` marker indicates required fields that must be specified in experiment configs. 
-The `_self_` marker controls when the current file's values override inherited ones (placing it last gives current file highest priority).
+The `_self_` marker controls when the current file's values override inherited ones (placing it last gives the current file the highest priority).
 
 **Complete configuration structure:**
 
@@ -275,7 +275,7 @@ test:
 
 Notice the `${variable_name}` references? These resolve to values defined in the top-level `train_shapenet.yaml`. This pattern avoids duplication: `dataset_root` is defined once, used everywhere. 
 To make the training work, add the `dataset_root` folder where the preprocessed data is stored to `train_shapenet.yaml`.
-To preprocess the data, have a look at [preprocessing.py)](../src/noether/data/datasets/cfd/shapenet_car/preprocessing.py) of the ShapeNet-Car dataset.
+To preprocess the data, have a look at [preprocessing.py](../src/noether/data/datasets/cfd/shapenet_car/preprocessing.py) of the ShapeNet-Car dataset.
 
 **Config groups and directory structure:**
 
@@ -542,13 +542,13 @@ class TutorialConfigSchema(ConfigSchema):
 
 - **Inherits from `ConfigSchema`**: The base configuration schema from `Noether Framework`
 - **`data_specs`**: Defines the data structure (field names, dimensions, types) for aerodynamics tasks
-- **`model`**: Union type using discriminator pattern - accepts any model config that will defined 
+- **`model`**: Union type using discriminator pattern - accepts any model config that will be defined 
 - **`trainer`**: Specifies the trainer configuration (specific to automotive aerodynamics CFD)
 - **`datasets`**: Dictionary of dataset configurations
 - **`dataset_statistics`**: Optional normalization statistics for the dataset
 
 `AnyModelConfig` is a union of all model configs we define in this project. 
-Pydantic uses the `name` of the configured model as discriminator to select the correct schema.
+Pydantic uses the `name` of the configured model as a discriminator to select the correct schema.
 It tells Pydantic to use the `name` field to determine which specific model schema to validate against:
 
 
@@ -585,7 +585,7 @@ The `kind` field in most configs specifies the class path for instantiation. The
 
 The objects we instantiate in the `Noether Framework` via configs are instantiated via a factory.
 To do this, the config of the object needs to contain a `kind`, i.e., the class path of the class.
-The remaining variables are passed to the constructor of the class via the config object we created after the pydantic schema evaluation.
+The remaining variables are passed to the constructor of the class via the config object we created after the Pydantic schema evaluation.
 An example is given above in the Transformer config, where `kind: tutorial.model.Transformer` indicates which model class to instantiate.
 
 ## The Dataset ([`datasets/`](../src/noether/data/datasets/cfd/shapenet_car/dataset.py))
@@ -832,12 +832,12 @@ surface_position:
     mean: ${dataset_statistics.surface_position_mean}
     std: ${dataset_statistics.surface_position_std}
 ```
-We now defined the `surface_pressure`, which maps to a `MeanStdNormalization`, using a configurable mean and std. 
+We now define the `surface_pressure`, which maps to a `MeanStdNormalization`, using a configurable mean and std. 
 
 **Composing multiple normalizers:**
 
 Note that each key configures a **list** of normalizers, allowing you to compose a chain of normalization methods.
-All normalization preprocessor must be invertible so that we can denormalize the data for evaluation.
+All normalization preprocessors must be invertible so that we can denormalize the data for evaluation.
 Each normalizer is wrapped by the `noether.data.preprocessor.ComposePreProcess`, which can contain multiple preprocessors applied sequentially.
 Each `noether.data.preprocessor.PreProcessor` must implement the **`denormalize`** method.
 The **`ComposePreProcess.inverse`** method calls the **`denormalize`** method of all normalizers in the `ComposePreProcess` in reverse order, ensuring that data normalization can be inverted correctly.
@@ -892,7 +892,7 @@ To implement a custom dataset:
 2. Implement required `getitem_*` methods for your data fields
 3. Override `__init__` to discover and filter your data samples
 4. Add `@with_normalizers` decorators where normalization is needed
-5. Create corresponding Pydantic schema in your `schemas/datasets/` directory
+5. Create a corresponding Pydantic schema in your `schemas/datasets/` directory
 6. Configure the normalizers 
 
 See the [boilerplate project](../boilerplate_project/datasets/) for a minimal dataset implementation example.
@@ -963,10 +963,10 @@ The high-level pipeline is visualized in the image below:
 
 ![Pipeline data flow](./images/shapenet_car_models_data_flow.png)
 
-This entire pipeline is implemented in the [**`_build_sample_processor_pipeline`**](./pipeline/multistage_pipelines/aero_multistage.py#176) method in the `AeroMultistagePipeline` class, which composes the list of sample processors classes based on the three steps listed above.
+This entire pipeline is implemented in the [**`_build_sample_processor_pipeline`**](./pipeline/multistage_pipelines/aero_multistage.py#176) method in the `AeroMultistagePipeline` class, which composes the list of sample processor classes based on the three steps listed above.
 Please have a look at the code to understand what it is doing.
 This method returns a list of individual [**`SampleProcessor`**](../src/noether/data/pipeline/sample_processor.py) instances.
-Each sample processor takes a sample as input (which is a dictionary with the resul of all the `getitem_*` methods called by the dataset for one data point) and does some form of processing on one or more tensors of the sample.
+Each sample processor takes a sample as input (which is a dictionary with the result of all the `getitem_*` methods called by the dataset for one data point) and does some form of processing on one or more tensors of the sample.
 Note that the order is important, as the sample processors are called sequentially.
 
 When the multi-stage pipeline runs, the sample processors are called as [follows](../src/noether/data/pipeline/multistage.py#100): 
@@ -1100,7 +1100,7 @@ In the base implementation, the batch is split into two sub-batches:
 For task-specific implementations, see the [`AutomotiveAerodynamicsCFDTrainer`](./trainers/automotive_aerodynamics_cfd_trainer.py) example.
 
 > [!IMPORTANT]
-> We give a warming if there are keys in the batch that do not end in either the `forward batch` or the `target batch`. This means that the collator returns tensors that are not used during the forward pass. 
+> We give a warning if there are keys in the batch that do not end in either the `forward batch` or the `target batch`. This means that the collator returns tensors that are not used during the forward pass. 
 
 **Return value requirements:**
 
@@ -1194,7 +1194,7 @@ class ModelBaseConfig(BaseModel):
 **Key configuration parameters:**
 
 - **`kind`**: The full class path to the model class (e.g., `tutorial.model.Transformer`).
-- **`name`**: A unique identifier for the model, typically overridden in child config classes to match with the correct model configuration.
+- **`name`**: A unique identifier for the model, typically overridden in child config classes to match the correct model configuration.
 - **`optimizer_config`**: The optimizer configuration for training. Can be `None` when loading a model for inference only.
 - **`initializers`**: Optional list of initializer configs for loading pre-trained weights or custom weight initialization.
 - **`is_frozen`**: Boolean flag to freeze all model parameters (useful for transfer learning or ensemble models).
@@ -1424,7 +1424,7 @@ from tutorial.schemas.callbacks import TutorialCallbacksConfig
 
 AllCallbacks = Union[
     TutorialCallbacksConfig, CallbacksConfig
-]  # custom callbacks need to be added here to one union type with the base noether CallbacksConfig
+]  # custom callbacks need to be added here to one union type with the base Noether CallbacksConfig
 
 class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
   ...
@@ -1460,7 +1460,7 @@ def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.T
 
 ```
 
-First it computes the module outputs, and next it adds the desired metrics to an output dictionary.
+First, it computes the module outputs, and next, it adds the desired metrics to an output dictionary.
 All the substeps are implemented by individual methods in the callback itself.
 Please have a look at the [implementation](./callbacks/surface_volume_evaluation_metrics.py)
 
@@ -1500,7 +1500,7 @@ Moreover, we set **`every_n_epochs: ${trainer.max_epochs}`** to ensure that this
 Each metric is logged with the corresponding **`dataset_key`** to Weights & Biases.
 
 For the `CAEML` dataset, we also implemented chunked inference, where we loop over the entire surface and volume mesh in chunks to do inference on the full mesh.
-To enable this we set `chunked_inference: true`, and we configured a dataset `chunked_test` which has a multi-stage pipeline that returns all points in the surface/volume mesh.
+To enable this, we set `chunked_inference: true`, and we configured a dataset `chunked_test` which has a multi-stage pipeline that returns all points in the surface/volume mesh.
 
 ## Running the experiments
 
@@ -1550,7 +1550,7 @@ You can also configure the devices by adding `devices="0,1,2,4"`, for example, t
 > If you train on more than 1 GPU, ensure that `effective_batch_size` is at least equal to the number of GPUs used.
 Multi-node training is currently not supported.
 
-Example of a multi-gpu SLURM job:
+Example of a multi-GPU SLURM job:
 
 ```bash
 srun --nodes=1 --partition=compute --gpus-per-node=2 --mem=64GB --ntasks-per-node=2 --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp tutorial/configs/train_shapenet.yaml +experiment/shapenet=transformer tracker=disabled trainer.effective_batch_size=2
