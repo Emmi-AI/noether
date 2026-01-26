@@ -146,7 +146,7 @@ Clone the repository and set up the environment:
 
 ```bash
 git clone https://github.com/Emmi-AI/noether.git
-cd noether/tutorial
+cd noether/
 uv venv --python 3.12
 source .venv/bin/activate
 uv pip install emmiai-noether
