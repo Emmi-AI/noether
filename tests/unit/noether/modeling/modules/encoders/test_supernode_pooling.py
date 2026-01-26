@@ -248,3 +248,52 @@ def test_features_wrong_shape():
         batch_idx = torch.tensor([0, 0, 0, 0, 0, 1, 1, 1, 1, 1])
 
         output = module(input_pos, supernode_idxs, batch_idx, input_feat)
+
+
+def test_supernode_pooling_six_points_two_clusters():
+    """Test with 6 points that cluster to 2 supernodes and checks the mean output."""
+    # 6 points: 3 near (0,0,0) and 3 near (1,1,1)
+    input_pos = torch.tensor(
+        [[0.0, 0.0, 0.0], [1.1, 1.0, 1.0], [0.1, 0.0, 0.0], [0.2, 0.0, 0.0], [1.0, 1.0, 1.0], [1.2, 1.0, 1.0]],
+        dtype=torch.float32,
+    )
+    # shuffle_idx = torch.randperm(input_pos.shape[0])
+    # input_pos = input_pos[shuffle_idx]
+
+    # 2 supernodes at indices 0 and 1
+    supernode_idx = torch.tensor([0, 1], dtype=torch.long)
+
+    # Configuration for mean aggregation and identity messages
+    config = SupernodePoolingConfig(
+        hidden_dim=16,
+        input_dim=3,
+        radius=0.5,
+        spool_pos_mode="abspos",
+        aggregation="mean",
+        message_mode="identity",
+        readd_supernode_pos=False,
+    )
+    module = SupernodePooling(config=config)
+
+    # Forward pass
+    output = module(input_pos, supernode_idx)
+
+    # Reference calculation
+    pos_embeddings = module.pos_embed(input_pos)
+
+    # S0 cluster: indices 0, 2, 3 (within radius 0.5 of P0)
+    # Average of pos_embeddings of points in cluster
+    s0_cluster_mean = pos_embeddings[[0, 2, 3]].mean(dim=0)
+    # Message for S0 is concat([src_pos_embed, dst_pos_embed]), where dst is P0
+    expected_s0 = torch.cat([s0_cluster_mean, pos_embeddings[0]], dim=0)
+
+    # S1 cluster: indices 1, 4, 5 (within radius 0.5 of P1)
+    s1_cluster_mean = pos_embeddings[[1, 4, 5]].mean(dim=0)
+    # Message for S1 is concat([src_pos_embed, dst_pos_embed]), where dst is P1
+    expected_s1 = torch.cat([s1_cluster_mean, pos_embeddings[1]], dim=0)
+
+    # Expected output shape: (1, 2, 32)
+    expected_output = torch.stack([expected_s0, expected_s1], dim=0).unsqueeze(0)
+
+    assert torch.allclose(output, expected_output, atol=1e-6)
+    assert output.shape == (1, 2, 32)
