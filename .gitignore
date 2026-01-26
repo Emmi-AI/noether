@@ -7,7 +7,6 @@ se_lpt/
 .idea
 .vscode/
 *.json
-*.png
 *.jpg
 *.mp4
 _obsolete*.py
@@ -87,7 +86,7 @@ local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Flask stuff:
+# Flask stuff: 
 instance/
 .webassets-cache
 
@@ -97,8 +96,6 @@ instance/
 # Sphinx documentation
 docs/_build/
 docs/build/
-src/emmi/docs/_build/
-src/ksuit/docs/_build/
 
 # PyBuilder
 target/

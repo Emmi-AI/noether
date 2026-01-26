@@ -12,7 +12,14 @@ How-to Guides
    .. data/how_to_load_custom_dataset
 
    data/how_to_use_private_data_source
-
+   data/how_to_make_a_custom_dataset
+   data/how_to_write_a_multistage_pipeline
+   data/how_to_write_a_sample_processor
+   
+   training/implement_a_custom_model
+   training/implement_a_custom_trainer
+   training/use_callbacks
+   
    .. data/how_to_write_data_preprocessors
    .. data/how_to_write_data_collators
 

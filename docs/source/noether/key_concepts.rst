@@ -6,10 +6,10 @@ Config-driven vs Code-driven
 
 The **Noether Framework** offers flexibility and lets you get started quickly with a config-driven workflow.
 What does that mean?
-In a config-driven workflow, you use text files (for example ``*.yaml``) to define how a pipeline should run.
+In a config-driven workflow, you use text files (for example ``*.yaml``) to define how a training pipeline should run.
 These configs are easy to store and reuse for experiment tracking: create a new folder and put your files there.
 
-To avoid one big config file that becomes hard to manage, we suggest to split configs by pipeline block:
+To avoid one big config file that becomes hard to manage, we suggest to split configs by module:
 
 - ``callbacks``
 - ``data_specs``
@@ -33,7 +33,7 @@ the examples of the **Noether Framework** to your needs. To do so you have three
 
 - Go deeper with config changes (for example, change model size).
 - Do basic code customization: create custom attention blocks, transformer blocks, etc., and use them from configs.
-- Focus on code only: create a custom training pipeline (a ``trainer``) for your domain.
+- Focus on code only: create a custom training step (a ``trainer``) for your domain.
 
 Code customization is usually the most flexible option, but it can feel overwhelming if you are new to programming.
 As a rule of thumb: start with configs and our pipelines, then move to deeper customizations when you need them.
