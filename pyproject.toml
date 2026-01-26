@@ -11,7 +11,7 @@ authors = [{ name = "Emmi AI", email = "contact@emmi.ai" }]
 license-files = ["LICENSE.txt"]
 license = "LicenseRef-ENPL"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = "==3.12.*"
 dependencies = [
     "setuptools",
     "wheel",
