@@ -26,29 +26,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Install uv + enable cache keyed by pyproject/uv.lock across repo
       - name: Setup uv (with cache)
         id: setup-uv
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
-          # default glob already includes **/pyproject.toml and **/uv.lock;
-          # keep explicit for clarity in monorepos
-#          cache-dependency-glob: |
-#            **/pyproject.toml
-#            **/uv.lock
 
-      # Monorepo: root pyproject + [tool.uv.sources] installs src/* editably
       - name: Install dependencies
         run: |
-          if [ -f uv.lock ]; then
-            uv sync --frozen      # respect lock if present
-          else
-            uv sync               # otherwise resolve fresh
-          fi
-
-#      - name: Install pytest-cov
-#        run: uv pip install pytest-cov
+          uv sync --group dev --frozen
 
       - name: Show env (brief)
         run: |
@@ -57,7 +43,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run pytest -q ./tests \
+          uv run --no-sync pytest -q ./tests \
             --maxfail=1 --disable-warnings \
             --cov=src --cov-report=term-missing:skip-covered \
             --cov-report=xml:coverage.xml \
