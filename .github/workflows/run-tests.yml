@@ -48,8 +48,10 @@ jobs:
             --cov=src --cov-report=term-missing:skip-covered \
             --cov-report=xml:coverage.xml \
             --junitxml=pytest.xml
+
       - name: Post Coverage Comment
         uses: MishaKav/pytest-coverage-comment@main
+        if: github.event_name == 'pull_request'
         with:
           pytest-xml-coverage-path: ./coverage.xml
           junitxml-path: ./pytest.xml
