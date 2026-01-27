@@ -10,7 +10,7 @@ from typer.testing import CliRunner
 
 from noether.io.cli import cli_aws
 
-runner = CliRunner()
+runner = CliRunner(mix_stderr=False)
 
 MODULE_PATH = "noether.io.cli.cli_aws"
 
