@@ -33,6 +33,9 @@ def radius_pytorch(
     Returns:
         Edge index (2, num_edges).
     """
+    if not x.dtype.is_floating_point:
+        raise ValueError("radius search requires floating point tensors")
+
     if batch_x is None:
         batch_x = x.new_zeros(x.size(0), dtype=torch.long)
     if batch_y is None:
