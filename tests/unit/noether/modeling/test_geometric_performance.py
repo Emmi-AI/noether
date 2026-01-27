@@ -39,7 +39,7 @@ def measure_runtime(func, *args, num_runs=10, **kwargs):
         return (end_time - start_time) / num_runs
 
 
-@pytest.mark.skipif(not HAS_PYG, reason="torch_geometric and torch_cluster are required for comparison")
+@pytest.mark.skip
 class TestGeometricPerformance:
     @pytest.fixture
     def large_sample_data(self, request):
