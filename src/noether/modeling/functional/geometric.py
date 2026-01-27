@@ -88,6 +88,7 @@ def knn_pytorch(
     k: int,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
+    cosine=False,
 ) -> torch.Tensor:
     """Fallback implementation of knn using pure PyTorch operations.
 
@@ -126,7 +127,12 @@ def knn_pytorch(
         x_b = x[idx_x]
         y_b = y[idx_y]
 
-        dist = torch.cdist(y_b, x_b)
+        if cosine:
+            x_b = torch.nn.functional.normalize(x_b, p=2, dim=-1)
+            y_b = torch.nn.functional.normalize(y_b, p=2, dim=-1)
+            dist = 1 - torch.mm(y_b, x_b.t())
+        else:
+            dist = torch.cdist(y_b, x_b)
 
         k_b = min(k, x_b.size(0))
         _, idx = dist.topk(k=k_b, dim=1, largest=False)
@@ -179,10 +185,15 @@ def radius(
 
 
 def knn(
-    x: torch.Tensor, y: torch.Tensor, k: int, batch_x: torch.Tensor | None = None, batch_y: torch.Tensor | None = None
+    x: torch.Tensor,
+    y: torch.Tensor,
+    k: int,
+    batch_x: torch.Tensor | None = None,
+    batch_y: torch.Tensor | None = None,
+    cosine=False,
 ) -> torch.Tensor:
     if not HAS_PYG:
-        return knn_pytorch(x, y, k, batch_x, batch_y)
+        return knn_pytorch(x, y, k, batch_x, batch_y, cosine=cosine)
 
     # Move tensors to CPU if on MPS device
     device = x.device
@@ -198,6 +209,7 @@ def knn(
         k=k,
         batch_x=batch_x,
         batch_y=batch_y,
+        cosine=cosine,
     )
 
     # Move result back to MPS if original tensors were on MPS

@@ -48,8 +48,8 @@ class TestGeometricPerformance:
             pytest.skip("CUDA not available")
 
         torch.manual_seed(42)
-        num_points = 10000
-        num_queries = 1000
+        num_points = 100_000
+        num_queries = 5_000
 
         x = torch.randn(num_points, 3, device=device)
         y = torch.randn(num_queries, 3, device=device)
