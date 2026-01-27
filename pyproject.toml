@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emmiai-noether"
-version = "1.0.0"
+version = "1.1.0"
 description = "Noether: A PyTorch-based Framework for Engineering AI"
 authors = [{ name = "Emmi AI", email = "contact@emmi.ai" }]
 license-files = ["LICENSE.txt"]
