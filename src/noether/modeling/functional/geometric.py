@@ -16,7 +16,7 @@ def radius_pytorch(
     x: torch.Tensor,
     y: torch.Tensor,
     r: float,
-    max_num_neighbors: int = 32,
+    max_num_neighbors: int | None = None,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
 ) -> torch.Tensor:
@@ -65,6 +65,11 @@ def radius_pytorch(
 
         y_idx, x_idx = torch.nonzero(within_radius, as_tuple=True)
         if y_idx.numel() == 0:
+            continue
+
+        if max_num_neighbors is None:
+            all_row.append(idx_y[y_idx])
+            all_col.append(idx_x[x_idx])
             continue
 
         _, y_idx_mapped, counts = torch.unique_consecutive(y_idx, return_inverse=True, return_counts=True)
