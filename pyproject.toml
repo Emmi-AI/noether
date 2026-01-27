@@ -23,8 +23,6 @@ dependencies = [
     "hydra-core>=1.3.2",
     "numpy==2.3.1",
     "torch==2.8.0",
-    "torch-geometric>=2.7.0",
-    "torch-cluster",
     "pandas>=2.3.3",
     # ---
     "aistore>=1.13.5",
@@ -37,6 +35,11 @@ dependencies = [
     "typer>=0.16.0",
     "fsspec>=2025.5.1",
     # ---
+]
+[project.optional-dependencies]
+cluster = [
+    "torch-geometric>=2.7.0",
+    "torch-cluster",
 ]
 
 [project.urls]
@@ -125,7 +128,6 @@ exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
 module = [
     "torch_geometric.*",
     "torch_scatter.*",
-    "torch_cluster.*",
     "aistore.*",
     "boto3.*",
     #    "pyvista.*",
