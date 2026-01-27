@@ -34,7 +34,7 @@ Create a virtual environment with relevant packages:
 Verifying the Installation
 --------------------------
 
-See if the installation was successful by running the `noether-train` :
+See if the installation was successful by running the ``noether-train`` :
 
 .. code-block:: bash
 
