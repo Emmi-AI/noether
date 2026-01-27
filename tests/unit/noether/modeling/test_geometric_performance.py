@@ -60,7 +60,7 @@ class TestGeometricPerformance:
 
         return x, y, batch_x, batch_y
 
-    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda"], indirect=True)
+    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
     def test_performance_radius(self, large_sample_data):
         x, y, batch_x, batch_y = large_sample_data
         r = 0.5
@@ -77,7 +77,7 @@ class TestGeometricPerformance:
         print(f"\nRadius Performance ({device}): Fallback={time_fallback: .6f}s, PyG={time_pyg: .6f}s")
         # No assertion on speed as fallback is expected to be slower, but we can log results
 
-    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda"], indirect=True)
+    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
     def test_performance_knn(self, large_sample_data):
         x, y, batch_x, batch_y = large_sample_data
         k = 16
