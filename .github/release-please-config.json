@@ -9,6 +9,8 @@
     }
   },
   "include-component-in-tag": false,
+  "commit-search-depth": 30,
+  "release-search-depth": 30,
   "sequential-calls": true,
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": false,
