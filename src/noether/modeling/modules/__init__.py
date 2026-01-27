@@ -1,7 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from .attention import DotProductAttention, PerceiverAttention, TransolverAttention
-from .blocks import IrregularNatBlock, PerceiverBlock, TransformerBlock
+from .blocks import PerceiverBlock, TransformerBlock
 from .decoders import DeepPerceiverDecoder
 from .encoders import MlpEncoder, SupernodePooling
 from .layers import ContinuousSincosEmbed, LayerScale, LinearProjection, UnquantizedDropPath
@@ -11,7 +11,6 @@ __all__ = [
     "DotProductAttention",
     "PerceiverAttention",
     "TransolverAttention",
-    "IrregularNatBlock",
     "PerceiverBlock",
     "TransformerBlock",
     "DeepPerceiverDecoder",
