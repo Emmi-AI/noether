@@ -29,5 +29,5 @@ In the `Noether Dataset Zoo <https://github.com/Emmi-AI/noether/tree/main/src/no
      - `README.MD <https://github.com/Emmi-AI/noether/tree/main/src/noether/data/datasets/cfd/drivaernet/README.MD>`_
    * - **Wing Dataset**
      - CFD Aerodynamics
-     - `noether.data.datasets.cfd.EmmiWingDataset <https://github.com/Emmi-AI/noether/tree/main/src/noether/data/datasets/cfd/caeml/ahmedml/dataset.py>`_
+     - `noether.data.datasets.cfd.EmmiWingDataset <https://github.com/Emmi-AI/noether/tree/main/src/noether/data/datasets/cfd/emmi_wing/dataset.py>`_
      - `README.MD <https://github.com/Emmi-AI/noether/tree/main/src/noether/data/datasets/cfd/emmi_wing/README.MD>`_
