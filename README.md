@@ -1,11 +1,12 @@
 <div align="center">
 
-![noether-framework-logo](./docs/source/_static/noether-framework-logo.svg)
+![noether-framework-logo](https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/noether-framework-logo.svg)
+
 # Noether Framework
 
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
-[![License: ENLP](https://img.shields.io/badge/License-ENLP-orange.svg)](./LICENSE.txt)
-[![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](./tutorial/README.MD)
+[![License: ENLP](https://img.shields.io/badge/License-ENLP-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
+[![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
 
@@ -239,22 +240,22 @@ Read the full license [here](./LICENSE.txt).
 <table>
   <tr>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/jku.png" height="50" alt="JKU Linz">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/jku.png" height="50" alt="JKU Linz">
     </td>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/eth.png" height="50" alt="ETH Zurich">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/eth.png" height="50" alt="ETH Zurich">
     </td>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/upenn.png" height="50" alt="UPenn">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/upenn.png" height="50" alt="UPenn">
     </td>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/uw.png" height="50" alt="University of Washington">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/uw.png" height="50" alt="University of Washington">
     </td>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/tum.png" height="50" alt="TUM Munich">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/tum.png" height="50" alt="TUM Munich">
     </td>
     <td align="center">
-      <img src="docs/source/_static/logos_cards/sorbonne.png" height="50" alt="Sorbonne University">
+      <img src="https://raw.githubusercontent.com/Emmi-AI/noether/main/docs/source/_static/logos_cards/sorbonne.png" height="50" alt="Sorbonne University">
     </td>
   </tr>
 </table>
