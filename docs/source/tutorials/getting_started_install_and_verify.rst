@@ -34,16 +34,10 @@ Create a virtual environment with relevant packages:
 Verifying the Installation
 --------------------------
 
-See if the installation was successful by running the tests:
+See if the installation was successful by running the `noether-train` :
 
 .. code-block:: bash
 
-   pytest -q tests/
+   python -c "uv run noether-train --help"
 
-.. warning::
-   The information below is for reference only as the CLI is not final yet.
-
-.. code-block:: bash
-
-   python -c "import importlib.metadata as m; print(m.version('noether'))"
-   # 1.0.0
+You should see the help message printed in your terminal.
