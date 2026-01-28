@@ -1,4 +1,4 @@
-How to Use Callbacks
+How to Use and Build Callbacks
 ====================
 
 Callbacks are the primary mechanism in the **Noether Framework** that allow you to inject custom logic into various stages of the training process. They are primarily used for monitoring, checkpointing, evaluation, and experiment tracking.
@@ -58,20 +58,19 @@ Noether includes many pre-defined callbacks organized by their purpose:
    * - Category
      - Examples and Usage
    * - **Monitoring**
-     - ``Progress``, ``ETA``, ``LR``, ``PeakMemory``, ``OnlineLoss``. Used for real-time tracking of training progress and hardware usage.
+     - :py:class:`noether.core.callbacks.ProgressCallback`, :py:class:`noether.core.callbacks.DatasetStatsCallback`, :py:class:`noether.core.callbacks.LrCallback`, :py:class:`noether.core.callbacks.PeakMemoryCallback`, :py:class:`noether.core.callbacks.OnlineLossCallback`, :py:class:`noether.core.callbacks.ParamCountCallback`, :py:class:`noether.core.callbacks.EtaCallback`, :py:class:`noether.core.callbacks.TrainTimeCallback` . Used for real-time tracking of training progress and hardware usage. These callbacks are all initialized by default by the ``BaseTrainer``, the user does not need to add them manually.
    * - **Checkpointing**
-     - ``CheckpointCallback``, ``BestCheckpointCallback``, ``EMACallback``. Used to save model weights periodically or when a new best metric is achieved.
+     - :py:class:`noether.core.callbacks.BestCheckpointCallback`, :py:class:`noether.core.callbacks.CheckpointCallback`, :py:class:`noether.core.callbacks.EMACallback`. Used to save model weights periodically or when a new best metric is achieved.
    * - **Early Stopping**
-     - ``MetricEarlyStopping``, ``FixedUpdateEarlyStopping``. Used to stop training automatically if progress plateaus.
+     - :py:class:`noether.core.callbacks.MetricEarlyStopping`, :py:class:`noether.core.callbacks.FixedUpdateEarlyStopping`. Used to stop training automatically if progress plateaus.
    * - **Evaluation**
-     - ``BestMetricCallback``, ``TrackOutputsCallback``. Specialized monitoring for tracked metrics.
-
+     - :py:class:`noether.core.callbacks.BestMetricCallback`, :py:class:`noether.core.callbacks.TrackOutputsCallback`. Specialized monitoring for tracked metrics.
 When to Use What?
 ------------------
 
 1.  **Use existing callbacks** for standard tasks like logging, checkpointing, and validation. These are highly configurable via YAML.
 2.  **Inherit from ``PeriodicCallback``** if you need to perform an action at regular intervals (e.g., logging a custom internal state of the model).
-3.  **Inherit from ``PeriodicDataIteratorCallback``** if you need to run inference on a specific dataset and aggregate the results to compute a metric.
+3.  **Inherit from ``PeriodicDataIteratorCallback``** if you need to run inference on a specific dataset and aggregate the results to compute a metric. Those callbacks need to configure a dataset key to specify which dataset to run on.
 4.  **Inherit from ``CallbackBase``** if your logic only needs to run once at the very beginning or end of training.
 
 How to Configure Callbacks
@@ -84,10 +83,43 @@ Example YAML configuration:
 .. code-block:: yaml
 
    callbacks:
-     - kind: noether.core.callbacks.ProgressCallback
-       every_n_updates: 10
-     - kind: noether.core.callbacks.BestMetricCallback
-       every_n_epochs: 1
-       metric_key: "val/accuracy"
-     - kind: noether.core.callbacks.LrCallback
-       every_n_updates: 1
+    - kind: noether.core.callbacks.CallbackClassName
+      name: CallbackInstanceName
+      every_n_epochs: 1
+      # or every_n_updates: 1
+      # additional_param: value
+
+
+How to Implement Custom Callbacks
+--------------------------------
+
+To create a custom callback, define a new class that inherits from one of the base callback classes. Override the relevant methods to inject your logic at the desired points in the training process.
+
+
+.. code-block:: python
+    
+   from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig 
+   from noether.core.callbacks.periodic import PeriodicCallback
+
+   class CustomCallbackConfig(PeriodicDataIteratorCallbackConfig):
+
+       # Define any configuration parameters your callback needs
+      
+   class MyCustomCallback(PeriodicCallback):
+       def __init__(self, callback_config: CustomCallbackConfig, **kwargs):
+           super().__init__(callback_config, **kwargs)
+
+        def register_sampler_config(self) -> SamplerIntervalConfig:
+            # Define how to sample data for this callback. By default, this method takes the sampler config by using the dataset_key from the callback config.
+            # If you need custom sampling logic, override this method.
+            return SamplerIntervalConfig(...)
+
+        def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+              model_output = self.model(**batch)
+              # somem more custom logic
+              out = {"custom_output": model_output}
+              return out
+        def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
+           # this method gets the aggregated results of the process_data method across the dataset
+           # do something with the results
+           self.writer.add_scalar("custom_metric", results["custom_output"].mean().item())

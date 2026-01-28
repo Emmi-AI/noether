@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.models.single import Model
 from noether.core.schemas import DatasetBaseConfig
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.data.base.dataset import Dataset
 from noether.data.container import DataContainer
@@ -111,7 +111,7 @@ def test_callbacks_execute_at_last_step():
 
     model = DummyModel()
     callback = TrackingCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,
@@ -167,7 +167,7 @@ def test_periodic_iterator_callback_receives_all_updates():
 
     model = DummyModel()
     callback = DummyIteratorCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,
@@ -224,7 +224,7 @@ def test_periodic_iterator_callback_with_gradient_accumulation():
 
     model = DummyModel()
     callback = DummyIteratorCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,

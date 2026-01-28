@@ -6,7 +6,7 @@ import pytest
 import torch
 
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 from noether.core.utils.training import UpdateCounter
 
 
@@ -85,7 +85,7 @@ class TestPeriodicDataIteratorCallback:
         mock_metric_property_provider,
     ):
         """Test that PeriodicDataIteratorCallback can be instantiated."""
-        config = CallBackBaseConfig.model_validate(dict(every_n_updates=10))
+        config = PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_updates=10, dataset_key="test"))
 
         class TestCallback(PeriodicDataIteratorCallback):
             def process_data(self, batch, **_):
@@ -123,7 +123,9 @@ class TestPeriodicDataIteratorCallback:
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
-        config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
+        config = PeriodicDataIteratorCallbackConfig.model_validate(
+            dict(every_n_updates=10, batch_size=4, dataset_key="test")
+        )
 
         class TestCallback(PeriodicDataIteratorCallback):
             def process_data(self, batch, *, trainer_model):
@@ -189,7 +191,9 @@ class TestPeriodicDataIteratorCallback:
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
-        config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
+        config = PeriodicDataIteratorCallbackConfig.model_validate(
+            dict(every_n_updates=10, batch_size=4, dataset_key="test")
+        )
 
         processed_results = []
 
@@ -251,7 +255,9 @@ class TestPeriodicDataIteratorCallback:
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
-        config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
+        config = PeriodicDataIteratorCallbackConfig.model_validate(
+            dict(every_n_updates=10, batch_size=4, dataset_key="test")
+        )
 
         processed_results = []
 
@@ -317,7 +323,9 @@ class TestPeriodicDataIteratorCallback:
         mock_is_distributed.return_value = False
         mock_is_rank0.return_value = True
 
-        config = CallBackBaseConfig.model_validate(dict(every_n_updates=10, batch_size=4))
+        config = PeriodicDataIteratorCallbackConfig.model_validate(
+            dict(every_n_updates=10, batch_size=4, dataset_key="test")
+        )
 
         process_results_calls = []
 

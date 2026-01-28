@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 
 class LrCallback(PeriodicCallback):
-    """Callback to log the learning rate of the optimizer."""
+    """Callback to log the learning rate of the optimizer. LrCallback is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
 
     def _should_log_after_update(self, training_iteration: TrainingIteration):
         if training_iteration.update == 1:

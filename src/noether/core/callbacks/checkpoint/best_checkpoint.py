@@ -7,7 +7,17 @@ from noether.core.schemas.callbacks import BestCheckpointCallbackConfig
 
 
 class BestCheckpointCallback(PeriodicCallback):
-    """Callback to save the best model based on a metric."""
+    """Callback to save the best model based on a metric.
+
+    Example config:
+        .. code-block:: yaml
+            - kind: noether.core.callbacks.BestCheckpointCallback
+              name: BestCheckpointCallback
+              every_n_epochs: 1
+              metric_key: loss/val/total
+              model_names: # only applies when training a CompositeModel
+                - encoder
+    """
 
     def __init__(
         self,

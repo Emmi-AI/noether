@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class CallbackBase:
-    """Base class for callbacks that log something before/after training.
+    """Base class for callbacks that execute something before/after training.
 
     Allows overwriting `before_training` and `after_training`.
 

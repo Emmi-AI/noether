@@ -18,7 +18,7 @@ from noether.core.distributed import all_gather_nograd, all_gather_nograd_clippe
 from noether.core.distributed.config import is_distributed, is_rank0
 from noether.core.models import ModelBase
 from noether.core.providers import MetricPropertyProvider
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.schemas.callbacks import CallBackBaseConfig, PeriodicDataIteratorCallbackConfig
 from noether.core.trackers import BaseTracker
 from noether.core.utils.common import snake_type_name
 from noether.core.utils.common.stopwatch import Stopwatch
@@ -95,7 +95,7 @@ class PeriodicCallback(CallbackBase):
 
             # Configure in YAML:
             # callbacks:
-            #   - kind: CustomMetricCallback
+            #   - kind: path.to.CustomMetricCallback
             #     every_n_epochs: 10
 
         Tracking metrics at every update and logging periodically:
@@ -475,7 +475,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
             # Configure in YAML:
             # callbacks:
-            #   - kind: AccuracyCallback
+            #   - kind: path.to.AccuracyCallback
             #     every_n_epochs: 1
             #     dataset_key: "test"
 
@@ -527,7 +527,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
     def __init__(
         self,
-        callback_config: CallBackBaseConfig,
+        callback_config: PeriodicDataIteratorCallbackConfig,
         trainer: BaseTrainer,
         model: ModelBase,
         data_container: DataContainer,
@@ -548,7 +548,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             metric_property_provider,
             name,
         )
-
+        self.dataset_key = callback_config.dataset_key  # type: ignore
         self.total_data_time = 0.0
 
         # this might be confused with register_sampler_configs method and accidentally overwritten
@@ -618,9 +618,10 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
     def process_results(self, results: Any, *, interval_type, update_counter: UpdateCounter, **_) -> None:
         """Template method that is called with the collated results that were produced by `iterate_over_dataset`.
+        For example, metrics can be computed from the results for the entire test/validation dataset and logged.
 
         Args:
-            results: The collated results that were produced by `_iterate_over_dataset`.
+            results: The collated results that were produced by `_iterate_over_dataset` and the individual `process_data` calls.
             interval_type: The type of interval that triggered this callback invocation.
             update_counter: The current update counter.
         """

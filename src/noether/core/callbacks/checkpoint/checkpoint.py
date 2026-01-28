@@ -7,7 +7,15 @@ from noether.core.utils.training import UpdateCounter  # fixme: consider moving 
 
 
 class CheckpointCallback(PeriodicCallback):
-    """Callback to save the model and optimizer state periodically."""
+    """Callback to save the model and optimizer state periodically.
+    Example config:
+        .. code-block:: yaml
+            - kind: noether.core.callbacks.CheckpointCallback
+              name: CheckpointCallback
+              every_n_epochs: 1
+              save_weights: true
+              save_optim: true
+    """
 
     def __init__(
         self,

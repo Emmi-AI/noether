@@ -5,7 +5,16 @@ from noether.core.schemas.callbacks import MetricEarlyStopperConfig
 
 
 class MetricEarlyStopper(EarlyStopperBase):
-    """Early stopper (training) based on a metric value to be monitored."""
+    """Early stopper (training) based on a metric value to be monitored.
+    Example config:
+        .. code-block:: yaml
+            - kind: noether.core.callbacks.MetricEarlyStopper
+              every_n_epochs: 1
+              metric_key: loss/val/total
+              tolerance: 0.10
+              name: MetricEarlyStopper
+
+    """
 
     def __init__(
         self,

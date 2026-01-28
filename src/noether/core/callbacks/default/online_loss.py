@@ -12,7 +12,7 @@ from noether.core.schemas.callbacks import OnlineLossCallbackConfig
 
 
 class OnlineLossCallback(PeriodicCallback):
-    """Callback to track the loss of the model after every gradient accumulation step and log the average loss."""
+    """Callback to track the loss of the model after every gradient accumulation step and log the average loss. Is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
 
     def __init__(self, callback_config: OnlineLossCallbackConfig, **kwargs):
         """Initializes the OnlineLossCallback.

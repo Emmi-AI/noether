@@ -14,10 +14,19 @@ from noether.core.utils.training import UpdateCounter  # fixme?
 
 class TrackAdditionalOutputsCallback(PeriodicCallback):
     """Callback that is invoked during training after every gradient step to track certain outputs from the update step.
+    The update_outputs that are provided in the track_after_accumulation_step method are the additional_outputs field from the TrainerResult returned by the trainer's update step.
+
 
     The provided `update_outputs` are assumed to be a dictionary and outputs that match keys or patterns are tracked.
     An update output matches if either the key matches exactly, e.g. {"some_output": ...} and keys["some_output"];
     or if one of the patterns is contained in the update key name, e.g. {"some_loss": ...} and patterns = ["loss"].
+    Example config:
+        .. code-block:: yaml
+            - kind: noether.core.callbacks.TrackAdditionalOutputsCallback
+              name: TrackAdditionalOutputsCallback
+              every_n_updates: 1
+              keys:
+                - "surface_pressure_loss"
     """
 
     out: Path | None
@@ -71,6 +80,16 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
         )
 
     def track_after_accumulation_step(self, *, update_counter, update_outputs, **_) -> None:
+        """
+        Tracks the specified outputs after each accumulation step.
+
+        :param update_counter: UpdateCounter object to track the number of updates.
+        :param update_outputs: The additional_outputs field from the TrainerResult returned by the trainer's update step. Note that the base train_step method in the base trainer does not provide any additional outputs by default, and hence this callback can only be used if the train_step is modified to provide additional outputs.
+
+        """
+        if update_outputs is None:
+            return
+
         if self.reduce == "last" and self.updates_till_next_log(update_counter) > 1:
             return
         if len(self.keys) > 0:

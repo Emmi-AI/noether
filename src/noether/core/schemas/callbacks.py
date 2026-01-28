@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Literal, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class CallBackBaseConfig(BaseModel):
-    name: str = Field(default="BaseCallbacksConfig")
+    if TYPE_CHECKING:
+        name: str
+    else:
+        name: Literal["BaseCallbacksConfig"] = Field(default="BaseCallbacksConfig", frozen=True)
+
     kind: str | None = None
     every_n_epochs: int | None = Field(None, ge=0)
     """Epoch-based interval. Invokes the callback after every n epochs. Mutually exclusive with other intervals."""
@@ -66,6 +70,15 @@ class CallBackBaseConfig(BaseModel):
         return v
 
 
+class PeriodicDataIteratorCallbackConfig(CallBackBaseConfig):
+    if TYPE_CHECKING:
+        name: str
+    else:
+        name: Literal["PeriodicDataIteratorCallback"] = Field(default="PeriodicDataIteratorCallback", frozen=True)
+    dataset_key: str = Field(...)
+    """The key of the dataset to be used for the loss calculation. Can be any key that is registered in the `DataContainer`."""
+
+
 class BestCheckpointCallbackConfig(CallBackBaseConfig):
     name: Literal["BestCheckpointCallback"] = Field("BestCheckpointCallback", frozen=True)
     metric_key: str = Field(...)
@@ -77,9 +90,9 @@ class BestCheckpointCallbackConfig(CallBackBaseConfig):
     )
     """"If provided, this callback will produce multiple best models which differ in the amount of intervals they allow the metric to not improve. For example, tolerance=[5] with every_n_epochs=1 will store a checkpoint where at most 5 epochs have passed until the metric improved. Additionally, the best checkpoint over the whole training will always be stored (i.e., tolerance=infinite). When setting different tolerances, one can evaluate different early stopping configurations with one training run."""
     model_name: str | None = Field(None)
-    """Which model name to save (e.g., if only the encoder of an autoencoder should be stored, one could pass model_name='encoder' here)."""
+    """The name of the model to save. If None, all models are saved."""
     model_names: list[str] | None = Field(None)
-    """Same as `model_name` but allows passing multiple `model_names`."""
+    """Which model name to save (e.g., if only the encoder of an autoencoder should be stored, one could pass model_name='encoder' here). This only applies when training a CompositeModel. If None, all models are saved."""
 
 
 class CheckpointCallbackConfig(CallBackBaseConfig):
@@ -129,9 +142,9 @@ class BestMetricCallbackConfig(CallBackBaseConfig):
 class TrackAdditionalOutputsCallbackConfig(CallBackBaseConfig):
     name: Literal["TrackAdditionalOutputsCallback"] = Field("TrackAdditionalOutputsCallback", frozen=True)
     keys: list[str] | None = Field(None)
-    """List of patterns to track. Matched if it is contained in one of the update_outputs keys."""
+    """List of keys to track in the additional_outputs of the TrainerResult returned by the trainer's update step."""
     patterns: list[str] | None = Field(None)
-    """List of patterns to track. Matched if it is contained in one of the update_outputs keys."""
+    """List of patterns to track in the additional_outputs of the TrainerResult returned by the trainer's update step. Matched if it is contained in one of the update_outputs keys."""
     verbose: bool = Field(False)
     """If True uses the logger to print the tracked values otherwise uses no logger."""
     reduce: Literal["mean", "last"] = Field("mean")
@@ -142,10 +155,9 @@ class TrackAdditionalOutputsCallbackConfig(CallBackBaseConfig):
     """Whether to save the tracked scalar values to disk."""
 
 
-class OfflineLossCallbackConfig(CallBackBaseConfig):
+class OfflineLossCallbackConfig(PeriodicDataIteratorCallbackConfig):
     name: Literal["OfflineLossCallback"] = Field("OfflineLossCallback", frozen=True)
-    dataset_key: str = Field(...)
-    """The key of the dataset to be used for the loss calculation. Can be any key that is registered in the `DataContainer`."""
+
     output_patterns_to_log: list[str] | None = Field(None)
     """For instance, if the output key is 'some_loss' and the pattern is ['loss'].  **kwargs: additional arguments passed to the parent class."""
 
@@ -202,4 +214,5 @@ CallbacksConfig = Union[
     | OfflineLossCallbackConfig
     | MetricEarlyStopperConfig
     | FixedEarlyStopperConfig
+    | PeriodicDataIteratorCallbackConfig
 ]
