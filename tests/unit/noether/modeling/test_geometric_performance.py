@@ -13,7 +13,7 @@ try:
 except ImportError:
     HAS_PYG = False
 
-from noether.modeling.functional.geometric import knn, knn_pytorch, radius, radius_pytorch
+from noether.modeling.functional.geometric import knn, knn_pytorch, radius_pytorch, radius_triton
 
 
 def measure_runtime(func, *args, num_runs=10, **kwargs):
@@ -39,17 +39,19 @@ def measure_runtime(func, *args, num_runs=10, **kwargs):
         return (end_time - start_time) / num_runs
 
 
-@pytest.mark.skip
+# @pytest.mark.skip
 class TestGeometricPerformance:
     @pytest.fixture
     def large_sample_data(self, request):
         device = request.param
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA not available")
+        if device == "mps" and not torch.backends.mps.is_available():
+            pytest.skip("MPS not available")
 
         torch.manual_seed(42)
         num_points = 100_000
-        num_queries = 5_000
+        num_queries = 8_000
 
         x = torch.randn(num_points, 3, device=device)
         y = torch.randn(num_queries, 3, device=device)
@@ -72,9 +74,17 @@ class TestGeometricPerformance:
         time_fallback = measure_runtime(radius_pytorch, x, y, r, max_num_neighbors, batch_x, batch_y)
 
         # Measure PyG (via the wrapper which uses HAS_PYG=True)
-        time_pyg = measure_runtime(radius, x, y, r, max_num_neighbors, batch_x, batch_y)
+        time_pyg = measure_runtime(torch_geometric.nn.pool.radius, x, y, r, batch_x, batch_y, max_num_neighbors)
 
-        print(f"\nRadius Performance ({device}): Fallback={time_fallback: .6f}s, PyG={time_pyg: .6f}s")
+        time_triton = (
+            measure_runtime(radius_triton, x, y, r, max_num_neighbors, batch_x, batch_y)
+            if device == "cuda"
+            else float("inf")
+        )
+
+        print(
+            f"\nRadius Performance ({device}): Fallback={time_fallback: .6f}s, PyG={time_pyg: .6f}s , Triton={time_triton: .6f}s"
+        )
         # No assertion on speed as fallback is expected to be slower, but we can log results
 
     @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)

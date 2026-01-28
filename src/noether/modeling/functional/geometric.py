@@ -11,6 +11,190 @@ try:
 except ImportError:
     HAS_PYG = False
 
+try:
+    import triton  # type: ignore[import-untyped]
+    import triton.language as tl  # type: ignore[import-untyped]
+
+    HAS_TRITON = True
+except ImportError:
+    HAS_TRITON = False
+
+
+if HAS_TRITON:
+
+    @triton.autotune(
+        configs=[
+            triton.Config({"BLOCK_X": 16}),
+            triton.Config({"BLOCK_X": 32}),
+            triton.Config({"BLOCK_X": 64}),
+        ],
+        key=["n_x", "n_y", "dim"],  # Retune when these change
+    )
+    @triton.jit
+    def _radius_kernel_v2(
+        x_ptr,
+        y_ptr,
+        batch_x_ptr,
+        batch_y_ptr,
+        edge_dst_ptr,
+        n_x: tl.constexpr,
+        n_y: tl.constexpr,
+        dim: tl.constexpr,
+        r_squared,
+        max_neighbors: tl.constexpr,
+        has_batch: tl.constexpr,
+        BLOCK_X: tl.constexpr,
+    ):
+        """
+        Optimized kernel: each program handles one y point, processes x in blocks.
+        """
+        y_idx = tl.program_id(0)
+
+        if y_idx >= n_y:
+            return
+
+        # Load batch for y
+        if has_batch:
+            batch_y_val = tl.load(batch_y_ptr + y_idx)
+
+        write_idx = 0
+
+        out_base = y_idx * max_neighbors
+
+        # Process x points in blocks
+        x_block_start = 0
+        while x_block_start < n_x and write_idx < max_neighbors:
+            x_offsets = x_block_start + tl.arange(0, BLOCK_X)
+            x_mask = x_offsets < n_x
+
+            batch_match = tl.full((BLOCK_X,), True, dtype=tl.int1)
+            if has_batch:
+                batch_x_vals = tl.load(batch_x_ptr + x_offsets, mask=x_mask, other=-1)
+                batch_match = batch_x_vals == batch_y_val
+
+            # Compute distances for this block
+            dist_sq = tl.zeros((BLOCK_X,), dtype=tl.float32)
+
+            for d in range(dim):
+                x_vals = tl.load(x_ptr + x_offsets * dim + d, mask=x_mask, other=0.0)
+                y_val = tl.load(y_ptr + y_idx * dim + d)
+                diff = x_vals - y_val
+                dist_sq += diff * diff
+
+            within_radius = (dist_sq <= r_squared) & x_mask & batch_match
+
+            valid_int = within_radius.to(tl.int32)
+            cumsum = tl.cumsum(valid_int, axis=0)
+            local_offsets = cumsum - valid_int  # Exclusive prefix sum
+            block_count = tl.max(cumsum)  # Last element = total
+            local_offsets = tl.cumsum(valid_int, axis=0) - valid_int
+
+            # Global write position for each lane
+            write_pos = out_base + write_idx + local_offsets
+
+            # Only write if within max_num_neighbors limit
+            can_write = within_radius & ((write_idx + local_offsets) < max_neighbors)
+            tl.store(edge_dst_ptr + write_pos, x_offsets, mask=can_write)
+
+            write_idx += block_count
+
+            x_block_start += BLOCK_X
+
+
+def radius_triton(
+    x: torch.Tensor,
+    y: torch.Tensor,
+    r: float,
+    max_num_neighbors: int | None = None,
+    batch_x: torch.Tensor | None = None,
+    batch_y: torch.Tensor | None = None,
+) -> torch.Tensor:
+    """
+    Find all edges where points in x are within radius r of points in y.
+
+    Args:
+        x: Source points, shape (N, D) or flattened (N*D,) with D inferred
+        y: Target points, shape (M, D) or flattened (M*D,)
+        r: Radius threshold
+        max_num_neighbors: Maximum neighbors per target point (default: N)
+        batch_x: Batch indices for x points, shape (N,)
+        batch_y: Batch indices for y points, shape (M,)
+
+    Returns:
+        Edge index tensor of shape (2, E) where:
+        - row 0: source indices (from x)
+        - row 1: target indices (from y)
+    """
+    assert x.device.type == "cuda", "Input must be on CUDA device"
+    assert y.device.type == "cuda", "Input must be on CUDA device"
+
+    # Handle input shapes
+    if x.dim() == 1:
+        # Assume same dim as y or infer from context
+        if y.dim() == 2:
+            dim = y.shape[1]
+            n_x = x.shape[0] // dim
+            x = x.view(n_x, dim)
+        else:
+            raise ValueError("Cannot infer dimensions from flat tensors")
+    else:
+        n_x, dim = x.shape
+
+    if y.dim() == 1:
+        n_y = y.shape[0] // dim
+        y = y.view(n_y, dim)
+    else:
+        n_y = y.shape[0]
+        assert y.shape[1] == dim, "x and y must have same dimension"
+
+    # Ensure contiguous
+    x = x.contiguous().float()
+    y = y.contiguous().float()
+
+    # Default max neighbors
+    if max_num_neighbors is None:
+        max_num_neighbors = n_x
+
+    # Validate batch tensors
+    if batch_x is not None and batch_y is not None:
+        batch_x = batch_x.contiguous().int()
+        batch_y = batch_y.contiguous().int()
+        assert batch_x.shape[0] == n_x
+        assert batch_y.shape[0] == n_y
+    else:
+        # Create dummy tensors for kernel
+        batch_x = torch.zeros(1, dtype=torch.int32, device=x.device)
+        batch_y = torch.zeros(1, dtype=torch.int32, device=y.device)
+
+    # Allocate output buffers
+    max_total_edges = n_y * max_num_neighbors
+    edge_dst = torch.full((max_total_edges,), fill_value=-1, dtype=torch.int64, device=x.device)
+
+    r_squared = r * r
+
+    # Launch kernel - one program per y point
+    grid = (n_y,)
+
+    _radius_kernel_v2[grid](
+        x,
+        y,
+        batch_x,
+        batch_y,
+        edge_dst,
+        n_x,
+        n_y,
+        dim,
+        r_squared,
+        max_num_neighbors,
+        batch_x is not None and batch_y is not None,
+    )
+
+    valid_mask = edge_dst != -1
+    edge_src_valid = torch.arange(n_y, device=x.device).repeat_interleave(max_num_neighbors)[valid_mask]
+    edge_dst_valid = edge_dst[valid_mask]
+
+    return torch.stack([edge_src_valid, edge_dst_valid], dim=0)
+
 
 def radius_pytorch(
     x: torch.Tensor,
@@ -62,7 +246,9 @@ def radius_pytorch(
         y_b = y[idx_y]
 
         # dist: [N_y, N_x]
-        dist = torch.cdist(y_b, x_b)
+        # matrix multiplication approach is faster but suffors numerical issues
+        # for vectors that are close together, which is what we care about.
+        dist = torch.cdist(y_b, x_b, compute_mode="donot_use_mm_for_euclid_dist")
 
         within_radius = dist <= r
 
@@ -140,7 +326,7 @@ def knn_pytorch(
             y_b = torch.nn.functional.normalize(y_b, p=2, dim=-1)
             dist = 1 - torch.mm(y_b, x_b.t())
         else:
-            dist = torch.cdist(y_b, x_b)
+            dist = torch.cdist(y_b, x_b, compute_mode="donot_use_mm_for_euclid_dist")
 
         k_b = min(k, x_b.size(0))
         _, idx = dist.topk(k=k_b, dim=1, largest=False)
@@ -164,7 +350,27 @@ def radius(
     max_num_neighbors: int,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
+    use_triton: bool = True,
 ) -> torch.Tensor:
+    """Find all points within radius r.
+
+    Args:
+        x: Source points (N, D).
+        y: Query points (M, D).
+        r: Radius to search for.
+        max_num_neighbors: Maximum number of neighbors to return per query.
+        batch_x: Batch index for source points.
+        batch_y: Batch index for query points.
+        use_triton: Use Triton implementation if available (CUDA/HIP only).
+
+    Returns:
+        Edge index (2, num_edges).
+    """
+    # Try Triton if available and requested
+    if HAS_TRITON and use_triton and x.device.type in ["cuda", "hip"]:
+        return radius_triton(x, y, r, max_num_neighbors, batch_x, batch_y)
+
+    # Try PyG if available
     if not HAS_PYG:
         return radius_pytorch(x, y, r, max_num_neighbors, batch_x, batch_y)
 
