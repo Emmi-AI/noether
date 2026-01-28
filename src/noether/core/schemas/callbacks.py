@@ -214,4 +214,5 @@ CallbacksConfig = Union[
     | OfflineLossCallbackConfig
     | MetricEarlyStopperConfig
     | FixedEarlyStopperConfig
+    | PeriodicDataIteratorCallbackConfig
 ]

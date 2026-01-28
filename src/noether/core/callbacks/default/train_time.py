@@ -10,7 +10,6 @@ from noether.core.utils.logging import tensor_like_to_string
 
 class TrainTimeCallback(PeriodicCallback):
     """Callback to log the time spent on dataloading. Is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added manually to the trainer's callbacks."""
-
     def __init__(self, callback_config: CallBackBaseConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)
         self.train_data_times: list[float] = []

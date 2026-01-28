@@ -14,6 +14,8 @@ from noether.core.utils.training import UpdateCounter  # fixme?
 
 class TrackAdditionalOutputsCallback(PeriodicCallback):
     """Callback that is invoked during training after every gradient step to track certain outputs from the update step.
+    The update_outputs that are provided in the track_after_accumulation_step method are the additional_outputs field from the TrainerResult returned by the trainer's update step.
+
 
     The update_outputs that are provided in the track_after_accumulation_step method are the additional_outputs field from the TrainerResult returned by the trainer's update step.
 
@@ -30,7 +32,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
           every_n_updates: 1
           keys:
             - "surface_pressure_loss"
-    """
+  """
 
     out: Path | None
 
@@ -94,7 +96,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
                 default, and hence this callback can only be used if the train_step is modified to provide additional
                 outputs.
             **_: Additional unused keyword arguments.
-        """
+       """
         if update_outputs is None:
             return
 

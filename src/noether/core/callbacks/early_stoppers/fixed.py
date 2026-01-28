@@ -15,7 +15,7 @@ class FixedEarlyStopper(EarlyStopperBase):
         - kind: noether.core.callbacks.FixedEarlyStopper
           stop_at_epoch: 10
           name: FixedEarlyStopper
-    """
+   """
 
     def __init__(
         self,

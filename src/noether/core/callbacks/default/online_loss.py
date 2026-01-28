@@ -16,7 +16,6 @@ class OnlineLossCallback(PeriodicCallback):
 
     This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added manually to the trainer's callbacks.
     """
-
     def __init__(self, callback_config: OnlineLossCallbackConfig, **kwargs):
         """Initialize the OnlineLossCallback.
 

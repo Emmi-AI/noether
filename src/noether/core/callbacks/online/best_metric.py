@@ -36,7 +36,7 @@ class BestMetricCallback(PeriodicCallback):
                 :class:`~noether.core.schemas.callbacks.BestMetricCallbackConfig`
                 for available options including source and target metric keys.
             **kwargs: Additional keyword arguments provided to the parent class.
-        """
+       """
         super().__init__(callback_config=callback_config, **kwargs)
 
         if callback_config.target_metric_keys is None and callback_config.optional_target_metric_keys is None:
