@@ -8,13 +8,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from loguru import logger
 
+from noether.modeling.functional.geometric import segment_reduce
+
 try:
     import torch_geometric  # type: ignore
-    import torch_scatter  # type: ignore
     from torch_geometric.nn import knn_graph, radius_graph  # type: ignore
 except ImportError as exc:
     logger.error(f"Missing required libraries. {exc}")
-    logger.error("Please install torch, torch-scatter, and torch-geometric.")
+    logger.error("Please install torch and torch-geometric.")
     sys.exit(1)
 
 
@@ -35,28 +36,7 @@ def run_cuda_assertions():
         f"PyTorch CUDA (version {torch.__version__}) available. Using device: {torch.cuda.get_device_name(0)}"
     )
 
-    # 2. Check torch-scatter
-    # This utility checks if the compiled extension can see the CUDA device
-    if not hasattr(torch_scatter, "utils") or not hasattr(torch_scatter.utils, "is_torch_cuda_available"):
-        logger.warning("Could not find torch_scatter.utils.is_torch_cuda_available().")
-        logger.info("Falling back to basic check. This may be less reliable.")
-        # Basic check: Try to use a scatter op on CUDA
-        try:
-            src = torch.randn(10, 1, device="cuda")
-            index = torch.zeros(10, dtype=torch.long, device="cuda")
-            torch_scatter.scatter_add(src, index, dim=0)
-        except Exception as e:
-            logger.error(f"Error: torch-scatter operation failed on CUDA: {e}")
-            logger.info("Please ensure torch-scatter is compiled with CUDA support.")
-            sys.exit(1)
-    elif not torch_scatter.utils.is_torch_cuda_available():
-        logger.error("Error: torch-scatter is not compiled with CUDA support!")
-        logger.info("Please reinstall torch-scatter following the PyG installation guide.")
-        sys.exit(1)
-
-    logger.success(f"torch-scatter CUDA support confirmed (version {torch_scatter.__version__}).")
-
-    # 3. torch-geometric (usually fine if the others are)
+    # 2. torch-geometric (usually fine if the others are)
     logger.success(f"torch-geometric loaded (version {torch_geometric.__version__}).")
     logger.success("--- All CUDA Checks Passed ---")
 
@@ -67,7 +47,6 @@ class StabilityTestModel(torch.nn.Module):
     It uses:
     - radius_graph (torch_geometric.nn.pool)
     - knn_graph (torch_geometric.nn.pool)
-    - scatter (torch_scatter - for message passing)
     - segment_csr (torch_scatter - for global pooling)
     """
 
@@ -102,19 +81,19 @@ class StabilityTestModel(torch.nn.Module):
         # Aggregate messages from neighbors (x[row]) to central nodes (col)
         # Using 'mean' is a good stability test
         messages = x[row]
-        aggregated_messages = torch_scatter.scatter(messages, col, dim=0, dim_size=x.size(0), reduce=self.aggregation)
+        aggregated_messages = torch.full(
+            (col.size(0), x.size(1)), 0 if self.aggregation == "mean" else 1, device=x.device
+        )
+        aggregated_messages.scatter_reduce_(0, col.unsqueeze(-1).expand_as(messages), messages, reduce=self.aggregation)
 
         # Simple residual connection and non-linearity
         x = x + aggregated_messages
         x = F.relu(self.lin2(x))
 
-        # 4. TEST: segment_csr (as global pooling)
         num_nodes_per_graph = torch.bincount(batch)
-        ptr = torch.cat([batch.new_zeros(1), num_nodes_per_graph.cumsum(dim=0)])
 
-        # segment_csr is the CUDA-optimized backend for global_pool
         # We pool all node features for each graph.
-        pooled_x = torch_scatter.segment_csr(src=x, indptr=ptr, reduce=self.aggregation)
+        pooled_x = segment_reduce(src=x, lengths=num_nodes_per_graph, reduce=self.aggregation)
 
         # 5. Final output
         out = self.lin_out(pooled_x)

@@ -6,7 +6,7 @@ from torch import nn
 
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, LinearProjectionConfig
-from noether.modeling.functional.geometric import knn, radius, segment_csr
+from noether.modeling.functional.geometric import knn, radius, segment_reduce
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection
 
@@ -268,12 +268,7 @@ class SupernodePooling(nn.Module):
         if not torch.all(dst_indices == supernode_idx):
             raise ValueError("dst_indices must match supernode_idx")
 
-        # first index has to be 0
-        # NOTE: padding for target indices that don't occour is not needed as self-loop is always present
-        padded_counts = torch.zeros(len(counts) + 1, device=counts.device, dtype=counts.dtype)
-        padded_counts[1:] = counts
-        indptr = padded_counts.cumsum(dim=0)
-        x = segment_csr(src=x, indptr=indptr, reduce=self.aggregation)
+        x = segment_reduce(src=x, lengths=counts, reduce=self.aggregation)
 
         # sanity check: dst_indices has len of batch_size * num_supernodes and has to be divisible by batch_size
         # if num_supernodes is not set in dataset this assertion fails

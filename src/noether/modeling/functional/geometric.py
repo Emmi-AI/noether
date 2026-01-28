@@ -1,7 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import torch
 import torch_geometric  # type: ignore[import-untyped]
-import torch_scatter  # type: ignore[import-untyped]
 
 
 def radius(x, y, r, max_num_neighbors, batch_x, batch_y):
@@ -53,17 +53,17 @@ def knn(x, y, k, batch_x=None, batch_y=None):
     return result
 
 
-def segment_csr(src, indptr, reduce):
-    # Move tensors to CPU if on MPS device
+def segment_reduce(src, lengths, reduce):
+    # segment_reduce is not implemented on MPS, so we move to CPU if needed
     device = src.device
     if device.type == "mps":
         src = src.cpu()
-        indptr = indptr.cpu()
+        lengths = lengths.cpu()
 
-    result = torch_scatter.segment_csr(
-        src=src,
-        indptr=indptr,
+    result = torch.segment_reduce(
+        src,
         reduce=reduce,
+        lengths=lengths,
     )
 
     # Move result back to MPS if original tensors were on MPS

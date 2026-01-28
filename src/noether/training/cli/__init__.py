@@ -28,6 +28,26 @@ def setup_hydra():
     if len(sys.argv) < 2:
         print("Provide path to a config yaml file as first argument or --hp <path>", file=sys.stderr)
         sys.exit(1)
+
+    # Check if we should add custom help
+    if "--help" in sys.argv or "-h" in sys.argv:
+        prog_name = Path(sys.argv[0]).name
+        runner_name = "Training" if "train" in prog_name else "Inference" if "inference" in prog_name else "Generic"
+
+        help_header = (
+            f"Noether {runner_name} Runner\n"
+            "----------------------\n"
+            f"This runner allows you to run {runner_name.lower()} experiments using YAML configurations.\n\n"
+            "Usage:\n"
+            f"  python {prog_name} <config_path.yaml> [overrides]\n"
+            f"  python {prog_name} --hp <config_path.yaml> [overrides]\n\n"
+            "Arguments:\n"
+            "  config_path.yaml  Path to the experiment configuration.\n"
+            "  --hp              Flag to specify the experiment configuration path.\n"
+            "  overrides         Standard Hydra overrides (e.g. trainer.max_epochs=10).\n"
+        )
+        sys.argv.append(f"hydra.help.header='{help_header}'")
+
     if sys.argv[1].endswith(".yaml"):
         relpath = sys.argv.pop(1)
         _rewrite_hydra_args(relpath, 1)

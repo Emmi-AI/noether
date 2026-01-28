@@ -20,6 +20,16 @@ setup_hydra()
     version_base="1.3",
 )
 def main(inference_config: DictConfig):
+    """Main entry point for inference.
+
+    This script is wrapped in a hydra function to allow for easy configuration.
+    It supports passing the configuration file as a positional argument or via the --hp flag.
+
+    Example:
+        python main_inference.py configs/my_inference_config.yaml
+        python main_inference.py --hp configs/my_inference_config.yaml
+        python main_inference.py configs/my_inference_config.yaml input_dir=/path/to/run
+    """
     # disable hydra changing working directory
     os.chdir(hydra.utils.get_original_cwd())
 

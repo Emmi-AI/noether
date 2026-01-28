@@ -25,7 +25,6 @@ dependencies = [
     "torch==2.8.0",
     "torch-geometric>=2.7.0",
     "torch-cluster",
-    "torch-scatter",
     "pandas>=2.3.3",
     # ---
     "aistore>=1.13.5",
@@ -86,7 +85,7 @@ docs = [
 # --- Centralized UV Configuration ---
 # This configuration is inherited by all sub-packages, avoiding repetition.
 [tool.uv]
-no-build-isolation-package = ["torch-scatter", "torch-cluster"]
+no-build-isolation-package = ["torch-cluster",]
 
 [[tool.uv.index]]
 name = "torch-cpu"
