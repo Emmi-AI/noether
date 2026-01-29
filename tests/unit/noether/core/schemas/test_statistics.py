@@ -9,7 +9,7 @@ from noether.core.schemas.statistics import AeroStatsSchema
 
 
 @pytest.mark.parametrize(
-    "field_name, valid_value",
+    ("field_name, valid_value",),
     [
         # Coordinate/Vector fields (3-tuples):
         ("surface_domain_min", (0.0, -1.0, 0.5)),
@@ -32,7 +32,7 @@ def test_aero_stats_field_types(field_name: str, valid_value: Sequence[float]) -
 
 
 @pytest.mark.parametrize(
-    "field_name, invalid_value",
+    ("field_name, invalid_value",),
     [
         ("surface_domain_min", (1.0, 2.0)),  # Too short
         ("volume_velocity_std", (1.0, 2.0, 3.0, 4.0)),  # Too long
