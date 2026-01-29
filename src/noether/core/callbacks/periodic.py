@@ -638,13 +638,8 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         Returns:
             The configuration for the periodic dataset iteration.
 
-        Raises:
-            NotImplementedError: If ``dataset_key`` is not set and the method is not overridden.
         """
-        if hasattr(self, "dataset_key") and self.dataset_key is not None:
-            return self._sampler_config_from_key(key=self.dataset_key)
-        else:
-            raise NotImplementedError
+        return self._sampler_config_from_key(key=self.dataset_key)
 
     @abstractmethod
     def process_data(self, batch, *, trainer_model: torch.nn.Module) -> Any:
