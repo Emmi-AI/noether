@@ -7,12 +7,14 @@ from noether.core.utils.training import UpdateCounter
 
 class FixedEarlyStopper(EarlyStopperBase):
     """Early stopper (training) based on a fixed number of epochs, updates, or samples.
-    Example config:
-        .. code-block:: yaml
-            - kind: noether.core.callbacks.FixedEarlyStopper
-              stop_at_epoch: 10
-              name: FixedEarlyStopper
 
+    Example config:
+
+    .. code-block:: yaml
+
+        - kind: noether.core.callbacks.FixedEarlyStopper
+          stop_at_epoch: 10
+          name: FixedEarlyStopper
     """
 
     def __init__(
@@ -20,9 +22,12 @@ class FixedEarlyStopper(EarlyStopperBase):
         callback_config: FixedEarlyStopperConfig,
         **kwargs,
     ):
-        """Initialize the early stopper.
+        """
 
         Args:
+            callback_config: The configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.FixedEarlyStopperConfig`
+                for available options.
             **kwargs: Additional arguments to pass to the parent class.
         """
         super().__init__(CallBackBaseConfig.model_validate(dict(every_n_updates=1)), **kwargs)
