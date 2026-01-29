@@ -31,7 +31,7 @@ if HAS_TRITON:
         key=["n_x", "n_y", "dim"],  # Retune when these change
     )
     @triton.jit
-    def _radius_kernel_v2(
+    def _radius_kernel(
         x_ptr,
         y_ptr,
         batch_x_ptr,
@@ -175,7 +175,7 @@ def radius_triton(
     # Launch kernel - one program per y point
     grid = (n_y,)
 
-    _radius_kernel_v2[grid](
+    _radius_kernel[grid](
         x,
         y,
         batch_x,
@@ -350,7 +350,6 @@ def radius(
     max_num_neighbors: int,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
-    use_triton: bool = True,
 ) -> torch.Tensor:
     """Find all points within radius r.
 
@@ -361,13 +360,12 @@ def radius(
         max_num_neighbors: Maximum number of neighbors to return per query.
         batch_x: Batch index for source points.
         batch_y: Batch index for query points.
-        use_triton: Use Triton implementation if available (CUDA/HIP only).
 
     Returns:
         Edge index (2, num_edges).
     """
     # Try Triton if available and requested
-    if HAS_TRITON and use_triton and x.device.type in ["cuda", "hip"]:
+    if not HAS_PYG and HAS_TRITON and x.device.type in ["cuda", "hip"]:
         return radius_triton(x, y, r, max_num_neighbors, batch_x, batch_y)
 
     # Try PyG if available
