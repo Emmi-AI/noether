@@ -16,7 +16,7 @@ class SupernodePoolingCoverageCallback(PeriodicCallback):
     def __init__(self, supernode_pooling_path="encoder", **kwargs):
         super().__init__(**kwargs)
         self.supernode_pooling_path = supernode_pooling_path
-        self.hook_outputs = {}
+        self.hook_outputs: dict[str, torch.Tensor] = {}
         self.pos_embed_hook = ForwardHook(outputs=self.hook_outputs, key="pos_embed")
         self.dst_idx_hook = ForwardHook(outputs=self.hook_outputs, key="dst_idx")
         self.src_idx_hook = ForwardHook(outputs=self.hook_outputs, key="src_idx")

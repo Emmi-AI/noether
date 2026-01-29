@@ -109,6 +109,18 @@ python_version = "3.12"
 mypy_path = ["src"]
 files = ["src"]
 
+ignore_missing_imports = true
+
+check_untyped_defs = true
+explicit_package_bases = true
+namespace_packages = true
+no_implicit_optional = true
+strict = false
+warn_return_any = true
+warn_unused_ignores = false
+show_error_codes = true
+exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
+
 [[tool.mypy.overrides]]
 module = [
     "torch_geometric.*",
@@ -120,23 +132,11 @@ module = [
     #    "trimesh.*",
     #    "rtree.*"
 ]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
 pythonpath = ["src"]
 addopts = ["--import-mode=importlib"]
-
-check_untyped_defs = true
-explicit_package_bases = true
-ignore_missing_imports = true
-namespace_packages = true
-no_implicit_optional = true
-strict = false
-warn_return_any = true
-warn_unused_ignores = false
-show_error_codes = true
-exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
 
 [tool.ruff]
 exclude = [

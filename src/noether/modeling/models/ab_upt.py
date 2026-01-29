@@ -158,8 +158,8 @@ class AnchoredBranchedUPT(nn.Module):
         volume_position: Tensor,
         use_surface_queries: bool,
         use_volume_queries: bool,
-    ):
-        predictions = {}
+    ) -> dict[str, Tensor]:
+        predictions: dict[str, Tensor] = {}
         assert surface_predictions.size(-1) == sum(dict(self.data_specs.surface_output_dims).values())
 
         surface_field_slices = self.data_specs.surface_output_dims.field_slices  # e.g. {pressure: slice(0, 1), ...}
@@ -270,7 +270,7 @@ class AnchoredBranchedUPT(nn.Module):
         """
 
         # encode geometry
-        geometry_encoding = self.encoder(
+        geometry_encoding: torch.Tensor = self.encoder(
             input_pos=geometry_position,
             supernode_idx=geometry_supernode_idx,
             batch_idx=geometry_batch_idx,

@@ -67,7 +67,7 @@ class MultiBranchAnchorAttention(nn.Module, metaclass=abc.ABCMeta):
         """Apply attention using the patterns defined by the subclass."""
         self._validate(token_specs)
         patterns = self._create_attention_patterns(token_specs)
-        return self.mixed_attention(x, token_specs, patterns, freqs=freqs)
+        return self.mixed_attention(x, token_specs, patterns, freqs=freqs)  # type: ignore[no-any-return]
 
     @abstractmethod
     def _create_attention_patterns(self, token_specs: Sequence[TokenSpec]) -> Sequence[AttentionPattern]:

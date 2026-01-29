@@ -4,6 +4,7 @@
 
 from unittest.mock import Mock
 
+import pytest
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -85,6 +86,7 @@ class DummyIteratorCallback(PeriodicDataIteratorCallback):
         pass
 
 
+@pytest.mark.filterwarnings("ignore:Batch contains additional keys")
 def test_callbacks_execute_at_last_step():
     num_samples, num_epochs = 5, 3
     dataset = DummyDataset(size=num_samples)
@@ -130,6 +132,7 @@ def test_callbacks_execute_at_last_step():
     assert callback.periodic_calls[-1] is True
 
 
+@pytest.mark.filterwarnings("ignore:Batch contains additional keys")
 def test_periodic_iterator_callback_receives_all_updates():
     num_samples_train, num_samples_test, num_epochs = 5, 2, 2
     train_dataset = DummyDataset(size=num_samples_train)
@@ -142,7 +145,9 @@ def test_periodic_iterator_callback_receives_all_updates():
             max_epochs=num_epochs,
             effective_batch_size=1,
             callbacks=[],
-            forward_properties=["x"],
+            forward_properties=[
+                "x",
+            ],
             target_properties=["y"],
         ),
         data_container=data_container,
@@ -189,6 +194,7 @@ def test_periodic_iterator_callback_receives_all_updates():
             assert batch["id"].item() == (epoch + 10) * 100 + i
 
 
+@pytest.mark.filterwarnings("ignore:Batch contains additional keys")
 def test_periodic_iterator_callback_with_gradient_accumulation():
     # effective_batch_size=2, max_batch_size=1 -> accumulation_steps=2
     num_samples_train, num_samples_test, num_epochs = 4, 2, 1

@@ -97,6 +97,6 @@ class ScalarsConditioner(nn.Module):
         # project embeds
         projs = [self.mlps[i](embeds[i]) for i in range(self.num_scalars)]
         # combine embeds
-        embed = self.shared_mlp(torch.concat(projs, dim=1))
+        embed: torch.Tensor = self.shared_mlp(torch.concat(projs, dim=1))
 
         return embed
