@@ -1,5 +1,5 @@
-How to Use and Build Callbacks
-===============================
+How to Use and Implement Callbacks
+==================================
 
 Callbacks are the primary mechanism in the **Noether Framework** that allow you to inject custom logic into various stages of the training process. They are primarily used for monitoring, checkpointing, evaluation, and experiment tracking.
 
