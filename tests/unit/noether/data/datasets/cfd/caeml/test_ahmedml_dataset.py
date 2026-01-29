@@ -13,7 +13,7 @@ def test_dataset_config_valid_minimal() -> None:
     """Test that a minimal valid config works."""
     config_data = {
         "kind": "ahmed_ml",
-        "split": "train"
+        "split": "train",
     }
     config = DatasetBaseConfig(**config_data)
     assert config.kind == "ahmed_ml"
@@ -25,7 +25,7 @@ def test_dataset_config_invalid_split() -> None:
     """Test that providing an invalid split name raises an error."""
     config_data = {
         "kind": "ahmed_ml",
-        "split": "validation"  # valid options are 'train', 'val', 'test'
+        "split": "validation",  # valid options are 'train', 'val', 'test'
     }
     with pytest.raises(ValidationError) as exc_info:
         DatasetBaseConfig(**config_data)
