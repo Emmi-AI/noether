@@ -406,8 +406,7 @@ class BaseTrainer:
         """Get the data loader for training."""
         configs = []
         for c in iterator_callbacks:
-            cur_config = c.register_sampler_config()
-            c._sampler_config = cur_config
+            cur_config = c.sampler_config
             configs.append(cur_config)
         kwargs = {}
         if self.start_checkpoint.epoch != 0:

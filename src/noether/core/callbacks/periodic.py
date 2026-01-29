@@ -474,10 +474,6 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
                     super().__init__(*args, **kwargs)
                     self.dataset_key = dataset_key
 
-                def register_sampler_config(self) -> SamplerIntervalConfig:
-                    # Register test dataset for iteration
-                    return self._sampler_config_from_key(key=self.dataset_key)
-
                 def process_data(self, batch, *, trainer_model):
                     # Run inference on batch
                     x = batch["x"].to(trainer_model.device)
@@ -530,14 +526,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
                     self.writer.add_scalar("accuracy", accuracy.item())
                     self.writer.add_scalar("embedding_norm", mean_embedding_norm.item())
 
-        Using a subset of the dataset for faster evaluation:
 
-        .. code-block:: python
-
-            class FastValidationCallback(PeriodicDataIteratorCallback):
-                def register_sampler_config(self) -> SamplerIntervalConfig:
-                    # Only use first 1000 samples for quick validation
-                    return self._sampler_config_from_key(key="validation", max_size=1000)
 
     Attributes:
         _sampler_config: Configuration for the sampler that controls dataset iteration. Automatically set when
@@ -548,8 +537,6 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         * The :meth:`process_data` method is called within a ``torch.no_grad()`` context automatically.
         * For distributed training, results are automatically gathered across all ranks with proper padding removal.
     """
-
-    _sampler_config: SamplerIntervalConfig | None = None
 
     def __init__(
         self,
@@ -591,10 +578,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         )
         self.dataset_key = callback_config.dataset_key  # type: ignore
         self.total_data_time = 0.0
-
-        # this might be confused with register_sampler_configs method and accidentally overwritten
-        if not (type(self)._sampler_config_from_key == PeriodicDataIteratorCallback._sampler_config_from_key):
-            raise AssertionError("Children shouldn't override '_sampler_config_from_key'")
+        self.sampler_config = self._sampler_config_from_key(key=self.dataset_key)
 
     def _sampler_config_from_key(
         self, key: str | None, properties: set[str] | None = None, max_size: int | None = None
@@ -624,22 +608,6 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             pipeline=pipeline,
             batch_size=self.batch_size,
         )
-
-    def register_sampler_config(self) -> SamplerIntervalConfig:
-        """Template method for subclasses to define which dataset to iterate over.
-
-        This method should return a :class:`~noether.data.samplers.SamplerIntervalConfig` that specifies the dataset,
-        sampler, and interval for periodic iteration. The default implementation looks
-        for a ``dataset_key`` attribute on the callback instance.
-
-        Subclasses that require more complex sampler configurations (e.g., iterating over
-        multiple datasets or using custom samplers) can override this method.
-
-        Returns:
-            The configuration for the periodic dataset iteration.
-
-        """
-        return self._sampler_config_from_key(key=self.dataset_key)
 
     @abstractmethod
     def process_data(self, batch, *, trainer_model: torch.nn.Module) -> Any:
@@ -696,9 +664,9 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             Collation is not implemented for arbitrary objects that :meth:`process_data` returns. It is suggested that
             :meth:`process_data` returns a dictionary of scalars.
         """
-        if self._sampler_config is None:
-            raise ValueError("Sampler config not registered. Did you forget to call register_sampler_config()?")
-        config = self._sampler_config
+        if self.sampler_config is None:
+            raise ValueError("Sampler config not registered.")
+        config = self.sampler_config
         sampler: Any = config.sampler
 
         if isinstance(sampler, DistributedSampler):
