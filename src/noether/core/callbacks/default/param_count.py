@@ -7,7 +7,11 @@ from noether.core.utils.logging import short_number_str
 
 
 class ParamCountCallback(CallbackBase):
-    """Callback to log the number of trainable and frozen parameters of the model. Is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
+    """Callback to log the number of trainable and frozen parameters of the model.
+
+    This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added
+    manually to the trainer's callbacks.
+    """
 
     @staticmethod
     def _get_param_counts(model, trace=None):

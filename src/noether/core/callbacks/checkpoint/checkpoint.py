@@ -8,13 +8,16 @@ from noether.core.utils.training import UpdateCounter  # fixme: consider moving 
 
 class CheckpointCallback(PeriodicCallback):
     """Callback to save the model and optimizer state periodically.
+
     Example config:
-        .. code-block:: yaml
-            - kind: noether.core.callbacks.CheckpointCallback
-              name: CheckpointCallback
-              every_n_epochs: 1
-              save_weights: true
-              save_optim: true
+
+    .. code-block:: yaml
+
+        - kind: noether.core.callbacks.CheckpointCallback
+          name: CheckpointCallback
+          every_n_epochs: 1
+          save_weights: true
+          save_optim: true
     """
 
     def __init__(
@@ -23,11 +26,12 @@ class CheckpointCallback(PeriodicCallback):
         **kwargs,
     ):
         """
-        Initializes the CheckpointCallback.
 
         Args:
-            callback_config: The configuration for the callback.
-            **kwargs: additional arguments passed to the parent class.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.CheckpointCallbackConfig`
+                for available options.
+            **kwargs: Additional arguments passed to the parent class.
         """
         super().__init__(callback_config=callback_config, **kwargs)
         if not (

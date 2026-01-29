@@ -39,6 +39,7 @@ class CallbackBase:
 
     Examples:
         .. code-block:: python
+            # THIS IS INSIDE A CUSTOM CALLBACK
 
             # log only to experiment tracker, not stdout
             self.writer.add_scalar(key="classification_accuracy", value=0.2)
@@ -88,12 +89,12 @@ class CallbackBase:
         Args:
             trainer: Trainer of the current run.
             model: Model of the current run.
-            data_container: DataContainer instance that provides access to all datasets.
-            tracker: Tracker instance to log metrics to stdout/disk/online platform.
-            log_writer: LogWriter instance to log metrics to stdout/disk/online platform.
-            metric_property_provider: MetricPropertyProvider instance to access properties of metrics.
+            data_container: :class:`~noether.data.container.DataContainer` instance that provides access to all datasets.
+            tracker: :class:`~noether.core.trackers.BaseTracker` instance to log metrics to stdout/disk/online platform.
+            log_writer: :class:`~noether.core.writers.LogWriter` instance to log metrics to stdout/disk/online platform.
+            checkpoint_writer: :class:`~noether.core.writers.CheckpointWriter` instance to save checkpoints during training.
+            metric_property_provider: :class:`~noether.core.providers.MetricPropertyProvider` instance to access properties of metrics.
             name: Name of the callback.
-
         """
         self.name = name
         self.trainer = trainer
@@ -133,7 +134,7 @@ class CallbackBase:
         file that was stored on the disk.
 
         Args:
-            resumption_paths: PathProvider instance to access paths from the checkpoint to resume from.
+            resumption_paths: :class:`~noether.core.providers.path.PathProvider` instance to access paths from the checkpoint to resume from.
             model: model of the current training run.
         """
 
@@ -149,6 +150,7 @@ class CallbackBase:
 
         This method is intended to be overridden by derived classes to perform initialization
         tasks before training begins. Common use cases include:
+
         * Initializing experiment tracking (e.g., logging hyperparameters)
         * Printing model summaries or architecture details
         * Initializing specific data structures or buffers needed during training
@@ -158,7 +160,7 @@ class CallbackBase:
             This method is executed within a ``torch.no_grad()`` context.
 
         Args:
-            update_counter: UpdateCounter instance to access current training progress.
+            update_counter: :class:`~noether.core.utils.training.counter.UpdateCounter` instance to access current training progress.
         """
 
     def after_training(self, *, update_counter: UpdateCounter) -> None:
@@ -166,6 +168,7 @@ class CallbackBase:
 
         This method is intended to be overridden by derived classes to perform cleanup or
         final reporting tasks after training is complete. Common use cases include:
+
         * Performing a final evaluation on the test set
         * Saving final model weights or artifacts
         * Sending notifications (e.g., via Slack or email) about the completed run
@@ -175,5 +178,5 @@ class CallbackBase:
             This method is executed within a ``torch.no_grad()`` context.
 
         Args:
-            update_counter: UpdateCounter instance to access current training progress.
+            update_counter: :class:`~noether.core.utils.training.counter.UpdateCounter` instance to access current training progress.
         """

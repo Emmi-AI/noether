@@ -12,15 +12,21 @@ from noether.core.schemas.callbacks import OnlineLossCallbackConfig
 
 
 class OnlineLossCallback(PeriodicCallback):
-    """Callback to track the loss of the model after every gradient accumulation step and log the average loss. Is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
+    """Callback to track the loss of the model after every gradient accumulation step and log the average loss.
+
+    This callback is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks.
+    """
 
     def __init__(self, callback_config: OnlineLossCallbackConfig, **kwargs):
-        """Initializes the OnlineLossCallback.
+        """Initialize the OnlineLossCallback.
 
         Args:
-            callback_config: The configuration for the callback.
-            **kwargs: additional arguments passed to the parent class.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.OnlineLossCallbackConfig`
+                for available options.
+            **kwargs: Additional arguments passed to the parent class.
         """
+
         super().__init__(callback_config=callback_config, **kwargs)
         self.verbose = callback_config.verbose
         self.tracked_losses: defaultdict[str, list[torch.Tensor]] = defaultdict(list)
