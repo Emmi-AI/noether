@@ -4,7 +4,7 @@ from noether.core.callbacks.base import CallbackBase
 
 
 class DatasetStatsCallback(CallbackBase):
-    """A callback that logs the length of each dataset in the data container. Is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
+    """A callback that logs the length of each dataset in the data container. Is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added manually to the trainer's callbacks."""
 
     def before_training(self, **_) -> None:
         for dataset_key, dataset in self.data_container.datasets.items():

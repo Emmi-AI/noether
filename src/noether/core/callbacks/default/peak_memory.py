@@ -6,7 +6,7 @@ from noether.core.callbacks.periodic import PeriodicCallback
 
 
 class PeakMemoryCallback(PeriodicCallback):
-    """Callback to log the peak memory usage of the model. Is initialized by the BaseTrainer and should not be added manually to the trainer's callbacks."""
+    """Callback to log the peak memory usage of the model. Is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added manually to the trainer's callbacks."""
 
     def periodic_callback(self, **__) -> None:
         if str(self.model.device) != "cuda":

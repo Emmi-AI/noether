@@ -106,7 +106,7 @@ To create a custom callback, define a new class that inherits from one of the ba
 
     class CustomCallbackConfig(PeriodicDataIteratorCallbackConfig):
         # Define any configuration parameters your callback needs
-        pass
+        
 
     class MyCustomCallback(PeriodicCallback):
         def __init__(self, callback_config: CustomCallbackConfig, **kwargs):

@@ -563,7 +563,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         metric_property_provider: MetricPropertyProvider,
         name: str | None = None,
     ):
-        """Initialize the PeriodicDataIteratorCallback.
+        """
 
         Args:
             callback_config: Configuration for the callback. See
