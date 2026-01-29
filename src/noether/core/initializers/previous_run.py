@@ -7,12 +7,25 @@ from noether.core.utils.model import compute_model_norm
 
 
 class PreviousRunInitializer(CheckpointInitializer):
-    """Initializes a model from a checkpoint of a previous run (specified by the run_id), this initializers assumes that the previous run is over, and hence only loads model weights.
+    """Initializes a model from a checkpoint of a previous run (specified by the run_id), this initializers hence only loads model weights.
     When a previous run should be resumed for further training, use ResumeInitializer instead.
+    This initializer needs to be initialized as part of a model config.
+    It is possible to remove certain keys or patterns from the checkpoint before loading it into the model, or to rename certain patterns.
 
-    Args:
-        initializer_config: Configuration for the initializer.
-        **kwargs: additional arguments to pass to the parent class.
+    For example:
+
+    .. code-block:: yaml
+        model:
+          kind: path.to.MyModelClass
+          param1: value1
+          name: my_model
+          initializer:
+            kind: noether.core.initializers.PreviousRunInitializer
+            run_id: <previous_run_id>
+            model_name: my_model
+            checkpoint: latest
+            keys_to_remove:
+                - encoder.block1.weight
     """
 
     def __init__(
@@ -20,6 +33,11 @@ class PreviousRunInitializer(CheckpointInitializer):
         initializer_config: PreviousRunInitializerConfig,
         **kwargs: dict,
     ):
+        """
+        Args:
+            initializer_config: Configuration for the initializer. See :class:`~noether.core.schemas.initializers.PreviousRunInitializerConfig` for available options.
+            **kwargs: additional arguments to pass to the parent class.
+        """
         super().__init__(initializer_config=initializer_config, **kwargs)
         self.keys_to_remove = initializer_config.keys_to_remove or []
         self.patterns_to_remove = initializer_config.patterns_to_remove or []
