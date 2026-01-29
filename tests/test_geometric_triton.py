@@ -5,7 +5,7 @@
 import pytest
 import torch
 
-from noether.modeling.functional.geometric import HAS_TRITON, radius, radius_pytorch
+from noether.modeling.functional.geometric import HAS_TRITON, radius_pytorch, radius_triton
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
@@ -25,7 +25,7 @@ class TestRadiusTriton:
         max_neighbors = 10
 
         # Compute with Triton
-        edges_triton = radius(x, y, r, max_neighbors, use_triton=True)
+        edges_triton = radius_triton(x, y, r, max_neighbors)
 
         # Compute with PyTorch fallback
         edges_pytorch = radius_pytorch(x, y, r, max_neighbors)
@@ -69,7 +69,7 @@ class TestRadiusTriton:
         max_neighbors = 5
 
         # Compute with Triton
-        edges_triton = radius(x, y, r, max_neighbors, batch_x, batch_y, use_triton=True)
+        edges_triton = radius_triton(x, y, r, max_neighbors, batch_x, batch_y)
 
         # Compute with PyTorch fallback
         edges_pytorch = radius_pytorch(x, y, r, max_neighbors, batch_x, batch_y)
@@ -93,7 +93,7 @@ class TestRadiusTriton:
         r = 1.0
         max_neighbors = 10
 
-        edges = radius(x, y, r, max_neighbors, use_triton=True)
+        edges = radius_triton(x, y, r, max_neighbors)
 
         assert edges.size(1) == 0
         assert edges.shape == (2, 0)
@@ -109,29 +109,7 @@ class TestRadiusTriton:
         r = 2.0
         max_neighbors = 10
 
-        edges = radius(x, y, r, max_neighbors, use_triton=True)
+        edges = radius_triton(x, y, r, max_neighbors)
 
         # Should have at most max_neighbors edges
         assert edges.size(1) <= max_neighbors
-
-
-def test_radius_fallback_selection():
-    """Test that appropriate implementation is selected based on device."""
-    x_cpu = torch.randn(10, 3)
-    y_cpu = torch.randn(5, 3)
-
-    # CPU should use PyTorch fallback even if use_triton=True
-    edges_cpu = radius(x_cpu, y_cpu, 1.0, 5, use_triton=True)
-    assert edges_cpu.device.type == "cpu"
-
-    if torch.cuda.is_available() and HAS_TRITON:
-        x_cuda = x_cpu.cuda()
-        y_cuda = y_cpu.cuda()
-
-        # CUDA with use_triton=False should work
-        edges_cuda_no_triton = radius(x_cuda, y_cuda, 1.0, 5, use_triton=False)
-        assert edges_cuda_no_triton.device.type == "cuda"
-
-        # CUDA with use_triton=True should work
-        edges_cuda_triton = radius(x_cuda, y_cuda, 1.0, 5, use_triton=True)
-        assert edges_cuda_triton.device.type == "cuda"
