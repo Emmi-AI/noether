@@ -4,13 +4,12 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 
 
-class SurfaceVolumeEvaluationMetricsCallbackConfig(CallBackBaseConfig):
-    name: Literal["SurfaceVolumeEvaluationMetricsCallback"] = "SurfaceVolumeEvaluationMetricsCallbacks"
-    dataset_key: str = Field(...)
-    """Key of the dataset to evaluate on"""
+class SurfaceVolumeEvaluationMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
+    name: Literal["SurfaceVolumeEvaluationMetricsCallback"] = "SurfaceVolumeEvaluationMetricsCallback"
+
     forward_properties: list[str] = []
     """List of properties in the dataset to be forwarded during inference."""
     chunked_inference: bool = False

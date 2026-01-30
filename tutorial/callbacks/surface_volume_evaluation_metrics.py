@@ -184,6 +184,7 @@ class SurfaceVolumeEvaluationMetricsCallback(PeriodicDataIteratorCallback):
         Returns:
             Dictionary of model outputs with concatenated chunk results
         """
+
         batch_size = batch[self.sample_size_property].shape[1]
         chunk_indices = self._get_chunk_indices(batch_size)
 

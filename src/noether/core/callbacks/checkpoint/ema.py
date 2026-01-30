@@ -23,11 +23,12 @@ class EmaCallback(PeriodicCallback):
         **kwargs,
     ):
         """
-        Initializes the EmaCallback.
 
         Args:
-            callback_config: configuration of the `EmaCallback`.
-            **kwargs: additional arguments passed to the parent class.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.EmaCallbackConfig`
+                for available options.
+            **kwargs: Additional arguments passed to the parent class.
         """
         super().__init__(callback_config=callback_config, **kwargs)
         self.model_paths = callback_config.model_paths or [None]
@@ -40,6 +41,12 @@ class EmaCallback(PeriodicCallback):
         self._was_resumed = False
 
     def resume_from_checkpoint(self, resumption_paths: PathProvider, model) -> None:
+        """Resume EMA state from a checkpoint.
+
+        Args:
+            resumption_paths: :class:`~noether.core.providers.path.PathProvider` with paths to checkpoint files.
+            model: Model to resume EMA state for.
+        """
         for model_path in self.model_paths:
             cur_model = select_with_path(obj=model, path=model_path)
             if not isinstance(cur_model, torch.nn.Module):

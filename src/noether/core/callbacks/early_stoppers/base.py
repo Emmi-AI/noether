@@ -31,6 +31,16 @@ class EarlyStopperBase(PeriodicCallback, metaclass=abc.ABCMeta):
         update_counter: UpdateCounter,
         **kwargs,
     ) -> None:
+        """Check if training should stop and raise exception if needed.
+
+        Args:
+            interval_type: Type of interval that triggered this callback.
+            update_counter: :class:`~noether.core.utils.training.counter.UpdateCounter` instance with current training state.
+            **kwargs: Additional keyword arguments.
+
+        Raises:
+            EarlyStopIteration: If training should be stopped based on the stopping criterion.
+        """
         if interval_type == "eval":
             return  # early stopping is only applied during training
         if self._should_stop(update_counter=update_counter):

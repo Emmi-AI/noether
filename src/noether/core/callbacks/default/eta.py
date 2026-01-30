@@ -14,9 +14,13 @@ from noether.core.utils.training import UpdateCounter
 
 
 class EtaCallback(PeriodicCallback):
-    """Callback to print the progress and estimated duration until the `periodic_callback` will be invoked. Also
-    counts up the current epoch/update/samples and provides the average update duration. Only used in "unmanaged" runs,
-    i.e., it is not used when the run was started via SLURM.
+    """Callback to print the progress and estimated duration until the periodic callback will be invoked.
+
+    Also counts up the current epoch/update/samples and provides the average update duration. Only used in "unmanaged"
+    runs, i.e., it is not used when the run was started via SLURM.
+
+    This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added
+    manually to the trainer's callbacks.
     """
 
     class LoggerWasCalledHandler(logging.Handler):

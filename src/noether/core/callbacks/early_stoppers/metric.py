@@ -5,19 +5,30 @@ from noether.core.schemas.callbacks import MetricEarlyStopperConfig
 
 
 class MetricEarlyStopper(EarlyStopperBase):
-    """Early stopper (training) based on a metric value to be monitored."""
+    """Early stopper (training) based on a metric value to be monitored.
+
+    Example config:
+
+    .. code-block:: yaml
+
+        - kind: noether.core.callbacks.MetricEarlyStopper
+          every_n_epochs: 1
+          metric_key: loss/val/total
+          tolerance: 0.10
+          name: MetricEarlyStopper
+    """
 
     def __init__(
         self,
         callback_config: MetricEarlyStopperConfig,
         **kwargs,
     ):
-        """Initialize the early stopper.
+        """
 
         Args:
-            metric_key: The key of the metric to monitor.
-            tolerance: The number of times the metric can stagnate before stopping training.
-            metric_property_provider: The metric property provider to use.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.MetricEarlyStopperConfig`
+                for available options including metric key and tolerance.
             **kwargs: Additional arguments to pass to the parent class.
         """
         super().__init__(callback_config, **kwargs)

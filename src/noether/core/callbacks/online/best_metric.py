@@ -7,8 +7,21 @@ from noether.core.schemas.callbacks import BestMetricCallbackConfig
 
 
 class BestMetricCallback(PeriodicCallback):
-    """A callback that keeps track of the best metric value over a training run. For example, track the test loss of
-    the epoch with the best validation loss to simulate early stopping.
+    """A callback that keeps track of the best metric value over a training run for a certain metric (i.e., source_metric_key) while also logging one or more target metrics.
+
+    For example, track the test loss the epoch with the best validation loss to simulate early stopping.
+
+    Example config:
+
+    .. code-block:: yaml
+
+        - kind: noether.core.callbacks.BestMetricCallback
+          every_n_epochs: 1
+          source_metric_key: loss/val/total
+          target_metric_keys:
+            -  loss/test/total
+
+    In this example, whenever a new best validation loss is found, the corresponding test loss is logged under the key ``loss/test/total/at_best/loss/val/total``.
     """
 
     def __init__(
@@ -16,12 +29,13 @@ class BestMetricCallback(PeriodicCallback):
         callback_config: BestMetricCallbackConfig,
         **kwargs,
     ):
-        """Initializes the BestMetricCallback
+        """
 
         Args:
-            callback_config: The configuration for the callback.
-            metric_property_provider: The metric property provider to determine whether higher values are better.
-            **kwargs: additional keyword arguments provided to the parent class.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.BestMetricCallbackConfig`
+                for available options including source and target metric keys.
+            **kwargs: Additional keyword arguments provided to the parent class.
         """
         super().__init__(callback_config=callback_config, **kwargs)
 

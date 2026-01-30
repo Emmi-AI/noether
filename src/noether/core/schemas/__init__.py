@@ -11,6 +11,7 @@ from .callbacks import (
     MetricEarlyStopperConfig,
     OfflineLossCallbackConfig,
     OnlineLossCallbackConfig,
+    PeriodicDataIteratorCallbackConfig,
     TrackAdditionalOutputsCallbackConfig,
 )
 from .dataset import DatasetBaseConfig

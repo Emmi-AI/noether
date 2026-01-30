@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.models.single import Model
 from noether.core.schemas import DatasetBaseConfig
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.data.base.dataset import Dataset
 from noether.data.container import DataContainer
@@ -73,9 +73,7 @@ class DummyIteratorCallback(PeriodicDataIteratorCallback):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.received_batches = []
-
-    def register_sampler_config(self):
-        return self._sampler_config_from_key(key="test")
+        self.sampler_config = self._sampler_config_from_key(key="test")
 
     def process_data(self, batch, *, trainer_model):
         self.received_batches.append(batch)
@@ -111,7 +109,7 @@ def test_callbacks_execute_at_last_step():
 
     model = DummyModel()
     callback = TrackingCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,
@@ -167,7 +165,7 @@ def test_periodic_iterator_callback_receives_all_updates():
 
     model = DummyModel()
     callback = DummyIteratorCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,
@@ -177,7 +175,7 @@ def test_periodic_iterator_callback_receives_all_updates():
         metric_property_provider=Mock(),
     )
     trainer.get_all_callbacks = lambda _: [callback]
-    callback._sampler_config = callback.register_sampler_config()
+    # callback._sampler_config = callback.register_sampler_config()
 
     trainer.train(model)
 
@@ -224,7 +222,7 @@ def test_periodic_iterator_callback_with_gradient_accumulation():
 
     model = DummyModel()
     callback = DummyIteratorCallback(
-        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
         trainer=trainer,
         model=model,
         data_container=data_container,
@@ -234,7 +232,7 @@ def test_periodic_iterator_callback_with_gradient_accumulation():
         metric_property_provider=Mock(),
     )
     trainer.get_all_callbacks = lambda _: [callback]
-    callback._sampler_config = callback.register_sampler_config()
+    # callback.sampler_config = callback.register_sampler_config()
 
     trainer.train(model)
 
