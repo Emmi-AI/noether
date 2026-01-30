@@ -184,7 +184,7 @@ class LRUCacheFileSystem(CachingFileSystem):
         self.cache_storage_size = cache_size
         self.cache_storage_mode = cache_storage_mode
         self.enforce_size_every_seconds = enforce_size_every_seconds
-        self._last_enforce_time = 0
+        self._last_enforce_time = 0.0
         self.cache_cleanup_high_watermark = cache_cleanup_high_watermark
         self.cache_cleanup_low_watermark = cache_cleanup_low_watermark
 
@@ -254,7 +254,7 @@ class LRUCacheFileSystem(CachingFileSystem):
                 not hasattr(m, "__self__") or m.__self__ is None
             ):
                 # instance method
-                return m.__get__(fs, cls)
+                return m.__get__(fs, cls)  # type: ignore
             return m  # class method or attribute
         else:
             # attributes of the superclass, while target is being set up
@@ -443,7 +443,7 @@ class SqliteLRUCacheFileSystem(LRUCacheFileSystem):
         row = cursor.fetchone()
         cursor.close()
         if row:
-            fn = row[0]
+            fn: str = row[0]
             if os.path.exists(fn):
                 return fn
             else:

@@ -107,7 +107,7 @@ def get_sdf(
     return distances.reshape(-1), directions
 
 
-def get_normal(unstructured_grid_data: vtk.vtkUnstructuredGrid) -> npt.NDArray[np.float64]:
+def get_normal(unstructured_grid_data: vtk.vtkUnstructuredGrid):
     """
     Compute normalized surface normals from unstructured grid data.
 

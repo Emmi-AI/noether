@@ -88,7 +88,7 @@ class CAEMLDataset(AeroDataset):
 
         sample_uri = self.source_root / f"run_{self.design_ids[idx]}" / filename
         try:
-            return torch.load(sample_uri, weights_only=True)
+            return torch.load(sample_uri, weights_only=True)  # type: ignore[no-any-return]
         except Exception as e:
             raise RuntimeError(f"Failed to load {sample_uri}, {filename}: {e}") from e
 

@@ -166,6 +166,4 @@ class UPT(nn.Module):
         )
 
         x = self.norm(x)
-        x = self.prediction_layer(x)
-
-        return x
+        return self.prediction_layer(x)  # type: ignore[no-any-return]

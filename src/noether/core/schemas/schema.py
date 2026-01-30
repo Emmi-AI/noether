@@ -9,7 +9,7 @@ from typing import Any, Literal
 
 import torch
 from omegaconf import OmegaConf
-from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.models import ModelBaseConfig
@@ -17,6 +17,8 @@ from noether.core.schemas.normalizers import AnyNormalizer
 from noether.core.schemas.trackers import WandBTrackerSchema
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.utils.common import validate_path
+
+ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]
 
 
 class StaticConfigSchema(BaseModel):
@@ -51,13 +53,23 @@ def master_port_from_env() -> int:
     return rand_gen.randint(20000, 60000)
 
 
+def default_accelerator() -> ACCELERATOR_TYPES:
+    """Sets the accelerator if it is not already set."""
+    if torch.cuda.is_available():
+        return "gpu"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
+
+
 class ConfigSchema(BaseModel):
     """Main configuration schema for experiments."""
 
     name: str | None = None
     """Name of the experiment."""
-    accelerator: Literal["cpu", "gpu", "mps"] | None = None
-    """Type of accelerator to use. Default is None, which lets the system choose the best available accelerator. GPU > MPS > CPU."""
+    accelerator: ACCELERATOR_TYPES = Field(default_factory=default_accelerator)
+    """Type of accelerator to use. By default the system choose the best available accelerator. GPU > MPS > CPU."""
     stage_name: str | None = None
     """Name of the current stage. I.e., train, finetune, test, etc"""
     dataset_kind: str | None = None
@@ -143,15 +155,3 @@ class ConfigSchema(BaseModel):
         """The fully qualified import path for the configuration class."""
         # Use __qualname__ to correctly handle nested classes
         return f"{self.__class__.__module__}.{self.__class__.__qualname__}"
-
-    @model_validator(mode="after")
-    def set_accelerator_if_unset(self) -> ConfigSchema:
-        """Sets the accelerator if it is not already set."""
-        if self.accelerator is None:
-            if torch.cuda.is_available():
-                self.accelerator = "gpu"
-            elif torch.backends.mps.is_available():
-                self.accelerator = "mps"
-            else:
-                self.accelerator = "cpu"
-        return self

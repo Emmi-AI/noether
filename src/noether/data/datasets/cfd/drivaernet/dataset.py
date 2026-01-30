@@ -149,4 +149,4 @@ class DrivAerNetDataset(AeroDataset):
         sample_uri = self.source_root / self.design_ids[idx] / filename
         if not sample_uri.exists():
             raise FileNotFoundError(f"File not found: {sample_uri}")
-        return torch.load(sample_uri, weights_only=True)
+        return torch.load(sample_uri, weights_only=True)  # type: ignore[no-any-return]

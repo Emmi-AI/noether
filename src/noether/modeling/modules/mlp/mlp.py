@@ -65,4 +65,4 @@ class MLP(nn.Module):
         Returns:
             Output tensor from the MLP.
         """
-        return self.mlp(x)
+        return self.mlp(x)  # type: ignore[no-any-return]

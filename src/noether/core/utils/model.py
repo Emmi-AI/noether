@@ -26,7 +26,7 @@ def copy_params(source_model: ModelBase, target_model: ModelBase) -> None:
 
 def compute_model_norm(module: nn.Module) -> torch.Tensor:
     """Norm of all weights of a module (useful for init sanity checks)."""
-    return sum(p.norm() for p in module.parameters())
+    return sum(p.norm() for p in module.parameters())  # type: ignore[no-any-return]
 
 
 @torch.no_grad()

@@ -93,7 +93,7 @@ class MixedAttention(DotProductAttention):
         output_parts = [token_outputs[spec.name] for spec in token_specs]
         output = torch.cat(output_parts, dim=2)
         output = einops.rearrange(output, "bs nh s hd -> bs s (nh hd)")
-        return self.proj(output)
+        return self.proj(output)  # type: ignore[no-any-return]
 
     def _process_pattern_batched(
         self,
