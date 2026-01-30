@@ -20,11 +20,13 @@ class LinearWarmupCosineDecaySchedule(ScheduleBase):
     """A cosine annealing scheduler with linear increasing warmup phase."
 
     Example:
-        >>> schedule_config:
-        >>>   kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
-        >>>   warmup_percent: 0.05
-        >>>   end_value: 1.0e-6
-        >>>   max_value: ${model.optim.lr}
+
+        .. code-block:: yaml
+            schedule_config:
+            kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+            warmup_percent: 0.05
+            end_value: 1.0e-6
+            max_value: ${model.optim.lr} # or just manually set the max value
     """
 
     schedule: ScheduleBase
@@ -33,12 +35,12 @@ class LinearWarmupCosineDecaySchedule(ScheduleBase):
         self,
         config: LinearWarmupCosineDecayScheduleConfig,
     ):
-        """Initialize the scheduler.
+        """
 
         Takes either warmup_steps or warmup_percent as argument to determine the length of the warmup phase.
 
         Args:
-            config: Configuration for the linear warmup cosine decay schedule.
+            config: Configuration for the linear warmup cosine decay schedule. See :class:`noether.core.schemas.schedules.LinearWarmupCosineDecayScheduleConfig` for details.
         """
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)
         self.warmup_steps = config.warmup_steps

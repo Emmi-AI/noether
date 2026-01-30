@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import abc
 import logging
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Self
 
 import torch
 from torch import nn
@@ -31,20 +31,18 @@ class ModelBase(nn.Module):
         path_provider: PathProvider | None = None,
         data_container: DataContainer | None = None,
         initializer_config: list[InitializerConfig] | None = None,
-        static_context: dict[str, Any] | None = None,
     ):
         """Base class for models that is used to define the interface for all models trainable by the trainers.
 
         Provides methods to initialize the model weights and setup (model-specific) optimizers.
 
         Args:
-            model_config: Model configuration.
-            update_counter: The update counter provided to the optimizer.
-            path_provider: A path provider used by the initializer to store or retrieve checkpoints.
-            data_container: The data container which includes the data and dataloader.
+            model_config: Model configuration. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options.
+            update_counter: The :class:`~noether.core.utils.training.counter.UpdateCounter` provided to the optimizer.
+            path_provider: A path :class:`~noether.core.providers.path.PathProvider` used by the initializer to store or retrieve checkpoints.
+            data_container: The :class:`~noether.data.container.DataContainer` which includes the data and dataloader.
                 This is currently unused but helpful for quick prototyping only, evaluating forward in debug mode, etc.
             initializer_config: The initializer config used to initialize the model e.g. from a checkpoint.
-            static_context: The static context used to pass information between submodules, e.g. patch_size, latent_dim.
         """
         super().__init__()
         self.logger = logging.getLogger(type(self).__name__)
@@ -57,16 +55,8 @@ class ModelBase(nn.Module):
             initializer_config,
             path_provider=self.path_provider,
         )
-        # static_context allows composite models to propagate information between them (e.g. patch_size, latent_dim, ...)
-        self.static_context = static_context if static_context is not None else {}
         self.model_config = model_config
 
-        # store the kwargs that are relevant
-        # flag to make sure the model was initialized before wrapping into DDP
-        # (parameters/buffers are synced in __init__ of DDP, so if model is not initialized before that,
-        # different ranks will have different parameters because the seed is different for every rank)
-        # different seeds per rank are needed to avoid stochastic processes being the same across devices
-        # (e.g. if seeds are equal, all masks for MAE are the same per batch)
         self.is_initialized = False
 
     @property
@@ -83,18 +73,22 @@ class ModelBase(nn.Module):
 
     @property
     def param_count(self) -> int:
+        """Returns the total number of parameters in the model."""
         return sum(p.numel() for p in self.parameters())
 
     @property
     def trainable_param_count(self) -> int:
+        """Returns the number of parameters that require gradients (i.e., are trainable)."""
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
 
     @property
     def frozen_param_count(self) -> int:
+        """Returns the number of parameters that do not require gradients (i.e., are frozen)."""
         return sum(p.numel() for p in self.parameters() if not p.requires_grad)
 
     @property
     def nograd_paramnames(self) -> list[str]:
+        """Returns a list of parameter names that do not have gradients (i.e., grad is None) but require gradients."""
         return [name for name, param in self.named_parameters() if param.grad is None and param.requires_grad]
 
     def initialize(self):

@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Self
 
 import torch
 from torch.amp.grad_scaler import GradScaler
 
 from noether.core.models.base import ModelBase
-from noether.core.models.single import Model
+from noether.core.models.model import Model
 from noether.core.providers.path import PathProvider
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.utils.training import UpdateCounter  # fixme?
@@ -19,13 +19,52 @@ if TYPE_CHECKING:
 
 
 class CompositeModel(ModelBase):
+    """A composite model that consists of multiple submodels of type Model. By having multiple submodels, each model can have its own optimizer and learning rate scheduler, from weights etc.
+    This is useful for multi-component models,
+
+    A composite model must implement the `submodels` property, which returns a dictionary of submodel names to submodel instances.
+
+    Example code (dummy code):
+
+    .. code-block:: python
+        from noether.core.models.composite import CompositeModel
+        from somewhere import MyModel1, MyModel2
+
+        class MyCompositeModel(CompositeModel):
+            def __init__(self, model_config: MyCompositeModelConfig, update_counter: UpdateCounter | None = None, path_provider: PathProvider | None = None, data_container: DataContainer | None = None, static_context: dict[str, Any] | None = None):
+                super().__init__(model_config, ...)
+
+                self.submodel1 = MyModel1(
+                    model_config=model_config.submodel1_config,
+                    is_frozen=model_config.is_frozen,
+                    update_counter=update_counter,
+                    path_provider=path_provider,
+                    data_container=data_container,
+                    static_context=static_context,
+                    optimizer_config=model_config.submodel1_config.optimizer_config,
+                )
+                self.submodel2 = MyModel2(model_config=model_config.submodel2_config, ... )
+
+            @property
+            def submodels(self) -> dict[str, Model]:
+                return dict(
+                    submodel1=self.submodel1,
+                    submodel2=self.submodel2,
+                )
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                # define forward pass here using self.submodel1 and self.submodel2
+                x = self.submodel1(x)
+                x = self.submodel2(x)
+                return x
+    """
+
     def __init__(
         self,
         model_config: ModelBaseConfig,
         update_counter: UpdateCounter | None = None,
         path_provider: PathProvider | None = None,
         data_container: DataContainer | None = None,
-        static_context: dict[str, Any] | None = None,
     ):
         """Base class for composite models, i.e. models that consist of multiple submodels of type Model."""
         # Use the first initializer from the list if available
@@ -36,7 +75,6 @@ class CompositeModel(ModelBase):
             path_provider=path_provider,
             data_container=data_container,
             initializer_config=init_config,  # type: ignore
-            static_context=static_context,
         )
 
     def _validate_submodels(self) -> None:
@@ -48,6 +86,7 @@ class CompositeModel(ModelBase):
     @property
     @abc.abstractmethod
     def submodels(self) -> dict[str, ModelBase]:
+        """Returns the submodels of the composite model. This method must be implemented by the subclass, otherwise a NotImplementedError is raised."""
         raise NotImplementedError("submodels property must be implemented by subclass")
 
     def get_named_models(self) -> dict[str, ModelBase]:

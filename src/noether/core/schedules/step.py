@@ -12,20 +12,22 @@ class StepDecreasingSchedule(DecreasingProgressSchedule):
     """A scheduler that decreases exponentially from the maximum to minimum value over the total number of steps.
 
     Example:
-        >>> schedule_config:
-        >>>    kind: noether.core.schedules.StepDecreasingSchedule
-        >>>    factor: 0.1
-        >>>    decreases_interval: 0.01
-        >>>    max_value: ${model.optim.lr}
+
+        .. code-block:: yaml
+            schedule_config:
+                kind: noether.core.schedules.StepDecreasingSchedule
+                factor: 0.1
+                decreases_interval: 0.01
+                max_value: ${model.optim.lr}
 
     I.e., after each 1% of the total training steps, the value is multiplied by 0.1.
     """
 
     def __init__(self, config: StepDecreasingScheduleConfig):
-        """Initialize the scheduler.
+        """
 
         Args:
-        config: The configuration for the scheduler.
+        config: The configuration for the scheduler. See :class:`noether.core.schemas.schedules.StepDecreasingScheduleConfig` for details.
         """
         super().__init__(config=config)
         self.factor = config.factor
@@ -42,20 +44,21 @@ class StepFixedSchedule(ScheduleBase):
     """A scheduler that progresses at fixed steps and increases or decreases by some factor at these steps."""
 
     def __init__(self, config: StepFixedScheduleConfig):
-        """Initialize the scheduler.
+        """
 
         Args:
             config: Configuration for the step fixed schedule.
 
         Example:
-            >>> schedule_config:
-            >>> kind: noether.core.schedules.StepFixedSchedule
-            >>> factor: 0.1
-            >>> start_value: ${model.optim.lr}
-            >>> steps:
-            >>>   - 0.01
-            >>>   - 0.02
-            >>>   - 0.03
+        .. code-block:: yaml
+            schedule_config:
+                kind: noether.core.schedules.StepFixedSchedule
+                factor: 0.1
+                start_value: ${model.optim.lr}
+                steps:
+                    - 0.01
+                    - 0.02
+                    - 0.03
         Lower LR by factor 0.1 at 1%, 2%, and 3% of total training steps.
         """
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)
@@ -82,16 +85,18 @@ class StepIntervalSchedule(ScheduleBase):
     """A scheduler that progresses at fixed intervals and increases or decreases by some factor at these intervals."""
 
     def __init__(self, config: StepIntervalScheduleConfig):
-        """Initialize the scheduler.
+        """
 
         Args:
             config: Configuration for the step interval schedule.
         Example:
-        >>> schedule_config:
-        >>>     kind: noether.core.schedules.StepIntervalSchedule
-        >>>     start_value: 1.0
-        >>>     factor: 0.5
-        >>>     update_interval: 0.01
+
+        .. code-block:: yaml
+            schedule_config:
+                kind: noether.core.schedules.StepIntervalSchedule
+                start_value: 1.0
+                factor: 0.5
+                update_interval: 0.01
         """
 
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)

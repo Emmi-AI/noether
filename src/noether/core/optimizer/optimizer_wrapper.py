@@ -23,19 +23,12 @@ if TYPE_CHECKING:
 
 class OptimizerWrapper:
     """Wrapper around an `torch.optim.Optimizer` that allows
-    - excluding biases and weights of normalization layers from weight decay
-    - creating param_groups (e.g., for a layerwise lr scaling)
-    - learning rate scheduling
-    - gradient clipping
-    - weight decay scheduling
-
-    Args:
-        model: Parameters of this model will be optimized.
-        torch_optim_ctor: The `torch.optim.Optimizer` that should be wrapped. Needs to be a callable because it
-            requires the parameters of the model for initialization.
-        optim_wrapper_config: The configuration for the optimizer wrapper.
-        update_counter: Object that provides the current training progress to enable scheduling of the learning rate or
-            the weight decay.
+        - excluding biases and weights of normalization layers from weight decay
+        - creating param_groups (e.g., for a layerwise lr scaling)
+        - learning rate scheduling
+        - gradient clipping
+        - weight decay scheduling
+    Have a look at the class:`noether.core.schemas.optimizers.OptimizerConfig` for available options.
     """
 
     schedule: ScheduleWrapper | None = None
@@ -48,6 +41,15 @@ class OptimizerWrapper:
         optim_wrapper_config: OptimizerConfig,
         update_counter: UpdateCounter | None = None,
     ):
+        """
+        Args:
+            model: Parameters of this model will be optimized.
+            torch_optim_ctor: The :class:`torch.optim.Optimizer` that should be wrapped. Needs to be a callable because it
+                requires the parameters of the model for initialization.
+            optim_wrapper_config: The configuration for the optimizer wrapper.
+            update_counter: Object that provides the current training progress to enable scheduling of the learning rate or
+                the weight decay.
+        """
         # import here to avoid circular dependency
         from noether.core.factory import Factory, ScheduleFactory
 

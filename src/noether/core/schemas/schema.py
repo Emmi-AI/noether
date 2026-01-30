@@ -52,14 +52,14 @@ def master_port_from_env() -> int:
 
 
 class ConfigSchema(BaseModel):
-    """Main configuration schema for experiments."""
+    """Root configuration schema for all experiments in Noether."""
 
     name: str | None = None
     """Name of the experiment."""
     accelerator: Literal["cpu", "gpu", "mps"] | None = None
     """Type of accelerator to use. Default is None, which lets the system choose the best available accelerator. GPU > MPS > CPU."""
     stage_name: str | None = None
-    """Name of the current stage. I.e., train, finetune, test, etc"""
+    """Name of the current stage. I.e., train, finetune, test, etc. When None, the run_id directory is used as output directory. Otherwise, run_id/stage_name is used."""
     dataset_kind: str | None = None
     """Kind of dataset to use i.e., class path."""
     dataset_root: str | None = None
@@ -69,7 +69,7 @@ class ConfigSchema(BaseModel):
     resume_stage_name: str | None = None
     """Stage name to resume from. If None, resume from the default stage."""
     resume_checkpoint: str | None = None
-    """Path to checkpoint to resume from. If None, start from scratch."""
+    """Path to checkpoint to resume from. If None, the the 'latest' checkpoint will be used."""
     seed: int = Field(0)
     """Random seed for reproducibility."""
     dataset_statistics: dict[str, list[float | int]] | None = None

@@ -9,7 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
-from noether.core.models.single import Model
+from noether.core.models.model import Model
 from noether.core.schemas import DatasetBaseConfig
 from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 from noether.core.schemas.trainers import BaseTrainerConfig

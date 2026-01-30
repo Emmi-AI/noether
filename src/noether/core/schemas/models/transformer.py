@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from pydantic import ConfigDict, model_validator
+from pydantic import ConfigDict, Field, model_validator
 
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 
@@ -12,9 +12,9 @@ class TransformerConfig(TransformerBlockConfig, ModelBaseConfig):
 
     model_config = ConfigDict(extra="forbid")
 
-    depth: int
+    depth: int = Field(..., ge=1)
     """Number of transformer blocks in the model."""
-    mlp_expansion_factor: int = 4
+    mlp_expansion_factor: int = Field(4, ge=1)
     """Expansion factor for the MLP hidden dimension relative to the hidden dimension. If 'mlp_hidden_dim' is not set, this factor is used to compute it as hidden_dim * mlp_expansion_factor."""
 
     @model_validator(mode="after")

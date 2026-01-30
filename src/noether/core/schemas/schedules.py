@@ -13,9 +13,9 @@ class ScheduleBaseConfig(BaseModel):
     overhang_steps: int | None = Field(None)
     """The number of steps by which the schedule is artificially prolonged. Mutually exclusive with `overhang_percent`."""
 
-    start_value: float = Field(0.0)
+    start_value: float = Field(0.0, ge=0.0)
 
-    end_value: float = Field(1e-6)
+    end_value: float = Field(1e-6, ge=0.0)
 
     weight_decay: float | None = Field(0.0)
 
@@ -85,16 +85,16 @@ class SchedulerConfig(ScheduleBaseConfig):
         "noether.core.schedules.scheduler.SchedulerConfig"
     )
     warmup_percent: float = Field(..., ge=0.0, le=1.0)
-    end_value: float = Field(...)
+    end_value: float = Field(..., ge=0.0)
 
 
 class DecreasingProgressScheduleConfig(ProgressScheduleConfig):
     kind: Literal["noether.core.schedules.DecreasingProgressSchedule"] = (
         "noether.core.schedules.DecreasingProgressSchedule"  # type: ignore[assignment]
     )
-    max_value: float = Field(...)
+    max_value: float = Field(..., ge=0.0)
     """Maximum (starting) value of the schedule."""
-    end_value: float = Field(0.0)
+    end_value: float = Field(0.0, ge=0.0)
     """Minimum (ending) value of the schedule."""
 
 
@@ -182,9 +182,9 @@ class PolynomialIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
 
 class StepDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
     kind: Literal["noether.core.schedules.StepDecreasingSchedule"] = "noether.core.schedules.StepDecreasingSchedule"  # type: ignore[assignment]
-    factor: float = Field(...)
+    factor: float = Field(..., ge=0.0)
     """The factor by which the value decreases."""
-    decreases_interval: float = Field(...)
+    decreases_interval: float = Field(..., gt=0.0, lt=1.0)
     """The interval in range [0, 1] at which the value decreases."""
     # max_value: float = Field(None)
 
@@ -202,7 +202,7 @@ class StepFixedScheduleConfig(ScheduleBaseConfig):
     kind: Literal["noether.core.schedules.StepFixedSchedule"] = "noether.core.schedules.StepFixedSchedule"
     start_value: float = Field(1.0)
     """The initial value of the scheduler."""
-    factor: float = Field(...)
+    factor: float = Field(..., ge=0.0)
     """The factor by which the value is multiplied after reaching the next step provided in steps."""
     steps: list[float] = Field(...)
     """The steps at which the value changes, must be a list of floats in the range (0, 1)."""
@@ -223,9 +223,9 @@ class StepIntervalScheduleConfig(ScheduleBaseConfig):
     kind: Literal["noether.core.schedules.StepIntervalSchedule"] = "noether.core.schedules.StepIntervalSchedule"
     start_value: float = Field(1.0)
     """The initial value of the scheduler. I.e, the learning rate at step 0."""
-    factor: float = Field(...)
+    factor: float = Field(..., ge=0.0)
     """The factor by which the value is multiplied after reaching the next interval."""
-    update_interval: float = Field(...)
+    update_interval: float = Field(..., gt=0.0, lt=1.0)
     """The interval in range (0, 1) at which the value changes."""
 
     @field_validator("update_interval")
