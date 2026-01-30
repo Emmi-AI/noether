@@ -11,6 +11,15 @@ from noether.training.callbacks.offline_loss import OfflineLossCallback
 _MODULE_LOGGER_PATH = "noether.training.callbacks.offline_loss.OfflineLossCallback.logger"
 
 
+class _DummyDataset:
+    def __init__(self, size: int = 1) -> None:
+        self._size = size
+        self.pipeline = Mock()
+
+    def __len__(self) -> int:
+        return self._size
+
+
 @pytest.fixture
 def mock_trainer():
     trainer = Mock()
@@ -30,10 +39,12 @@ def mock_log_writer():
 
 @pytest.fixture
 def callback_deps(mock_trainer, mock_log_writer):
+    data_container = Mock()
+    data_container.get_dataset.return_value = _DummyDataset(size=1)
     return {
         "trainer": mock_trainer,
         "model": Mock(),
-        "data_container": Mock(),
+        "data_container": data_container,
         "tracker": Mock(),
         "log_writer": mock_log_writer,
         "checkpoint_writer": Mock(),
