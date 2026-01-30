@@ -1,9 +1,0 @@
-diff a/src/noether/training/trainers/base.py b/src/noether/training/trainers/base.py	(rejected hunks)
-@@ -779,7 +788,6 @@ class BaseTrainer:
-             # Check end of training
-             if self.update_counter.is_finished:
-                 self._skip_remaining_batches(data_iter, remaining_batches, accumulation_steps, batch_size)
--                return True
- 
-         return self._handle_end_of_epoch(
-             model=model,

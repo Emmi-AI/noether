@@ -7,7 +7,23 @@ from noether.core.schemas.callbacks import BestCheckpointCallbackConfig
 
 
 class BestCheckpointCallback(PeriodicCallback):
-    """Callback to save the best model based on a metric."""
+    """Callback to save the best model based on a metric.
+
+    This callback monitors a specified metric and saves the model checkpoint whenever
+    a new best value is achieved. It supports storing different model components when using a composite model and can save checkpoints at different tolerance thresholds.
+
+    Example config:
+
+    .. code-block:: yaml
+
+        callbacks:
+          - kind: noether.core.callbacks.BestCheckpointCallback
+            name: BestCheckpointCallback
+            every_n_epochs: 1
+            metric_key: loss/val/total
+            model_names:  # only applies when training a CompositeModel
+              - encoder
+    """
 
     def __init__(
         self,
@@ -15,11 +31,12 @@ class BestCheckpointCallback(PeriodicCallback):
         **kwargs,
     ):
         """
-        Initializes the BestCheckpointCallback.
 
         Args:
-            callback_config: The configuration for the callback.
-            **kwargs: additional arguments passed to the parent class.
+            callback_config: Configuration for the callback. See
+                :class:`~noether.core.schemas.callbacks.BestCheckpointCallbackConfig`
+                for available options including metric key, model names, and tolerance settings.
+            **kwargs: Additional arguments passed to the parent class.
         """
 
         super().__init__(callback_config=callback_config, **kwargs)
@@ -37,7 +54,12 @@ class BestCheckpointCallback(PeriodicCallback):
         self.metric_at_exceeded_tolerance: dict[float, float] = {}
 
     def state_dict(self) -> dict[str, Any]:
-        """Returns the state of the callback."""
+        """Return the state of the callback for checkpointing.
+
+        Returns:
+            Dictionary containing the best metric value, tolerance tracking state,
+            and counter information.
+        """
         return dict(
             best_metric_value=self.best_metric_value,
             tolerances_is_exceeded=self.tolerances_is_exceeded,
@@ -46,23 +68,55 @@ class BestCheckpointCallback(PeriodicCallback):
         )
 
     def load_state_dict(self, state_dict: dict[str, Any]) -> None:
-        """Loads the state of the callback into the state_dict. Note that this modifies the input state_dict."""
+        """Load the callback state from a checkpoint.
+
+        Note:
+            This modifies the input state_dict in place.
+
+        Args:
+            state_dict: Dictionary containing the saved callback state.
+        """
         self.best_metric_value = state_dict["best_metric_value"]
         self.tolerances_is_exceeded = state_dict["tolerances_is_exceeded"]
         self.tolerance_counter = state_dict["tolerance_counter"]
         self.metric_at_exceeded_tolerance = state_dict["metric_at_exceeded_tolerance"]
 
     def before_training(self, *, update_counter) -> None:
+        """Validate callback configuration before training starts.
+
+        Args:
+            update_counter: The training update counter.
+
+        Raises:
+            NotImplementedError: If resuming training with tolerances is attempted.
+        """
         if len(self.tolerances_is_exceeded) > 0 and update_counter.cur_iteration.sample > 0:
             raise NotImplementedError(f"{type(self).__name__} with tolerances resuming not implemented")
 
     def _is_new_best_model(self, metric_value):
+        """Check if the current metric value is better than the best recorded value.
+
+        Args:
+            metric_value: The current metric value to compare.
+
+        Returns:
+            True if the current value is better than the best value, False otherwise.
+        """
         if self.higher_is_better:
             return metric_value > self.best_metric_value
         return metric_value < self.best_metric_value
 
     # noinspection PyMethodOverriding
     def periodic_callback(self, **_) -> None:
+        """Execute the periodic callback to check and save best model.
+
+        This method is called at the configured frequency (e.g., every N epochs).
+        It checks if the current metric value is better than the previous best,
+        and if so, saves the model checkpoint. Also tracks tolerance-based checkpoints.
+
+        Raises:
+            KeyError: If the log cache is empty or the metric key is not found.
+        """
         if self.writer.log_cache is None:
             raise KeyError("Log cache is empty, can't retrieve metric value.")
         if self.metric_key not in self.writer.log_cache:
@@ -85,7 +139,11 @@ class BestCheckpointCallback(PeriodicCallback):
                 model_names_to_save=self.model_names,
             )
             self.best_metric_value = metric_value
+
+            # Reset the tolerance flag and the exceeded flags so tolerance tracking starts over:
             self.tolerance_counter = 0
+            self.tolerances_is_exceeded = dict.fromkeys(self.tolerances_is_exceeded, False)
+
             # log tolerance checkpoints
             for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
                 if is_exceeded:
@@ -101,11 +159,17 @@ class BestCheckpointCallback(PeriodicCallback):
             for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
                 if is_exceeded:
                     continue
-                if tolerance >= self.tolerance_counter:
+                # Check if counter is STRICTLY greater than tolerance:
+                if self.tolerance_counter > tolerance:
                     self.tolerances_is_exceeded[tolerance] = True
                     self.metric_at_exceeded_tolerance[tolerance] = metric_value
 
     def after_training(self, **kwargs) -> None:
+        """Log the best metric values at different tolerance thresholds after training completes.
+
+        Args:
+            **kwargs: Additional keyword arguments (unused).
+        """
         # best metric doesn't need to be logged as it is summarized anyways
         for tolerance, value in self.metric_at_exceeded_tolerance.items():
             self.logger.info(f"best {self.metric_key} with tolerance={tolerance}: {value}")

@@ -406,8 +406,7 @@ class BaseTrainer:
         """Get the data loader for training."""
         configs = []
         for c in iterator_callbacks:
-            cur_config = c.register_sampler_config()
-            c._sampler_config = cur_config
+            cur_config = c.sampler_config
             configs.append(cur_config)
         kwargs = {}
         if self.start_checkpoint.epoch != 0:
@@ -464,7 +463,10 @@ class BaseTrainer:
             targets: Dict with target tensors needed to compute the loss for this trainer.
 
         Returns:
-            A dict with the (weighted) sub-losses to log.
+            A dict with the (weighted) sub-losses to log. Or a tuple of (losses, additional_outputs) where additional_outputs is
+            a dict with additional information about the model forward pass that is passed to the track_after_accumulation_step method of the callbacks, e.g., the logits and targets to calculate a training accuracy in a callback).
+
+        Note: If a tuple is returned, the second element will be passed as additional_outputs in the TrainerResult returned by the train_step method.
         """
         raise NotImplementedError("Subclasses must implement loss_compute.")
 
@@ -741,7 +743,7 @@ class BaseTrainer:
 
                 dist_model.train()
                 with Stopwatch() as sw:
-                    losses, update_outputs = self.update(
+                    losses, additional_outputs = self.update(
                         batch=batch,
                         dist_model=dist_model,
                         model=model,
@@ -755,11 +757,11 @@ class BaseTrainer:
                             update_counter=self.update_counter,
                             batch=batch,
                             losses=losses,
-                            update_outputs=update_outputs,
+                            update_outputs=additional_outputs,
                             accumulation_steps=accumulation_steps,
                             accumulation_step=iter_step,
                         )
-                update_outputs = None
+                additional_outputs = None
                 batch = None
 
             # Advance counter
