@@ -139,7 +139,11 @@ class BestCheckpointCallback(PeriodicCallback):
                 model_names_to_save=self.model_names,
             )
             self.best_metric_value = metric_value
+
+            # Reset the tolerance flag and the exceeded flags so tolerance tracking starts over:
             self.tolerance_counter = 0
+            self.tolerances_is_exceeded = dict.fromkeys(self.tolerances_is_exceeded, False)
+
             # log tolerance checkpoints
             for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
                 if is_exceeded:
@@ -155,7 +159,8 @@ class BestCheckpointCallback(PeriodicCallback):
             for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
                 if is_exceeded:
                     continue
-                if tolerance >= self.tolerance_counter:
+                # Check if counter is STRICTLY greater than tolerance:
+                if self.tolerance_counter > tolerance:
                     self.tolerances_is_exceeded[tolerance] = True
                     self.metric_at_exceeded_tolerance[tolerance] = metric_value
 
