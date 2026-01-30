@@ -6,7 +6,7 @@ from noether.core.schemas.filemap import FileMap
 
 
 @pytest.mark.parametrize(
-    ("field_name, filename",),
+    ("field_name", "filename"),
     [
         ("surface_position", "wing_nodes.pt"),
         ("surface_position_stl", "airfoil_mesh.stl"),
