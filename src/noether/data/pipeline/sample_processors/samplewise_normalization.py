@@ -9,13 +9,15 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 
 class SamplewiseNormalizationSampleProcessor(SampleProcessor):
-    """Normalizes samplewise to a specified range."""
+    """Sample processor that normalizes samplewise to a specified range [low, high].
+    However, normalization on a sample level should be done as part of the dataset.
+    """
 
     def __init__(self, item: str, low: Sequence[float] | None, high: Sequence[float]):
         """
 
         Args:
-            item: The item to normalize.
+            item: The item (i.e. key) in the input_sample to normalize.
             low: The low value of the range.
             high: The high value of the range.
         """
@@ -32,7 +34,7 @@ class SamplewiseNormalizationSampleProcessor(SampleProcessor):
         """Pre-processes data on a sample-level to normalize samplewise to a specified range.
 
         Args:
-            input_sample: Dictionary of a single sample.
+            input_sample: Dictionary with the tensors of a single sample.
 
         Return:
            Preprocessed copy of `input_sample` with samplewise normalization applied.

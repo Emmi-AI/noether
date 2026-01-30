@@ -25,7 +25,9 @@ class TransformerBlock(nn.Module):
         """Initializes a transformer block.
 
         Args:
-
+            config: Configuration for the transformer block. See
+                :class:`~noether.core.schemas.modules.blocks.TransformerBlockConfig`
+                for available options.
         """
         super().__init__()
         # modulation

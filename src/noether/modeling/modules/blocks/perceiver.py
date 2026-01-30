@@ -27,7 +27,8 @@ class PerceiverBlock(nn.Module):
         """Perceiver-style cross-attention block.
 
         Args:
-            config: Configuration of the PerceiverBlock.
+            config: Configuration of the PerceiverBlock. See :class:`~noether.core.schemas.modules.blocks.PerceiverBlockConfig`
+            for available options.
         """
         super().__init__()
 

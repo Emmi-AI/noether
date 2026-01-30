@@ -8,10 +8,31 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 
 class PointSamplingSampleProcessor(SampleProcessor):
-    """Randomly subsamples points from a pointcloud."""
+    """Randomly subsamples points from a pointcloud.
+
+
+    .. code-block:: python
+        # dummy example
+        processor = PointSamplingSampleProcessor(
+            items={"input_position", "output_position"},
+            num_points=1024,
+            seed=42,
+        )
+        input_sample = {
+            "input_position": torch.randn(5000, 3),
+            "output_position": torch.randn(5000, 3),
+            "input_features": torch.randn(5000, 6),
+        }
+        output_sample = processor(input_sample)
+        # output_sample['input_position'] will be a tensor of shape (1024, 3)
+        # output_sample['output_position'] will be a tensor of shape (1024, 3)
+        # output_sample['input_features'] will be unchanged.
+        # If input features is also added to items, it will be of shape (1024, 6)
+    """
 
     def __init__(self, items: set[str], num_points: int, seed: int | None = None):
         """
+
         Args:
             items: Which pointcloud items should be subsampled (e.g., input_position, output_position, ...). If multiple
             items are present, the subsampling will use identical indices for all items (e.g., to downsample
@@ -31,8 +52,7 @@ class PointSamplingSampleProcessor(SampleProcessor):
         sampling is implemented via random index access, which implicitly creates a copy of the underlying values.
 
         Args:
-            input_sample: Dictionary of a single sample.
-
+            input_sample: Dictionary with the tensors of a single sample.
         Returns:
             Preprocessed copy of `input_sample` with the specified items subsampled.
         """

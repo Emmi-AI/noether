@@ -41,7 +41,8 @@ class TransolverPlusPlusAttention(nn.Module):
         Initialize the TransolverPlusPlusAttention module.
 
         Args:
-            config: Configuration object for the attention module.
+            config: Configuration for the TransolverPlusPlusAttention module. See
+                :class:`~noether.core.schemas.modules.AttentionConfig` for available options.
         """
         super().__init__()
 
@@ -84,7 +85,7 @@ class TransolverPlusPlusAttention(nn.Module):
         )
 
         for l in [self.in_project_slice.project]:
-            torch.nn.init.orthogonal_(l.weight)  # use a principled initialization
+            torch.nn.init.orthogonal_(l.weight)  # type: ignore[arg-type]
 
         self.qkv = LinearProjection(
             config=LinearProjectionConfig(

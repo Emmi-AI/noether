@@ -17,33 +17,44 @@ class PropertySubsetWrapper(DatasetWrapper):
     By using a PropertySubsetWrapper, you can create two different datasets for training and validation that only load the necessary items.
 
     Example:
-        >>> class DummyDataset(Dataset):
-        >>>     def __init__(self):
-        >>>         self.data  = torch.arange(10)
-        >>>     def getitem_x(self, idx):
-        >>>         return self.data[idx] * 2
-        >>>     def getitem_y(self, idx):
-        >>>         return self.data[idx] + 3
-        >>>     def getitem_z(self, idx):
-        >>>         return self.data[idx] - 5
-        >>>     def __len__(self):
-        >>>         return len(self.data)
-        >>> dataset = DummyDataset()
-        >>> wrapper = PropertySubsetWrapper(dataset=dataset, modes={"x", "y"})
-        >>> sample = wrapper[4]  # calls dataset.getitem_x(4) and dataset.getitem_y(4), getitem_z is not called
-        >>> sample  # {"x": 8, "y": 7}
-        >>> wrapper.properties  # {"x", "y"}
+    .. code-block:: python
+        from noether.data import PropertySubsetWrapper, Dataset
+
+
+        class DummyDataset(Dataset):
+            def __init__(self):
+                self.data = torch.arange(10)
+
+            def getitem_x(self, idx):
+                return self.data[idx] * 2
+
+            def getitem_y(self, idx):
+                return self.data[idx] + 3
+
+            def getitem_z(self, idx):
+                return self.data[idx] - 5
+
+            def __len__(self):
+                return len(self.data)
+
+
+        dataset = DummyDataset()
+        wrapper = PropertySubsetWrapper(dataset=dataset, properties={"x", "y"})
+        sample = wrapper[4]  # calls dataset.getitem_x(4) and dataset.getitem_y(4), getitem_z is not called
+        sample  # {"x": 8, "y": 7}
+        wrapper.properties  # {"x", "y"}
 
     """
 
     def __init__(self, dataset: Dataset, properties: set[str]):
         """
+
         Args:
             dataset: Base dataset to be wrapped.
             properties: Which properties to load from the wrapped dataset when __getitem__ is called.
         Raises:
-            TypeError: If modes is not a set.
-            ValueError: If modes is empty or if any mode does not correspond to a getitem
+            TypeError: If properties is not a set.
+            ValueError: If properties is empty or if any property does not correspond to a getitem
         """
         super().__init__(dataset=dataset)
         if not isinstance(properties, set):

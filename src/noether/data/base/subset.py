@@ -15,11 +15,12 @@ class Subset(DatasetWrapper):
     torch.utils.Subset, but with support for individual getitem_* methods instead of the __getitem__ method.
 
     Example:
-        >>> from noether.data import SubsetWrapper, Dataset
-        >>> len(dataset)  # 10
-        >>> subset = SubsetWrapper(dataset=dataset, indices=[0, 2, 5, 7])
-        >>> len(subset)  # 4
-        >>> subset[4]  # returns dataset[7]
+    .. code-block:: python`
+        from noether.data import SubsetWrapper, Dataset
+        len(dataset)  # 10
+        subset = SubsetWrapper(dataset=dataset, indices=[0, 2, 5, 7])
+        len(subset)  # 4
+        subset[4]  # returns dataset[7]
     """
 
     def __init__(self, dataset: Dataset, indices: Sequence[int] | npt.NDArray[np.integer]):

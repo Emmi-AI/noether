@@ -62,8 +62,6 @@ class BaseTracker:
             config["accelerator"] = accelerator
         elif accelerator == "gpu":
             config["accelerator"] = torch.cuda.get_device_name(0)
-        if "KSUIT_MAIN_TRAIN_CONFIG_PATH_RELATIVE" in os.environ:
-            config["config_reluri"] = os.environ["KSUIT_MAIN_TRAIN_CONFIG_PATH_RELATIVE"]
         config["dist/world_size"] = str(get_world_size())
         config["dist/nodes"] = str(get_num_nodes())
         config["dist/hostname"] = platform.uname().node

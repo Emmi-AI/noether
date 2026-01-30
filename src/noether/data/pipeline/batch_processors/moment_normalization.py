@@ -8,10 +8,26 @@ from noether.data.pipeline.batch_processor import BatchProcessor
 
 
 class MomentNormalizationBatchProcessor(BatchProcessor):
-    """Normalizes a value with its mean and standard deviation (i.e., its moments)."""
+    """Normalizes a value with its mean and standard deviation (i.e., its moments) in a batch.
+
+    Example:
+    .. code-block:: python
+        processor = MomentNormalizationBatchProcessor(
+            items=['velocity', 'pressure'],
+            mean=[1.0, 2.0],
+            std=[0.1, 0.2],
+        )
+        batch = {
+            'velocity': torch.tensor([[.., ..], [.., ..]]),
+            'pressure': torch.tensor([[.., ..], [.., ..]]),
+        }
+        normalized_batch = processor(batch)
+        # normalized_batch['velocity'] will be tensor([[.., ..], [.., ..]])
+        # normalized_batch['pressure'] will be tensor([[.., ..], [.., ..]])
+    """
 
     def __init__(self, items: list[str], mean: Sequence[float], std: Sequence[float]):
-        """Initializes the MomentNormalizationPostCollator
+        """
 
         Args:
             items: the position items to normalize.

@@ -21,7 +21,8 @@ class TransolverAttention(nn.Module):
         Initialize the Transolver attention module.
 
         Args:
-            config: configuration of the attention module.
+            config: Configuration for the Transolver attention module. See
+                :class:`~noether.core.schemas.modules.AttentionConfig` for available options.
         """
 
         super().__init__()

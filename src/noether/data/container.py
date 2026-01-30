@@ -72,8 +72,8 @@ class DataContainer:
         shuffle_seed: int | None = None,
     ) -> Dataset | DatasetWrapper:
         """Returns the dataset identified by key (or the first dataset if no key is provided) with optional wrapping
-        into a :class:`ShuffleWrapper` (via `shuffle_seed`), a :class:`SubsetWrapper` (via `max_size`) or a
-        :class:`PropertySubsetWrapper`. Note that the wrappers can be used at once or individually, in case when all
+        into a :class:`noether.data.base.wrappers.ShuffleWrapper` (via `shuffle_seed`), a :class:`noether.data.base.wrappers.SubsetWrapper` (via `max_size`) or a
+        :class:`noether.data.base.wrappers.PropertySubsetWrapper`. Note that the wrappers can be used at once or individually, in case when all
         arguments are provided the order will be:
 
             Dataset -> ShuffleWrapper(Optional) -> SubsetWrapper(Optional) -> PropertySubsetWrapper(Optional)

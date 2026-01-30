@@ -50,14 +50,6 @@ class ShapeNetCarDataset(AeroDataset):
                     ...
                 ...
                 param8/
-
-    Args:
-        dataset_config: Configuration object containing root path, split, and scaling parameters
-
-    Attributes:
-        split: One of 'train', 'test', or 'valid'
-        source_root: Path to preprocessed data directory
-        uris: List of paths to individual simulation samples
     """
 
     def __init__(

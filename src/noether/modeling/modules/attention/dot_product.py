@@ -20,7 +20,8 @@ class DotProductAttention(nn.Module):
         """Initialize the DotProductAttention module.
 
         Args:
-            config: configuration of the attention module.
+            config: Configuration for the DotProductAttention module. See
+                :class:`~noether.core.schemas.modules.AttentionConfig` for available options.
         """
 
         super().__init__()

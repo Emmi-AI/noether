@@ -8,7 +8,27 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 
 class DropOutliersSampleProcessor(SampleProcessor):
-    """Drops all outliers from fields in a batch."""
+    """Drops all outliers from key in a the input sample.
+
+    .. code-block:: python
+        # dummy example
+        processor = DropOutliersSampleProcessor(
+            item="measurement",
+            affected_items={"related_measurement1", "related_measurement2"},
+            min_value=0.0,
+            max_value=100.0,
+        )
+
+        input_sample = {
+            "measurement": torch.tensor([[10.0], [200.0], [-5.0], [50.0]]),
+            "related_measurement1": torch.tensor([[1.0], [2.0], [3.0], [4.0]]),
+            "related_measurement2": torch.tensor([[5.0], [6.0], [7.0], [8.0]]),
+        }
+        output_sample = processor(input_sample)
+        # output_sample['measurement'] will be tensor([[10.0], [50.0]])
+        # output_sample['related_measurement1'] will be tensor([[1.0], [4.0]])
+        # output_sample['related_measurement2'] will be tensor([[5.0], [8.0]])
+    """
 
     def __init__(
         self,
@@ -45,10 +65,10 @@ class DropOutliersSampleProcessor(SampleProcessor):
         return torch.logical_and(mask1, mask2)
 
     def __call__(self, input_sample: dict[str, Any]) -> dict[str, Any]:
-        """Removes outliers from the sample.
+        """
 
         Args:
-            input_sample: Dictionary of a single sample.
+            input_sample: Dictionary with the tensors of a single sample.
 
         Returns:
             Preprocessed copy of `input_sample` with outliers removed.

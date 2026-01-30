@@ -16,9 +16,6 @@ from noether.modeling.functional.logscale import from_logscale, to_logscale
 class ShiftAndScaleNormalizer(PreProcessor):
     """Preprocessor that shifts and scales the input data, with (x + shift) * scale."""
 
-    shift: torch.Tensor | None = None
-    scale: torch.Tensor | None = None
-
     def __init__(
         self,
         normalizer_config: ShiftAndScaleNormalizerConfig,
@@ -27,7 +24,9 @@ class ShiftAndScaleNormalizer(PreProcessor):
         """
 
         Args:
-            normalizer_config: Configuration containing shift and scale values.
+            normalizer_config: Configuration containing shift and scale values. See :class:`~noether.core.schemas.normalizers.ShiftAndScaleNormalizerConfig` for details.
+            **kwargs: Additional arguments passed to the parent class.
+
         Raises:
             ValueError: If `shift` and `scale` do not have the same length.
             ValueError: If `logscale_shift` and `logscale_scale` do not have the same length when `logscale` is True.
@@ -42,7 +41,7 @@ class ShiftAndScaleNormalizer(PreProcessor):
         self.shift = normalizer_config.shift
         self.logscale = normalizer_config.logscale
 
-    def __call__(self, x: Any) -> Any:
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
         """Applies the shift and scale normalization to the input tensor.
 
         Args:
@@ -81,7 +80,7 @@ class MeanStdNormalization(ShiftAndScaleNormalizer):
         """
 
         Args:
-            normalizer_config: Configuration containing mean and std values. Imports MeanStdNormalizerConfig.
+            normalizer_config: Configuration containing mean and std values. See :class:`~noether.core.schemas.normalizers.MeanStdNormalizerConfig` for details.
             **kwargs: Additional arguments passed to the parent class.
 
         Raises:
@@ -91,7 +90,7 @@ class MeanStdNormalization(ShiftAndScaleNormalizer):
         """
 
         self.mean = normalizer_config.mean
-        self.std = normalizer_config.std  # Adding a small value to avoid division by zero
+        self.std = normalizer_config.std
 
         if self.std.shape != self.mean.shape:
             raise ValueError("mean and std must have the same shape.")
@@ -103,7 +102,7 @@ class MeanStdNormalization(ShiftAndScaleNormalizer):
             raise ValueError("std must not contain negative values.")
 
         shift = -self.mean
-        scale = torch.reciprocal(self.std.clamp(min=self.EPSILON))
+        scale = torch.reciprocal(self.std.clamp(min=self.EPSILON))  # Adding a small value to avoid division by zero
         config = ShiftAndScaleNormalizerConfig(shift=shift, scale=scale, logscale=normalizer_config.logscale)
         super().__init__(normalizer_config=config, **kwargs)
 
@@ -119,7 +118,7 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
         """
 
         Args:
-            normalizer_config: Configuration containing raw position min, max, and scale values.
+            normalizer_config: Configuration containing raw position min, max, and scale values. See :class:`~noether.core.schemas.normalizers.PositionNormalizerConfig` for details.
             **kwargs: Additional arguments passed to the parent class.
 
         Raises:
