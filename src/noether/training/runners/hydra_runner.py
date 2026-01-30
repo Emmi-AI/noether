@@ -75,7 +75,7 @@ class HydraRunner:
         else:
             # retrieve devices string (use "0" by default which will use the first GPU, i.e., cuda:0)
             run_unmanaged(
-                accelerator=config.accelerator,
+                accelerator=str(config.accelerator),
                 devices=config.devices,
                 main=partial(self.main, config=config),
                 master_port=config.master_port,
@@ -115,7 +115,7 @@ class HydraRunner:
 
             if new_overrides:
                 logger.info(f"{len(new_overrides)} overrides set: {' '.join(new_overrides)}")
-            return f"{name}--{'-'.join(new_overrides)}"
+                return f"{name}--{'-'.join(new_overrides)}"
 
         except ValueError:
             logger.warning(
@@ -246,7 +246,7 @@ class HydraRunner:
             tracker = t
 
         tracker.init(
-            accelerator=config.accelerator,
+            accelerator=str(config.accelerator),
             run_name=run_name,
             stage_hp=config.model_dump(),
             stage_name=config.stage_name,
