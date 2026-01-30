@@ -10,8 +10,8 @@ from noether.core.schemas.optimizers import OptimizerConfig
 
 
 class OptimizerFactory(Factory):
-    """Factory for creating optimizers. Handles wrapping into OptimerWrapper by creating the corresponding constructor
-    for the underlying `torch.optim.Optimizer`. Objects are returned as partials, as creating the optimizer requires
+    """Factory for creating optimizers. Handles wrapping into :class:`~noether.core.optimizer.OptimizerWrapper` by creating the corresponding constructor
+    for the underlying :class:`torch.optim.Optimizer`. Objects are returned as partials, as creating the optimizer requires
     the model parameters from the instantiated model.
     """
 
@@ -22,13 +22,15 @@ class OptimizerFactory(Factory):
         self,
         optimizer_config: OptimizerConfig,
     ) -> Callable[..., OptimizerWrapper]:
-        """Instantiates the model either based on `kind` and `kwargs` or from the checkpoint.
+        """Instantiates the optimizer based on the provided configuration.
 
         Args:
-            optimizer_config: config for the optimizer to create. This config contains both the torch optimizer and the OptimerWrapper configurations.
+            optimizer_config: Configuration for the optimizer to create. This config contains both the
+                :class:`torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
+                See :class:`~noether.core.schemas.optimizers.OptimizerConfig` for available options.
 
         Returns:
-              A callable that initializes the optimizer.
+            A callable that initializes the :class:`~noether.core.optimizer.OptimizerWrapper`.
         """
 
         # extract OptimizerWrapper kwargs (e.g. clip_grad_value or exclude_bias_from_wd)
