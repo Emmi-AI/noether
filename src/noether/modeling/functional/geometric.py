@@ -4,16 +4,11 @@ import importlib.util
 
 import torch
 
-try:
-    import torch_geometric  # type: ignore[import-untyped]
-
-    HAS_PYG = True and importlib.util.find_spec("torch_cluster") is not None
-except ImportError:
-    HAS_PYG = False
+HAS_PYG = importlib.util.find_spec("torch_cluster") is not None
 
 try:
-    import triton  # type: ignore[import-untyped]
-    import triton.language as tl  # type: ignore[import-untyped]
+    import triton
+    import triton.language as tl
 
     HAS_TRITON = True
 
@@ -69,31 +64,33 @@ try:
                 batch_x_vals = tl.load(batch_x_ptr + x_offsets, mask=x_mask, other=-1)
                 batch_match = batch_x_vals == batch_y_val
 
-            # Compute distances for this block
-            dist_sq = tl.zeros((BLOCK_X,), dtype=tl.float32)
+            # Skip block entirely if no valid points
+            if tl.sum(batch_match) > 0:
+                # Compute distances for this block
+                dist_sq = tl.zeros((BLOCK_X,), dtype=tl.float32)
 
-            for d in tl.static_range(dim):
-                x_vals = tl.load(x_ptr + x_offsets * dim + d, mask=x_mask, other=0.0)
-                y_val = tl.load(y_base + d)
-                diff = x_vals - y_val
-                dist_sq += diff * diff
+                for d in tl.static_range(dim):
+                    x_vals = tl.load(x_ptr + x_offsets * dim + d, mask=x_mask, other=0.0)
+                    y_val = tl.load(y_base + d)
+                    diff = x_vals - y_val
+                    dist_sq += diff * diff
 
-            within_radius = (dist_sq <= r_squared) & x_mask & batch_match
+                within_radius = (dist_sq <= r_squared) & x_mask & batch_match
 
-            valid_int = within_radius.to(tl.int32)
-            cumsum = tl.cumsum(valid_int, axis=0)
-            local_offsets = cumsum - valid_int  # Exclusive prefix sum
-            block_count = tl.max(cumsum)  # Last element = total
-            local_offsets = tl.cumsum(valid_int, axis=0) - valid_int
+                valid_int = within_radius.to(tl.int32)
+                cumsum = tl.cumsum(valid_int, axis=0)
+                local_offsets = cumsum - valid_int  # Exclusive prefix sum
+                block_count = tl.max(cumsum)  # Last element = total
+                local_offsets = tl.cumsum(valid_int, axis=0) - valid_int
 
-            # Global write position for each lane
-            write_pos = out_base + write_idx + local_offsets
+                # Global write position for each lane
+                write_pos = out_base + write_idx + local_offsets
 
-            # Only write if within max_num_neighbors limit
-            can_write = within_radius & ((write_idx + local_offsets) < max_neighbors)
-            tl.store(edge_dst_ptr + write_pos, x_offsets, mask=can_write)
+                # Only write if within max_num_neighbors limit
+                can_write = within_radius & ((write_idx + local_offsets) < max_neighbors)
+                tl.store(edge_dst_ptr + write_pos, x_offsets, mask=can_write)
 
-            write_idx += block_count
+                write_idx += block_count
 
             x_block_start += BLOCK_X
 
@@ -155,7 +152,7 @@ try:
                 valid_mask = x_mask
 
             # Skip block entirely if no valid points
-            if tl.sum(valid_mask.to(tl.int32)):
+            if tl.sum(valid_mask):
                 # Compute distances for block (vectorized across x points)
                 dist_sq = tl.zeros([BLOCK_X], dtype=tl.float32)
 
@@ -170,15 +167,13 @@ try:
                     curr_dist = tl.sum(tl.where(x_offs == i, dist_sq, 0.0))
                     curr_idx = x_idx + i
                     if curr_dist < curr_max_dist and (x_idx + i) < n_x:
-                        is_valid = tl.sum(tl.where(x_offs == i, valid_mask.to(tl.float32), 0.0)) > 0
-
-                        if is_valid:
+                        if tl.sum(tl.where(x_offs == i, valid_mask, 0)) > 0:
                             max_dist = tl.max(top_dists, axis=0)
                             if curr_dist < max_dist:
                                 # Find max position and replace
                                 is_max = top_dists == max_dist
                                 # Take first max position only
-                                max_pos = tl.argmax(is_max.to(tl.float32), axis=0)
+                                max_pos = tl.argmax(is_max, axis=0)
 
                                 top_dists = tl.where(k_offs == max_pos, curr_dist, top_dists)
                                 top_idxs = tl.where(k_offs == max_pos, curr_idx, top_idxs)
@@ -260,10 +255,6 @@ def radius_triton(
         batch_y = batch_y.contiguous().int()
         assert batch_x.shape[0] == n_x
         assert batch_y.shape[0] == n_y
-    else:
-        # Create dummy tensors for kernel
-        batch_x = torch.zeros(1, dtype=torch.int32, device=x.device)
-        batch_y = torch.zeros(1, dtype=torch.int32, device=y.device)
 
     # Allocate output buffers
     max_total_edges = n_y * max_num_neighbors
@@ -416,10 +407,6 @@ def knn_triton(
         has_batch = True
         batch_x = batch_x.contiguous()
         batch_y = batch_y.contiguous()
-    else:
-        # Pass dummy tensors if no batching (Triton kernel needs valid pointers)
-        batch_x = torch.empty(0, device=x.device, dtype=torch.int64)
-        batch_y = torch.empty(0, device=x.device, dtype=torch.int64)
 
     k = min(k, n_x)
 
@@ -547,6 +534,8 @@ def radius(
 
     Returns:
         Edge index (2, num_edges).
+        first row: source indices (from y)
+        second row: target indices (from x)
     """
     # Try Triton if available and requested
     if not HAS_PYG and HAS_TRITON and x.device.type in ["cuda", "hip"]:
@@ -555,6 +544,9 @@ def radius(
     # Try PyG if available
     if not HAS_PYG:
         return radius_pytorch(x, y, r, batch_x, batch_y, max_num_neighbors)
+
+    import torch_geometric  # type: ignore[import-untyped]
+
     # Move tensors to CPU if on MPS device
     device = x.device
     if device.type == "mps":
@@ -585,10 +577,13 @@ def knn(
     k: int,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
-    cosine=False,
 ) -> torch.Tensor:
+    if not HAS_PYG and HAS_TRITON and x.device.type in ["cuda", "hip"]:
+        return knn_triton(x, y, k, batch_x, batch_y)
     if not HAS_PYG:
-        return knn_pytorch(x, y, k, batch_x, batch_y, cosine=cosine)
+        return knn_pytorch(x, y, k, batch_x, batch_y)
+
+    import torch_geometric  # type: ignore[import-untyped]
 
     # Move tensors to CPU if on MPS device
     device = x.device
@@ -604,7 +599,6 @@ def knn(
         k=k,
         batch_x=batch_x,
         batch_y=batch_y,
-        cosine=cosine,
     )
 
     # Move result back to MPS if original tensors were on MPS
