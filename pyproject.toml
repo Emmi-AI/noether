@@ -64,15 +64,16 @@ dev = [
     { include-group = "docs" },
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
-    "pytest-cov",                      # Added for code coverage
+    "pytest-cov", # Added for code coverage
     "mypy[reports]>=1.15.0",
     "ruff>=0.11.0",
     "fixit>=2.1.0",
-    "ipykernel>=6.30.0",               # Useful for notebooks
+    "ipykernel>=6.30.0", # Useful for notebooks
     "types-docutils==0.22.0.20250822",
     "types-pyyaml>=6.0.12.20241230",
     "types-tqdm>=4.67.0.20250809",
     "docutils-stubs==0.0.22",
+    "pytest-benchmark>=5.2.3",
 ]
 docs = [
     "sphinx>=7.3",
@@ -138,7 +139,8 @@ module = [
 [tool.pytest.ini_options]
 testpaths = ["tests/unit"]
 pythonpath = ["src"]
-addopts = ["--import-mode=importlib"]
+addopts = ["--import-mode=importlib", "-m", "not benchmark"]
+
 
 [tool.ruff]
 exclude = [

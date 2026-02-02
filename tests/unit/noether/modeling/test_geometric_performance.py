@@ -1,48 +1,44 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-import time
-
 import pytest
 import torch
 
 try:
-    import torch_cluster  # noqa: F401
-    import torch_geometric  # noqa: F401
+    import torch_geometric
 
     HAS_PYG = True
 except ImportError:
     HAS_PYG = False
 
-from noether.modeling.functional.geometric import knn, knn_pytorch, radius_pytorch, radius_triton
+from noether.modeling.functional.geometric import knn_pytorch, radius_pytorch, radius_triton
 
 
-def measure_runtime(func, *args, num_runs=10, **kwargs):
-    # Warmup
-    for _ in range(3):
-        func(*args, **kwargs)
+def wrap_with_sync(func, device):
+    """Wrap function to include CUDA synchronization if needed."""
 
-    if torch.cuda.is_available() and args[0].is_cuda:
-        torch.cuda.synchronize()
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-        start_event.record()
-        for _ in range(num_runs):
-            func(*args, **kwargs)
-        end_event.record()
-        torch.cuda.synchronize()
-        return start_event.elapsed_time(end_event) / num_runs / 1000.0  # to seconds
-    else:
-        start_time = time.perf_counter()
-        for _ in range(num_runs):
-            func(*args, **kwargs)
-        end_time = time.perf_counter()
-        return (end_time - start_time) / num_runs
+    def wrapper(*args, **kwargs):
+        result = func(*args, **kwargs)
+        if device == "cuda":
+            torch.cuda.synchronize()
+        return result
+
+    return wrapper
 
 
-# @pytest.mark.skip
+@pytest.mark.skipif(not HAS_PYG, reason="torch_geometric and torch_cluster are required for these tests")
 class TestGeometricPerformance:
+    """Performance tests for geometric operations."""
+
     @pytest.fixture
     def large_sample_data(self, request):
+        """Fixture providing large datasets for benchmarking.
+
+        Args:
+            request: Pytest request object containing the device to use.
+
+        Returns:
+            Tuple of (x, y, batch_x, batch_y) tensors on the specified device.
+        """
         device = request.param
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA not available")
@@ -62,42 +58,63 @@ class TestGeometricPerformance:
 
         return x, y, batch_x, batch_y
 
+    @pytest.mark.benchmark(group="radius")
     @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
-    def test_performance_radius(self, large_sample_data):
+    @pytest.mark.parametrize("implementation", ["fallback", "pyg", "triton"])
+    def test_performance_radius(self, benchmark, large_sample_data, implementation):
+        """Benchmark radius search implementations.
+
+        Args:
+            benchmark: Pytest benchmark fixture.
+            large_sample_data: Fixture providing dataset.
+            implementation: Implementation to benchmark ('fallback', 'pyg', or 'triton').
+        """
         x, y, batch_x, batch_y = large_sample_data
         r = 0.5
         max_num_neighbors = 32
-
         device = x.device.type
 
-        # Measure fallback
-        time_fallback = measure_runtime(radius_pytorch, x, y, r, max_num_neighbors, batch_x, batch_y)
+        if implementation == "triton" and device != "cuda":
+            pytest.skip("Triton implementation only supported on CUDA")
 
-        # Measure PyG (via the wrapper which uses HAS_PYG=True)
-        time_pyg = measure_runtime(torch_geometric.nn.pool.radius, x, y, r, batch_x, batch_y, max_num_neighbors)
+        if implementation == "pyg" and device == "mps":
+            pytest.skip("torch_geometric radius not supported on MPS")
 
-        time_triton = (
-            measure_runtime(radius_triton, x, y, r, max_num_neighbors, batch_x, batch_y)
-            if device == "cuda"
-            else float("inf")
-        )
+        if implementation == "fallback":
+            func = radius_pytorch
+            args = (x, y, r, max_num_neighbors, batch_x, batch_y)
+        elif implementation == "pyg":
+            func = torch_geometric.nn.pool.radius
+            args = (x, y, r, batch_x, batch_y, max_num_neighbors)
+        elif implementation == "triton":
+            func = radius_triton
+            args = (x, y, r, max_num_neighbors, batch_x, batch_y)
 
-        print(
-            f"\nRadius Performance ({device}): Fallback={time_fallback: .6f}s, PyG={time_pyg: .6f}s , Triton={time_triton: .6f}s"
-        )
-        # No assertion on speed as fallback is expected to be slower, but we can log results
+        benchmark(wrap_with_sync(func, device), *args)
 
+    @pytest.mark.benchmark(group="knn")
     @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
-    def test_performance_knn(self, large_sample_data):
+    @pytest.mark.parametrize("implementation", ["fallback", "pyg"])
+    def test_performance_knn(self, benchmark, large_sample_data, implementation):
+        """Benchmark KNN search implementations.
+
+        Args:
+            benchmark: Pytest benchmark fixture.
+            large_sample_data: Fixture providing dataset.
+            implementation: Implementation to benchmark ('fallback' or 'pyg').
+        """
         x, y, batch_x, batch_y = large_sample_data
         k = 16
-
         device = x.device.type
 
-        # Measure fallback
-        time_fallback = measure_runtime(knn_pytorch, x, y, k, batch_x, batch_y)
+        if implementation == "pyg" and device == "mps":
+            pytest.skip("torch_geometric radius not supported on MPS")
 
-        # Measure PyG
-        time_pyg = measure_runtime(knn, x, y, k, batch_x, batch_y)
+        if implementation == "fallback":
+            func = knn_pytorch
+            args = (x, y, k, batch_x, batch_y)
+        elif implementation == "pyg":
+            func = torch_geometric.nn.pool.knn
+            args = (x, y, k, batch_x, batch_y)
 
-        print(f"\nKNN Performance ({device}): Fallback={time_fallback: .6f}s, PyG={time_pyg: .6f}s")
+        benchmark(wrap_with_sync(func, device), *args)
