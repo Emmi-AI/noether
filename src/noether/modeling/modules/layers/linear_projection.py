@@ -74,4 +74,4 @@ class LinearProjection(nn.Module):
             Output tensor from the LinearProjection.
         """
 
-        return self.project(x)
+        return self.project(x)  # type: ignore[no-any-return]

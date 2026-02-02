@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 from noether.core.factory.base import Factory
 
 
-class TestTarget:
+class DummyTarget:
     """A dummy class to instantiate."""
 
     def __init__(self, x: int = 0, y: int = 0):
@@ -24,7 +24,7 @@ def test_factory_create_none():
 def test_factory_create_existing_object():
     """Test passing an already instantiated object returns it as-is."""
     factory = Factory()
-    target = TestTarget()
+    target = DummyTarget()
     assert factory.create(target) is target
 
 
@@ -32,9 +32,9 @@ def test_factory_create_callable():
     """Test passing a callable (like a partial or class type) instantiates it."""
     factory = Factory()
     # Passing the class type directly -> acts as constructor:
-    target = factory.create(TestTarget, x=5)
+    target = factory.create(DummyTarget, x=5)
 
-    assert isinstance(target, TestTarget)
+    assert isinstance(target, DummyTarget)
     assert target.x == 5
 
 
@@ -71,7 +71,7 @@ def test_factory_create_partials_mode():
         assert result == mock_type
 
     # Case 2: Passing a type/partial directly -> returns it without calling it:
-    target_type = TestTarget
+    target_type = DummyTarget
     result = factory.create(target_type)
     # Should NOT instantiate, just return the type:
     assert result == target_type

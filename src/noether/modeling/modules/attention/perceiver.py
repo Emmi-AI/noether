@@ -92,5 +92,4 @@ class PerceiverAttention(nn.Module):
             q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
-        x = self.proj_dropout(self.proj(x))
-        return x
+        return self.proj_dropout(self.proj(x))  # type: ignore[no-any-return]

@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import math
 from dataclasses import dataclass
 from typing import Union
 
@@ -147,7 +148,7 @@ class RunningMoments(torch.nn.Module):
         var = self.var
         if isinstance(var, torch.Tensor):
             return torch.sqrt(var)
-        return var**0.5
+        return math.sqrt(var)
 
     @property
     def min(self) -> Union[float, torch.Tensor]:
