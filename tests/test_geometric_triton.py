@@ -114,7 +114,6 @@ class TestRadiusTriton:
         # Should have at most max_neighbors edges
         assert edges.size(1) <= max_neighbors
 
-
     def test_knn_triton_vs_pytorch(self):
         """Test that Triton implementation matches PyTorch fallback."""
         torch.manual_seed(42)
@@ -138,4 +137,92 @@ class TestRadiusTriton:
         edges_triton_set = {tuple(edge) for edge in edges_triton.t().cpu().tolist()}
         edges_pytorch_set = {tuple(edge) for edge in edges_pytorch.t().cpu().tolist()}
 
+        assert edges_triton_set == edges_pytorch_set
+
+    def test_knn_triton_batched(self):
+        """Test KNN Triton implementation with batched data."""
+        torch.manual_seed(42)
+
+        # Create batched test data
+        n_x, n_y, dim = 60, 40, 3
+        x = torch.randn(n_x, dim, device="cuda", dtype=torch.float32)
+        y = torch.randn(n_y, dim, device="cuda", dtype=torch.float32)
+
+        # Create batch indices (3 batches)
+        batch_x = torch.cat(
+            [
+                torch.zeros(20, dtype=torch.long),
+                torch.ones(20, dtype=torch.long),
+                torch.full((20,), 2, dtype=torch.long),
+            ]
+        ).to("cuda")
+
+        batch_y = torch.cat(
+            [
+                torch.zeros(15, dtype=torch.long),
+                torch.ones(15, dtype=torch.long),
+                torch.full((10,), 2, dtype=torch.long),
+            ]
+        ).to("cuda")
+
+        k = 5
+
+        # Compute with Triton
+        edges_triton = knn_triton(x, y, k=k, batch_x=batch_x, batch_y=batch_y)
+
+        # Compute with PyTorch fallback
+        edges_pytorch = knn_pytorch(x, y, k=k, batch_x=batch_x, batch_y=batch_y)
+
+        # Compare results
+        assert edges_triton.size(1) == edges_pytorch.size(1)
+
+        # Check specific edges
+        edges_triton_set = {tuple(edge) for edge in edges_triton.t().cpu().tolist()}
+        edges_pytorch_set = {tuple(edge) for edge in edges_pytorch.t().cpu().tolist()}
+        assert edges_triton_set == edges_pytorch_set
+
+    def test_knn_triton_k_ge_nx(self):
+        """Test KNN Triton when k >= number of points in a batch."""
+        torch.manual_seed(42)
+
+        n_x, n_y, dim = 5, 2, 3
+        x = torch.randn(n_x, dim, device="cuda", dtype=torch.float32)
+        y = torch.randn(n_y, dim, device="cuda", dtype=torch.float32)
+        k = 10  # k > n_x
+
+        # Compute with Triton
+        edges_triton = knn_triton(x, y, k=k)
+
+        # Compute with PyTorch fallback
+        edges_pytorch = knn_pytorch(x, y, k=k)
+
+        assert edges_triton.size(1) == edges_pytorch.size(1)
+
+        edges_triton_set = {tuple(edge) for edge in edges_triton.t().cpu().tolist()}
+        edges_pytorch_set = {tuple(edge) for edge in edges_pytorch.t().cpu().tolist()}
+        assert edges_triton_set == edges_pytorch_set
+
+        # Should return all n_x neighbors for each y
+        assert edges_triton.size(1) == n_y * n_x
+
+    def test_knn_triton_large_n(self):
+        """Test KNN Triton with a larger number of points."""
+        torch.manual_seed(42)
+
+        n_x, n_y, dim = 1000, 100, 3
+        x = torch.randn(n_x, dim, device="cuda", dtype=torch.float32)
+        y = torch.randn(n_y, dim, device="cuda", dtype=torch.float32)
+        k = 32
+
+        # Compute with Triton
+        edges_triton = knn_triton(x, y, k=k)
+
+        # Compute with PyTorch fallback
+        edges_pytorch = knn_pytorch(x, y, k=k)
+
+        assert edges_triton.size(1) == edges_pytorch.size(1)
+        # For large N, order might differ but sets should be same if distances are distinct
+        # (randn distances are almost certainly distinct)
+        edges_triton_set = {tuple(edge) for edge in edges_triton.t().cpu().tolist()}
+        edges_pytorch_set = {tuple(edge) for edge in edges_pytorch.t().cpu().tolist()}
         assert edges_triton_set == edges_pytorch_set

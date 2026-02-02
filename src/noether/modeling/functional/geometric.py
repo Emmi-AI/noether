@@ -97,6 +97,15 @@ try:
 
             x_block_start += BLOCK_X
 
+    @triton.autotune(
+        configs=[
+            triton.Config({"BLOCK_X": 8}),
+            triton.Config({"BLOCK_X": 16}),
+            triton.Config({"BLOCK_X": 32}),
+            triton.Config({"BLOCK_X": 64}),
+        ],
+        key=["n_x", "n_y", "dim"],  # Retune when these change
+    )
     @triton.jit
     def _knn_kernel(
         x_ptr,
@@ -111,49 +120,72 @@ try:
         k: tl.constexpr,
         has_batch: tl.constexpr,
         BLOCK_K: tl.constexpr,
+        BLOCK_X: tl.constexpr,
     ):
         """
         Optimized kernel: each program handles one y point, processes x in blocks.
         """
         y_idx = tl.program_id(0)
-        y_base = y_ptr + (y_idx * dim)
 
         if y_idx >= n_y:
             return
+        y_base = y_ptr + (y_idx * dim)
 
         # Load batch for y
         batch_y_val = tl.load(batch_y_ptr + y_idx) if has_batch else 0
 
-        top_dists = tl.full([BLOCK_K], float("inf"), dtype=tl.float32)
-        top_idxs = tl.full([BLOCK_K], -1, dtype=tl.int32)
-
         k_offs = tl.arange(0, BLOCK_K)
 
-        max_dist = float("inf")
+        top_dists = tl.full([BLOCK_K], float("inf"), dtype=tl.float32)
+        # Mask out indices >= k so they are never selected as max (victim) during eviction
+        top_dists = tl.where(k_offs < k, top_dists, -1.0)
+        top_idxs = tl.full([BLOCK_K], -1, dtype=tl.int64)
+
+        curr_max_dist = float("inf")
+        x_offs = tl.arange(0, BLOCK_X)
 
         # Process x points in blocks
-        for x_idx in tl.range(0, n_x):
-            if not has_batch or tl.load(batch_x_ptr + x_idx) == batch_y_val:
-                dist_sq = 0.0
+        for x_idx in tl.range(0, n_x, BLOCK_X):
+            x_indices = x_idx + x_offs
+            x_mask = x_indices < n_x
+            if has_batch:
+                batch_x_vals = tl.load(batch_x_ptr + x_indices, mask=x_mask, other=-1)
+                valid_mask = x_mask & (batch_x_vals == batch_y_val)
+            else:
+                valid_mask = x_mask
+
+            # Skip block entirely if no valid points
+            if tl.sum(valid_mask.to(tl.int32)):
+                # Compute distances for block (vectorized across x points)
+                dist_sq = tl.zeros([BLOCK_X], dtype=tl.float32)
+
                 for d in tl.static_range(dim):
-                    x_vals = tl.load(x_ptr + x_idx * dim + d)
-                    y_val = tl.load(y_base + d)
+                    x_vals = tl.load(x_ptr + x_indices * dim + d, mask=valid_mask, other=0.0)
+                    y_val = tl.load(y_base + d)  # Scalar broadcast
                     diff = x_vals - y_val
                     dist_sq += diff * diff
 
-                # Find position to insert
-                curr_dist = dist_sq
-                curr_idx = x_idx
+                dist_sq = tl.where(valid_mask, dist_sq, float("inf"))
+                for i in tl.static_range(BLOCK_X):
+                    curr_dist = tl.sum(tl.where(x_offs == i, dist_sq, 0.0))
+                    curr_idx = x_idx + i
+                    if curr_dist < curr_max_dist and (x_idx + i) < n_x:
+                        is_valid = tl.sum(tl.where(x_offs == i, valid_mask.to(tl.float32), 0.0)) > 0
 
-                if curr_dist < max_dist:
-                    mask = top_dists == max_dist
-                    # Swap
-                    top_dists = tl.where(mask, curr_dist, top_dists)
-                    top_idxs = tl.where(mask, curr_idx, top_idxs)
+                        if is_valid:
+                            max_dist = tl.max(top_dists, axis=0)
+                            if curr_dist < max_dist:
+                                # Find max position and replace
+                                is_max = top_dists == max_dist
+                                # Take first max position only
+                                max_pos = tl.argmax(is_max.to(tl.float32), axis=0)
 
-                    max_dist = tl.max(top_dists, axis=0)
+                                top_dists = tl.where(k_offs == max_pos, curr_dist, top_dists)
+                                top_idxs = tl.where(k_offs == max_pos, curr_idx, top_idxs)
 
-        # 5. Write to Global Memory (Once per thread)
+                                # Update pruning threshold
+                                curr_max_dist = tl.max(top_dists, axis=0)
+
         # Mask to ensure we only write 'k' values, not BLOCK_K
         out_mask = k_offs < k
 
@@ -423,7 +455,9 @@ def knn_triton(
     edge_src_valid = torch.arange(n_y, device=x.device).repeat_interleave(k)
     edge_dst_valid = output_indices
 
-    return torch.stack([edge_src_valid, edge_dst_valid], dim=0)
+    # Filter out invalid indices (from padding or small batches)
+    valid_mask = edge_dst_valid != -1
+    return torch.stack([edge_src_valid[valid_mask], edge_dst_valid[valid_mask]], dim=0)
 
 
 def knn_pytorch(
@@ -529,7 +563,7 @@ def radius(
         batch_x = batch_x.cpu() if batch_x is not None else None
         batch_y = batch_y.cpu() if batch_y is not None else None
 
-    result = torch_geometric.nn.pool.radius(
+    result: torch.Tensor = torch_geometric.nn.pool.radius(
         x,
         y,
         r,
@@ -564,7 +598,7 @@ def knn(
         batch_x = batch_x.cpu() if batch_x is not None else None
         batch_y = batch_y.cpu() if batch_y is not None else None
 
-    result = torch_geometric.nn.pool.knn(
+    result: torch.Tensor = torch_geometric.nn.pool.knn(
         x=x,
         y=y,
         k=k,
