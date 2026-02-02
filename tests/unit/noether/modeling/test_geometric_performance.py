@@ -10,7 +10,7 @@ try:
 except ImportError:
     HAS_PYG = False
 
-from noether.modeling.functional.geometric import knn_pytorch, radius_pytorch, radius_triton
+from noether.modeling.functional.geometric import knn_pytorch, knn_triton, radius_pytorch, radius_triton
 
 
 def wrap_with_sync(func, device):
@@ -82,39 +82,39 @@ class TestGeometricPerformance:
 
         if implementation == "fallback":
             func = radius_pytorch
-            args = (x, y, r, max_num_neighbors, batch_x, batch_y)
         elif implementation == "pyg":
             func = torch_geometric.nn.pool.radius
-            args = (x, y, r, batch_x, batch_y, max_num_neighbors)
         elif implementation == "triton":
             func = radius_triton
-            args = (x, y, r, max_num_neighbors, batch_x, batch_y)
 
-        benchmark(wrap_with_sync(func, device), *args)
+        benchmark(wrap_with_sync(func, device), x, y, r, batch_x, batch_y, max_num_neighbors)
 
     @pytest.mark.benchmark(group="knn")
     @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
-    @pytest.mark.parametrize("implementation", ["fallback", "pyg"])
+    @pytest.mark.parametrize("implementation", ["fallback", "pyg", "triton"])
     def test_performance_knn(self, benchmark, large_sample_data, implementation):
         """Benchmark KNN search implementations.
 
         Args:
             benchmark: Pytest benchmark fixture.
             large_sample_data: Fixture providing dataset.
-            implementation: Implementation to benchmark ('fallback' or 'pyg').
+            implementation: Implementation to benchmark ('fallback', 'pyg', or 'triton').
         """
         x, y, batch_x, batch_y = large_sample_data
         k = 16
         device = x.device.type
+
+        if implementation == "triton" and device != "cuda":
+            pytest.skip("Triton implementation only supported on CUDA")
 
         if implementation == "pyg" and device == "mps":
             pytest.skip("torch_geometric radius not supported on MPS")
 
         if implementation == "fallback":
             func = knn_pytorch
-            args = (x, y, k, batch_x, batch_y)
         elif implementation == "pyg":
             func = torch_geometric.nn.pool.knn
-            args = (x, y, k, batch_x, batch_y)
+        elif implementation == "triton":
+            func = knn_triton
 
-        benchmark(wrap_with_sync(func, device), *args)
+        benchmark(wrap_with_sync(func, device), x, y, k, batch_x, batch_y)

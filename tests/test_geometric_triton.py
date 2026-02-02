@@ -5,7 +5,7 @@
 import pytest
 import torch
 
-from noether.modeling.functional.geometric import HAS_TRITON, radius_pytorch, radius_triton
+from noether.modeling.functional.geometric import HAS_TRITON, knn_pytorch, knn_triton, radius_pytorch, radius_triton
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
@@ -25,10 +25,10 @@ class TestRadiusTriton:
         max_neighbors = 10
 
         # Compute with Triton
-        edges_triton = radius_triton(x, y, r, max_neighbors)
+        edges_triton = radius_triton(x, y, r, None, None, max_neighbors)
 
         # Compute with PyTorch fallback
-        edges_pytorch = radius_pytorch(x, y, r, max_neighbors)
+        edges_pytorch = radius_pytorch(x, y, r, None, None, max_neighbors)
 
         # Both should have same number of edges
         assert edges_triton.size(1) == edges_pytorch.size(1)
@@ -69,10 +69,10 @@ class TestRadiusTriton:
         max_neighbors = 5
 
         # Compute with Triton
-        edges_triton = radius_triton(x, y, r, max_neighbors, batch_x, batch_y)
+        edges_triton = radius_triton(x, y, r, batch_x, batch_y, max_neighbors)
 
         # Compute with PyTorch fallback
-        edges_pytorch = radius_pytorch(x, y, r, max_neighbors, batch_x, batch_y)
+        edges_pytorch = radius_pytorch(x, y, r, batch_x, batch_y, max_neighbors)
 
         # Verify edges respect batch boundaries
         for i in range(edges_triton.size(1)):
@@ -93,7 +93,7 @@ class TestRadiusTriton:
         r = 1.0
         max_neighbors = 10
 
-        edges = radius_triton(x, y, r, max_neighbors)
+        edges = radius_triton(x, y, r, None, None, max_neighbors)
 
         assert edges.size(1) == 0
         assert edges.shape == (2, 0)
@@ -109,7 +109,33 @@ class TestRadiusTriton:
         r = 2.0
         max_neighbors = 10
 
-        edges = radius_triton(x, y, r, max_neighbors)
+        edges = radius_triton(x, y, r, None, None, max_neighbors)
 
         # Should have at most max_neighbors edges
         assert edges.size(1) <= max_neighbors
+
+
+    def test_knn_triton_vs_pytorch(self):
+        """Test that Triton implementation matches PyTorch fallback."""
+        torch.manual_seed(42)
+
+        # Create test data
+        n_x, n_y, dim = 10, 1, 3
+        x = torch.randn(n_x, dim, device="cuda", dtype=torch.float32)
+        y = torch.randn(n_y, dim, device="cuda", dtype=torch.float32)
+        k = 15
+
+        # Compute with Triton
+        edges_triton = knn_triton(x, y, k=k)
+
+        # Compute with PyTorch fallback
+        edges_pytorch = knn_pytorch(x, y, k=k)
+
+        # Both should have same number of edges
+        assert edges_triton.size(1) == edges_pytorch.size(1)
+
+        # Convert to sets for comparison (order may differ)
+        edges_triton_set = {tuple(edge) for edge in edges_triton.t().cpu().tolist()}
+        edges_pytorch_set = {tuple(edge) for edge in edges_pytorch.t().cpu().tolist()}
+
+        assert edges_triton_set == edges_pytorch_set
