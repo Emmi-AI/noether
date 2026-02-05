@@ -110,7 +110,8 @@ def test_compute_src_and_dst_indices(setup_module):
             [7, 7, 7],
             [8, 8, 8],
             [9, 9, 9],
-        ]
+        ],
+        dtype=torch.float32,
     )
 
     supernode_idxs = torch.tensor([1, 3, 5, 7])
