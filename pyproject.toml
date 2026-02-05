@@ -84,6 +84,8 @@ docs = [
     "sphinx-design",
     "myst-parser",
     "autodoc-pydantic>=2.2.0",
+    "sphinx-copybutton>=0.5.2",
+    "roman-numerals-py==4.0.0", # pin because of https://github.com/sphinx-doc/sphinx/issues/14186
 ]
 
 # --- Centralized UV Configuration ---
