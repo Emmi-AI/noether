@@ -15,6 +15,7 @@ jobs:
     outputs:
       releases_created: ${{ steps.release.outputs.releases_created }}
       release_created: ${{ steps.release.outputs.release_created }}
+      prs_created: ${{ steps.release.outputs.prs_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
       pr: ${{ steps.release.outputs.pr }}
@@ -27,6 +28,37 @@ jobs:
           target-branch: ${{ github.ref_name }}
           config-file: .github/release-please-config.json
           manifest-file: .github/.release-please-manifest.json
+  
+  uv-sync:
+    name: UV Sync PRs
+    needs: release-please
+    if: needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.pr != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Setup uv (with cache)
+        id: setup-uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Sync UV
+        run: |
+          uv sync
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: update uv.lock" || echo "No changes to commit"
+          git push
 
   build-and-publish:
     name: Build and Publish Release
