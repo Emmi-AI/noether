@@ -48,41 +48,48 @@ class TestTokenSpec:
 class TestMixedAttention:
     @pytest.fixture
     def module(self, mock_config):
-        return MixedAttention(config=mock_config)
+        return MixedAttention(config=mock_config).eval()
 
     def test_init(self, mock_config):
-        module = MixedAttention(config=mock_config)
+        module = MixedAttention(config=mock_config).eval()
         assert isinstance(module, MixedAttention)
         assert module.num_heads == 4
         assert module.head_dim == 16
 
-    def test_forward_basic_pattern(self, module):
+    def test_forward_basic_pattern_isolation(self, module):
         """
-        Test a simple scenario using valid TokenSpec names:
-        - Input: [surface_anchors (10), surface_queries (5)]
-        - Pattern 1: surface_anchors attends to itself
-        - Pattern 2: surface_queries attends to itself
+        Verify that token groups are actually isolated.
+        If surface_anchors only attend to themselves, changing the surface_queries
+        should NOT affect the surface_anchors' output.
         """
         batch_size = 2
-        seq_len = 15  # 10 + 5
         dim = 64
-        x = torch.randn(batch_size, seq_len, dim)
+
+        surface_anchors = torch.randn(batch_size, 10, dim)
+        surface_queries_1 = torch.randn(batch_size, 5, dim)
+        surface_queries_2 = torch.randn(batch_size, 5, dim) + 100.0  # vastly different values
 
         token_specs = [
             TokenSpec(name="surface_anchors", size=10),
             TokenSpec(name="surface_queries", size=5),
         ]
 
-        # Each attends only to itself:
         patterns = [
             AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"]),
             AttentionPattern(query_tokens=["surface_queries"], key_value_tokens=["surface_queries"]),
         ]
 
-        output = module(x, token_specs=token_specs, attention_patterns=patterns)
+        # Run twice with SAME anchors but DIFFERENT queries:
+        input1 = torch.cat([surface_anchors, surface_queries_1], dim=1)
+        output1 = module(input1, token_specs=token_specs, attention_patterns=patterns)
 
-        assert output.shape == (batch_size, seq_len, dim)
-        assert not torch.isnan(output).any()
+        input2 = torch.cat([surface_anchors, surface_queries_2], dim=1)
+        output2 = module(input2, token_specs=token_specs, attention_patterns=patterns)
+
+        assert torch.allclose(output1[:, :10], output2[:, :10], atol=1e-6)
+
+        # The query part SHOULD be different:
+        assert not torch.allclose(output1[:, 10:], output2[:, 10:])
 
     def test_forward_mixed_interaction(self, module):
         """

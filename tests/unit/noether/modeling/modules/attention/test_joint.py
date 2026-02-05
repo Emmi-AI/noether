@@ -65,20 +65,3 @@ def test_create_attention_patterns_logic(valid_config):
 
     expected_keys = {"surface_anchors", "volume_anchors"}
     assert set(pattern.key_value_tokens) == expected_keys
-
-
-def test_pattern_ignores_irrelevant_tokens(valid_config):
-    model = JointAnchorAttention(valid_config)
-
-    token_specs = [
-        TokenSpec(name="surface_queries", size=50),
-        TokenSpec(name="volume_queries", size=50),
-    ]
-
-    patterns = model._create_attention_patterns(token_specs)
-    pattern = patterns[0]
-
-    assert set(pattern.query_tokens) == {"surface_queries", "volume_queries"}
-
-    expected_keys = {"surface_anchors", "volume_anchors"}
-    assert set(pattern.key_value_tokens) == expected_keys
