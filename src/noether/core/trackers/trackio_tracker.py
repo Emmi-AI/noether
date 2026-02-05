@@ -2,10 +2,11 @@
 
 try:
     import trackio
+
+    TRACKIO_IMPORT_ERROR = None
 except ImportError as e:
-    raise ImportError(
-        "trackio is not installed. Please install it with `pip install trackio` to use the TrackioTracker."
-    ) from e
+    TRACKIO_IMPORT_ERROR = e
+
 from noether.core.schemas.trackers import TrackioTrackerSchema
 from noether.core.trackers.base import BaseTracker
 
@@ -31,6 +32,11 @@ class TrackioTracker(BaseTracker):
         self.config = tracker_config
 
     def _init(self, config: dict, output_uri: str, run_id: str):
+        if TRACKIO_IMPORT_ERROR is not None:
+            raise ImportError(
+                f"Trackio is not installed. Please install it to use the TrackioTracker. Original error: {TRACKIO_IMPORT_ERROR}"
+            ) from TRACKIO_IMPORT_ERROR
+
         self.logger.info("initializing trackio")
         # restore original argv (can be modified to comply with hydra but allow --hp and --devices)
         name = config["run_name"]
