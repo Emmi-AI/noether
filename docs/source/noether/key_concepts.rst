@@ -22,6 +22,8 @@ To avoid one big config file that becomes hard to manage, we suggest to split co
 - ``tracker``
 - ``trainer``
 
+For more details on how to configure and use these modules, see our :doc:`/guides/index`.
+
 You can see this structure in the ``tutorial`` folder of the ``noether`` repository. Each folder contains ``yaml``
 files that define settings for datasets, models, trainers, and more.
 

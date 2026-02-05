@@ -40,8 +40,7 @@ Additionally, we can alter the hyperparameters right from the CLI:
         +seed=1
 
 Here we enforce ``fp32`` precision for training, ``mps`` (Apple Silicon) as our accelerator, ``tracker=disabled`` means
-that there will be no experiment tracking used, for example Weights & Biases, and last but not least we set random seed
-to 1.
+that there will be no experiment tracking used. Details on how to configure experiment tracking can be found in :doc:`guides/training/experiment_tracking`.
 
 Note the specific syntax that comes from `Hydra <https://hydra.cc/>`_:
 
