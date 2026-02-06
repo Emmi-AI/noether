@@ -22,8 +22,8 @@ extensions = [
     # "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
     "autoapi.extension",  # <-- use AutoAPI
+    "sphinx_copybutton",  # for "copy" buttons on code blocks
     # Optional if you want Markdown pages:
-    # "myst_parser",
     # Optional if you want CLI docs:
     # "sphinx_click",
 ]
