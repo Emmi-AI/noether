@@ -76,6 +76,23 @@ class ScalarsConditioner(nn.Module):
             **kwargs: Scalars in tensor representation (batch_size,) or (batch_size, 1).
         Returns:
             Conditioning vector with shape (batch_size, condition_dim)
+
+        Example:
+        .. code-block:: python
+
+            conditioner = ScalarsConditioner(
+                ScalarsConditionerConfig(
+                    hidden_dim=64,
+                    num_scalars=2,
+                    condition_dim=128,
+                    init_weights="gaussian",
+                )
+            )
+            geometry_angle = torch.tensor([75.3, 80.1])  # shape (batch_size,)
+            friction_angle = torch.tensor([24.6, 30.2])  # shape (batch_size,)
+            condition = conditioner(
+                geometry_angle=geometry_angle, friction_angle=friction_angle
+            )  # shape (batch_size, condition_dim)
         """
         # checks + preprocess
         scalars: list[torch.Tensor] = [*args] + list(kwargs.values())

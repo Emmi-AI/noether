@@ -39,6 +39,7 @@ class CallbackBase:
 
     Examples:
         .. code-block:: python
+
             # THIS IS INSIDE A CUSTOM CALLBACK
 
             # log only to experiment tracker, not stdout

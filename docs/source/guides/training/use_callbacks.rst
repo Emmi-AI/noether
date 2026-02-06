@@ -61,11 +61,12 @@ Noether includes many pre-defined callbacks organized by their purpose:
    * - **Monitoring**
      - :class:`~noether.core.callbacks.default.ProgressCallback`, :class:`~noether.core.callbacks.default.DatasetStatsCallback`, :class:`~noether.core.callbacks.default.LrCallback`, :class:`~noether.core.callbacks.default.PeakMemoryCallback`, :class:`~noether.core.callbacks.default.OnlineLossCallback`, :class:`~noether.core.callbacks.default.ParamCountCallback`, :class:`~noether.core.callbacks.default.EtaCallback`, :class:`~noether.core.callbacks.default.TrainTimeCallback`. Used for real-time tracking of training progress and hardware usage. These callbacks are all initialized by default by the :class:`~noether.training.trainers.BaseTrainer`, the user does not need to add them manually.
    * - **Checkpointing**
-     - :class:`~noether.core.callbacks.BestCheckpointCallback`, :class:`~noether.core.callbacks.CheckpointCallback`, :class:`~noether.core.callbacks.EMACallback`. Used to save model weights periodically or when a new best metric is achieved.
+     - :class:`~noether.core.callbacks.checkpoint.best_checkpoint.BestCheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.checkpoint.CheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.ema.EMACallback`. Used to save model weights periodically or when a new best metric is achieved.
    * - **Early Stopping**
-     - :class:`~noether.core.callbacks.MetricEarlyStopping`, :class:`~noether.core.callbacks.FixedUpdateEarlyStopping`. Used to stop training automatically if progress plateaus.
+     - :class:`~noether.core.callbacks.early_stoppers.metric.MetricEarlyStopper`, :class:`~noether.core.callbacks.early_stoppers.fixed.FixedEarlyStopper`. Used to stop training automatically if progress plateaus.
    * - **Evaluation**
-     - :class:`~noether.core.callbacks.BestMetricCallback`, :class:`~noether.core.callbacks.TrackOutputsCallback`. Specialized monitoring for tracked metrics.
+     - :class:`~noether.core.callbacks.online.best_metric.BestMetricCallback`, :class:`~noether.core.callbacks.online.track_outputs. TrackOutputsCallback`. Specialized monitoring for tracked metrics.
+
 When to Use What?
 -----------------
 
