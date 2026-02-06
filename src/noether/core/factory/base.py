@@ -11,23 +11,28 @@ from noether.core.factory.utils import class_constructor_from_class_path
 
 
 class Factory:
-    """Base factory. Implements base structures for creating a single object, a list of objects and a dict
-    of objects. The main difference between these methods are the default return values. As python does not like using
-    an empty list/dict as default value for an argument, arguments are by default often None. By differentiating
-    between these three types, one avoids none checks whenever the factory is called.
-    - create: creates an object.
-    - create_list: creates a list of objects.
-    - create_dict: creates a dict of objects.
+    """
+    Base factory.
 
-    For example, creating a list
-    ```
-    class Example:
-        def __init__(self, callbacks: list[Callback] | None = None)
-            # automatic none check in create_list (this is how FactoryBase is implemented)
-            self.callbacks = create_list(callbacks)
-            # required none check after creating the list (this is how one could implement it without create_list)
-            self.callbacks = create(callbacks) or []
-    ```
+    Implements base structures for creating a single object, a list of objects and a dict
+    of objects. The main difference between these methods are the default return values.
+    As python does not like using an empty list/dict as default value for an argument,
+    arguments are by default often None. By differentiating between these three types,
+    one avoids none checks whenever the factory is called.
+
+    * :meth:`create`: creates an object.
+    * :meth:`create_list`: creates a list of objects.
+    * :meth:`create_dict`: creates a dict of objects.
+
+    For example, creating a list:
+    .. code-block:: python
+
+        class Example:
+            def __init__(self, callbacks: list[Callback] | None = None):
+                # automatic none check in create_list (this is how FactoryBase is implemented)
+                self.callbacks = create_list(callbacks)
+                # required none check after creating the list (this is how one could implement it without create_list)
+                self.callbacks = create(callbacks) or []
     """
 
     def __init__(self, returns_partials: bool = False):

@@ -92,3 +92,13 @@ body {
 .theme-toggle-container {
     display: none;
 }
+/* --- SIDEBAR SPACING --- */
+
+.sidebar-tree > ul {
+    margin-bottom: 1rem !important;
+}
+
+/* Add spacing before the navigation tree if it follows another tree (for sections without captions) */
+.sidebar-tree + .sidebar-tree {
+    margin-top: 2rem;
+}

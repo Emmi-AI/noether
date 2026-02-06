@@ -58,7 +58,7 @@ states are impossible to represent.
 **Implementation:**
 
 - **Pydantic Validators:** ``@model_validator(mode="after")`` ensures fields like, for example, ``ndim`` are valid (e.g., only 1, 2,
-or 3).
+  or 3).
 - **Type Guards:** Utility functions like ``validate_path`` allow strictly typed filesystem operations.
 
 4. Defensive Programming

@@ -18,7 +18,9 @@ class CrossAnchorAttention(MultiBranchAnchorAttention):
     It requires all configured branches and their anchors to be present in the input.
 
     Example: all surface tokens attend to volume_anchors and all volume tokens attend to surface_anchors.
-    This is achieved via the following attention patterns:
+
+    .. code-block:: python
+
         AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["volume_anchors"])
         AttentionPattern(query_tokens=["volume_anchors", "volume_queries"], key_value_tokens=["surface_anchors"])
     """
