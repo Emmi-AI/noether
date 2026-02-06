@@ -2,7 +2,7 @@
 
 from .base import BaseTracker
 from .noop import NoopTracker
-from .trackio_tracker import TrackioTracker
+from .trackio import TrackioTracker
 from .wandb import WandBTracker
 
 __all__ = [
