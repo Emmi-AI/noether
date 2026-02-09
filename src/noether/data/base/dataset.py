@@ -19,9 +19,11 @@ def with_normalizers(normalizer_key: str):
     """Decorator to apply a normalizer to the output of a getitem_* function of the implemented Dataset class.
 
     This decorator will look for a normalizer registered under the specified key and apply it to the output of the decorated function.
-    Exaple usage:
+
+    Example usage:
 
     .. code-block:: python
+
         @with_normalizers("image")
         def getitem_image(self, idx):
             # Load image tensor
@@ -72,32 +74,34 @@ class Dataset(TorchDataset):
     Example: Image classification datasets
 
     .. code-block:: python
-         class ImageDataset(Dataset):
-             def __init__(self, dataset_config, dataset_normalizers, **kwargs):
-                 super().__init__(dataset_config=dataset_config, **kwargs)
-                 self.path = dataset_config.path
 
-             def __len__(self):
-                 return 100  # Example length
+        class ImageDataset(Dataset):
+            def __init__(self, dataset_config, dataset_normalizers, **kwargs):
+                super().__init__(dataset_config=dataset_config, **kwargs)
+                self.path = dataset_config.path
 
-             def getitem_image(self, idx):
-                 # Load image tensor
-                 return torch.load(f"{self.path}/image_tensor/{idx}.pt")
+            def __len__(self):
+                return 100  # Example length
 
-             def getitem_target(self, idx):
-                 # Load target tensor
-                 return torch.load(f"{self.path}/target_tensor/{idx}.pt")
+            def getitem_image(self, idx):
+                # Load image tensor
+                return torch.load(f"{self.path}/image_tensor/{idx}.pt")
+
+            def getitem_target(self, idx):
+                # Load target tensor
+                return torch.load(f"{self.path}/target_tensor/{idx}.pt")
 
 
-         dataset = ImageDataset("path/to/dataset")
-         sample0 = dataset[0]
-         image_0 = sample0["image"]
-         target_0 = sample0["target"]
+        dataset = ImageDataset("path/to/dataset")
+        sample0 = dataset[0]
+        image_0 = sample0["image"]
+        target_0 = sample0["target"]
 
     Data from a getitem method should be normalized in many cases. To apply normalization, add a the decorator function to the getitem method.
     For example:
 
     .. code-block:: python
+
         @with_normalizers("image")
         def getitem_image(self, idx):
             # Load image tensor
@@ -108,14 +112,15 @@ class Dataset(TorchDataset):
     Example configuration for dataset normalizers:
 
     .. code-block:: yaml
-    # dummy example configuration for an image classification
-    dataset:
-        kind: noether.data.datasets.ImageDataset
-        pipeline:  # configure the data pipeline to collate individual samples into batches
-        dataset_normalizers:
-            image:
-                - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
-                  mean: [0.485, 0.456, 0.406]
+
+        # dummy example configuration for an image classification
+        dataset:
+            kind: noether.data.datasets.ImageDataset
+            pipeline:  # configure the data pipeline to collate individual samples into batches
+            dataset_normalizers:
+                image:
+                    - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+                      mean: [0.485, 0.456, 0.406]
                   std: [0.229, 0.224, 0.225]
     """
 

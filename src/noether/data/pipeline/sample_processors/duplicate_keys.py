@@ -7,11 +7,13 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 class DuplicateKeysSampleProcessor(SampleProcessor):
     """Utility processor that simply duplicates the dictionary keys in a batch.
+
     Duplicates keys in the batch if they are in the key_map.
     Creates a new dictionary whose keys are duplicated but uses references to the values of the old dict.
     This avoids copying the data and at the same time does not modify this function's input.
 
     .. code-block:: python
+
         # dummy example
         processor = DuplicateKeysSampleProcessor(key_map={"original_key": "duplicated_key"})
 

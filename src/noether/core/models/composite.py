@@ -27,6 +27,7 @@ class CompositeModel(ModelBase):
     Example code (dummy code):
 
     .. code-block:: python
+
         from noether.core.models.composite import CompositeModel
         from somewhere import MyModel1, MyModel2
 

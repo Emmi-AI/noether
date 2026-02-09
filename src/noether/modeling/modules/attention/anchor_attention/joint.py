@@ -21,6 +21,7 @@ class JointAnchorAttention(MultiBranchAnchorAttention):
     This is achieved via the following attention pattern:
 
     .. code-block:: python
+
         AttentionPattern(
             query_tokens=["surface_anchors", "surface_queries", "volume_anchors", "volume_queries"],
             key_value_tokens=["surface_anchors", "volume_anchors"],

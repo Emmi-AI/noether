@@ -44,11 +44,11 @@ class OptimizerWrapper:
         """
         Args:
             model: Parameters of this model will be optimized.
-            torch_optim_ctor: The :class:`torch.optim.Optimizer` that should be wrapped. Needs to be a callable because it
-                requires the parameters of the model for initialization.
+            torch_optim_ctor: The :class:`~torch.optim.Optimizer` that should be wrapped. Needs to be a callable
+                because it requires the parameters of the model for initialization.
             optim_wrapper_config: The configuration for the optimizer wrapper.
-            update_counter: Object that provides the current training progress to enable scheduling of the learning rate or
-                the weight decay.
+            update_counter: Object that provides the current training progress to enable scheduling of the learning
+                rate or the weight decay.
         """
         # import here to avoid circular dependency
         from noether.core.factory import Factory, ScheduleFactory

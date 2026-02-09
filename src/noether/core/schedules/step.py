@@ -14,6 +14,7 @@ class StepDecreasingSchedule(DecreasingProgressSchedule):
     Example:
 
         .. code-block:: yaml
+
             schedule_config:
                 kind: noether.core.schedules.StepDecreasingSchedule
                 factor: 0.1
@@ -27,7 +28,8 @@ class StepDecreasingSchedule(DecreasingProgressSchedule):
         """
 
         Args:
-        config: The configuration for the scheduler. See :class:`noether.core.schemas.schedules.StepDecreasingScheduleConfig` for details.
+            config: The configuration for the scheduler. See
+                :class:`~noether.core.schemas.schedules.StepDecreasingScheduleConfig` for details.
         """
         super().__init__(config=config)
         self.factor = config.factor

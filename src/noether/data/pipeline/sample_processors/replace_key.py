@@ -7,11 +7,13 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 class ReplaceKeySampleProcessor(SampleProcessor):
     """Sample processor that replaces the key with multiple other keys.
+
     Replaces a key in the batch with one or multiple other keys.
     Creates a new dictionary whose keys are duplicated but uses references to the values of the old dict.
     This avoids copying the data and at the same time does not modify this function's input.
 
     .. code-block:: python
+
         # dummy example
         processor = ReplaceKeySampleProcessor(source_key="source", target_keys={"target1", "target2"})
         input_sample = {

@@ -40,7 +40,8 @@ class LinearWarmupCosineDecaySchedule(ScheduleBase):
         Takes either warmup_steps or warmup_percent as argument to determine the length of the warmup phase.
 
         Args:
-            config: Configuration for the linear warmup cosine decay schedule. See :class:`noether.core.schemas.schedules.LinearWarmupCosineDecayScheduleConfig` for details.
+            config: Configuration for the linear warmup cosine decay schedule. See
+                :class:`~noether.core.schemas.schedules.LinearWarmupCosineDecayScheduleConfig` for details.
         """
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)
         self.warmup_steps = config.warmup_steps

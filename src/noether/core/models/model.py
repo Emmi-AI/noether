@@ -23,6 +23,7 @@ class Model(ModelBase):
     Example code (dummy code):
 
     .. code-block:: python
+
         from noether.core.models.single import Model
         from noether.core.schemas.models import ModelBaseConfig
 

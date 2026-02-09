@@ -15,6 +15,7 @@ class PreviousRunInitializer(CheckpointInitializer):
     For example:
 
     .. code-block:: yaml
+
         model:
           kind: path.to.MyModelClass
           param1: value1

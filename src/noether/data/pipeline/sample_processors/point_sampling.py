@@ -12,6 +12,7 @@ class PointSamplingSampleProcessor(SampleProcessor):
 
 
     .. code-block:: python
+
         # dummy example
         processor = PointSamplingSampleProcessor(
             items={"input_position", "output_position"},

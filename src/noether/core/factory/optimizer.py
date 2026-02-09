@@ -10,9 +10,11 @@ from noether.core.schemas.optimizers import OptimizerConfig
 
 
 class OptimizerFactory(Factory):
-    """Factory for creating optimizers. Handles wrapping into :class:`~noether.core.optimizer.OptimizerWrapper` by creating the corresponding constructor
-    for the underlying :class:`torch.optim.Optimizer`. Objects are returned as partials, as creating the optimizer requires
-    the model parameters from the instantiated model.
+    """Factory for creating optimizers.
+
+    Handles wrapping into :class:`~noether.core.optimizer.OptimizerWrapper` by creating the corresponding constructor
+    for the underlying :class:`~torch.optim.Optimizer`. Objects are returned as partials, as creating the optimizer
+    requires the model parameters from the instantiated model.
     """
 
     def __init__(self):
@@ -26,7 +28,7 @@ class OptimizerFactory(Factory):
 
         Args:
             optimizer_config: Configuration for the optimizer to create. This config contains both the
-                :class:`torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
+                :class:`~torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
                 See :class:`~noether.core.schemas.optimizers.OptimizerConfig` for available options.
 
         Returns:

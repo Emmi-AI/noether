@@ -14,6 +14,7 @@ class MomentNormalizationSampleProcessor(SampleProcessor):
 
 
     .. code-block:: python
+
         # dummy example
         processor = MomentNormalizationSampleProcessor(
             item="measurement",

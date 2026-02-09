@@ -7,11 +7,13 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 class RenameKeysSampleProcessor(SampleProcessor):
     """Sample processor that simply renames the dictionary keys in a batch.
+
     Rename keys in the batch if they are in the key_map and keep old keys otherwise.
     Creates a new dictionary whose keys are renamed but uses references to the values of the old dict.
     This avoids copying the data and at the same time does not modify this function's input.
 
     .. code-block:: python
+
         # dummy example
         processor = RenameKeysSampleProcessor(key_map={"old_key1": "new_key1", "old_key2": "new_key2"})
         input_sample = {

@@ -11,6 +11,7 @@ class DropOutliersSampleProcessor(SampleProcessor):
     """Drops all outliers from key in a the input sample.
 
     .. code-block:: python
+
         # dummy example
         processor = DropOutliersSampleProcessor(
             item="measurement",

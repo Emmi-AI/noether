@@ -1,5 +1,5 @@
 How to Use and Build Callbacks
-====================
+===============================
 
 Callbacks are the primary mechanism in the **Noether Framework** that allow you to inject custom logic into various stages of the training process. They are primarily used for monitoring, checkpointing, evaluation, and experiment tracking.
 
@@ -99,6 +99,7 @@ To create a custom callback, define a new class that inherits from one of the ba
 
 
 .. code-block:: python
+   
    from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig 
    from noether.core.callbacks.periodic import PeriodicCallback
    import torch

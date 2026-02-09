@@ -9,8 +9,11 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 
 
 class PositionNormalizationSampleProcessor(SampleProcessor):
-    """Pre-processes data on a sample-level to normalize positions. Should only be used when multiple items should be normalized with the same normalization.
-    If only one item should be normalized, consider usingm the preprocessor :class:`noether.data.preprocessors.normalizers.PositionNormalizer` instead.
+    """Pre-processes data on a sample-level to normalize positions.
+
+    Should only be used when multiple items should be normalized with the same normalization.
+    If only one item should be normalized, consider using the preprocessor
+    :class:`~noether.data.preprocessors.normalizers.PositionNormalizer` instead.
     """
 
     def __init__(

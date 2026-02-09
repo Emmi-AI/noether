@@ -17,7 +17,9 @@ class PropertySubsetWrapper(DatasetWrapper):
     By using a PropertySubsetWrapper, you can create two different datasets for training and validation that only load the necessary items.
 
     Example:
+
     .. code-block:: python
+
         from noether.data import PropertySubsetWrapper, Dataset
 
 

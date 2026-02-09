@@ -12,6 +12,7 @@ class ConcatTensorSampleProcessor(SampleProcessor):
 
 
     .. code-block:: python
+
         # dummy example
         processor = ConcatTensorSampleProcessor(items=["image_part1", "image_part2"], target_key="full_image", dim=0)
         input_sample = {

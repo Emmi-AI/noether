@@ -10,16 +10,18 @@ class ConstantSchedule(ScheduleBase):
     Example:
 
         .. code-block:: yaml
+
             schedule_config:
-            kind: noether.core.schedules.ConstantSchedule
-            value : ${model.optim.lr}
+                kind: noether.core.schedules.ConstantSchedule
+                value: ${model.optim.lr}
     """
 
     def __init__(self, config: ConstantScheduleConfig):
         """
 
         Args:
-            scheduler_config: Configuration of the constant schedule. See :class:`noether.core.schemas.schedules.ConstantScheduleConfig` for details.
+            config: Configuration of the constant schedule. See
+                :class:`~noether.core.schemas.schedules.ConstantScheduleConfig` for details.
         """
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)
         self.value = config.value

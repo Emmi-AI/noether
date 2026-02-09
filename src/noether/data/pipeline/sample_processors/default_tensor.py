@@ -12,6 +12,7 @@ class DefaultTensorSampleProcessor(SampleProcessor):
 
 
     .. code-block:: python
+
         # dummy example
         processor = DefaultTensorSampleProcessor(
             item_key_name="default_tensor",

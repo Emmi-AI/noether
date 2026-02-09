@@ -11,7 +11,9 @@ class MomentNormalizationBatchProcessor(BatchProcessor):
     """Normalizes a value with its mean and standard deviation (i.e., its moments) in a batch.
 
     Example:
+
     .. code-block:: python
+
         processor = MomentNormalizationBatchProcessor(
             items=['velocity', 'pressure'],
             mean=[1.0, 2.0],

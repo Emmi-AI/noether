@@ -12,10 +12,12 @@ class PolynomialDecreasingSchedule(DecreasingProgressSchedule):
         """
 
         Args:
-            config: Configuration for the polynomial decreasing schedule. See :class:`noether.core.schemas.schedules.PolynomialDecreasingScheduleConfig` for details.
+            config: Configuration for the polynomial decreasing schedule. See
+                :class:`~noether.core.schemas.schedules.PolynomialDecreasingScheduleConfig` for details.
 
         Example:
             .. code-block:: yaml
+
                 schedule_config:
                     kind: noether.core.schedules.PolynomialDecreasingSchedule
                     power: 2.0
@@ -36,15 +38,17 @@ class PolynomialIncreasingSchedule(IncreasingProgressSchedule):
         """
 
         Args:
-            config: Configuration for the polynomial increasing schedule. See :class:`noether.core.schemas.schedules.PolynomialIncreasingScheduleConfig` for details.
+            config: Configuration for the polynomial increasing schedule. See
+                :class:`~noether.core.schemas.schedules.PolynomialIncreasingScheduleConfig` for details.
 
         Example:
             .. code-block:: yaml
-                 schedule_config:
-                     kind: noether.core.schedules.PolynomialIncreasingSchedule
-                     power: 2.0
-                     start_value: 1e-6
-                     max_value: ${model.optim.lr} # reference to the lr defined above
+
+                schedule_config:
+                    kind: noether.core.schedules.PolynomialIncreasingSchedule
+                    power: 2.0
+                    start_value: 1e-6
+                    max_value: ${model.optim.lr} # reference to the lr defined above
         """
         super().__init__(config=config)
         self.power = config.power

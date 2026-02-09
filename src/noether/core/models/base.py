@@ -24,6 +24,8 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
 
 
 class ModelBase(nn.Module):
+    """Base class for all models trainable by the trainers."""
+
     def __init__(
         self,
         model_config: ModelBaseConfig,

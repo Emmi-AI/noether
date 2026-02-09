@@ -39,10 +39,11 @@ IntervalType = Literal["epoch", "update", "sample", "eval"]
 """Type alias for periodic callback interval types.
 
 Defines the unit of training progress used to trigger periodic callbacks:
+
 * "epoch": Callback is triggered based on completed epochs
 * "update": Callback is triggered based on optimizer update steps
 * "sample": Callback is triggered based on number of samples processed
-* "eval": Callback is triggered independ of schedule for post-training evaluation
+* "eval": Callback is triggered independent of schedule for post-training evaluation
 """
 
 

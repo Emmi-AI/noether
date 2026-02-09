@@ -16,7 +16,7 @@ class DatasetFactory(Factory):
 
     .. code-block:: yaml
 
-        kind: noether.core.factory.DatasetFactory
+        kind: path.to.model.MyModel
         dataset_wrappers:
           - kind: noether.data.base.wrappers.SomeDatasetWrapper
             param1: value1

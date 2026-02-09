@@ -105,7 +105,7 @@ class BaseTrainer:
             config: Configuration for the trainer. See :class:`~noether.core.schemas.BaseTrainerConfig` for the available options.
             data_container: The :class:`~noether.data.container.DataContainer` which includes the data and dataloader.
             device: The device to use for training (e.g., "cuda"). It is assumed that the process was configured such
-                that only 1 device is visible (e.g., via the CUDA_VISIBLE_DEVICES environment variable).
+                that only 1 device is visible (e.g., via the `CUDA_VISIBLE_DEVICES` environment variable).
             main_sampler_kwargs: Kwargs passed to instantiate the main sampler.
             tracker: The tracker to use for training.
             path_provider: The :class:`~noether.core.providers.PathProvider` to use for training.

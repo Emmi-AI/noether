@@ -12,6 +12,7 @@ class RepeatWrapper(Subset):
     Example:
 
     .. code-block:: python
+
         from noether.data import Dataset as ListDataset
 
         dataset = ListDataset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])

@@ -120,7 +120,7 @@ class EmaCallbackConfig(CallBackBaseConfig):
     save_last_weights: bool = Field(True)
     """Save the weights of the model when training is over (i.e., at the end of training, save the EMA weights)."""
     save_latest_weights: bool = Field(False)
-    """ Save the latest EMA weights. Note that the latest weights are always overwritten on the next invocation of this callback."""
+    """Save the latest EMA weights. Note that the latest weights are always overwritten on the next invocation of this callback."""
 
 
 class OnlineLossCallbackConfig(CallBackBaseConfig):

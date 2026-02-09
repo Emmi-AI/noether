@@ -33,7 +33,8 @@ class CrossAnchorAttention(MultiBranchAnchorAttention):
         """
 
         Args:
-            config: Configuration for the CrossAnchorAttention module. See :class:`noether.core.schemas.modules.attention.CrossAnchorAttentionConfig` for the available options.
+            config: Configuration for the CrossAnchorAttention module. See
+                :class:`~noether.core.schemas.modules.attention.CrossAnchorAttentionConfig` for the available options.
         """
         if len(config.branches) < 2:
             raise ValueError("CrossAnchorAttention requires at least two branches.")

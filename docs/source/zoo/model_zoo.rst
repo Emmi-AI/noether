@@ -32,5 +32,5 @@ The Noether Framework includes base implementations for several state-of-the-art
      - `upt.py <https://github.com/Emmi-AI/noether/blob/main/src/noether/modeling/models/upt.py>`_
      - \-
 
-- Transformer & Transolver(++): These models are implemented as a backbone consisting of a stack of layers. Transolver replaces the standard attention mechanism with Physics-Attention. For these models, input embedding and output projection must be handled by separate wrapper modules.
-- UPT & AB-UPT: In contrast, these models are "off-the-shelf" implementations.``
+- **Transformer & Transolver(++)**: These models are implemented as a `backbone`; consisting of a stack of layers. Transolver replaces the standard attention mechanism with Physics-Attention. For these two models, input embedding and output projection must be implemented by an extra wrapper module that uses the backbone.
+- **UPT & AB-UPT**: In contrast, these models are "off-the-shelf" implementations, meaning they include the full architecture, including input embedding and output projection.
