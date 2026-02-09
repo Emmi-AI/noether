@@ -16,7 +16,6 @@ class FixedEarlyStopper(EarlyStopperBase):
           stop_at_epoch: 10
           name: FixedEarlyStopper
 
-
     """
 
     def __init__(

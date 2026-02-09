@@ -63,9 +63,9 @@ class CheckpointInitializer(InitializerBase):
             model_name: the name of the model to load.
 
         Returns:
-            sd: the model state dict.
+            state_dict: the model state dict.
             model_name: the name of the model to load.
-            ckpt_uri: the URI of the checkpoint file.
+            checkpoint_uri: the URI of the checkpoint file.
         """
         model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
             model=model, model_name=model_name, file_type="model"

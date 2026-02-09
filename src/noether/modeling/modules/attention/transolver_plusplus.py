@@ -84,8 +84,8 @@ class TransolverPlusPlusAttention(nn.Module):
             )  # type: ignore[call-arg]
         )
 
-        for l in [self.in_project_slice.project]:
-            torch.nn.init.orthogonal_(l.weight)  # type: ignore[arg-type]
+        if isinstance(self.in_project_slice.project, nn.Linear | nn.Conv1d | nn.Conv2d | nn.Conv3d):
+            torch.nn.init.orthogonal_(self.in_project_slice.project.weight)  # use a principled initialization
 
         self.qkv = LinearProjection(
             config=LinearProjectionConfig(

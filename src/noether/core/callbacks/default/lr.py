@@ -17,7 +17,6 @@ class LrCallback(PeriodicCallback):
     This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added
     manually to the trainer's callbacks.
     """
-
     def _should_log_after_update(self, training_iteration: TrainingIteration):
         if training_iteration.update == 1:
             return True

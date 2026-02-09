@@ -12,7 +12,6 @@ class ParamCountCallback(CallbackBase):
     This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added
     manually to the trainer's callbacks.
     """
-
     @staticmethod
     def _get_param_counts(model, trace=None):
         if isinstance(model, CompositeModel):

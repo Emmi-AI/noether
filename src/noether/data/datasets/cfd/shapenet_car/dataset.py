@@ -140,7 +140,7 @@ class ShapeNetCarDataset(AeroDataset):
 
         try:
             sample_uri = self.source_root / self.design_ids[idx] / filename
-            return torch.load(sample_uri, weights_only=True)
+            return torch.load(sample_uri, weights_only=True)  # type: ignore[no-any-return]
         except Exception as e:
             raise RuntimeError(f"Failed to load {sample_uri}: {e}") from e
 

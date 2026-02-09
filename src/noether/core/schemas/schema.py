@@ -9,14 +9,16 @@ from typing import Any, Literal
 
 import torch
 from omegaconf import OmegaConf
-from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.schemas.normalizers import AnyNormalizer
-from noether.core.schemas.trackers import WandBTrackerSchema
+from noether.core.schemas.trackers import AnyTracker
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.utils.common import validate_path
+
+ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]
 
 
 class StaticConfigSchema(BaseModel):
@@ -51,13 +53,23 @@ def master_port_from_env() -> int:
     return rand_gen.randint(20000, 60000)
 
 
+def default_accelerator() -> ACCELERATOR_TYPES:
+    """Sets the accelerator if it is not already set."""
+    if torch.cuda.is_available():
+        return "gpu"
+    elif torch.backends.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"
+
+
 class ConfigSchema(BaseModel):
     """Root configuration schema for all experiments in Noether."""
 
     name: str | None = None
     """Name of the experiment."""
-    accelerator: Literal["cpu", "gpu", "mps"] | None = None
-    """Type of accelerator to use. Default is None, which lets the system choose the best available accelerator. GPU > MPS > CPU."""
+    accelerator: ACCELERATOR_TYPES = Field(default_factory=default_accelerator)
+    """Type of accelerator to use. By default the system choose the best available accelerator. GPU > MPS > CPU."""
     stage_name: str | None = None
     """Name of the current stage. I.e., train, finetune, test, etc. When None, the run_id directory is used as output directory. Otherwise, run_id/stage_name is used."""
     dataset_kind: str | None = None
@@ -76,7 +88,7 @@ class ConfigSchema(BaseModel):
     """Pre-computed dataset statistics, e.g., mean and std for normalization. Since some tensors are multi-dimensional, the statistics are stored as lists."""
     dataset_normalizer: dict[str, list[AnyNormalizer]] | None = None
     """List of normalizers to apply to the dataset. The key is the data source name."""
-    tracker: WandBTrackerSchema | None = None
+    tracker: AnyTracker | None = Field(None, discriminator="kind")
     """Configuration for experiment tracking. If None, no tracking is used. If "disabled", tracking is explicitly disabled.  WandB is currently the only supported tracker."""
     run_id: str | None = None
     """Unique identifier for the run. If None, a new ID will be generated."""
@@ -143,15 +155,3 @@ class ConfigSchema(BaseModel):
         """The fully qualified import path for the configuration class."""
         # Use __qualname__ to correctly handle nested classes
         return f"{self.__class__.__module__}.{self.__class__.__qualname__}"
-
-    @model_validator(mode="after")
-    def set_accelerator_if_unset(self) -> ConfigSchema:
-        """Sets the accelerator if it is not already set."""
-        if self.accelerator is None:
-            if torch.cuda.is_available():
-                self.accelerator = "gpu"
-            elif torch.backends.mps.is_available():
-                self.accelerator = "mps"
-            else:
-                self.accelerator = "cpu"
-        return self

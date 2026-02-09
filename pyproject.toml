@@ -23,8 +23,6 @@ dependencies = [
     "hydra-core>=1.3.2",
     "numpy==2.3.1",
     "torch==2.8.0",
-    "torch-geometric>=2.7.0",
-    "torch-cluster",
     "pandas>=2.3.3",
     # ---
     "aistore>=1.13.5",
@@ -37,6 +35,11 @@ dependencies = [
     "typer>=0.16.0",
     "fsspec>=2025.5.1",
     # ---
+]
+[project.optional-dependencies]
+cluster = [
+    "torch-geometric>=2.7.0",
+    "torch-cluster",
 ]
 
 [project.urls]
@@ -61,15 +64,16 @@ dev = [
     { include-group = "docs" },
     "pre-commit>=4.2.0",
     "pytest>=8.3.5",
-    "pytest-cov",                      # Added for code coverage
+    "pytest-cov", # Added for code coverage
     "mypy[reports]>=1.15.0",
     "ruff>=0.11.0",
     "fixit>=2.1.0",
-    "ipykernel>=6.30.0",               # Useful for notebooks
+    "ipykernel>=6.30.0", # Useful for notebooks
     "types-docutils==0.22.0.20250822",
     "types-pyyaml>=6.0.12.20241230",
     "types-tqdm>=4.67.0.20250809",
     "docutils-stubs==0.0.22",
+    "pytest-benchmark>=5.2.3",
 ]
 docs = [
     "sphinx>=7.3",
@@ -80,6 +84,8 @@ docs = [
     "sphinx-design",
     "myst-parser",
     "autodoc-pydantic>=2.2.0",
+    "sphinx-copybutton>=0.5.2",
+    "roman-numerals-py==4.0.0", # pin because of https://github.com/sphinx-doc/sphinx/issues/14186
 ]
 
 # --- Centralized UV Configuration ---
@@ -109,27 +115,10 @@ python_version = "3.12"
 mypy_path = ["src"]
 files = ["src"]
 
-[[tool.mypy.overrides]]
-module = [
-    "torch_geometric.*",
-    "torch_scatter.*",
-    "torch_cluster.*",
-    "aistore.*",
-    "boto3.*",
-    #    "pyvista.*",
-    #    "trimesh.*",
-    #    "rtree.*"
-]
 ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests/unit"]
-pythonpath = ["src"]
-addopts = ["--import-mode=importlib"]
 
 check_untyped_defs = true
 explicit_package_bases = true
-ignore_missing_imports = true
 namespace_packages = true
 no_implicit_optional = true
 strict = false
@@ -137,6 +126,23 @@ warn_return_any = true
 warn_unused_ignores = false
 show_error_codes = true
 exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
+
+[[tool.mypy.overrides]]
+module = [
+    "torch_geometric.*",
+    "torch_scatter.*",
+    "aistore.*",
+    "boto3.*",
+    #    "pyvista.*",
+    #    "trimesh.*",
+    #    "rtree.*"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+pythonpath = ["src"]
+addopts = ["--import-mode=importlib", "-m", "not benchmark"]
+
 
 [tool.ruff]
 exclude = [
