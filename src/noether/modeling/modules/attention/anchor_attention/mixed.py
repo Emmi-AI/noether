@@ -27,6 +27,7 @@ class MixedAttention(DotProductAttention):
     Example input structure (forward pass signature) for implementing Anchor Attention:
 
     .. code-block:: python
+
         x = torch.cat([surface_anchors, surface_queries, volume_anchors, volume_queries], dim=1)  # sequence dim
         token_specs = [
             TokenSpec("surface_anchors", 100),
@@ -46,7 +47,8 @@ class MixedAttention(DotProductAttention):
     ) -> None:
         """
         Args:
-            config: Configuration for the MixedAttention module. See :class:`noether.core.schemas.modules.attention.MixedAttentionConfig` for the available options.
+            config: Configuration for the MixedAttention module. See
+                :class:`~noether.core.schemas.modules.attention.MixedAttentionConfig` for the available options.
         """
         super().__init__(config=config)
 
