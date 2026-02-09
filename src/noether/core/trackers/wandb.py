@@ -2,7 +2,12 @@
 
 import os
 
-import wandb
+try:
+    import wandb
+
+    WANDB_IMPORT_ERROR = None
+except ImportError as e:
+    WANDB_IMPORT_ERROR = e
 
 from noether.core.schemas.trackers import WandBTrackerSchema
 from noether.core.trackers.base import BaseTracker
@@ -23,6 +28,12 @@ class WandBTracker(BaseTracker):
             tracker_config: Configuration for the WandBTracker. Implements the `WandBTrackerSchema`.
             **kwargs: Additional keyword arguments passed to the parent class.
         """
+        if WANDB_IMPORT_ERROR is not None:
+            raise ImportError(
+                "Failed to import wandb. Please install wandb to use the WandBTracker. "
+                "You can install it via pip: `pip install wandb`."
+            ) from WANDB_IMPORT_ERROR
+
         super().__init__(**kwargs)
         assert tracker_config.mode in WandBTracker.MODES
         self.mode = tracker_config.mode
