@@ -27,14 +27,17 @@ from noether.modeling.modules.mlp import MLP
 
 class AnchoredBranchedUPT(nn.Module):
     """
-    Implementation of the Anchored Branched UPT model.
+    Implementation of the Anchored Branched UPT model. Including input embedding and output projection, so this is an off-the-shelf model that can be used directly by providing the appropriate input tensors.
     """
 
     def __init__(
         self,
         config: AnchorBranchedUPTConfig,
     ):
-        """ """
+        """
+
+        Args:
+            config: Configuration for the AB-UPT model. See :class:`~noether.core.schemas.models.AnchorBranchedUPTConfig` for details."""
         super().__init__()
 
         self.data_specs = config.data_specs
@@ -56,12 +59,6 @@ class AnchoredBranchedUPT(nn.Module):
             )  # type: ignore[call-arg]
         )  # type: ignore[call-arg]
 
-        # geometry
-        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
-
-        self.geometry_blocks = nn.ModuleList(
-            [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
-        )
         # pos_embed
         self.pos_embed = ContinuousSincosEmbed(
             config=ContinuousSincosEmbeddingConfig(
@@ -69,8 +66,16 @@ class AnchoredBranchedUPT(nn.Module):
             )  # type: ignore[call-arg]
         )
 
+        # geometry
+        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
+
+        self.geometry_blocks = nn.ModuleList(
+            [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
+        )
+
+        # position bias
         self.surface_bias = MLP(
-            config=MLPConfig(
+            config=MLPConfig(  # type: ignore[call-arg]
                 input_dim=config.hidden_dim,
                 hidden_dim=config.hidden_dim,
                 output_dim=config.hidden_dim,
@@ -78,13 +83,14 @@ class AnchoredBranchedUPT(nn.Module):
         )
 
         self.volume_bias = MLP(
-            config=MLPConfig(
+            config=MLPConfig(  # type: ignore[call-arg]
                 input_dim=config.hidden_dim,
                 hidden_dim=config.hidden_dim,
                 output_dim=config.hidden_dim,
             )
         )
 
+        # physics blocks
         self.num_perceivers = 0
         self.physics_blocks = nn.ModuleList()
         self.use_geometry_branch = False
@@ -135,6 +141,7 @@ class AnchoredBranchedUPT(nn.Module):
             [TransformerBlock(config=volume_blocks_config) for _ in range(config.num_volume_blocks)],
         )
 
+        # output projection
         self.surface_decoder = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=config.hidden_dim,
@@ -159,6 +166,8 @@ class AnchoredBranchedUPT(nn.Module):
         use_surface_queries: bool,
         use_volume_queries: bool,
     ) -> dict[str, Tensor]:
+        """Slice the predictions from the surface and volume decoders into the appropriate fields according to the data specifications. If queries are used, slice the predictions for anchors and queries separately."""
+
         predictions: dict[str, Tensor] = {}
         assert surface_predictions.size(-1) == sum(dict(self.data_specs.surface_output_dims).values())
 
@@ -265,9 +274,7 @@ class AnchoredBranchedUPT(nn.Module):
         condition: torch.Tensor | None,
         geometry_attn_kwargs: dict[str, torch.Tensor],
     ) -> torch.Tensor:
-        """
-        Forward pass through the geometry branch of the model.
-        """
+        """Forward pass through the geometry branch of the model."""
 
         # encode geometry
         geometry_encoding: torch.Tensor = self.encoder(
@@ -297,17 +304,7 @@ class AnchoredBranchedUPT(nn.Module):
     ) -> torch.Tensor:
         """
         Forward pass through the physics blocks of the model.
-
         Allthough in the AB-UPT paper we only have a perceiver block a the first block, it is possible to have more perceiver blocks in the physics blocks that attend to the geometry encoding.
-
-        Args:
-            surface_position_all: Tensor of shape (B, N_surface_total, D_pos)
-            volume_position_all: Tensor of shape (B, N_volume_total, D_pos)
-            geometry_encoding: Tensor of shape (B, N_supernodes, D_hidden)
-            physics_token_specs: List of TokenSpec defining the token specifications for the physics blocks.
-            physics_attn_kwargs: Additional attention kwargs for the physics transformer blocks.
-            physics_perceiver_attn_kwargs: Additional attention kwargs for the physics perceiver blocks.
-            condition: Optional conditioning tensor of shape (B, D_condition)
         """
 
         if not (surface_position_all.ndim == 3 and volume_position_all.ndim == 3):
@@ -386,14 +383,7 @@ class AnchoredBranchedUPT(nn.Module):
         surface_position_all: torch.Tensor,
         volume_position_all: torch.Tensor,
     ):
-        """Create RoPE frequencies for all relevant positions.
-
-        Args:
-            geometry_position: Tensor of shape (B * N_geometry, D_pos), sparse tensor.
-            geometry_supernode_idx: Tensor of shape (B * number of super nodes,) with indices of supernodes
-            surface_position_all: Tensor of shape (B, N_surface_total, D_pos)
-            volume_position_all: Tensor of shape (B, N_volume_total, D_pos)
-        """
+        """Create RoPE frequencies for all relevant positions."""
 
         # kwargs for the rope attention
         batch_size = surface_position_all.size(0)
@@ -441,6 +431,7 @@ class AnchoredBranchedUPT(nn.Module):
         query_volume_position: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Forward pass of the AB-UPT model.
+
         Args:
             geometry_position: Coordinates of the geometry mesh. Tensor of shape (B * N_geometry, D_pos), sparse tensor
             geometry_supernode_idx: Indices of the supernodes for the geometry points. Tensor of shape (B * number of super nodes,)
@@ -451,6 +442,9 @@ class AnchoredBranchedUPT(nn.Module):
             inflow_design_parameters: Design parameters related to the inflow to condition on. Tensor of shape (B, D_inflow).
             query_surface_position: Coordinates of the query surface points.
             query_volume_position: Coordinates of the query volume points.
+
+        Returns:
+            dict[str, torch.Tensor]: A dictionary containing the predictions for surface and volume fields, sliced according to the data specifications.
         """
         condition = self._prepare_condition(geometry_design_parameters, inflow_design_parameters)
 

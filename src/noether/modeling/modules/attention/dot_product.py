@@ -17,7 +17,7 @@ class DotProductAttention(nn.Module):
         self,
         config: AttentionConfig,
     ):
-        """Initialize the DotProductAttention module.
+        """
 
         Args:
             config: Configuration for the DotProductAttention module. See

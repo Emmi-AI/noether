@@ -14,7 +14,11 @@ class SelfAnchorAttention(MultiBranchAnchorAttention):
     It requires all configured branches and their anchors to be present in the input.
 
     Example: surface tokens attend to surface_anchors and volume tokens attend to volume_anchors.
+
     This is achieved via the following attention patterns:
+
+    .. code-block:: python
+
         AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["surface_anchors"])
         AttentionPattern(query_tokens=["volume_anchors", "volume_queries"], key_value_tokens=["volume_anchors"])
     """

@@ -21,7 +21,7 @@ class EtaCallback(PeriodicCallback):
 
     This callback is initialized by the :class:`~noether.training.trainers.BaseTrainer` and should not be added
     manually to the trainer's callbacks.
-   """
+    """
 
     class LoggerWasCalledHandler(logging.Handler):
         def __init__(self):

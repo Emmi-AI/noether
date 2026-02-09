@@ -13,8 +13,7 @@ class LayerScale(nn.Module):
         """
         Initialize the LayerScale module.
         Args:
-            hidden_dim: Number of dimensions of the input tensor to be scaled.
-            init_scale: Initial gamme scale value. Defaults to 1e-5.
+            config: Configuration for the LayerScale module. See :class:`~noether.core.schemas.modules.layers.LayerScaleConfig` for details.
         """
 
         super().__init__()

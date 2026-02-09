@@ -17,7 +17,7 @@ class PerceiverAttention(nn.Module):
         self,
         config: AttentionConfig,
     ):
-        """Initialize the PerceiverAttention module.
+        """
 
         Args:
             config: Configuration for the PerceiverAttention module. See

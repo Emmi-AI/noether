@@ -21,7 +21,7 @@ class RopeFrequency(nn.Module):
     ):
         """
         Args:
-            config: Configuration for RoPE frequency settings.
+            config: Configuration for RoPE frequency settings. See :class:`~noether.core.schemas.modules.layers.RopeFrequencyConfig` for available options.
         """
         super().__init__()
         if config.implementation == "real":
@@ -40,7 +40,8 @@ class RopeFrequency(nn.Module):
         self.max_wavelength = config.max_wavelength
         self.padding = self.ndim_padding + self.sincos_padding * config.input_dim
         effective_dim_per_wave = (self.hidden_dim - self.padding) // config.input_dim
-        assert effective_dim_per_wave > 0
+        if not effective_dim_per_wave > 0:
+            raise ValueError(f"Effective hidden dimension per wave must be > 0. Got {effective_dim_per_wave}.")
         arange = torch.arange(0, effective_dim_per_wave, 2, dtype=torch.float)
         self.register_buffer(
             "omega",
@@ -48,6 +49,12 @@ class RopeFrequency(nn.Module):
         )
 
     def forward(self, coords: torch.Tensor) -> torch.Tensor | tuple[torch.Tensor, ...]:
+        """
+
+        Args:
+            coords: coordinates to create RoPE frequencies for. Expected shape is (..., input_dim).
+        """
+
         with amp.disable(device_type=str(coords.device).split(":")[0]):
             coordinate_ndim = coords.shape[-1]
             assert self.input_dim == coordinate_ndim

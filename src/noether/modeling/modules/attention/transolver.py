@@ -18,7 +18,6 @@ class TransolverAttention(nn.Module):
 
     def __init__(self, config: AttentionConfig):
         """
-        Initialize the Transolver attention module.
 
         Args:
             config: Configuration for the Transolver attention module. See

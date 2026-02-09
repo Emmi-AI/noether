@@ -19,10 +19,7 @@ class ScalarsConditioner(nn.Module):
         to condition_dim with an MLP.
 
         Args:
-            hidden_dim: Dimension for embedding the scalars and the per-scalar MLP.
-            num_scalars: How many scalars are embedded.
-            condition_dim: Dimension of the final conditioning vector. Defaults to 4 * dim if condition_dim is None.
-            init_weights: Weight initialization for MLPs.
+            config: configuration for the ScalarsConditioner. See :class:`~noether.core.schemas.modules.layers.scalar_conditioner.ScalarsConditionerConfig` for available options.
         """
         super().__init__()
         condition_dim = config.condition_dim or config.hidden_dim * 4
