@@ -12,7 +12,7 @@ _logger = logging.getLogger(__name__)
 
 
 class Hyperparameters:
-    """Utility class for store and logging hyperparameters configurations from a Pydantic model."""
+    """Utility class to store and log hyperparameters configurations from a Pydantic model."""
 
     @staticmethod
     def save_resolved(stage_hyperparameters: ConfigSchema, out_file_uri: str | Path) -> None:
