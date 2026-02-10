@@ -26,7 +26,8 @@ def main(config: DictConfig):
 
     Example:
     .. code-block:: bash
-        python main_train.py configs/my_experiment.yaml
+
+       python main_train.py configs/my_experiment.yaml
         python main_train.py --hp configs/my_experiment.yaml
         python main_train.py configs/my_experiment.yaml trainer.max_epochs=10
     """
