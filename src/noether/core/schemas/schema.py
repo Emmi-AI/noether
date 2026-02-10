@@ -81,7 +81,7 @@ class ConfigSchema(BaseModel):
     resume_stage_name: str | None = None
     """Stage name to resume from. If None, resume from the default stage."""
     resume_checkpoint: str | None = None
-    """Path to checkpoint to resume from. If None, the the 'latest' checkpoint will be used."""
+    """Path to checkpoint to resume from. If None, the 'latest' checkpoint will be used."""
     seed: int = Field(0)
     """Random seed for reproducibility."""
     dataset_statistics: dict[str, list[float | int]] | None = None

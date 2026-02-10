@@ -10,7 +10,6 @@ from noether.data.pipeline.sample_processor import SampleProcessor
 class PointSamplingSampleProcessor(SampleProcessor):
     """Randomly subsamples points from a tensor.
 
-
     .. code-block:: python
 
         # dummy example

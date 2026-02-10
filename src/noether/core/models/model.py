@@ -20,6 +20,10 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
 
 class Model(ModelBase):
     """
+
+    Model class that should be extended by all custom models.
+    Each model has its own optimizer and learning rate scheduler, which are initialized in the `initialize_optimizer` method.
+
     Example code (dummy code):
 
     .. code-block:: python

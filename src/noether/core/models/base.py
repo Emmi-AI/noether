@@ -24,7 +24,11 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
 
 
 class ModelBase(nn.Module):
-    """Base class for all models trainable by the trainers."""
+    """Base class for models (:class:`~noether.core.models.model.Model` and :class:`~noether.core.models.composite.CompositeModel`) that is used to define the interface for all models trainable by the :class:`~noether.training.trainers.base.BaseTrainer`.
+
+    Provides methods to initialize the model weights and setup (model-specific) optimizers.
+
+    """
 
     def __init__(
         self,
@@ -34,9 +38,7 @@ class ModelBase(nn.Module):
         data_container: DataContainer | None = None,
         initializer_config: list[InitializerConfig] | None = None,
     ):
-        """Base class for models that is used to define the interface for all models trainable by the trainers.
-
-        Provides methods to initialize the model weights and setup (model-specific) optimizers.
+        """
 
         Args:
             model_config: Model configuration. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options.
