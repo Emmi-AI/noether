@@ -174,8 +174,7 @@ class Factory:
         """Instantiates an object based on its fully specified classpath.
 
         Args:
-            object_config: Configuration containing the fully specified type of the object in the ``kind`` field.
-                For example: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
+            object_config: Configuration containing the fully specified type of the object in the ``kind`` field such as: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
             kwargs: kwargs passed to the type when instantiating the object.
 
         Returns:
