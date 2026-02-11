@@ -11,8 +11,8 @@ if TYPE_CHECKING:
 class DatasetWrapper:
     """Wrapper around arbitrary noether.data.Dataset instances to generically change something about the dataset.
     For example:
-    - Create a subset of the dataset (noether.data.Subset)
-    - Define which properties/items to load from the dataset, i.e., which getitem_* methods to call (noether.data.ModeWrapper)
+        - Create a subset of the dataset (noether.data.Subset)
+        - Define which properties/items to load from the dataset, i.e., which getitem_* methods to call (noether.data.ModeWrapper)
     What exactly is changed depends on the specific implementation of the DatasetWrapper child class.
     """
 

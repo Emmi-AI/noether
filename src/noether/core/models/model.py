@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Self
 
 import torch
 
@@ -19,6 +19,51 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
 
 
 class Model(ModelBase):
+    """
+
+    Model class that should be extended by all custom models.
+    Each model has its own optimizer and learning rate scheduler, which are initialized in the `initialize_optimizer` method.
+
+    Example code (dummy code):
+
+    .. code-block:: python
+
+        from noether.core.models.single import Model
+        from noether.core.schemas.models import ModelBaseConfig
+
+        class MyModelConfig(ModelBaseConfig):
+            kind: path.to.MyModel
+            name: my_model
+            optimizer_config:
+                kind: torch.optim.AdamW
+                lr: 1.0e-3
+                weight_decay: 0.05
+                clip_grad_norm: 1.0
+                schedule_config:
+                    kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+                    warmup_percent: 0.05
+                    end_value: 1.0e-6
+                    max_value: ${model.optimizer_config.lr}
+
+            input_dim: int = 128
+            hidden_dim: int = 256
+            output_dim: int = 10
+
+        class MyModel(Model):
+            def __init__(self, model_config: MyModelConfig, ...):
+                super().__init__(model_config, ...)
+
+                self.layer1 = torch.nn.Linear(self.model_config.input_dim, self.model_config.hidden_dim)
+                self.layer2 = torch.nn.Linear(self.model_config.hidden_dim, self.model_config.output_dim
+
+            def forward(self, x: torch.Tensor) -> torch.Tensor:
+                # define forward pass here
+                x = self.layer1(x)
+                x = torch.relu(x)
+                x = self.layer2(x)
+                return x
+    """
+
     def __init__(
         self,
         model_config: ModelBaseConfig,
@@ -26,18 +71,17 @@ class Model(ModelBase):
         update_counter: UpdateCounter | None = None,
         path_provider: PathProvider | None = None,
         data_container: DataContainer | None = None,
-        static_context: dict[str, Any] | None = None,
     ):
         """Base class for single models, i.e. one model with one optimizer as opposed to CompositeModel.
 
         Args:
-            model_config: Model configuration.
+            model_config: Model configuration. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options.
+            update_counter: The :class:`~noether.core.utils.training.counter.UpdateCounter` provided to the optimizer.
             is_frozen: If true, will set `requires_grad` of all parameters to false. Will also put the model into eval
                 mode (e.g., to put Dropout or BatchNorm into eval mode).
-            path_provider: A path provider used by the initializer to store or retrieve checkpoints.
-            data_container: The data container which includes the data and dataloader.
+            path_provider: :class:`~noether.core.providers.PathProvider` used by the initializer to store or retrieve checkpoints.
+            data_container: :class:`~noether.data.container.DataContainer` which includes the data and dataloader.
                 This is currently unused but helpful for quick prototyping only, evaluating forward in debug mode, etc.
-            static_context: The static context used to pass information between submodules, e.g. patch_size, latent_dim.
         """
         super().__init__(
             model_config=model_config,
@@ -45,7 +89,6 @@ class Model(ModelBase):
             path_provider=path_provider,
             data_container=data_container,
             initializer_config=model_config.initializers,  # type: ignore[arg-type]
-            static_context=static_context,
         )
 
         self._device = torch.device("cpu")

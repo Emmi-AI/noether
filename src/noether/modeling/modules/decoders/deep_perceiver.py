@@ -21,10 +21,9 @@ class DeepPerceiverDecoder(nn.Module):
         config: DeepPerceiverDecoderConfig,
     ):
         """
-        Initialize the DeepPerceiverDecoder.
 
         Args:
-            config: Configuration for the DeepPerceiverDecoder module.
+            config: Configuration for the DeepPerceiverDecoder module. See :class:`~noether.core.schemas.modules.decoders.DeepPerceiverDecoderConfig` for available options.
         """
         super().__init__()
 
@@ -38,17 +37,16 @@ class DeepPerceiverDecoder(nn.Module):
         self,
         kv: torch.Tensor,
         queries: torch.Tensor,
-        unbatch_mask: torch.Tensor | None = None,
         attn_kwargs: dict[str, Any] | None = None,
         condition: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the model.
 
         Args:
-            x: Latent tokens as dense tensor (batch_size, num_latent_tokens, dim).
-            pos: Query positions (batch_size, num_output_pos, pos_dim).
-            block_kwargs: Additional arguments for the block.
-            unbatch_mask: Unbatch mask.
+            kv: The key-value tensor (batch_size, num_latent_tokens, dim).
+            queries: The query tensor (batch_size, num_output_queries, dim).
+            attn_kwargs: Dict with arguments for the attention (such as the attention mask or rope frequencies). Defaults to None.
+            condition: Optional conditioning tensor that can be used in the attention mechanism. This can be used to pass additional conditioning information, etc.
 
         Returns:
             The predictions as sparse tensor (batch_size * num_output_pos, num_out_values).

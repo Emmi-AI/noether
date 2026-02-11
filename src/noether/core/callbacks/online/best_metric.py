@@ -22,6 +22,7 @@ class BestMetricCallback(PeriodicCallback):
             -  loss/test/total
 
     In this example, whenever a new best validation loss is found, the corresponding test loss is logged under the key ``loss/test/total/at_best/loss/val/total``.
+
     """
 
     def __init__(

@@ -25,7 +25,7 @@ class TrackioTracker(BaseTracker):
     ) -> None:
         """Initialize the TrackioTracker.
         Args:
-            tracker_config: Configuration for the TrackioTracker.
+            tracker_config: Configuration for the TrackioTracker. See :class:`~noether.core.schemas.trackers.TrackioTrackerSchema` for available options including project and space_id.
             **kwargs: Additional keyword arguments passed to the parent class.
         """
         super().__init__(**kwargs)

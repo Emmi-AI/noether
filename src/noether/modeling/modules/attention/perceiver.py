@@ -17,10 +17,11 @@ class PerceiverAttention(nn.Module):
         self,
         config: AttentionConfig,
     ):
-        """Initialize the PerceiverAttention module.
+        """
 
         Args:
-            config: configuration of the attention module.
+            config: Configuration for the PerceiverAttention module. See
+                :class:`~noether.core.schemas.modules.AttentionConfig` for available options.
         """
 
         super().__init__()

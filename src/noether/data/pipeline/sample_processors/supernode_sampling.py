@@ -20,9 +20,9 @@ class SupernodeSamplingSampleProcessor(SampleProcessor):
     ):
         """
         Args:
-            item: Which pointcloud item is used to sample supernodes.
+            item: Which key in the input_sample (i.e., pointcloud item) is used to sample supernodes.
             num_supernodes: How many supernodes to sample.
-            items_at_supernodes: Selects items at the supernodes (e.g., pressure at supernodes). Defaults to None.
+            items_at_supernodes: Selects items at the supernodes (e.g., pressure at supernodes). Defaults to None. These items are sampled accordingly and added to the output supernodes.
             seed: Random seed for deterministic sampling for evaluation. Default None (i.e., no seed). If not None,
                 requires sample index to be present in batch.
         """
@@ -38,7 +38,7 @@ class SupernodeSamplingSampleProcessor(SampleProcessor):
         copied explicitly, the Any objects are not.
 
         Args:
-            input_sample: Dictionary of a single sample.
+            input_sample: Dictionary with the tensors of a single sample.
 
         Returns:
             Preprocessed copy of `input_sample` with supernodes sampled.

@@ -22,10 +22,10 @@ class ContinuousSincosEmbed(nn.Module):
         self,
         config: ContinuousSincosEmbeddingConfig,
     ):
-        """Initialize the ContinuousSincosEmbed layer.
+        """
 
         Args:
-            config: Instance of `ContinuousSincosEmbeddingConfig`.
+            config: Configuration for the ContinuousSincosEmbed module. See :class:`~noether.core.schemas.modules.layers.ContinuousSincosEmbeddingConfig` for the available options.
         """
         super().__init__()
         self.hidden_dim = config.hidden_dim

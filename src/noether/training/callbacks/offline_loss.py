@@ -11,10 +11,9 @@ class OfflineLossCallback(PeriodicDataIteratorCallback):
 
     def __init__(self, callback_config: OfflineLossCallbackConfig, **kwargs):
         """
-        Initializes the OfflineLossCallback.
 
         Args:
-            callback_config: configuration of the OfflineLossCallback.
+            callback_config: configuration of the OfflineLossCallback. See :class:`~noether.core.schemas.callbacks.OfflineLossCallbackConfig` for the available options.
         """
         super().__init__(callback_config=callback_config, **kwargs)
         self.dataset_key = callback_config.dataset_key
