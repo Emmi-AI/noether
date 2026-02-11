@@ -34,10 +34,10 @@ Create a virtual environment with relevant packages:
 Verifying the Installation
 --------------------------
 
-See if the installation was successful by running the ``noether-train`` :
+See if the installation was successful by running the ``noether-train`` command:
 
 .. code-block:: bash
 
-   python -c "uv run noether-train --help"
+   uv run noether-train --help
 
 You should see the help message printed in your terminal.
