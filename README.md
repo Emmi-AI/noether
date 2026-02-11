@@ -5,7 +5,7 @@
 # Noether Framework
 
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
-[![License: ENLP](https://img.shields.io/badge/License-ENLP-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
+[![License: ENPL](https://img.shields.io/badge/License-ENPL-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
 [![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
