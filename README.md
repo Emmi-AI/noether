@@ -74,10 +74,14 @@ uv pip add emmiai-noether
 
 If you prefer to work with the source code directly without installing a prebuilt package.
 
-> [!IMPORTANT]
-> If you are running on NVIDIA GPUs or need custom CUDA paths, you must configure your environment variables first. 
-> Please follow our [Advanced Linux Setup Guide](https://noether-docs.emmi.ai/guides/linux_cuda_setup.html) before 
-> running the command below.
+<details>
+  <summary>Linux and CUDA</summary>
+  
+  If you are running on NVIDIA GPUs or need custom CUDA paths, you must configure your environment variables first. 
+  Please follow our [Advanced Linux Setup Guide](https://noether-docs.emmi.ai/guides/linux_cuda_setup.html) before 
+   running the command below.I'm a code block!");
+  
+</details>
 
 Create a fresh virtual environment and synchronize the core dependencies after cloning the repo:
 
