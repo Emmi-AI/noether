@@ -14,16 +14,16 @@ class UPTConfig(ModelBaseConfig):
 
     model_config = ConfigDict(extra="forbid")
 
-    num_heads: int = Field(...)
+    num_heads: int = Field(..., ge=1)
     """Number of attention heads in the model."""
 
-    hidden_dim: int = Field(...)
+    hidden_dim: int = Field(..., ge=1)
     """Hidden dimension of the model."""
 
-    mlp_expansion_factor: int = Field(...)
+    mlp_expansion_factor: int = Field(..., ge=1)
     """Expansion factor for the MLP of the FF layers."""
 
-    approximator_depth: int = Field(...)
+    approximator_depth: int = Field(..., ge=1)
     """Number of approximator layers."""
 
     use_rope: bool = Field(False)

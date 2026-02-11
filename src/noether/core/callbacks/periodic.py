@@ -39,10 +39,11 @@ IntervalType = Literal["epoch", "update", "sample", "eval"]
 """Type alias for periodic callback interval types.
 
 Defines the unit of training progress used to trigger periodic callbacks:
+
 * "epoch": Callback is triggered based on completed epochs
 * "update": Callback is triggered based on optimizer update steps
 * "sample": Callback is triggered based on number of samples processed
-* "eval": Callback is triggered independ of schedule for post-training evaluation
+* "eval": Callback is triggered independent of schedule for post-training evaluation
 """
 
 
@@ -438,14 +439,12 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
     distributed ranks, and final processing.
 
     Workflow:
-        1. **Registration** (:meth:`register_sampler_config`): Register which dataset(s) to iterate over and configure
-           the sampler (sequential or distributed).
-        2. **Iteration** (:meth:`_iterate_over_dataset`): When the periodic interval is reached, iterate through the
+        1. **Iteration** (:meth:`_iterate_over_dataset`): When the periodic interval is reached, iterate through the
            dataset in batches.
-        3. **Process Data** (:meth:`process_data`): Process a single batch (e.g., run model inference) and return
+        2. **Process Data** (:meth:`process_data`): Process a single batch (e.g., run model inference) and return
            results.
-        4. **Collation** (:meth:`_collate_result`): Aggregate results across all batches and distributed ranks.
-        5. **Processing** (:meth:`process_results`): Compute final metrics or perform actions with the aggregated
+        3. **Collation** (:meth:`_collate_result`): Aggregate results across all batches and distributed ranks.
+        4. **Processing** (:meth:`process_results`): Compute final metrics or perform actions with the aggregated
            results.
 
     Key Features:
@@ -461,7 +460,6 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         :meth:`process_results`:
 
         * :meth:`process_data`: Process a single batch (e.g., run model inference).
-        * :meth:`register_sampler_config`: Register the dataset to iterate over (default uses ``self.dataset_key``).
         * :meth:`process_results`: Process the aggregated results from all batches.
 
     Examples:
@@ -529,8 +527,9 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
 
     Attributes:
-        _sampler_config: Configuration for the sampler that controls dataset iteration. Automatically set when
-            :meth:`register_sampler_config` is called.
+        dataset_key: Key to identify the dataset to iterate over from ``self.data_container``. Automatically set from
+            the callback config.
+        sampler_config: Configuration for the sampler that controls dataset iteration. Automatically set when dataset is initialized.
         total_data_time: Cumulative time spent waiting for data loading across all periodic callbacks.
 
     Note:

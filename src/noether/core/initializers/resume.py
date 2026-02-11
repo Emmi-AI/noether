@@ -21,12 +21,22 @@ from noether.core.utils.model import compute_model_norm
 
 
 class ResumeInitializer(CheckpointInitializer):
-    """Initializes models/optimizers from a checkpoint ready for resuming training"""
+    """Initializes models/optimizers from a checkpoint ready for resuming training.
+    Needs to be configured as part of the config by setting the resume_run_id in the root config (assumg the same output path is used).
+    This initializer assumes that the previous run is going to be resumed for further training (i.e., trianing is not finished yet)
+
+    For example (config snippet is part of the trainer config):
+
+    .. code-block:: yaml
+
+        resume_run_id: <previous_run_id>
+
+    """
 
     def __init__(self, initializer_config: ResumeInitializerConfig, **kwargs):
         """
         Args:
-            initializer_config: configuration for the initializer.
+            initializer_config: configuration for the initializer. See :class:`~noether.core.schemas.initializers.ResumeInitializerConfig` for available options.
             **kwargs: additional arguments to pass to the parent class.
         """
         super().__init__(initializer_config=initializer_config, **kwargs)

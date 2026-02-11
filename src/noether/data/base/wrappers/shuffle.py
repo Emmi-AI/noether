@@ -14,6 +14,8 @@ class ShuffleWrapper(Subset):
         """
         Args:
             dataset: The dataset to shuffle.
+            config: Configuration for the ShuffleWrapper. See :class:`~noether.core.schemas.dataset.ShuffleWrapperConfig`
+                for available options.
         Raises:
             ValueError: If the dataset is not an instance of noether.data.Dataset, or if the seed is not an integer or None.
         """

@@ -24,10 +24,11 @@ class PerceiverBlock(nn.Module):
         self,
         config: PerceiverBlockConfig,
     ):
-        """Perceiver-style cross-attention block.
+        """
 
         Args:
-            config: Configuration of the PerceiverBlock.
+            config: Configuration of the PerceiverBlock. See :class:`~noether.core.schemas.modules.blocks.PerceiverBlockConfig`
+            for available options.
         """
         super().__init__()
 
@@ -99,7 +100,7 @@ class PerceiverBlock(nn.Module):
             kv: Input tensor with shape (batch_size, seqlen/num_tokens, hidden_dim) for the key and value representations.
             condition: Conditioning vector. If provided, the attention and MLP will be scaled, shifted and gated
                 feature-wise with predicted values from this vector.
-            attn_kwargs: Dict with arguments for the attention (such as the attention mask). Defaults to None.
+            attn_kwargs: Dict with arguments for the attention (such as the attention mask or rope frequencies). Defaults to None.
 
         Returns:
             Tensor after the forward pass of the PerceiverBlock.

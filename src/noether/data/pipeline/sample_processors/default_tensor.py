@@ -8,7 +8,22 @@ from noether.data.pipeline import SampleProcessor
 
 
 class DefaultTensorSampleProcessor(SampleProcessor):
-    """Create a tensor with a fixed dummy value, with a specified size."""
+    """Create a tensor with a fixed dummy value, with a specified size.
+
+
+    .. code-block:: python
+
+        # dummy example
+        processor = DefaultTensorSampleProcessor(
+            item_key_name="default_tensor",
+            feature_dim=128,
+            size=10,
+            default_value=0.5,
+        )
+        input_sample = {}
+        output_sample = processor(input_sample)
+        # output_sample['default_tensor'] will be a tensor of shape (10, 128) filled with 0.5
+    """
 
     def __init__(
         self,
@@ -21,11 +36,11 @@ class DefaultTensorSampleProcessor(SampleProcessor):
         """
 
         Args:
-            item_key_name: _description_
-            default_value: _description_
-            feature_dim: _description_
-            size: _description_
-            matching_item_key: _description_
+            item_key_name: key of the created default tensor in the output sample dict.
+            default_value: value to fill the created default tensor with.
+            feature_dim: size of the feature dimension of the created default tensor.
+            size: size of the first dimension of the created default tensor.
+            matching_item_key: key of an existing tensor in the input sample dict to match the size of the first dimension.
         """
         assert size is not None or matching_item_key is not None, (
             "size or matching_item_key must be specified. Otherwise size cannot be determined."
@@ -39,13 +54,13 @@ class DefaultTensorSampleProcessor(SampleProcessor):
         self.default_value = default_value
 
     def __call__(self, input_sample: dict[str, Any]) -> dict[str, Any]:
-        """_summary_
+        """
 
         Args:
-            input_sample: _description_
+            input_sample: Dictionary with the tensors of a single sample.
 
         Returns:
-            _description_
+            Preprocessed copy of `input_sample` with the specified default tensor created.
         """
         # copy to avoid changing method input
 

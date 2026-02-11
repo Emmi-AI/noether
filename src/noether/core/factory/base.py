@@ -12,22 +12,63 @@ from noether.core.factory.utils import class_constructor_from_class_path
 
 class Factory:
     """Base factory. Implements base structures for creating a single object, a list of objects and a dict
-    of objects. The main difference between these methods are the default return values. As python does not like using
-    an empty list/dict as default value for an argument, arguments are by default often None. By differentiating
-    between these three types, one avoids none checks whenever the factory is called.
-    - create: creates an object.
-    - create_list: creates a list of objects.
-    - create_dict: creates a dict of objects.
+    of objects.
 
-    For example, creating a list
-    ```
-    class Example:
-        def __init__(self, callbacks: list[Callback] | None = None)
-            # automatic none check in create_list (this is how FactoryBase is implemented)
-            self.callbacks = create_list(callbacks)
-            # required none check after creating the list (this is how one could implement it without create_list)
-            self.callbacks = create(callbacks) or []
-    ```
+    For example, creating a list:
+
+    .. code-block:: python
+
+        class Example:
+            def __init__(self, callbacks: list[CallbackConfig] | None = None):
+                # automatic none check in create_list (this is how Factory is implemented)
+                self.callbacks = Factory().create_list(callbacks)
+                # required none check after creating the list (this is how one could implement it without create_list)
+
+
+    Objects can be instantiated from either:
+
+    * :class:`~pydantic.BaseModel`: In this case, the ``kind`` field is used to determine the class path of the
+      object to be instantiated. The full pydantic model is passed to the constructor.
+
+      .. code-block:: python
+
+          class ExampleConfig(pydantic.BaseModel):
+              kind: str
+              param1: int
+              param2: str
+
+
+          class ExampleObject:
+              def __init__(self, config: ExampleConfig):
+                  self.param1 = config.param1
+                  self.param2 = config.param2
+                  # kind is also in the config, but usually not needed in the object itself
+
+
+          example_config = ExampleConfig(kind="path.to.ExampleObject", param1=42, param2="hello")
+          example_object = Factory().create(example_config)
+
+      Using :class:`~pydantic.BaseModel` is the preferred way of instantiating objects as it provides type safety
+      and validation.
+
+    * Dictionary: In this case, the ``kind`` key is used to determine the class path of the object to be
+      instantiated. The full dictionary is passed to the constructor. However, almost all classes in Noether take a
+      config object as input to the constructor. This approach will only work for custom classes that take named
+      arguments in the constructor.
+
+      .. code-block:: python
+
+          example_dict = {"kind": "path.to.ExampleObject", "param1": 42, "param2": "hello"}
+
+
+          class ExampleObject:
+              # constructor takes named arguments directly, and kind popped before passing to constructor
+              def __init__(self, param1: int, param2: str):
+                  self.param1 = param1
+                  self.param2 = param2
+
+
+          example_object = Factory().create(example_dict)
     """
 
     def __init__(self, returns_partials: bool = False):
@@ -36,13 +77,15 @@ class Factory:
 
     def create(self, obj_or_kwargs: Any | dict[str, Any] | pydantic.BaseModel | None, **kwargs) -> Any | None:
         """Creates an object if the object is specified as dictionary. If the object was already instantiated, it will
-        simply return the existing object. If `obj_or_kwargs` is None, None is returned.
+        simply return the existing object. If ``obj_or_kwargs`` is ``None``, ``None`` is returned.
 
         Args:
-            obj_or_kwargs: Either an existing object (Any) or a description of how an object should be instantiated
-                (dict[str, Any]).
+            obj_or_kwargs: Either an existing object or a description of how an object should be instantiated
+                (dict or :class:`~pydantic.BaseModel`).
             kwargs: Further kwargs that are passed when creating the object. These are often dependencies such as
-                `UpdateCounter`, `PathProvider`, `MetricPropertyProvider`, ...
+                :class:`~noether.core.utils.training.counter.UpdateCounter`,
+                :class:`~noether.core.providers.path.PathProvider`,
+                :class:`~noether.core.providers.metric_property.MetricPropertyProvider`, etc.
 
         Returns:
             The instantiated object.
@@ -77,13 +120,16 @@ class Factory:
     def create_list(
         self, collection: list[Any] | list[dict[str, Any]] | dict[str, Any] | list[pydantic.BaseModel] | None, **kwargs
     ) -> list[Any]:
-        """Creates a list of object by calling the `create` function for every item in the collection. If `collection`
-        is None, an empty list is returned.
+        """Creates a list of objects by calling the :meth:`create` function for every item in the collection.
+
+        If ``collection`` is ``None``, an empty list is returned.
 
         Args:
-            collection: Either a list of configs how the objects should be instantiated.)
+            collection: Either a list of configs how the objects should be instantiated.
             kwargs: Further kwargs that are passed to all object instantiations. These are often dependencies such as
-                `UpdateCounter`, `PathProvider`, `MetricPropertyProvider`, ...
+                :class:`~noether.core.utils.training.counter.UpdateCounter`,
+                :class:`~noether.core.providers.path.PathProvider`,
+                :class:`~noether.core.providers.metric_property.MetricPropertyProvider`, etc.
 
         Returns:
             The instantiated list of objects or an empty list.
@@ -102,14 +148,17 @@ class Factory:
         collection: dict[str, Any] | dict[str, dict[str, Any]] | None,
         **kwargs,
     ) -> dict[str, Any]:
-        """Creates a dict of object by calling the `create` function for every item in the collection. If `collection`
-        is None, an empty dictionary is returned.
+        """Creates a dict of objects by calling the :meth:`create` function for every item in the collection.
+
+        If ``collection`` is ``None``, an empty dictionary is returned.
 
         Args:
-            collection: Either a dict of existing objects (dict[str, Any]) or a dict of descriptions how the objects
-                should be instantiated and what their identifier in the dict is (dict[str, dict[str, Any]]).
+            collection: Either a dict of existing objects or a dict of descriptions how the objects
+                should be instantiated and what their identifier in the dict is.
             kwargs: Further kwargs that are passed to all object instantiations. These are often dependencies such as
-                `UpdateCounter`, `PathProvider`, `MetricPropertyProvider`, ...
+                :class:`~noether.core.utils.training.counter.UpdateCounter`,
+                :class:`~noether.core.providers.path.PathProvider`,
+                :class:`~noether.core.providers.metric_property.MetricPropertyProvider`, etc.
 
         Returns:
             The instantiated dict of objects or an empty dict.
@@ -121,21 +170,21 @@ class Factory:
         objs = {key: self.create(constructor_kwargs, **kwargs) for key, constructor_kwargs in collection.items()}
         return objs
 
-    def instantiate(self, object_config: Any = None, **kwargs) -> Any:
+    def instantiate(self, object_config: pydantic.BaseModel | None = None, **kwargs) -> Any:
         """Instantiates an object based on its fully specified classpath.
 
         Args:
-            object_config: Fully specified type of the object. For example: `"torch.optim.SGD"` or
-                `"noether.core.callbacks.CheckpointCallback"`.
+            object_config: Configuration containing the fully specified type of the object in the ``kind`` field such as: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
             kwargs: kwargs passed to the type when instantiating the object.
 
         Returns:
             The instantiated object.
         """
+
         if object_config is None and "kind" in kwargs:
             # some objects still need to be instantiated by using a dict, e.g. optimizers, this is done via the **kwargs, but this is a bit of a hack
             class_constructor = class_constructor_from_class_path(kwargs.pop("kind"))
             return class_constructor(**kwargs)
         else:
-            class_constructor = class_constructor_from_class_path(object_config.kind)
+            class_constructor = class_constructor_from_class_path(object_config.kind)  # type: ignore [union-attr]
             return class_constructor(object_config, **kwargs)

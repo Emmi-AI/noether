@@ -19,6 +19,9 @@ class CrossAnchorAttention(MultiBranchAnchorAttention):
 
     Example: all surface tokens attend to volume_anchors and all volume tokens attend to surface_anchors.
     This is achieved via the following attention patterns:
+
+    .. code-block:: python
+
         AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["volume_anchors"])
         AttentionPattern(query_tokens=["volume_anchors", "volume_queries"], key_value_tokens=["surface_anchors"])
     """
@@ -27,6 +30,12 @@ class CrossAnchorAttention(MultiBranchAnchorAttention):
         self,
         config: CrossAnchorAttentionConfig,
     ):
+        """
+
+        Args:
+            config: Configuration for the CrossAnchorAttention module. See
+                :class:`~noether.core.schemas.modules.attention.CrossAnchorAttentionConfig` for the available options.
+        """
         if len(config.branches) < 2:
             raise ValueError("CrossAnchorAttention requires at least two branches.")
         super().__init__(

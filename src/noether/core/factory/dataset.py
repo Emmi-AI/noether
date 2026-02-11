@@ -9,6 +9,21 @@ from noether.core.schemas.dataset import DatasetBaseConfig
 
 
 class DatasetFactory(Factory):
+    """
+    Specialized factory for datasets. Next to the standard instantiation of datasets, it also supports wrapping of the dataset inside dataset wrappers.
+
+    Example config:
+
+    .. code-block:: yaml
+
+        kind: path.to.model.MyModel
+        dataset_wrappers:
+          - kind: noether.data.base.wrappers.SomeDatasetWrapper
+            param1: value1
+          - kind: noether.data.base.wrappers.AnotherDatasetWrapper
+            param2: value2
+    """
+
     def __init__(
         self,
         dataset_wrapper_factory: Factory | None = None,
@@ -17,7 +32,18 @@ class DatasetFactory(Factory):
         self.dataset_wrapper_factory = dataset_wrapper_factory or Factory()
 
     def instantiate(self, dataset_config: DatasetBaseConfig, **kwargs) -> Any:  # type: ignore[override]
-        """Instantiates the dataset either based on `dataset_config` or from the checkpoint."""
+        """Instantiates the dataset either based on `dataset_config`
+
+
+        Args:
+            dataset_config: Configuration for the dataset. See
+                :class:`~noether.core.schemas.dataset.DatasetBaseConfig`
+                for available options including dataset wrappers.
+            **kwargs: Additional keyword arguments provided to the parent class.
+
+        Returns:
+            The instantiated dataset, possibly wrapped in dataset wrappers specified in the configuration.
+        """
 
         dataset_wrappers = dataset_config.dataset_wrappers
         dataset = super().instantiate(dataset_config)

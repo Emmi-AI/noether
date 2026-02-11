@@ -14,7 +14,17 @@ from noether.core.trackers.base import BaseTracker
 
 
 class WandBTracker(BaseTracker):
-    """Weights and Biases tracker."""
+    """Weights and Biases tracker.
+
+    Example config:
+
+    .. code-block:: yaml
+        - kind: noether.core.trackers.WandBTracker
+          mode: online
+          entity: my_entity
+          project: my_project
+
+    """
 
     MODES = ["disabled", "online", "offline"]
 
@@ -23,9 +33,9 @@ class WandBTracker(BaseTracker):
         tracker_config: WandBTrackerSchema,
         **kwargs,
     ) -> None:
-        """Initialize the WandBTracker.
+        """
         Args:
-            tracker_config: Configuration for the WandBTracker. Implements the `WandBTrackerSchema`.
+            tracker_config: Configuration for the WandBTracker. See :class:`~noether.core.schemas.trackers.WandBTrackerSchema` for available options including mode, entity, and project.
             **kwargs: Additional keyword arguments passed to the parent class.
         """
         if WANDB_IMPORT_ERROR is not None:
