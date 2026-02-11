@@ -67,7 +67,7 @@ pip install emmiai-noether
 or if you use `uv`:
 
 ```bash
-uv pip install emmiai-noether
+uv pip add emmiai-noether
 ```
 
 ## Working with the source code
