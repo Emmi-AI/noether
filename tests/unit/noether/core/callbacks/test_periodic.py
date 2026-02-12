@@ -181,10 +181,10 @@ class TestPeriodicCallback:
         checkpoint3 = TrainingIteration(epoch=3, update=30, sample=3000)
         checkpoint4 = TrainingIteration(epoch=4, update=40, sample=4000)
 
-        assert callback._should_log_after_epoch(checkpoint1) is False
-        assert callback._should_log_after_epoch(checkpoint2) is True
-        assert callback._should_log_after_epoch(checkpoint3) is False
-        assert callback._should_log_after_epoch(checkpoint4) is True
+        assert callback._should_invoke_after_epoch(checkpoint1) is False
+        assert callback._should_invoke_after_epoch(checkpoint2) is True
+        assert callback._should_invoke_after_epoch(checkpoint3) is False
+        assert callback._should_invoke_after_epoch(checkpoint4) is True
 
     def test_should_log_after_update(
         self,
@@ -215,10 +215,10 @@ class TestPeriodicCallback:
         checkpoint3 = TrainingIteration(epoch=1, update=15, sample=1500)
         checkpoint4 = TrainingIteration(epoch=2, update=20, sample=2000)
 
-        assert callback._should_log_after_update(checkpoint1) is False
-        assert callback._should_log_after_update(checkpoint2) is True
-        assert callback._should_log_after_update(checkpoint3) is False
-        assert callback._should_log_after_update(checkpoint4) is True
+        assert callback._should_invoke_after_update(checkpoint1) is False
+        assert callback._should_invoke_after_update(checkpoint2) is True
+        assert callback._should_invoke_after_update(checkpoint3) is False
+        assert callback._should_invoke_after_update(checkpoint4) is True
 
     def test_should_log_after_sample(
         self,
@@ -251,10 +251,10 @@ class TestPeriodicCallback:
         checkpoint3 = TrainingIteration(epoch=1, update=15, sample=1500)
         checkpoint4 = TrainingIteration(epoch=2, update=20, sample=2000)
 
-        assert callback._should_log_after_sample(checkpoint1, effective_batch_size) is False
-        assert callback._should_log_after_sample(checkpoint2, effective_batch_size) is True
-        assert callback._should_log_after_sample(checkpoint3, effective_batch_size) is False
-        assert callback._should_log_after_sample(checkpoint4, effective_batch_size) is True
+        assert callback._should_invoke_after_sample(checkpoint1, effective_batch_size) is False
+        assert callback._should_invoke_after_sample(checkpoint2, effective_batch_size) is True
+        assert callback._should_invoke_after_sample(checkpoint3, effective_batch_size) is False
+        assert callback._should_invoke_after_sample(checkpoint4, effective_batch_size) is True
 
     def test_updates_per_log_interval_updates(
         self,
@@ -282,7 +282,7 @@ class TestPeriodicCallback:
 
         mock_update_counter = Mock(spec=UpdateCounter)
 
-        assert callback.updates_per_log_interval(mock_update_counter) == 25
+        assert callback.updates_per_interval(mock_update_counter) == 25
 
     def test_updates_till_next_log(
         self,
@@ -311,7 +311,7 @@ class TestPeriodicCallback:
         mock_update_counter = Mock(spec=UpdateCounter)
         mock_update_counter.cur_iteration = TrainingIteration(epoch=1, update=3, sample=300)
 
-        assert callback.updates_till_next_log(mock_update_counter) == 7
+        assert callback.updates_till_next_invocation(mock_update_counter) == 7
 
     def test_get_interval_string_verbose(
         self,

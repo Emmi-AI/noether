@@ -101,7 +101,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
         if update_outputs is None:
             return
 
-        if self.reduce == "last" and self.updates_till_next_log(update_counter) > 1:
+        if self.reduce == "last" and self.updates_till_next_invocation(update_counter) > 1:
             return
         if len(self.keys) > 0:
             for key in self.keys:
