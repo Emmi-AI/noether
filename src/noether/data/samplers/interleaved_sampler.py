@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader, default_collate
 
 from noether.core.utils.common import SizedIterable
 from noether.data.samplers.internals import (
+    SamplerOutput,
     _InterleavedBatchSampler,
     _InterleavedCollator,
     _InterleavedConcatDataset,
@@ -291,7 +292,7 @@ class InterleavedSampler:
             pin_memory=pin_memory,
         )
 
-    def __iter__(self) -> Iterator[tuple[bool, int]]:
+    def __iter__(self) -> Iterator[SamplerOutput]:
         """Returns tuples of
         - bool: whether or not the sample is the last one in the batch
         - int: index of the sample that should be loaded
@@ -313,17 +314,9 @@ class InterleavedSampler:
         else:
             yield from self._training_loop()
 
-    def _eval_loop(self) -> Iterator[tuple[bool, int]]:
+    def _eval_loop(self) -> Iterator[SamplerOutput]:
         for config_idx, config in enumerate(self.extra_samplers):
-            index_offset = self.index_offsets[config_idx]
-            sample_in_interleaved = 0
-            interleaved_batch_size = config.batch_size or self.batch_size
-            for interleaved_idx in config.sampler:
-                sample_in_interleaved += 1
-                if sample_in_interleaved % interleaved_batch_size == 0 or sample_in_interleaved == len(config.sampler):
-                    yield True, index_offset + interleaved_idx
-                else:
-                    yield False, index_offset + interleaved_idx
+            yield from self._iterate_from_sampler(config, self.index_offsets[config_idx])
 
     def _end_reached(self, state: _TrainingIterationState):
         return (
@@ -358,7 +351,7 @@ class InterleavedSampler:
 
         return False
 
-    def _iterate_from_sampler(self, config: SamplerIntervalConfig, index_offset: int) -> Iterator[tuple[bool, int]]:
+    def _iterate_from_sampler(self, config: SamplerIntervalConfig, index_offset: int) -> Iterator[SamplerOutput]:
         interleaved_batch_size = config.batch_size or self.batch_size
         sample_in_interleaved = 0
         _logger.debug(f"Iterating from sampler {config} with batch size {interleaved_batch_size}, {index_offset=}")
@@ -368,9 +361,9 @@ class InterleavedSampler:
                 config.sampler
             )
 
-            yield last_sample_in_update, index_offset + interleaved_idx
+            yield SamplerOutput(is_full_batch=last_sample_in_update, idx=index_offset + interleaved_idx)
 
-    def _training_loop(self) -> Iterator[tuple[bool, int]]:
+    def _training_loop(self) -> Iterator[SamplerOutput]:
         state = _TrainingIterationState(epoch=self.start_epoch, update=self.start_update, sample=self.start_sample)
 
         while True:
@@ -380,7 +373,7 @@ class InterleavedSampler:
             state.start_new_epoch()
             for main_idx in self.main_sampler:
                 last_sample_in_update = state.next_sample(self.batch_size, self.samples_per_epoch)
-                yield last_sample_in_update, main_idx
+                yield SamplerOutput(is_full_batch=last_sample_in_update, idx=main_idx)
 
                 if not (state.is_full_update(self.batch_size) or state.is_full_epoch(self.samples_per_epoch)):
                     continue
