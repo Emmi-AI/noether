@@ -136,9 +136,9 @@ class CheckpointInitializer(InitializerBase):
             model_name = model.name
 
         # model_info is e.g. ema=0.99
-        model_info_str = "_" if self.model_info is None else f"_{self.model_info}_"
+        model_info_str = "" if self.model_info is None else f"_{self.model_info}"
 
-        checkpoint_uri = self._get_checkpoint_uri(prefix=f"{model_name}_cp=", suffix=f"{model_info_str}{file_type}.th")
+        checkpoint_uri = self._get_checkpoint_uri(prefix=f"{model_name}{model_info_str}_cp=", suffix=f"_{file_type}.th")
         if not checkpoint_uri.exists():
             raise FileNotFoundError(f"Checkpoint file '{checkpoint_uri}' does not exist")
         return model_name, checkpoint_uri

@@ -34,6 +34,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    tutorials/training_first_model_with_configs
    tutorials/training_first_model_with_code
    tutorials/full_code_tutorial
+   tutorials/how_to_initialize
    .. tutorials/running_first_inference
    
 

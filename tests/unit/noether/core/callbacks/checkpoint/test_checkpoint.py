@@ -42,7 +42,7 @@ class TestCheckpointCallback:
         assert getattr(callback, flag) is True
 
     def test_model_name_added_to_list(self, callback_deps):
-        config = CheckpointCallbackConfig(every_n_updates=10, model_name="encoder")
+        config = CheckpointCallbackConfig(every_n_updates=10, model_names=["encoder"])
         callback = CheckpointCallback(callback_config=config, **callback_deps)
         assert callback.model_names == ["encoder"]
 
@@ -106,7 +106,7 @@ class TestCheckpointCallback:
         callback.periodic_callback(interval_type="update", update_counter=SimpleNamespace(cur_iteration="u=10"))
 
         call_kwargs = callback_deps["checkpoint_writer"].save.call_args.kwargs
-        assert call_kwargs["checkpoint_tag"] == "u=10"
+        assert call_kwargs["checkpoint"] == "u=10"
         for flag, value in save_flags.items():
             assert call_kwargs[flag] == value
 
@@ -115,4 +115,4 @@ class TestCheckpointCallback:
         callback = CheckpointCallback(callback_config=config, **callback_deps)
         callback.after_training()
         call_kwargs = callback_deps["checkpoint_writer"].save.call_args.kwargs
-        assert call_kwargs["checkpoint_tag"] == "last"
+        assert call_kwargs["checkpoint"] == "last"

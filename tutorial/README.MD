@@ -1570,12 +1570,14 @@ https://noether-docs.emmi.ai/guides/inference/how_to_run_evaluation_on_trained_m
 
 ### Resuming training after interruption
 
-To resume training after an error or interruption, simply add `resume_run_id: <RUN_ID>` to the training configuration (either in the YAML file or via the CLI). Training will continue from the last saved epoch checkpoint.
+To resume training after an error or interruption, simply add `resume_run_id: <RUN_ID>` (`resume_stage_name` and if a `stag_name` was used in the previous run) and to the training configuration (either in the YAML file or via the CLI). Training will continue from the last saved epoch checkpoint.
 
 **Example:**
 ```bash
-uv run noether-train --hp tutorial/configs/train_shapenet.yaml +experiment/shapenet=transformer resume_run_id=<run_id>
+uv run noether-train --hp tutorial/configs/train_shapenet.yaml +experiment/shapenet=transformer resume_run_id=<run_id> resume_stage_name=<stage_name>
 ```
+
+Optinally, you can change the `stage_name` to make it clear that checkpoints stored for this run are from a continued training run. 
 
 ### Initializing model weights
 
@@ -1588,10 +1590,11 @@ model:
     - kind: noether.core.initializers.PreviousRunInitializer
       run_id: <run_id>
       model_name: ab_upt
-      checkpoint: latest  # Options: 'latest', 'best', or specific epoch number
+      checkpoint: latest  # Options: 'latest', 'best', or specific checkpoint such as E10_U100_S200
       # model_info: ema=0.9999  # Optional: for EMA weights or specific checkpoint variants
 ```
 
+Model weights are  ````````````````````````````````
 **Required parameters:**
 - **`run_id`**: The run identifier from the previous training run
 - **`model_name`**: The name of the model to load weights from

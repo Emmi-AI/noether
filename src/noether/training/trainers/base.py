@@ -680,7 +680,7 @@ class BaseTrainer:
         if first_error is not None:
             try:
                 self.checkpoint_writer.save(
-                    model=model, checkpoint_tag=f"{self.update_counter.cur_iteration}.error", trainer=self
+                    model=model, checkpoint=f"{self.update_counter.cur_iteration}.error", trainer=self
                 )
             except Exception:
                 self.logger.exception("Failed to save error checkpoint")
@@ -688,7 +688,7 @@ class BaseTrainer:
 
         if early_exit:
             self.checkpoint_writer.save(
-                model=model, checkpoint_tag=f"{self.update_counter.cur_iteration}.early_exit", trainer=self
+                model=model, checkpoint=f"{self.update_counter.cur_iteration}.early_exit", trainer=self
             )
 
         return early_exit

@@ -42,8 +42,6 @@ class BestCheckpointCallback(PeriodicCallback):
         super().__init__(callback_config=callback_config, **kwargs)
         self.metric_key = callback_config.metric_key
         self.model_names = callback_config.model_names or []
-        if callback_config.model_name is not None:
-            self.model_names.append(callback_config.model_name)
         self.higher_is_better = self.metric_property_provider.higher_is_better(self.metric_key)
         self.best_metric_value = -float("inf") if self.higher_is_better else float("inf")
         self.save_frozen_weights = callback_config.save_frozen_weights
@@ -134,7 +132,7 @@ class BestCheckpointCallback(PeriodicCallback):
             self.logger.info(f"new best model ({self.metric_key}): {self.best_metric_value} --> {metric_value}")
             self.checkpoint_writer.save(
                 model=self.model,
-                checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}",
+                checkpoint=f"best_model.{self.metric_key.replace('/', '.')}",
                 save_optim=False,
                 model_names_to_save=self.model_names,
             )
@@ -150,7 +148,7 @@ class BestCheckpointCallback(PeriodicCallback):
                     continue
                 self.checkpoint_writer.save(
                     model=self.model,
-                    checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}.tolerance{tolerance}",
+                    checkpoint=f"best_model.{self.metric_key.replace('/', '.')}.tolerance{tolerance}",
                     save_optim=False,
                     model_names_to_save=self.model_names,
                 )

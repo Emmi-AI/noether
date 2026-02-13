@@ -64,8 +64,8 @@ class TestBestCheckpointCallback:
         cb.periodic_callback()
 
         assert callback_deps["checkpoint_writer"].save.call_count == 3
-        tags = [call.kwargs["checkpoint_tag"] for call in callback_deps["checkpoint_writer"].save.call_args_list]
-        assert "best_model.val.acc" in tags
+        checkpoint = [call.kwargs["checkpoint"] for call in callback_deps["checkpoint_writer"].save.call_args_list]
+        assert "best_model.val.acc" in checkpoint
 
     def test_tolerance_counter_increments_and_triggers_save(self, callback_deps, base_config):
         """

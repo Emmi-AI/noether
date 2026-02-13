@@ -11,17 +11,17 @@ class InitializerConfig(BaseModel):
     """Additional keyword arguments to pass to the initializer."""
     run_id: str
     """A unique identifier for the training stage. This is used to find the correct checkpoint."""
+
     stage_name: str | None = None
     """The name of the stage training stage if defined. When training, the stage name is usually "train"."""
     model_name: str | None = None
     """The name of the model to load. This is the model_name used in CheckpointCallback."""
-    model_info: str | None = None
-    """Optional string that is used as suffix in the checkpoint filename.
-    """
     checkpoint: str | None | dict = None
     """Which checkpoint to load.
-    Checkpoint is usually "latest" or "best_loss", depending on which checkpoint you want to load.
+    Checkpoint is usually "latest" or "best_loss", or "E*_U*_S*", depending on which checkpoint you want to load.
     """
+    model_info: str | None = None
+    """Optional string that is used as suffix in the checkpoint filename."""
     model_config = {"extra": "forbid"}
 
 

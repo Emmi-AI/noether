@@ -89,23 +89,22 @@ class BestCheckpointCallbackConfig(CallBackBaseConfig):
         None,
     )
     """"If provided, this callback will produce multiple best models which differ in the amount of intervals they allow the metric to not improve. For example, tolerance=[5] with every_n_epochs=1 will store a checkpoint where at most 5 epochs have passed until the metric improved. Additionally, the best checkpoint over the whole training will always be stored (i.e., tolerance=infinite). When setting different tolerances, one can evaluate different early stopping configurations with one training run."""
-    model_name: str | None = Field(None)
-    """The name of the model to save. If None, all models are saved."""
     model_names: list[str] | None = Field(None)
     """Which model name to save (e.g., if only the encoder of an autoencoder should be stored, one could pass model_name='encoder' here). This only applies when training a CompositeModel. If None, all models are saved."""
 
 
 class CheckpointCallbackConfig(CallBackBaseConfig):
     name: Literal["CheckpointCallback"] = Field("CheckpointCallback", frozen=True)
+
     save_weights: bool = Field(True)
-    """Whether to save the weights of the model."""
+    """Whether to save the weights of the model every time this callback is invoked. The checkpoint name will contain the training iteration (e.g., epoch/update/sample) at which the checkpoint was saved."""
     save_optim: bool = Field(False)
-    """Whether to save the optimizer state."""
+    """Whether to save the optimizer state every time this callback is invoked. The checkpoint name will contain the training iteration (e.g., epoch/update/sample) at which the checkpoint was saved."""
     save_latest_weights: bool = Field(True)
-    """Whether to save the latest weights of the model. Note that the latest weights are always overwritten on the next invocation of this callback."""
+    """Whether to save the latest weights of the model every time this callback is invoked. Note that the latest weights are always overwritten on the next invocation of this callback."""
     save_latest_optim: bool = Field(False)
-    """Whether to save the latest optimizer state. Note that the latest optimizer state is always overwritten on the next invocation of this callback"""
-    model_name: str | None = Field(None)
+    """Whether to save the latest optimizer state every time this callback is invoked. Note that the latest optimizer state is always overwritten on the next invocation of this callback"""
+    model_names: list[str] | None = Field(None)
     """The name of the model to save. If None, all models are saved."""
 
 

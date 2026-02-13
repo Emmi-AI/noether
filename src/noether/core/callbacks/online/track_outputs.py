@@ -32,7 +32,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
           every_n_updates: 1
           keys:
             - "surface_pressure_loss"
-  """
+    """
 
     out: Path | None
 
@@ -96,7 +96,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
                 default, and hence this callback can only be used if the train_step is modified to provide additional
                 outputs.
             **_: Additional unused keyword arguments.
-       """
+        """
         if update_outputs is None:
             return
 

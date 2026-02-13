@@ -69,14 +69,14 @@ class PathProvider:
     @property
     def _basetracker_path(self) -> Path:
         """Path where to log things for the BaseTracker"""
-        return self._mkdir(self.run_output_path / "basetracker")
+        return self._mkdir(self.run_output_path / "tracker")
 
     @property
     def basetracker_config_uri(self) -> Path:
         """Independent of whether or not (or which) online tracker is used, the log entries are also written to disk.
         This property defines where the config is written to.
         """
-        return self._mkdir(self.run_output_path / "basetracker") / "config.yaml"
+        return self._mkdir(self.run_output_path / "tracker") / "config.yaml"
 
     @property
     def basetracker_entries_uri(self) -> Path:
@@ -90,7 +90,7 @@ class PathProvider:
         """Independent of whether or not (or which) online tracker is used, the log entries are also written to disk.
         This property defines where the summary is written to.
         """
-        return self._mkdir(self.run_output_path / "basetracker") / "summary.yaml"
+        return self._mkdir(self.run_output_path / "tracker") / "summary.yaml"
 
     @staticmethod
     def generate_run_id(seed=None) -> str:

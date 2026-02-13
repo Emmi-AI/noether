@@ -162,7 +162,7 @@ def test_get_model_state_dict(base_config_dict, path_provider_with_stage_name, d
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
     assert pytest.approx(sum([p.norm() for p in state_dict.values()]), 0.0001) == 2.4621
 
@@ -193,7 +193,7 @@ def test_get_modelname_and_checkpoint_uri(base_config_dict, path_provider_with_s
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
 
     model_name, checkpoint_uri = initializer._get_modelname_and_checkpoint_uri(
@@ -206,7 +206,7 @@ def test_get_modelname_and_checkpoint_uri(base_config_dict, path_provider_with_s
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
 
 

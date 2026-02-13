@@ -193,7 +193,7 @@ class TestEmaCallback:
             }
         }
 
-        monkeypatch.setattr("torch.load", lambda path: checkpoint_data)
+        monkeypatch.setattr("torch.load", lambda path, **kwargs: checkpoint_data)
         monkeypatch.setattr(_MODULE_PATH + ".select_with_path", lambda *, obj, path: obj)
 
         cb = EmaCallback(callback_config=SimpleNamespace(**base_config), model=model, **callback_deps)

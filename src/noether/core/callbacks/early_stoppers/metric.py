@@ -16,7 +16,7 @@ class MetricEarlyStopper(EarlyStopperBase):
           metric_key: loss/val/total
           tolerance: 0.10
           name: MetricEarlyStopper
-   """
+    """
 
     def __init__(
         self,
