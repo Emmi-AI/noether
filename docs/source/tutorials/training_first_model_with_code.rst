@@ -164,7 +164,7 @@ let's take a look at what we have:
 
 1. We declared input and output directories for our training.
 2. We will use python-based configs to define our pipeline. These configs will be created via ``build_*`` methods or
-directly in the ``HydraRunner().main(config=ConfigSchema(...))`` declaration.
+   directly in the ``HydraRunner().main(config=ConfigSchema(...))`` declaration.
 3. We declare model properties that will be sent to the forward pass.
 4. The final execution will be handled by ``noether``'s internal runner.
 

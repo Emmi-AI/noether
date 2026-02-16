@@ -34,11 +34,6 @@ dependencies = [
     "fsspec>=2025.5.1",
     # ---
 ]
-[project.optional-dependencies]
-cluster = [
-    "torch-geometric>=2.7.0",
-    "torch-cluster",
-]
 
 [project.urls]
 Source = "https://github.com/Emmi-AI/noether"
@@ -87,10 +82,6 @@ docs = [
     "roman-numerals-py==4.0.0", # pin because of https://github.com/sphinx-doc/sphinx/issues/14186
 ]
 
-# --- Centralized UV Configuration ---
-# This configuration is inherited by all sub-packages, avoiding repetition.
-[tool.uv]
-no-build-isolation-package = ["torch-cluster",]
 
 [[tool.uv.index]]
 name = "torch-cpu"
