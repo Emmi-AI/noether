@@ -8,10 +8,10 @@ The **Noether Framework** is organized into the following submodules:
 
 - ``core`` - low-level components: responsible for the heavy-lifting of the framework, enabling
   the other modules, and providing low level blocks to use or extend.
-- ``data`` - data serving utilities (e.g., datasets, preprocessors, utils, etc.)
+- ``data`` - :doc:`../noether/dataset_zoo` and  data pipeline building blocks
 - ``io`` - data fetching and storage utilities
-- ``inference`` - utilities for CLI/tooling to run inference
-- ``modeling`` - model building blocks and some of the state-of-the-art architectures 
+- ``inference`` - CLI/tooling to run inference on a trained model
+- ``modeling`` - :doc:`../noether/model_zoo` and model building blocks 
 - ``training`` - trainers and CLI/tooling to run the training pipeline
 
 .. figure:: /_static/noether_architecture.png

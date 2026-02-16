@@ -65,11 +65,11 @@ class EtaCallback(PeriodicCallback):
 
         now = datetime.now()
         # reset time_since_last_log on new log interval
-        if self._should_log_after_epoch(update_counter.cur_iteration) and update_counter.is_full_epoch:
+        if self._should_invoke_after_epoch(update_counter.cur_iteration) and update_counter.is_full_epoch:
             self.time_since_last_log = 0.0
-        if self._should_log_after_update(update_counter.cur_iteration):
+        if self._should_invoke_after_update(update_counter.cur_iteration):
             self.time_since_last_log = 0.0
-        if self._should_log_after_sample(update_counter.cur_iteration, update_counter.effective_batch_size):
+        if self._should_invoke_after_sample(update_counter.cur_iteration, update_counter.effective_batch_size):
             self.time_since_last_log = 0.0
 
         if self.every_n_epochs:
