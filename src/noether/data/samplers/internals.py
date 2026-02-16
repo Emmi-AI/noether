@@ -1,6 +1,8 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import bisect
+from collections.abc import Iterable
+from typing import NamedTuple
 
 from torch.utils.data import ConcatDataset
 
@@ -36,11 +38,18 @@ class _InterleavedCollator:
         return self.collators[dataset_idxs[0]](data)
 
 
+class SamplerOutput(NamedTuple):  #  lint-ignore: NoNamedTuple
+    """Output of the InterleavedSampler. Contains the sample index and the dataset index."""
+
+    is_full_batch: bool
+    idx: int
+
+
 # can't be a local class as it is required to be pickleable
 class _InterleavedBatchSampler:
     """Creates batches of indices from an iterable of indices."""
 
-    def __init__(self, sampler):
+    def __init__(self, sampler: Iterable[SamplerOutput]):
         super().__init__()
         self.sampler = sampler
 

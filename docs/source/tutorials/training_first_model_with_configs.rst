@@ -51,6 +51,7 @@ Note the specific syntax that comes from `Hydra <https://hydra.cc/>`_:
 And for config groups:
 
 - ``+experiment/shapenet=upt`` → select a config from a config group (compose ``experiment/shapenet/upt.yaml``).
+
 The ``+`` here commonly means “this group wasn’t already set in the base config, so add it”.
 
 Once it's running, you should observe the logs appearing in your terminal with the status updates from your first

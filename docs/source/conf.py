@@ -12,7 +12,7 @@ SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
 
 project = "Noether Framework"
-author = "Emmi AI Developers"
+author = "Emmi AI"
 copyright = f"{datetime.now():%Y}, {author}"
 
 extensions = [
@@ -109,17 +109,19 @@ EMMI_THEME = {
         "color-background-border": "rgba(0,0,0,0.08)",
     },
 }
+with open(os.path.join("_static", "Emmi_AI_logomark_black.svg")) as f:
+    emmi_logo = f.read()
 
 html_theme_options = {
     "sidebar_hide_name": True,
     "navigation_with_keys": True,
     **EMMI_THEME,
     # "logo": {},  # create an empty dict for potential light/dark modes updates
-    "show_powered_by": False,
     "source_repository": "https://github.com/Emmi-AI/noether",
     "source_branch": "main",
     "source_directory": "docs/source/",
     "footer_icons": [
+        {"name": "Emmi AI", "url": "https://www.emmi.ai/", "html": emmi_logo},
         {
             "name": "GitHub",
             "url": "https://github.com/Emmi-AI/noether",
@@ -164,8 +166,7 @@ autoapi_options = [
     "undoc-members",
     "show-inheritance",
     "show-module-summary",
-    # comment back in if you need them:
-    # "imported-members",
+    "imported-members",  # this adds re-exports in __init__.py, giving a cleaner API structure
     "no-private-members",
     "no-special-members",
     "no-module-attributes",
@@ -186,6 +187,7 @@ autosummary_generate = False
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "boto3": ("https://boto3.amazonaws.com/v1/documentation/api/latest/", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
 }
 
 templates_path = ["_templates"]
