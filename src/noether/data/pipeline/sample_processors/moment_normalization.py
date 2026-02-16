@@ -10,7 +10,26 @@ from noether.modeling.functional.logscale import from_logscale, to_logscale
 
 
 class MomentNormalizationSampleProcessor(SampleProcessor):
-    """Normalizes a value with its mean and standard deviation (i.e., its moments)."""
+    """Normalizes a value with its mean and standard deviation (i.e., its moments).
+
+
+    .. code-block:: python
+
+        # dummy example
+        processor = MomentNormalizationSampleProcessor(
+            item="measurement",
+            mean=[10.0],
+            std=[2.0],
+            logscale=False,
+        )
+        input_sample = {
+            "measurement": torch.tensor([[12.0], [14.0], [8.0]]),
+            "other_item": torch.tensor([[1.0], [2.0], [3.0]]),
+        }
+        output_sample = processor(input_sample)
+        # output_sample['measurement'] will be tensor([[1.0], [2.0], [-1.0]])
+        # output_sample['other_item'] will be unchanged.
+    """
 
     def __init__(
         self,
@@ -24,7 +43,7 @@ class MomentNormalizationSampleProcessor(SampleProcessor):
         """
 
         Args:
-            item: The item to normalize.
+            item: The item (i.e., key in the input sample dictionary) to normalize.
             mean: The mean of the value. Mandatory if logscale=False.
             std: The standard deviation of the value. Mandatory if logscale=False.
             logmean: The mean of the value in logscale. Mandatory if logscale=True.
@@ -53,7 +72,7 @@ class MomentNormalizationSampleProcessor(SampleProcessor):
         """Pre-processes data on a sample-level to normalize a value to approximately mean=0 std=1.
 
         Args:
-            sinput_sample: Dictionary of a single sample.
+            input_sample: Dictionary with the tensors of a single sample.
 
         Return:
            Preprocessed copy of `input_sample` with the specified item normalized.

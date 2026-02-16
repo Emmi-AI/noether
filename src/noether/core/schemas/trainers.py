@@ -25,7 +25,7 @@ class BaseTrainerConfig(BaseModel):
     """The maximum number of samples to train for. Mutually exclusive with max_epochs and max_updates. If set to 0, training will be skipped and all callbacks will be invoked once (useful for evaluation-only runs)."""
 
     start_at_epoch: int | None = Field(None)
-    """The epoch to start training at."""
+    """The epoch to start training at. This means that the trainer will skip all epochs before this epoch. Learning rate and other schedulers will be stepped accordingly. Useful for resuming training from a specific epoch."""
 
     add_default_callbacks: bool | None = Field(True)
     """Whether to add default callbacks. Default callbacks log things like simple dataset statistics or the current value of the learning rate if it is scheduled."""
@@ -41,24 +41,24 @@ class BaseTrainerConfig(BaseModel):
     initializer: InitializerConfig | None = Field(None)
     """The initializer to use for training. Mainly used for resuming training via ResumeInitializer."""
 
-    log_every_n_epochs: int | None = Field(None)
+    log_every_n_epochs: int | None = Field(None, ge=1)
     """The integer number of epochs to periodically log at."""
-    log_every_n_updates: int | None = Field(None)
+    log_every_n_updates: int | None = Field(None, ge=1)
     """The integer number of updates to periodically log at."""
-    log_every_n_samples: int | None = Field(None)
+    log_every_n_samples: int | None = Field(None, ge=1)
     """The integer number of samples to periodically log at."""
-    track_every_n_epochs: int | None = Field(None)
-    """The integer number of epochs to to periodically track metrics at."""
-    track_every_n_updates: int | None = Field(50)
+    track_every_n_epochs: int | None = Field(None, ge=1)
+    """The integer number of epochs to periodically track metrics at."""
+    track_every_n_updates: int | None = Field(50, ge=1)
     """The integer number of updates to periodically track metrics at."""
-    track_every_n_samples: int | None = Field(None)
+    track_every_n_samples: int | None = Field(None, ge=1)
     """The integer number of samples to periodically track metrics at."""
 
-    max_batch_size: int | None = Field(None)
+    max_batch_size: int | None = Field(None, ge=1)
     """The maximum batch size to use for model forward pass in training. If the effective_batch_size is larger than max_batch_size, gradient accumulation will be used to simulate the larger batch size. For example, if effective_batch_size=8 and max_batch_size=2, 4 gradient accumulation steps will be taken before each optimizer step."""
     skip_nan_loss: bool = Field(False)
     """Whether to skip NaN losses. These can sometimes occur due to unlucky coincidences. If true, NaN losses will be skipped without terminating the training up until 100 NaN losses occurred in a row."""
-    skip_nan_loss_max_count: int = Field(100)
+    skip_nan_loss_max_count: int = Field(100, ge=1)
 
     disable_gradient_accumulation: bool = Field(True)
     """Whether to disable gradient accumulation. Gradient accumulation is sometimes used to simulate larger batch sizes, but can lead to worse generalization."""

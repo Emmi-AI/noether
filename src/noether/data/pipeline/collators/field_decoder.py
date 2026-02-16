@@ -17,8 +17,7 @@ class FieldDecoderCollator:
     """
 
     def __init__(self, position_item: str, target_items: list[str]):
-        """Initializes the FieldDecoderCollator.
-
+        """
         Args:
             position_item: Identifier for the position.
             target_items: Identifiers for the position, can use multiple target_items if multiple values are predicted with

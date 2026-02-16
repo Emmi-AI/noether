@@ -17,10 +17,10 @@ class PositionNormalizationBatchProcessor(BatchProcessor):
         raw_pos_max: Sequence[float],
         scale: int | float = 1000,
     ):
-        """Initializes the PositionNormalizationPostCollator
+        """
 
         Args:
-            items: The position items to normalize.
+            items: The position items (i.e., keys in the batch) to normalize.
             raw_pos_min: The minimum position in the source domain.
             raw_pos_max: The maximum position in the source domain.
             scale: The maximum value of the position. Defaults to 1000.
@@ -34,7 +34,7 @@ class PositionNormalizationBatchProcessor(BatchProcessor):
         self.raw_size = self.raw_pos_max_tensor - self.raw_pos_min_tensor
 
     def __call__(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        """Post-processes data on a batch-level to normalize positions.
+        """
 
         Args:
             batch: Collated batch.

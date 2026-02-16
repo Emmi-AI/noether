@@ -15,7 +15,21 @@ from noether.core.utils.training.training_iteration import TrainingIteration
 
 
 class EmaCallback(PeriodicCallback):
-    """Callback for exponential moving average (EMA) of model weights."""
+    """Callback for exponential moving average (EMA) of model weights.
+
+    Example config:
+
+    .. code-block:: yaml
+
+        - kind: noether.core.callbacks.EmaCallback
+          every_n_epochs: 10
+          save_weights: false
+          save_last_weights: false
+          save_latest_weights: true
+          target_factors:
+            - 0.9999
+          name: EmaCallback
+    """
 
     def __init__(
         self,

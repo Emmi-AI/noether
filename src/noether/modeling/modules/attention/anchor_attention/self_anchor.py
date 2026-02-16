@@ -15,6 +15,8 @@ class SelfAnchorAttention(MultiBranchAnchorAttention):
 
     Example: surface tokens attend to surface_anchors and volume tokens attend to volume_anchors.
 
+    This is achieved via the following attention patterns:
+
     .. code-block:: python
 
         AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["surface_anchors"])

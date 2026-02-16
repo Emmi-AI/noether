@@ -22,9 +22,8 @@ class UPT(nn.Module):
         config: UPTConfig,
     ):
         """
-
         Args:
-            config: Configuration for the UPT model.
+            config: Configuration for the UPT model. See :class:`~noether.core.schemas.models.UPTConfig` for details.
         """
 
         super().__init__()
@@ -90,14 +89,6 @@ class UPT(nn.Module):
     ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
         """Compute the RoPE frequency arguments for the surface_position and query_position. If we don't use RoPE,
         return empty dicts.
-
-        Args:
-            surface_position_batch_idx: Batch indices for the surface positions.
-            surface_position: Surface position coordinates.
-            surface_position_supernode_idx: Supernode indices for the surface positions.
-            query_position: Query position coordinates.
-        Returns:
-            dict[str, torch.Tensor]: Dictionary containing the RoPE frequency arguments.
         """
         if not self.use_rope:
             return {}, {}
@@ -137,8 +128,7 @@ class UPT(nn.Module):
             geometry_position: geometry position information.
             query_position: input coordinates of the query points.
         Returns:
-            dict[str, torch.Tensor]: dictionary with the output tensors, containing the surface pressure and volume
-            velocity.
+            torch.Tensor: Output tensor containing the predictions for the surface and volume fields, sliced according to the data specifications.
         """
 
         encoder_attn_kwargs, decoder_attn_kwargs = self.compute_rope_args(

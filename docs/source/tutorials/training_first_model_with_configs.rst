@@ -21,6 +21,7 @@ Note by default the outputs (checkpoints, logs, etc.) will be stored in the ``ou
 
     uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
         +experiment/shapenet=upt \
+        tracker=disabled \
         dataset_root=/Users/user/data/shapenet_car
 
 We expose ``noether-train`` command via `uv` for your convenience to run the training. Here we specify the location

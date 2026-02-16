@@ -23,7 +23,7 @@ class MLP(nn.Module):
         """Initialize the MLP.
 
         Args:
-            config: Configuration object for the MLP.
+            config: Configuration object for the MLP. See :class:`~noether.core.schemas.modules.mlp.MLPConfig` for available options.
         """
         super().__init__()
 

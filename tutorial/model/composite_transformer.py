@@ -15,15 +15,14 @@ from tutorial.schemas.models.composite_transformer_config import (
 
 class CompositeTransformer(CompositeModel):
     """This is an example of a composite Transformer model, having two stacks of transformer blocks which can have different optimizers.
-        Note that this is mainly an example for the sake of demonstration and development, and not necessarily a useful architecture.
-
-    Args:
-
+    Note that this is mainly an example for the sake of demonstration and development, and not necessarily a useful architecture.
 
     """
 
     def __init__(self, model_config: CompositeTransformerConfig, **kwargs):
-        """A composite model consisting of multiple transformer-based single models."""
+        """
+        Args:
+            model_config: The model configuration used to initialize the model. See :class:`~tutorial.schemas.models.composite_transformer_config.CompositeTransformerConfig` for available options."""
         super().__init__(model_config=model_config, **kwargs)
 
         self.model_config = model_config

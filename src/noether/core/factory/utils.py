@@ -10,13 +10,13 @@ logger = logging.getLogger(__name__)
 
 
 def all_ctor_kwarg_names(cls: type) -> set[str]:
-    """Returns all names of kwargs in of a type (including the kwargs of all parent classes).
+    """Returns all names of kwargs in the constructor of a type (including the kwargs of all parent classes).
 
     Args:
-        cls: Type from which to retrieve the names of kwargs.
+        cls: Type from which to retrieve the names of constructor kwargs.
 
     Returns:
-        A list of names of kwargs of the type.
+        A set of names of constructor kwargs of the type.
     """
     return _all_ctor_kwarg_names(cls=cls, result=set())
 
@@ -30,12 +30,12 @@ def _all_ctor_kwarg_names(cls: type, result: set[str]) -> set[str]:
 
 
 def class_constructor_from_class_path(class_path: str) -> Callable[..., Any]:
-    """Creates a callable that constructs an object from a classpath. This callable is either a `type` (if no further
-    kwargs are needed to be passed) or a `partial` otherwise. This is equivalent to Hydra instantiation with _target_, which is also based on class paths.
+    """Creates a callable that constructs an object from a classpath. This callable is either a ``type`` (if no further
+    kwargs are needed to be passed) or a :func:`~functools.partial` otherwise. This is equivalent to Hydra instantiation with ``_target_``, which is also based on class paths.
 
     Args:
-        class_path: Fully specified module path of the object. For example: `"torch.optim.SGD"` or
-            `"noether.core.callbacks.CheckpointCallback"`.
+        class_path: Fully specified module path of the object. For example: ``"torch.optim.SGD"`` or
+            ``"noether.core.callbacks.checkpoint.checkpoint.CheckpointCallback"``.
 
     Returns:
         A callable that constructs the object.

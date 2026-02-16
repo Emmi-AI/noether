@@ -22,7 +22,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig):
     geometry_depth: int = Field(..., ge=0)
     """Number of transformer blocks in the geometry encoder."""
 
-    hidden_dim: int = Field(...)
+    hidden_dim: int = Field(..., ge=1)
     """Hidden dimension of the model."""
 
     physics_blocks: list[Literal["shared", "cross", "joint", "perceiver"]]
@@ -33,10 +33,10 @@ class AnchorBranchedUPTConfig(ModelBaseConfig):
     Joint: Joint attention over surface and volume points. I.e. full self-attention over both surface and volume points.
     Perceiver: Perceiver-style attention blocks."""
 
-    num_surface_blocks: int = Field(...)
+    num_surface_blocks: int = Field(..., ge=1)
     """Number of transformer blocks in the surface decoder. Weights are not shared with the volume decoder."""
 
-    num_volume_blocks: int = Field(...)
+    num_volume_blocks: int = Field(..., ge=1)
     """Number of transformer blocks in the volume decoder. Weights are not shared with the surface decoder."""
 
     init_weights: InitWeightsMode = Field("truncnormal002")

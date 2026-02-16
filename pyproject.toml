@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emmiai-noether"
-version = "1.0.0"
+version = "1.1.0"
 description = "Noether: A PyTorch-based Framework for Engineering AI"
 authors = [{ name = "Emmi AI", email = "contact@emmi.ai" }]
 license-files = ["LICENSE.txt"]
@@ -18,8 +18,6 @@ dependencies = [
     # ---
     "loguru>=0.7.3",
     "einops>=0.8.1",
-    "wandb>=0.19.6",
-    "neptune-scale>=0.10.2",
     "hydra-core>=1.3.2",
     "numpy==2.3.1",
     "torch==2.8.0",
@@ -35,11 +33,6 @@ dependencies = [
     "typer>=0.16.0",
     "fsspec>=2025.5.1",
     # ---
-]
-[project.optional-dependencies]
-cluster = [
-    "torch-geometric>=2.7.0",
-    "torch-cluster",
 ]
 
 [project.urls]
@@ -74,6 +67,7 @@ dev = [
     "types-tqdm>=4.67.0.20250809",
     "docutils-stubs==0.0.22",
     "pytest-benchmark>=5.2.3",
+    "wandb>=0.19.6",  # Added for testing WandB integration
 ]
 docs = [
     "sphinx>=7.3",
@@ -88,10 +82,6 @@ docs = [
     "roman-numerals-py==4.0.0", # pin because of https://github.com/sphinx-doc/sphinx/issues/14186
 ]
 
-# --- Centralized UV Configuration ---
-# This configuration is inherited by all sub-packages, avoiding repetition.
-[tool.uv]
-no-build-isolation-package = ["torch-cluster",]
 
 [[tool.uv.index]]
 name = "torch-cpu"

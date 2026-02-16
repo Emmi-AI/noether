@@ -38,6 +38,7 @@ class CallbackBase:
     Callbacks have access to a `LogWriter`, with which callbacks can log metrics. The `LogWriter` is a singleton.
 
     Examples:
+
         .. code-block:: python
 
             # THIS IS INSIDE A CUSTOM CALLBACK
@@ -130,7 +131,7 @@ class CallbackBase:
 
     def resume_from_checkpoint(self, resumption_paths: PathProvider, model: ModelBase) -> None:
         """If a callback stores large files to disk and is stateful (e.g., an EMA of the model), it would be
-        unecessarily wasteful to also store the state in the callbacks `state_dict`. Therefore,
+        unnecessarily wasteful to also store the state in the callbacks `state_dict`. Therefore,
         `resume_from_checkpoint` is called when resuming a run, which allows callbacks to load their state from any
         file that was stored on the disk.
 

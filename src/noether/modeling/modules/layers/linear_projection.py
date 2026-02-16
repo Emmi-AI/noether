@@ -15,10 +15,9 @@ class LinearProjection(nn.Module):
         config: LinearProjectionConfig,
     ) -> None:
         """
-        Initialize the LinearProjection.
 
         Args:
-            config: The configuration of the LinearProjection.
+            config: The configuration of the LinearProjection. See :class:`~noether.core.schemas.modules.layers.LinearProjectionConfig` for available options.
 
         Raises:
             NotImplementedError: raises not implemented error if the number of dimensions of the input domain is bigger than 4.

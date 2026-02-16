@@ -16,16 +16,19 @@ from noether.core.utils.training.training_iteration import TrainingIteration  # 
 class CheckpointInitializer(InitializerBase):
     checkpoint: str | TrainingIteration
 
+    """
+    Base class to initialize models from checkpoints of previous runs. Should not be used directly, but inherited by other initializers such as PreviousRunInitializer or ResumeInitializer.
+    """
+
     def __init__(
         self,
         initializer_config: CheckpointInitializerConfig,
         **kwargs,
     ):
         """
-        Initialize model from checkpoint.
 
         Args:
-            initializer_config: configuration for the initializer.
+            initializer_config: configuration for the initializer. See :class:`~noether.core.schemas.initializers.CheckpointInitializerConfig` for available options.
             **kwargs: additional arguments to pass to the parent class.
         """
         super().__init__(**kwargs)
@@ -60,9 +63,9 @@ class CheckpointInitializer(InitializerBase):
             model_name: the name of the model to load.
 
         Returns:
-            sd: the model state dict.
+            state_dict: the model state dict.
             model_name: the name of the model to load.
-            ckpt_uri: the URI of the checkpoint file.
+            checkpoint_uri: the URI of the checkpoint file.
         """
         model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
             model=model, model_name=model_name, file_type="model"

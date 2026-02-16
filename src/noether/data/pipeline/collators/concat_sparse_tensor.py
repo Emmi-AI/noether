@@ -11,10 +11,9 @@ class ConcatSparseTensorCollator:
     """
 
     def __init__(self, items: list[str], create_batch_idx: bool = False, batch_idx_key: str = "batch_idx"):
-        """Initializes the ConcatSparseTensorCollator.
-
+        """
         Args:
-            items:  Which pointcloud items should be collated.
+            items:  Which pointcloud items (i.e., keys in the sample dictionaries) should be collated.
             create_batch_idx: If true, creates a batch_idx tensor that maps samples to their index in the batch.
                 Defaults to False.
             batch_idx_key: How the generated batch_idx tensor should be called. Defaults to "batch_idx". If multiple

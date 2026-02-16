@@ -18,6 +18,7 @@ class JointAnchorAttention(MultiBranchAnchorAttention):
     It requires at least one anchor token to be present in the input.
 
     Example: all tokens attend to (surface_anchors, volume_anchors).
+    This is achieved via the following attention pattern:
 
     .. code-block:: python
 
@@ -25,6 +26,7 @@ class JointAnchorAttention(MultiBranchAnchorAttention):
             query_tokens=["surface_anchors", "surface_queries", "volume_anchors", "volume_queries"],
             key_value_tokens=["surface_anchors", "volume_anchors"],
         )
+
     """
 
     def __init__(
