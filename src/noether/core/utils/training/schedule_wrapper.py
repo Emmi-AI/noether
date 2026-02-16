@@ -18,9 +18,9 @@ class ScheduleWrapper:
     ):
         """
         Args:
-            schedule: The schedule to wrap.
-            update_counter: The UpdateCounter to use for getting the current step. If None, the schedule is assumed to
-                be constant.
+            schedule: The :class:`~noether.core.schedules.base.ScheduleBase` to wrap.
+            update_counter: The :class:`~noether.core.utils.training.counter.UpdateCounter` to use for getting the
+                current step. If None, the schedule is assumed to be constant.
             interval: Whether the schedule is based on updates or epochs. Interval should be either "update" or "epoch".
         """
 

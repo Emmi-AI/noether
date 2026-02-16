@@ -9,7 +9,6 @@ from .point_sampling import PointSamplingSampleProcessor
 from .position_normalization import PositionNormalizationSampleProcessor
 from .rename_keys import RenameKeysSampleProcessor
 from .replace_key import ReplaceKeySampleProcessor
-from .samplewise_normalization import SamplewiseNormalizationSampleProcessor
 from .supernode_sampling import SupernodeSamplingSampleProcessor
 
 __all__ = [
@@ -20,7 +19,6 @@ __all__ = [
     "PositionNormalizationSampleProcessor",
     "RenameKeysSampleProcessor",
     "ReplaceKeySampleProcessor",
-    "SamplewiseNormalizationSampleProcessor",
     "SupernodeSamplingSampleProcessor",
     "ConcatTensorSampleProcessor",
     "DefaultTensorSampleProcessor",

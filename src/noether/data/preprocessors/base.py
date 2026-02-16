@@ -10,15 +10,20 @@ import torch
 class PreProcessor:
     """Base class for all data preprocessors.
     Example:
-        >>> class MyPreProcessor(PreProcessor):
-        >>>     def __init__(self, normalization_key: "image"):
-        >>>         super().__init__(normalization_key=normalization_key)
-        >>>     def __call__(self, x):
-        >>> # Example processing: normalize to [0, 1]
-        >>>         return x / 255.0
-        >>>     def denormalize(self, x):
-        >>> # Example denormalization: scale back to [0, 255]
-        >>>         return x * 255.0
+
+    .. code-block:: python
+
+        class MyPreProcessor(PreProcessor):
+            def __init__(self, normalization_key: "image"):
+                super().__init__(normalization_key=normalization_key)
+
+            def __call__(self, x):
+                # Example processing: normalize to [0, 1]
+                return x / 255.0
+
+            def denormalize(self, x):
+                # Example denormalization: scale back to [0, 255]
+                return x * 255.0
     """
 
     def __init__(self, normalization_key: str):

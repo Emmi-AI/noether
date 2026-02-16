@@ -10,11 +10,11 @@ class DefaultCollator:
     """Applies `torch.utils.data.default_collate` to the specified items."""
 
     def __init__(self, items: list[str] | None = None, optional_items: list[str] | None = None):
-        """Initializes the DefaultCollator.
+        """
 
         Args:
-            items: Items to apply `default_collate` to.
-            optional_items: Items to apply `default_collate` to if they are present.
+            items: Items (i.e, keys) to apply `default_collate` to.
+            optional_items: Items (i.e, keys) to apply `default_collate` to if they are present.
         """
         self.items = items
         self.optional_items = optional_items

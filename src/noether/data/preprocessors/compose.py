@@ -7,16 +7,22 @@ from noether.data.preprocessors.base import PreProcessor
 
 class ComposePreProcess:
     """Compose multiple transforms and support inversion by reversing the sequence and inverting each transform.
+
     Example:
-        >>> normalizer = ComposePreProcess(
-        >>>     normalization_key="image",
-        >>>     preprocessors=[
-        >>>         MyPreProcessor1(),
-        >>>         MyPreProcessor2(),
-        >>>     ]
-        >>> )
-        >>> processed_data = normalizer(input_data)
-        >>> original_data = normalizer.inverse(processed_data)
+
+    .. code-block:: python
+
+        from noether.data.preprocessors.compose import ComposePreProcess
+
+        normalizer = ComposePreProcess(
+            normalization_key="image",
+            preprocessors=[
+                MyPreProcessor1(),
+                MyPreProcessor2(),
+            ],
+        )
+        processed_data = normalizer(input_data)
+        original_data = normalizer.inverse(processed_data)
     """
 
     def __init__(self, normalization_key: str, preprocessors: list[PreProcessor]) -> None:

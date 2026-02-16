@@ -19,7 +19,8 @@ class SubsetWrapper(Subset):
         """
         Args:
             dataset: The dataset to wrap.
-            config: The configuration to use.
+            config: The configuration to use. See :class:`~noether.core.schemas.dataset.SubsetWrapperConfig`
+                for available options.
 
         Raises:
             ValueError: If the input parameters are invalid.

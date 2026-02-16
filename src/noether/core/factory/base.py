@@ -14,12 +14,13 @@ class Factory:
     """Base factory. Implements base structures for creating a single object, a list of objects and a dict
     of objects.
 
-    For example, creating a list
+
+    For example, creating a list:
 
     .. code-block:: python
 
         class Example:
-            def __init__(self, callbacks: list[CallbackConfig] | None = None)
+            def __init__(self, callbacks: list[CallbackConfig] | None = None):
                 # automatic none check in create_list (this is how Factory is implemented)
                 self.callbacks = Factory().create_list(callbacks)
                 # required none check after creating the list (this is how one could implement it without create_list)
@@ -27,46 +28,48 @@ class Factory:
 
     Objects can be instantiated from either:
 
-    - :class:`pydantic.BaseModel`. In this case, the ``kind`` field is used to determine the class path of the object to be instantiated. The full pydantic model is passed to the constructor.
+    * :class:`~pydantic.BaseModel`: In this case, the ``kind`` field is used to determine the class path of the
+      object to be instantiated. The full pydantic model is passed to the constructor.
 
-    .. code-block:: python
+      .. code-block:: python
 
-        class ExampleConfig(pydantic.BaseModel):
-            kind: str
-            param1: int
-            param2: str
+          class ExampleConfig(pydantic.BaseModel):
+              kind: str
+              param1: int
+              param2: str
 
-        class ExampleOject()
 
-            def __init__(self, config: ExampleConfig):
+          class ExampleObject:
+              def __init__(self, config: ExampleConfig):
+                  self.param1 = config.param1
+                  self.param2 = config.param2
+                  # kind is also in the config, but usually not needed in the object itself
 
-                self.param1 = config.param1
-                self.param2 = config.param2
-                # kind is also in the config, but usually not needed in the object itself
 
-        example_config = ExampleConfig(kind="path.to.ExampleObject", param1=42, param2="hello")
-        example_object = Factory().create(example_config)
+          example_config = ExampleConfig(kind="path.to.ExampleObject", param1=42, param2="hello")
+          example_object = Factory().create(example_config)
 
-    Using :class:`pydantic.BaseModel` is the preferred way of instantiating objects as it provides type safety and validation.
-    However, it is also possible to achieve the same by using dictionaries:
+      Using :class:`~pydantic.BaseModel` is the preferred way of instantiating objects as it provides type safety
+      and validation.
 
-    - Dictionary. In this case, the ``kind`` key is used to determine the class path of the object to be instantiated. The full dictionary is passed to the constructor.
-      However, almost all classes in Noether take a config object as input to the constructor. This approach will only work for custom classes that take named arguments in the constructor.
+    * Dictionary: In this case, the ``kind`` key is used to determine the class path of the object to be
+      instantiated. The full dictionary is passed to the constructor. However, almost all classes in Noether take a
+      config object as input to the constructor. This approach will only work for custom classes that take named
+      arguments in the constructor.
 
-    .. code-block:: python
+      .. code-block:: python
 
-        example_dict = {
-            "kind": "path.to.ExampleObject",
-            "param1": 42,
-            "param2": "hello"
-        }
-        class ExampleOject()
-            # constructor takes named arguments directly, and kind popped before passing to constructor
-            def __init__(self, param1: int, param2: str):
-                self.param1 = param1
-                self.param2 = param2
+          example_dict = {"kind": "path.to.ExampleObject", "param1": 42, "param2": "hello"}
 
-        example_object = Factory().create(example_dict)
+
+          class ExampleObject:
+              # constructor takes named arguments directly, and kind popped before passing to constructor
+              def __init__(self, param1: int, param2: str):
+                  self.param1 = param1
+                  self.param2 = param2
+
+
+          example_object = Factory().create(example_dict)
     """
 
     def __init__(self, returns_partials: bool = False):
@@ -118,8 +121,9 @@ class Factory:
     def create_list(
         self, collection: list[Any] | list[dict[str, Any]] | dict[str, Any] | list[pydantic.BaseModel] | None, **kwargs
     ) -> list[Any]:
-        """Creates a list of object by calling the :meth:`create` function for every item in the collection. If ``collection``
-        is ``None``, an empty list is returned.
+        """Creates a list of objects by calling the :meth:`create` function for every item in the collection.
+
+        If ``collection`` is ``None``, an empty list is returned.
 
         Args:
             collection: Either a list of configs how the objects should be instantiated.
@@ -145,8 +149,9 @@ class Factory:
         collection: dict[str, Any] | dict[str, dict[str, Any]] | None,
         **kwargs,
     ) -> dict[str, Any]:
-        """Creates a dict of object by calling the :meth:`create` function for every item in the collection. If ``collection``
-        is ``None``, an empty dictionary is returned.
+        """Creates a dict of objects by calling the :meth:`create` function for every item in the collection.
+
+        If ``collection`` is ``None``, an empty dictionary is returned.
 
         Args:
             collection: Either a dict of existing objects or a dict of descriptions how the objects
@@ -172,7 +177,7 @@ class Factory:
         Args:
             object_config: Configuration containing the fully specified type of the object in the ``kind`` field.
                 For example: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
-            kwargs: kwargs passed to the type when instantiating the object.
+           kwargs: kwargs passed to the type when instantiating the object.
 
         Returns:
             The instantiated object.
@@ -183,5 +188,5 @@ class Factory:
             class_constructor = class_constructor_from_class_path(kwargs.pop("kind"))
             return class_constructor(**kwargs)
         else:
-            class_constructor = class_constructor_from_class_path(object_config.kind)  # type: ignore[union-attr]
+            class_constructor = class_constructor_from_class_path(object_config.kind)  # type: ignore [union-attr]
             return class_constructor(object_config, **kwargs)

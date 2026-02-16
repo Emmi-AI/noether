@@ -66,7 +66,28 @@ TRAINING_UPDATE_TIME = "update"
 
 
 class BaseTrainer:
-    """Base class for all trainers that use SGD-based optimizers."""
+    """Base class for all trainers that use SGD-based optimizers.
+
+    This class implements the main training loop and provides utility functions for logging, checkpointing, and callbacks.
+    In your down-stream you have to implement the `loss_compute` method that calculates the loss based on the model output and the targets.
+    Optionally, you can also override the `train_step` method if you want to implement a custom training step (e.g., for multi-loss training or custom backward logic).
+    If you only want to implement a custom loss calculation but keep the rest of the training loop, you can just override the `loss_compute` method.
+    For example:
+
+    .. code-block:: python
+
+        class MyTrainer(BaseTrainer):
+            def __init__(self, trainer_config: BaseTrainerConfig, **kwargs):
+                super().__init__(trainer_config, **kwargs)
+
+            def loss_compute(
+                self, forward_output: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
+            ) -> LossResult:
+                # compute loss based on model output and targets
+                return loss
+
+
+    """
 
     def __init__(
         self,
@@ -81,14 +102,14 @@ class BaseTrainer:
         """
 
         Args:
-            config: The configuration for the trainer.
-            data_container: The data container which includes the data and dataloader.
+            config: Configuration for the trainer. See :class:`~noether.core.schemas.BaseTrainerConfig` for the available options.
+            data_container: The :class:`~noether.data.container.DataContainer` which includes the data and dataloader.
             device: The device to use for training (e.g., "cuda"). It is assumed that the process was configured such
-                that only 1 device is visible (e.g., via the CUDA_VISIBLE_DEVICES environment variable).
+                that only 1 device is visible (e.g., via the `CUDA_VISIBLE_DEVICES` environment variable).
             main_sampler_kwargs: Kwargs passed to instantiate the main sampler.
             tracker: The tracker to use for training.
-            path_provider: The path provider to use for training.
-            metric_property_provider: The metric property provider to use for training.
+            path_provider: The :class:`~noether.core.providers.PathProvider` to use for training.
+            metric_property_provider: The :class:`~noether.core.providers.MetricPropertyProvider` to use for training.
         """
         self.logger = logging.getLogger(type(self).__name__)
 

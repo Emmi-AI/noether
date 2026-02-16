@@ -25,7 +25,8 @@ class SupernodePooling(nn.Module):
         """Initialize the SupernodePooling.
 
         Args:
-            config: Configuration for the SupernodePooling module.
+            config: Configuration for the SupernodePooling module. See
+                :class:`~noether.core.schemas.modules.encoders.SupernodePoolingConfig` for available options.
 
         """
         super().__init__()

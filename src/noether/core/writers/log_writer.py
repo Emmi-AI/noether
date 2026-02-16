@@ -96,7 +96,7 @@ class LogWriter:
         # also fetching the summaries from the online version potentially takes a long time, occupying GPU servers
         # for primitive tasks
         # -------------------
-        # wandb has weird behavior when lots of logs are done seperately -> collect all log values and log once
+        # wandb has weird behavior when lots of logs are done separately -> collect all log values and log once
         # -------------------
         # check that every log is fully cached (i.e. no update is logged twice)
         if len(self.log_entries) > 0:

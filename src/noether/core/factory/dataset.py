@@ -16,7 +16,9 @@ class DatasetFactory(Factory):
 
     .. code-block:: yaml
 
-        kind: noether.core.factory.DatasetFactory
+        kind: path.to.custom_dataset.CustomDataset
+        dataset_param1: value1
+        dataset_param2: value2
         dataset_wrappers:
           - kind: noether.data.base.wrappers.SomeDatasetWrapper
             param1: value1
@@ -32,7 +34,7 @@ class DatasetFactory(Factory):
         self.dataset_wrapper_factory = dataset_wrapper_factory or Factory()
 
     def instantiate(self, dataset_config: DatasetBaseConfig, **kwargs) -> Any:  # type: ignore[override]
-        """Instantiates the dataset based on the provided configuration.
+        """Instantiates the dataset either based on `dataset_config`
 
         Args:
             dataset_config: Configuration for the dataset. See

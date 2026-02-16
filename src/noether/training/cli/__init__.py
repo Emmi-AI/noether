@@ -20,7 +20,6 @@ def _rewrite_hydra_args(relpath, insert_at: int):
     sys.argv.insert(insert_at + 3, cn)
 
     # backup the --hp argument to log it to the tracker (hydra operates on absolute path)
-    os.environ["KSUIT_MAIN_TRAIN_CONFIG_PATH_RELATIVE"] = relpath
 
 
 def setup_hydra():

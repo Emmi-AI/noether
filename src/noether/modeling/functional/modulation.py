@@ -11,6 +11,9 @@ def modulate_scale_shift(x: torch.Tensor, scale: torch.Tensor, shift: torch.Tens
         x: Input tensor (e.g., input to a transformer block with shape (batch_size, sequence_length, dim)).
         scale: Scale tensor with shape (batch_size, dim) or (batch_size, 1 dim).
         shift: Shift tensor with shape (batch_size, dim) or (batch_size, 1 dim).
+
+    Returns:
+        The scaled and shifted input, where each feature of x is scaled by (1 + scale) and then shifted by shift.
     """
     if x.ndim == 3:
         scale = scale.unsqueeze(1)
@@ -24,6 +27,9 @@ def modulate_gate(x: torch.Tensor, gate: torch.Tensor) -> torch.Tensor:
     Args:
         x: Input tensor (e.g., input to a transformer block with shape (batch_size, sequence_length, dim)).
         gate: Gate tensor with shape (batch_size, dim) or (batch_size, 1 dim).
+
+    Returns:
+        The gated input, where each feature of x is multiplied by the corresponding gate value.
     """
     if x.ndim == 3:
         gate = gate.unsqueeze(1)

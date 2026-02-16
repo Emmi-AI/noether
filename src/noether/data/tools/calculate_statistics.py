@@ -47,7 +47,7 @@ def parse_args() -> dict[str, Any]:
         "--exclude_attributes",
         type=lambda s: set(s.split(",")) if s else set(),
         default=set(),
-        help="Comma-separated list of attributes to exclude from statistics calculation",
+        help="Comma-separated list of properties from the dataset class to exclude from statistics calculation. By default, all properties are included.",
     )
     parser.add_argument(
         "--output_json",

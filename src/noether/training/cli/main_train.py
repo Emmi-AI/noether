@@ -25,7 +25,9 @@ def main(config: DictConfig):
     It supports passing the configuration file as a positional argument or via the --hp flag.
 
     Example:
-        python main_train.py configs/my_experiment.yaml
+    .. code-block:: bash
+
+       python main_train.py configs/my_experiment.yaml
         python main_train.py --hp configs/my_experiment.yaml
         python main_train.py configs/my_experiment.yaml trainer.max_epochs=10
     """

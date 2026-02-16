@@ -22,8 +22,7 @@ class UnquantizedDropPath(nn.Module):
         Initialize the UnquantizedDropPath module.
 
         Args:
-            drop_prob: Probability to drop a path.. Defaults to 0..
-            scale_by_keep: Up-scales activations during training to avoid train-test mismatch.. Defaults to True.
+            config: Configuration for the UnquantizedDropPath module. See :class:`~noether.core.schemas.modules.layers.UnquantizedDropPathConfig` for the available options.
         """
 
         super().__init__()

@@ -32,6 +32,7 @@ class TrackAdditionalOutputsCallback(PeriodicCallback):
           every_n_updates: 1
           keys:
             - "surface_pressure_loss"
+
     """
 
     out: Path | None

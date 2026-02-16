@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 
 from noether.core.callbacks import CallbackBase
-from noether.core.models.single import Model
+from noether.core.models.model import Model
 from noether.core.providers import PathProvider
 from noether.core.schemas import DatasetBaseConfig
 from noether.core.schemas.initializers import ResumeInitializerConfig

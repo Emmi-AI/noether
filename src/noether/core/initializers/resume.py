@@ -25,9 +25,10 @@ class ResumeInitializer(CheckpointInitializer):
     Needs to be configured as part of the config by setting the resume_run_id in the root config (assumg the same output path is used).
     This initializer assumes that the previous run is going to be resumed for further training (i.e., trianing is not finished yet)
 
-    For example:
+    For example (config snippet is part of the trainer config):
 
     .. code-block:: yaml
+
         resume_run_id: <previous_run_id>
 
     """

@@ -85,16 +85,16 @@ class IrregularNatAttentionConfig(AttentionConfig):
     input_dim: int = Field(..., ge=0)
     """Dimensionality of the input features."""
 
-    radius: float = Field(0.1)
+    radius: float = Field(0.1, ge=0.0)
     """Radius for the radius graph."""
 
-    max_degree: int = Field(16)
+    max_degree: int = Field(16, ge=1)
     """Maximum number of neighbors per point."""
 
-    relpos_mlp_hidden_dim: int = Field(32)
+    relpos_mlp_hidden_dim: int = Field(32, ge=1)
     """Hidden dimensionality of the relative position bias MLP."""
 
-    relpos_mlp_dropout: float = Field(0.0)
+    relpos_mlp_dropout: float = Field(0.0, ge=0.0, le=1.0)
     """Dropout rate for the relative position bias MLP."""
 
 

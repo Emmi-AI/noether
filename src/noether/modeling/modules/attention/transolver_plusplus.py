@@ -38,10 +38,9 @@ class TransolverPlusPlusAttention(nn.Module):
     def __init__(self, config: AttentionConfig):
         """
 
-        Initialize the TransolverPlusPlusAttention module.
-
         Args:
-            config: Configuration object for the attention module.
+            config: Configuration for the TransolverPlusPlusAttention module. See
+                :class:`~noether.core.schemas.modules.AttentionConfig` for available options.
         """
         super().__init__()
 

@@ -2,7 +2,7 @@
 
 from .base import ModelBase
 from .composite import CompositeModel
-from .single import Model
+from .model import Model
 
 __all__ = [
     # --- from base:

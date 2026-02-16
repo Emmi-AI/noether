@@ -19,11 +19,15 @@ def with_normalizers(normalizer_key: str):
     """Decorator to apply a normalizer to the output of a getitem_* function of the implemented Dataset class.
 
     This decorator will look for a normalizer registered under the specified key and apply it to the output of the decorated function.
-    Exaple usage:
-    >>> @with_normalizers("image")
-    >>> def getitem_image(self, idx):
-    >>> # Load image tensor
-    >>>     return torch.load(f"{self.path}/image_tensor/{idx}.pt")
+
+    Example usage:
+
+    .. code-block:: python
+
+        @with_normalizers("surface_pressure")
+        def getitem_surface_pressure(self, idx):
+            # Load surface pressure tensor
+            return torch.load(f"{self.path}/surface_pressure_tensor/{idx}.pt")
 
     Args:
         normalizer_key: The key of the normalizer to apply. This key should be present in the self.normalizers dictionary of the Dataset class.
@@ -59,7 +63,7 @@ def with_normalizers(normalizer_key: str):
 
 
 class Dataset(TorchDataset):
-    """Ksuit dataset implementation, which is a wrapper around torch.utils.data.Dataset that can hold a dataset_config_provider.
+    """Noether dataset implementation, which is a wrapper around torch.utils.data.Dataset that can hold a dataset_config_provider.
     A dataset should map a key (i.e., an index) to its corresponding data.
     Each sub-class should implement individual getitem_* methods, where * is the name of an item in the dataset.
     Each getitem_* method loads an individual tensor/data sample from disk.
@@ -68,32 +72,56 @@ class Dataset(TorchDataset):
     Optionally it is possible to configure which getitem methods are called.
 
     Example: Image classification datasets
-        >>> class ImageDataset(Dataset):
-        >>>     def __init__(self, path, dataset_normalizers, **kwargs):
-        >>>         super().__init__(dataset_normalizers=dataset_normalizers, **kwargs)
-        >>>         self.path = path
-        >>>     def __len__(self):
-        >>>         return 100  # Example length
-        >>>     def getitem_image(self, idx):
-        >>> # Load image tensor
-        >>>         return torch.load(f"{self.path}/image_tensor/{idx}.pt")
-        >>>     def getitem_target(self, idx):
-        >>> # Load target tensor
-        >>>         return torch.load(f"{self.path}/target_tensor/{idx}.pt")
-        >>>
-        >>> dataset = ImageDataset("path/to/dataset")
-        >>> sample0 = dataset[0]
-        >>> image_0 = sample0["image"]
-        >>> target_0 = sample0["target"]
+
+    .. code-block:: python
+
+        class CarAeroDynamicsDataset(Dataset):
+            def __init__(self, dataset_config, dataset_normalizers, **kwargs):
+                super().__init__(dataset_config=dataset_config, **kwargs)
+                self.path = dataset_config.path
+
+            def __len__(self):
+                return 100  # Example length
+
+            def getitem_surface_pressure(self, idx):
+                # Load surface pressure tensor
+                return torch.load(f"{self.path}/surface_pressure_tensor/{idx}.pt")
+
+            def getitem_surface_geometry(self, idx):
+                # Load surface geometry tensor
+                return torch.load(f"{self.path}/surface_geometry_tensor/{idx}.pt")
+
+
+        dataset = CarAeroDynamicsDataset("path/to/dataset")
+        sample0 = dataset[0]
+        surface_pressure_0 = sample0["surface_pressure"]
+        surface_geometry_0 = sample0["surface_geometry"]
 
     Data from a getitem method should be normalized in many cases. To apply normalization, add a the decorator function to the getitem method.
     For example:
-        >>> @with_normalizers("image")
-        >>> def getitem_image(self, idx):
-        >>> # Load image tensor
-        >>>    return torch.load(f"{self.path}/image_tensor/{idx}.pt")
 
-    "image" is the key in the self.normalizers dictionary, this key maps to a preprocessor that should implement the correct data normalization.
+    .. code-block:: python
+
+        @with_normalizers("surface_pressure")
+        def getitem_surface_pressure(self, idx):
+            # Load surface pressure tensor
+            return torch.load(f"{self.path}/surface_pressure_tensor/{idx}.pt")
+
+    "surface_pressure" is the key in the self.normalizers dictionary, this key maps to a preprocessor that should implement the correct data normalization.
+
+    Example configuration for dataset normalizers:
+
+    .. code-block:: yaml
+
+        # dummy example configuration for an image classification
+        dataset:
+            kind: noether.data.datasets.CarAeroDynamicsDataset
+            pipeline:  # configure the data pipeline to collate individual samples into batches
+            dataset_normalizers:
+                surface_pressure:
+                    - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+                      mean: [1., 2., 3.]
+                      std: [0.1, 0.2, 0.3]
     """
 
     def __init__(
@@ -103,8 +131,8 @@ class Dataset(TorchDataset):
         """
 
         Args:
-        dataset_config_provider: Optional provider for dataset configuration.
-        dataset_normalizers: A dictionary that contains normalization ComposePreProcess(ers) for each data type. The key for each normalizer can be used in the with_normalizers decorator.
+            dataset_config: Configuration for the dataset. See :class:`~noether.core.schemas.dataset.DatasetBaseConfig`
+                for available options including dataset normalizers.
         """
         super().__init__()
         self.logger = logging.getLogger(type(self).__name__)

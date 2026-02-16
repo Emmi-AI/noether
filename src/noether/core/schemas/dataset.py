@@ -47,7 +47,7 @@ class DatasetBaseConfig(BaseModel):
     """List of normalizers to apply to the dataset. The key is the data source name."""
     dataset_wrappers: list[DatasetWrappers] | None = Field(None)
     included_properties: set[str] | None = Field(None)
-    """Set of properties of this dataset that will be loaded, if not set all properties are loaded"""
+    """Set of properties (i.e., getitem_* methods that are called) of this dataset that will be loaded, if not set all properties are loaded"""
     excluded_properties: set[str] | None = Field(None)
     """Set of properties of this dataset that will NOT be loaded, even if they are present in the included list"""
 

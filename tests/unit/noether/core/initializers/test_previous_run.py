@@ -7,7 +7,7 @@ import torch
 
 from noether.core.initializers.previous_run import PreviousRunInitializer
 from noether.core.models.composite import CompositeModel
-from noether.core.models.single import Model
+from noether.core.models.model import Model
 
 MODULE_PATH = "noether.core.initializers.previous_run"
 

@@ -27,6 +27,7 @@ class OptimizerFactory(Factory):
         Args:
             optimizer_config: Configuration for the optimizer to create. This config contains both the
                 :class:`torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
+                :class:`~torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
                 See :class:`~noether.core.schemas.optimizers.OptimizerConfig` for available options.
 
         Returns:
