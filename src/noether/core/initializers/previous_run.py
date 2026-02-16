@@ -19,14 +19,14 @@ class PreviousRunInitializer(CheckpointInitializer):
           kind: path.to.MyModelClass
           param1: value1
           name: my_model
-            initializers:
-              - kind: noether.core.initializers.PreviousRunInitializer
-                run_id: <run_id>
-                model_name: transformer
-                stage_name: train
-                checkpoint: last
-                keys_to_remove:
-                 - encoder.block1.weight
+          initializers:
+            - kind: noether.core.initializers.PreviousRunInitializer
+            run_id: <run_id>
+            model_name: transformer
+            stage_name: train
+            checkpoint: last
+            keys_to_remove:
+                - encoder.block1.weight
     """
 
     def __init__(
