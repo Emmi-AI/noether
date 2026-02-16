@@ -14,6 +14,7 @@ Currently, Noether supports the following trackers:
 
 *   **Weights & Biases (W&B)**: A popular developer-first MLOps platform.
 *   **Trackio**: A HuggingFace-integrated tracker for lightweight experiment logging.
+*   **TensorBoard**: A classic, local-first visualization toolkit for machine learning experiments.
 
 Configuring Trackers
 --------------------
@@ -45,6 +46,29 @@ To use `Trackio <https://huggingface.co/docs/trackio/en/index>`__, use the ``noe
     kind: noether.core.trackers.TrackioTracker
     project: my-project
     space_id: my-hf-space-id  # Optional: defaults to your HF space if running on HF
+
+TensorBoard
+~~~~~~~~~~~
+
+:: note ::
+    You have to install the `tensorboard` package separately to use this tracker: ``pip install tensorboard``. 
+
+To use TensorBoard, use the ``noether.core.trackers.TensorboardTracker`` kind:
+
+.. code-block:: yaml
+
+    kind: noether.core.trackers.TensorboardTracker
+    log_dir: ./tensorboard_logs         # Base directory where TensorBoard event files will be stored
+    flush_secs: 120                     # Optional: defaults to 60 seconds. Specifies how toften to flush pending events to disk
+
+
+To visualize your metrics, start the TensorBoard server from your terminal. Point the ``--logdir`` argument to the directory specified in your configuration:
+
+.. code-block:: bash
+
+    tensorboard --logdir ./tensorboard_logs
+
+Once the server starts running, it will output a local URL. Open your web browser and navigate to `http://localhost:6006 <http://localhost:6006>`_ to view your experiment dashboards.
 
 Disabling Tracker
 ~~~~~~~~~~~~~~~~
