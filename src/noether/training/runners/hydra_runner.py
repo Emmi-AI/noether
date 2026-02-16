@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import copy
 import logging
 import os
 import platform
@@ -57,6 +58,7 @@ class HydraRunner:
 
         # get config schema
         config_schema = class_constructor_from_class_path(hydra_config["config_schema_kind"])
+        hydra_config["hydra_config_dict"] = copy.deepcopy(hydra_config)
         config: ConfigSchema = config_schema(**hydra_config)
 
         # initialize loggers for setup
@@ -188,6 +190,11 @@ class HydraRunner:
             debug=config.debug,
         )
 
+        hydra_config_dict = config.hydra_config_dict
+        if hydra_config_dict is not None:
+            hydra_config_dict["run_id"] = run_id
+            Hyperparameters.save_resolved_yaml(hydra_config_dict, path_provider.run_output_path / "hp_resolved.yaml")
+
         resume_run_id: str | None = config.resume_run_id
         if resume_run_id is not None:
             resume_checkpoint: str | None = config.resume_checkpoint
@@ -257,8 +264,8 @@ class HydraRunner:
         log_system_info()
 
         if is_rank0():
-            path = path_provider.run_output_path / "hp_resolved.yaml"
-            Hyperparameters.save_resolved(config, path)
+            path = path_provider.run_output_path / "hp_resolved_schema.yaml"
+            Hyperparameters.save_resolved_schema(config, path)
             Hyperparameters.log(config)
 
         if is_distributed():

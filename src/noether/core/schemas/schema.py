@@ -116,6 +116,9 @@ class ConfigSchema(BaseModel):
     master_port: int = Field(default_factory=master_port_from_env)
     """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
 
+    hydra_config_dict: dict[str, Any] | None = Field(None, exclude=True)
+    """The full original Hydra config as a dictionary, stored to have copy of the resolved Hydra config available in the ConfigSchema for storage purposes. This is set in the HydraRunner before validation and is not expected to be set by users."""
+
     @field_validator("tracker", mode="before")
     @classmethod
     def empty_dict_is_none(cls, v: Any) -> Any:

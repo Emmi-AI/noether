@@ -37,7 +37,7 @@ class TestHyperparameters:
         expected_dump = mock_params.model_dump()
 
         with caplog.at_level(logging.INFO):
-            Hyperparameters.save_resolved(mock_params, out_file)
+            Hyperparameters.save_resolved_schema(mock_params, out_file)
 
         assert out_file.is_file()
         with open(out_file) as f:

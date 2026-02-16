@@ -49,6 +49,10 @@ def main(inference_config: DictConfig):
 
     # Merge: Training config is base, Inference config overrides
     # OmegaConf.merge handles DictConfig and dict
+    train_config["resume_run_id"] = None
+    train_config["resume_stage_name"] = None
+    train_config["resume_checkpoint"] = None
+
     merged_config = OmegaConf.merge(train_config, inference_config)
 
     # Force resume from the specified input_dir

@@ -1594,7 +1594,6 @@ model:
       # model_info: ema=0.9999  # Optional: for EMA weights or specific checkpoint variants
 ```
 
-Model weights are  ````````````````````````````````
 **Required parameters:**
 - **`run_id`**: The run identifier from the previous training run
 - **`model_name`**: The name of the model to load weights from

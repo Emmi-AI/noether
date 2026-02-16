@@ -1,9 +1,9 @@
 - kind: noether.core.callbacks.CheckpointCallback
-  every_n_epochs: 10
-  save_weights: false 
+  every_n_epochs: 1
+  save_weights: true 
   save_latest_weights: true
   save_latest_optim: true
-  save_optim: false
+  save_optim: true
   name: CheckpointCallback
 # validation loss
 - kind: noether.training.callbacks.OfflineLossCallback
@@ -31,8 +31,8 @@
 #ema
 - kind: noether.core.callbacks.EmaCallback
   every_n_epochs: 1
-  save_weights: false 
-  save_last_weights: false 
+  save_weights: true 
+  save_last_weights: true 
   save_latest_weights: true
   target_factors:
     - 0.9999
