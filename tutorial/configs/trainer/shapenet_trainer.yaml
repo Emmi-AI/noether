@@ -2,7 +2,7 @@
 #BaseTrainerConfig
 kind: tutorial.trainers.AutomotiveAerodynamicsCFDTrainer
 precision: bfloat16
-max_epochs: 10
+max_epochs: 500
 effective_batch_size: 1
 log_every_n_epochs: 1
 callbacks:  ${callbacks} 

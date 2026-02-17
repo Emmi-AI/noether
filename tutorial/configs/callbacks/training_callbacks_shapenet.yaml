@@ -37,7 +37,3 @@
   target_factors:
     - 0.9999
   name: EmaCallback
-  # example of how to save/load only specific submodules of a composite model
-  # model_paths:
-  #    - low_level_blocks
-  #    - high_level_blocks
