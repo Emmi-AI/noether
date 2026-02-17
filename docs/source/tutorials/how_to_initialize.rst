@@ -1,4 +1,4 @@
-How to Initialize Models from Previous Runs and continue Training Using Checkpoints
+How to continue Training from a Checkpoint
 ===================================================================================
 
 Noether stores model checkpoints using a structured file naming convention:
