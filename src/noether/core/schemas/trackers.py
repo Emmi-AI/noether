@@ -31,4 +31,18 @@ class TrackioTrackerSchema(BaseModel):
     """The HuggingFace space ID where to store the Trackio data."""
 
 
-AnyTracker = WandBTrackerSchema | TrackioTrackerSchema
+class TensorboardTrackerSchema(BaseModel):
+    """Schema for TensorboardTracker configuration."""
+
+    kind: Literal["noether.core.trackers.TensorboardTracker"] = Field(
+        default="noether.core.trackers.TensorboardTracker", frozen=True
+    )
+
+    log_dir: str = Field(default="runs")
+    """The base directory where TensorBoard event files will be stored."""
+
+    flush_secs: int = Field(default=60)
+    """How often, in seconds, to flush the pending events to disk."""
+
+
+AnyTracker = WandBTrackerSchema | TrackioTrackerSchema | TensorboardTrackerSchema

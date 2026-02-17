@@ -2,6 +2,7 @@
 
 from .base import BaseTracker
 from .noop import NoopTracker
+from .tensorboard import TensorboardTracker
 from .trackio import TrackioTracker
 from .wandb import WandBTracker
 
@@ -10,4 +11,5 @@ __all__ = [
     "NoopTracker",
     "TrackioTracker",
     "WandBTracker",
+    "TensorboardTracker",
 ]
