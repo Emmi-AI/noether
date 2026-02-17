@@ -111,17 +111,20 @@ class PathProvider:
         Args:
             target: The target PathProvider to link to.
         """
+        # If the target and current run are the same, we don't need to create a link
+        if self.output_root == ancestor.output_root and self.run_id == ancestor.run_id:
+            return
+
         link_path = self.run_output_path / "ancestor"
         if link_path.exists() and link_path.is_symlink():
             link_path.unlink()
         link_path.symlink_to(ancestor.run_output_path)
 
-        if self.run_id != ancestor.run_id or self.stage_name != ancestor.stage_name:
-            if self.stage_name is not None:
-                ancestor_link_path = ancestor.output_root / ancestor.run_id / self.stage_name / self.run_id
-            else:
-                ancestor_link_path = ancestor.output_root / ancestor.run_id / self.run_id
-            ancestor_link_path.parent.mkdir(parents=True, exist_ok=True)
-            if ancestor_link_path.exists() and ancestor_link_path.is_symlink():
-                ancestor_link_path.unlink()
-            ancestor_link_path.symlink_to(self.run_output_path)
+        if self.stage_name is not None:
+            ancestor_link_path = ancestor.output_root / ancestor.run_id / self.stage_name / self.run_id
+        else:
+            ancestor_link_path = ancestor.output_root / ancestor.run_id / self.run_id
+        ancestor_link_path.parent.mkdir(parents=True, exist_ok=True)
+        if ancestor_link_path.exists() and ancestor_link_path.is_symlink():
+            ancestor_link_path.unlink()
+        ancestor_link_path.symlink_to(self.run_output_path)
