@@ -61,7 +61,9 @@ class TestGeometricFallbacks:
         max_num_neighbors = 4
 
         # Fallback
-        edge_index_fallback = radius_pytorch(x, y, r, max_num_neighbors, batch_x, batch_y)
+        edge_index_fallback = radius_pytorch(
+            x, y, r, max_num_neighbors=max_num_neighbors, batch_x=batch_x, batch_y=batch_y
+        )
 
         # PyG
         edge_index_pyg = torch_geometric.nn.pool.radius(x, y, r, batch_x, batch_y, max_num_neighbors=max_num_neighbors)
@@ -77,7 +79,7 @@ class TestGeometricFallbacks:
         max_num_neighbors = 10
 
         # Fallback
-        edge_index_fallback = radius_pytorch(x, y, r, max_num_neighbors)
+        edge_index_fallback = radius_pytorch(x, y, r, max_num_neighbors=max_num_neighbors)
 
         # PyG
         edge_index_pyg = torch_geometric.nn.pool.radius(x, y, r, max_num_neighbors=max_num_neighbors)
