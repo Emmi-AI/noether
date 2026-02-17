@@ -1,5 +1,5 @@
 How to continue Training from a Checkpoint
-===================================================================================
+==========================================
 
 Noether stores model checkpoints using a structured file naming convention:
 
