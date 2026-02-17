@@ -51,24 +51,24 @@ TensorBoard
 ~~~~~~~~~~~
 
 :: note ::
-    You have to install the `tensorboard` package separately to use this tracker: ``pip install tensorboard``. 
+    You have to install the `tensorboard` package separately to use this tracker: ``uv pip install tensorboard``. 
 
 To use TensorBoard, use the ``noether.core.trackers.TensorboardTracker`` kind:
 
 .. code-block:: yaml
 
     kind: noether.core.trackers.TensorboardTracker
-    log_dir: ./tensorboard_logs         # Base directory where TensorBoard event files will be stored
-    flush_secs: 120                     # Optional: defaults to 60 seconds. Specifies how toften to flush pending events to disk
+    log_dir: /tensorboard_logs         # Optional: defaults to /tensorboard_logs. Directory to store TensorBoard event files. This directory will be created inside output_path.
+    flush_secs: 60                     # Optional: defaults to 60 seconds. Specifies how often to flush pending events to disk
 
 
-To visualize your metrics, start the TensorBoard server from your terminal. Point the ``--logdir`` argument to the directory specified in your configuration:
+Start the TensorBoard server from your terminal and point to the output directory specified in your configuration:
 
 .. code-block:: bash
 
-    tensorboard --logdir ./tensorboard_logs
+    tensorboard --logdir ./outputs # Adjust the path to match your output directory
 
-Once the server starts running, it will output a local URL. Open your web browser and navigate to `http://localhost:6006 <http://localhost:6006>`_ to view your experiment dashboards.
+Once the server starts running, it will output a local URL, which you can open in your web browser to view your experiment dashboards.
 
 Disabling Tracker
 ~~~~~~~~~~~~~~~~

@@ -38,7 +38,7 @@ class TensorboardTracker(BaseTracker):
         self._config: dict[str, Any] = {}
         self._summary: dict[str, Any] = {}
 
-    def _init(self, config: dict, output_uri: str, run_id: str):
+    def _init(self, config: dict[str, Any], output_uri: str, run_id: str):
         if TENSORBOARD_IMPORT_ERROR is not None:
             raise ImportError(
                 "TensorBoard is not installed. Please install `tensorboard` and `torch` to use the TensorboardTracker. "
@@ -54,11 +54,11 @@ class TensorboardTracker(BaseTracker):
         # Replace any forward slashes in the name with an underscore
         name = name.replace("/", "_")
 
-        print(f"Initializing TensorBoard tracker for run: {name} (ID: {run_id})")
+        self.logger.info(f"Initializing TensorBoard tracker for run: {name} (ID: {run_id})")
 
         # TensorBoard separates runs by directories.
-        base_log_dir = getattr(self.config, "log_dir", "./runs")
-        run_log_dir = os.path.join(base_log_dir, f"{name}_{run_id}")
+        log_dir = getattr(self.config, "log_dir", "/tensorboard_logs")
+        run_log_dir = os.path.join(output_uri, log_dir)
 
         flush_secs = getattr(self.config, "flush_secs", 60)
 
@@ -68,7 +68,7 @@ class TensorboardTracker(BaseTracker):
         self._config = config.copy()
         self._log_config_as_text()
 
-    def _log(self, data: dict):
+    def _log(self, data: dict[str, Any]):
         if self.writer is None:
             raise RuntimeError("TensorBoard writer is not initialized.")
 
@@ -92,7 +92,7 @@ class TensorboardTracker(BaseTracker):
     def _set_summary(self, key: str, value: Any):
         self._summary[key] = value
 
-    def _update_summary(self, data: dict):
+    def _update_summary(self, data: dict[str, Any]):
         self._summary.update(data)
 
     def _log_config_as_text(self):
