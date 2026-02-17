@@ -5,7 +5,7 @@
 # Noether Framework
 
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
-[![License: ENLP](https://img.shields.io/badge/License-ENLP-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
+[![License: ENPL](https://img.shields.io/badge/License-ENPL-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
 [![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
@@ -54,8 +54,7 @@ It is possible to use the framework either from source or from the pre-built pac
 ## Pre-requisites
 
 - install [uv](https://docs.astral.sh/uv/getting-started/installation/) as the package manager on your system
-- clone the repo into your desired folder: `git clone https://github.com/Emmi-AI/noether.git`
-- follow the next steps 🚀
+- clone the repo into your desired folder, if you wish to work with the code: `git clone https://github.com/Emmi-AI/noether.git`
 
 ## Working with pre-built packages
 
@@ -65,32 +64,33 @@ Installable package is available via `pip` and can be installed as:
 pip install emmiai-noether
 ```
 
-To work with the prebuilt PyPi package you have to install relevant PyTorch version beforehand as it is a dependency 
-to build torch-cluster. Install `emmiai-noether` as follows:
+or if you use `uv`:
 
 ```bash
-uv pip install torch==2.8.0
-uv pip install emmiai-noether==1.0.0 --no-build-isolation torch-cluster
+uv pip add emmiai-noether
 ```
 
 ## Working with the source code
 
 If you prefer to work with the source code directly without installing a prebuilt package.
 
-> [!IMPORTANT]
-> If you are running on NVIDIA GPUs or need custom CUDA paths, you must configure your environment variables first. 
-> Please follow our [Advanced Linux Setup Guide](https://noether-docs.emmi.ai/guides/linux_cuda_setup.html) before 
-> running the command below.
+<details>
+  <summary>Linux and CUDA</summary>
+  
+  If you are running on NVIDIA GPUs or need custom CUDA paths, you must configure your environment variables first. 
+  Please follow our [Advanced Linux Setup Guide](https://noether-docs.emmi.ai/guides/linux_cuda_setup.html) before 
+   running the command below.
+  
+</details>
 
-Create a fresh virtual environment and synchronize the core dependencies:
+Create a fresh virtual environment and synchronize the core dependencies after cloning the repo:
 
 ```console
 uv venv && source .venv/bin/activate
 uv sync
 ```
 
-**Note:** Initial installation may take several minutes as third-party dependencies are compiled. Duration depends on 
-your hardware and network speed.
+**Note:** Initial installation may take several minutes. Duration depends on your hardware and network speed.
 
 Validate your installation by simply running the tests (if something fails with module import errors it means that the 
 installation was incomplete):
@@ -98,6 +98,16 @@ installation was incomplete):
 pytest -q tests/
 ```
 if the tests are passed (warnings are okay to be logged) then you're all set and ready to go!
+
+### Install via GitHub
+
+You can install Noether directly from GitHub as well:
+
+```bash
+uv add "emmiai-noether @ git+https://github.com/Emmi-AI/noether.git"
+```
+
+This way you will stay always up-to-date with the recent updates and don't wait for the built packages being released.
 
 ### How to clean up and do a fresh installation
 
@@ -113,8 +123,7 @@ You might be in a situation when your venv won't be configured as intended anymo
 ---
 # Quickstart
 
-You can run a training job immediately using the [tutorial](./tutorial/README.MD) configuration. For local development 
-(Mac/CPU), use:
+You can run a training job immediately using the [tutorial](./tutorial/README.MD) configuration. For local development (Mac/CPU), use:
 
 ```console
 uv run noether-train --hp tutorial/configs/train_shapenet.yaml \

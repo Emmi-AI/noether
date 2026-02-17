@@ -16,12 +16,14 @@ Welcome to the Noether Framework documentation. Here you will find available API
 
 .. toctree::
    :maxdepth: 2
-   :caption: The Noether Framework 
+   :caption: The Noether Framework
    :hidden:
 
    noether/introduction_to_noether_framework
    noether/design_principles_and_limitations
    noether/key_concepts
+   noether/model_zoo
+   noether/dataset_zoo
 
 
 .. toctree::
@@ -33,51 +35,14 @@ Welcome to the Noether Framework documentation. Here you will find available API
    tutorials/getting_started_install_and_verify
    tutorials/training_first_model_with_configs
    tutorials/training_first_model_with_code
-   tutorials/full_code_tutorial
-   .. tutorials/running_first_inference
-   
+   Walkthrough <https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD>
 
 
 .. toctree::
-   :maxdepth: 1
-   :caption: How-to Guides
+   :maxdepth: 2
    :hidden:
 
-   guides/hardware_setup
-   guides/linux_cuda_setup
-   guides/working_with_cli
-
-   .. guides/data/how_to_load_custom_dataset
-
-   guides/data/how_to_use_private_data_source
-   guides/data/how_to_make_a_custom_dataset
-   guides/data/how_to_write_a_multistage_pipeline
-   guides/data/how_to_write_a_sample_processor
-
-   guides/training/implementing_a_custom_model
-   guides/training/implement_a_custom_trainer
-   guides/training/use_callbacks
-
-   .. guides/data/how_to_write_data_preprocessors
-   .. guides/data/how_to_write_data_collators
-
-   .. guides/training/how_to_configure_all_training_options
-   .. guides/training/how_to_use_custom_model
-   .. guides/training/how_to_write_custom_loss_or_metric
-
-   guides/inference/how_to_run_evaluation_on_trained_models
-   .. guides/inference/how_to_run_inference_via_cli
-   .. guides/inference/how_to_run_inference_via_code
-
-
-.. toctree::
-   :maxdepth: 1
-   :caption: Noether Zoos
-   :hidden:
-
-   zoo/dataset_zoo
-   zoo/model_zoo
-
+   How-to Guides <guides/index>
 
 .. toctree::
    :maxdepth: 2
@@ -85,7 +50,8 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :hidden:
 
    noether/io/caching
-   ../autoapi/noether/index
+   reference/hardware_setup
+   API Reference <../autoapi/noether/index>
 
 
 .. grid:: 1 2 2 2

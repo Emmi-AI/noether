@@ -18,10 +18,10 @@ class LrCallback(PeriodicCallback):
     manually to the trainer's callbacks.
     """
 
-    def _should_log_after_update(self, training_iteration: TrainingIteration):
+    def _should_invoke_after_update(self, training_iteration: TrainingIteration):
         if training_iteration.update == 1:
             return True
-        return super()._should_log_after_update(training_iteration)
+        return super()._should_invoke_after_update(training_iteration)
 
     # noinspection PyMethodOverriding
     def periodic_callback(self, **_) -> None:

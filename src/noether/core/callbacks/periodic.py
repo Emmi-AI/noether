@@ -178,7 +178,7 @@ class PeriodicCallback(CallbackBase):
     def __str__(self):
         return f"{type(self).__name__}({self.get_interval_string_verbose()})"
 
-    def _should_log_after_epoch(self, training_iteration: TrainingIteration) -> bool:
+    def _should_invoke_after_epoch(self, training_iteration: TrainingIteration) -> bool:
         """Check after every epoch if the PeriodicCallback should be invoked.
 
         Args:
@@ -193,7 +193,9 @@ class PeriodicCallback(CallbackBase):
             and training_iteration.epoch % self.every_n_epochs == 0
         )
 
-    def _should_log_after_update(self, training_iteration: TrainingIteration) -> bool:
+    # TODO: rename to _should_invoke_after_update or something similar
+
+    def _should_invoke_after_update(self, training_iteration: TrainingIteration) -> bool:
         """Check after every update if the PeriodicCallback should be invoked.
 
         Args:
@@ -208,7 +210,7 @@ class PeriodicCallback(CallbackBase):
             and training_iteration.update % self.every_n_updates == 0
         )
 
-    def _should_log_after_sample(self, training_iteration: TrainingIteration, effective_batch_size: int) -> bool:
+    def _should_invoke_after_sample(self, training_iteration: TrainingIteration, effective_batch_size: int) -> bool:
         """Check after every sample if the PeriodicCallback should be invoked.
 
         Args:
@@ -221,9 +223,9 @@ class PeriodicCallback(CallbackBase):
         """
         if self.every_n_samples is not None and training_iteration.sample is not None:
             last_update_samples = training_iteration.sample - effective_batch_size
-            prev_log_step = int(last_update_samples / self.every_n_samples)
-            cur_log_step = int(training_iteration.sample / self.every_n_samples)
-            if cur_log_step > prev_log_step:
+            prev_invocation = int(last_update_samples / self.every_n_samples)
+            cur_invocation = int(training_iteration.sample / self.every_n_samples)
+            if cur_invocation > prev_invocation:
                 return True
         return False
 
@@ -329,7 +331,7 @@ class PeriodicCallback(CallbackBase):
             update_counter: :class:`~noether.core.utils.training.counter.UpdateCounter` instance to access current training progress.
             **kwargs: Additional keyword arguments.
         """
-        if self._should_log_after_epoch(update_counter.cur_iteration):
+        if self._should_invoke_after_epoch(update_counter.cur_iteration):
             self.periodic_callback(interval_type="epoch", update_counter=update_counter, **kwargs)
 
     @torch.no_grad()
@@ -344,13 +346,13 @@ class PeriodicCallback(CallbackBase):
         """
         if type(self).periodic_callback == PeriodicCallback.periodic_callback:
             return
-        if self._should_log_after_update(update_counter.cur_iteration):
+        if self._should_invoke_after_update(update_counter.cur_iteration):
             self.periodic_callback(
                 interval_type="update",
                 update_counter=update_counter,
                 **kwargs,
             )
-        if self._should_log_after_sample(
+        if self._should_invoke_after_sample(
             update_counter.cur_iteration,
             update_counter.effective_batch_size,
         ):
@@ -360,7 +362,7 @@ class PeriodicCallback(CallbackBase):
     def at_eval(self, update_counter: UpdateCounter, **kwargs) -> None:
         self.periodic_callback(interval_type="eval", update_counter=update_counter, **kwargs)
 
-    def updates_till_next_log(self, update_counter: UpdateCounter) -> int:
+    def updates_till_next_invocation(self, update_counter: UpdateCounter) -> int:
         """Calculate how many updates remain until this callback is invoked.
 
         Args:
@@ -369,12 +371,12 @@ class PeriodicCallback(CallbackBase):
         Returns:
             Number of updates remaining until the next callback invocation.
         """
-        updates_per_log_interval = self.updates_per_log_interval(update_counter)
+        updates_per_interval = self.updates_per_interval(update_counter)
         if update_counter.cur_iteration.update is None:
-            return updates_per_log_interval
-        return updates_per_log_interval - update_counter.cur_iteration.update % updates_per_log_interval
+            return updates_per_interval
+        return updates_per_interval - update_counter.cur_iteration.update % updates_per_interval
 
-    def updates_per_log_interval(self, update_counter: UpdateCounter) -> int:
+    def updates_per_interval(self, update_counter: UpdateCounter) -> int:
         """Calculate how many updates are from one invocation of this callback to the next.
 
         Args:
