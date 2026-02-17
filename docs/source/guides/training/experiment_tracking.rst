@@ -58,7 +58,7 @@ To use TensorBoard, use the ``noether.core.trackers.TensorboardTracker`` kind:
 .. code-block:: yaml
 
     kind: noether.core.trackers.TensorboardTracker
-    log_dir: /tensorboard_logs         # Optional: defaults to /tensorboard_logs. Directory to store TensorBoard event files. This directory will be created inside output_path.
+    log_dir: tensorboard_logs         # Optional: defaults to tensorboard_logs. Directory to store TensorBoard event files. This directory will be created inside output_path.
     flush_secs: 60                     # Optional: defaults to 60 seconds. Specifies how often to flush pending events to disk
 
 
