@@ -4,7 +4,7 @@ import logging
 
 import torch
 
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import CAEMLDatasetConfig, DatasetSplitIDs
 from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common import validate_path
 from noether.data.base.dataset import with_normalizers
@@ -26,7 +26,7 @@ WING_FILE_MAP = FileMap(
 
 
 class EmmiWingDataset(AeroDataset):
-    def __init__(self, dataset_config: DatasetBaseConfig):
+    def __init__(self, dataset_config: CAEMLDatasetConfig):
         super().__init__(dataset_config=dataset_config, filemap=WING_FILE_MAP)
 
         self.split = dataset_config.split

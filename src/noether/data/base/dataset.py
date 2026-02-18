@@ -15,27 +15,57 @@ from noether.data.pipeline import Collator, MultiStagePipeline
 from noether.data.preprocessors import ComposePreProcess, PreProcessor
 
 
-def with_normalizers(normalizer_key: str):
+def with_normalizers(_func_or_key: str | Any | None = None):
     """Decorator to apply a normalizer to the output of a getitem_* function of the implemented Dataset class.
 
-    This decorator will look for a normalizer registered under the specified key and apply it to the output of the decorated function.
+    This decorator will look for a normalizer registered under the specified key and apply it to the output
+    of the decorated function. If no key is provided, the key is automatically inferred from the function name
+    by removing the 'getitem_' prefix.
 
     Example usage:
 
     .. code-block:: python
 
-        @with_normalizers("surface_pressure")
+        # Inferred key: "surface_pressure"
+        @with_normalizers
         def getitem_surface_pressure(self, idx):
-            # Load surface pressure tensor
-            return torch.load(f"{self.path}/surface_pressure_tensor/{idx}.pt")
+            return torch.load(f"{self.path}/surface_pressure/{idx}.pt")
+
+
+        # Explicit key: "pressure"
+        @with_normalizers("pressure")
+        def getitem_surface_pressure(self, idx):
+            return torch.load(f"{self.path}/surface_pressure/{idx}.pt")
 
     Args:
-        normalizer_key: The key of the normalizer to apply. This key should be present in the self.normalizers dictionary of the Dataset class.
+        _func_or_key: The normalizer key (str) or the function being decorated.
+            If used as `@with_normalizers` (no arguments), this will be the decorated function.
+            If used as `@with_normalizers("key")`, this will be the string key.
+
+    Returns:
+        The decorated function with normalization applied.
+
+    Raises:
+        ValueError: If the normalizer key cannot be resolved from the function name.
+        AttributeError: If the class instance does not have a 'normalizers' attribute.
+        KeyError: If the requested normalizer key is not found in the 'normalizers' dictionary.
     """
+
+    def resolve_normalizer_key(fn: Any) -> str:
+        # Allow usage as @with_normalizers or @with_normalizers("key")
+        if isinstance(_func_or_key, str):
+            return _func_or_key
+        fn_name = str(fn.__name__)
+        if fn_name.startswith("getitem_"):
+            return fn_name[len("getitem_") :]
+        raise ValueError(
+            "Could not resolve normalizer_key: either provide it explicitly or ensure the function name follows 'getitem_{key}' pattern."
+        )
 
     def decorator(fn):
         @functools.wraps(fn)
         def wrapper(self, *args, **kwargs):
+            normalizer_key = resolve_normalizer_key(fn)
             data = fn(self, *args, **kwargs)
             if self.compute_statistics:
                 return data
@@ -45,7 +75,7 @@ def with_normalizers(normalizer_key: str):
             except AttributeError as exc:
                 raise AttributeError(
                     f"{self.__class__.__name__}.{registry_attribute} not found; "
-                    f"required for with_normalizers('{normalizer_key}' method to have the normalizers attribute)"
+                    f"required for with_normalizers('{normalizer_key}') method to have the normalizers attribute"
                 ) from exc
             try:
                 normalizer = normalizers[normalizer_key]
@@ -58,6 +88,9 @@ def with_normalizers(normalizer_key: str):
             return data
 
         return wrapper
+
+    if callable(_func_or_key):
+        return decorator(_func_or_key)
 
     return decorator
 
@@ -142,6 +175,8 @@ class Dataset(TorchDataset):
         self.compute_statistics = False
         if dataset_config.dataset_normalizers:
             for key, normalizer_configs in dataset_config.dataset_normalizers.items():
+                if not isinstance(normalizer_configs, list):
+                    normalizer_configs = [normalizer_configs]
                 preprocessors: list[PreProcessor] = []
                 for normalizer_config in normalizer_configs:
                     preprocessors.append(Factory().instantiate(normalizer_config, normalization_key=key))

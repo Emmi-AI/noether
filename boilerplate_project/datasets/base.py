@@ -27,7 +27,6 @@ class BaseDataset(Dataset):
     ):
         super().__init__(dataset_config=dataset_config, **kwargs)
 
-        self.split = dataset_config.split
         self.num_samples = dataset_config.num_samples
         self.num_features = 2
         self.num_classes = dataset_config.num_classes

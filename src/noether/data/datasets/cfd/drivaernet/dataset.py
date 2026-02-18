@@ -2,7 +2,7 @@
 
 import torch
 
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.schemas.dataset import CAEMLDatasetConfig
 from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common.path import validate_path
 from noether.data.datasets.cfd.dataset import AeroDataset
@@ -33,7 +33,7 @@ class DrivAerNetDataset(AeroDataset):
         volume_vorticity="volume_vorticity.pt",
     )
 
-    def __init__(self, dataset_config: DatasetBaseConfig):
+    def __init__(self, dataset_config: CAEMLDatasetConfig):
         super().__init__(dataset_config=dataset_config, filemap=self.FILEMAP)
 
         self.source_root = validate_path(dataset_config.root)  # type: ignore[arg-type]

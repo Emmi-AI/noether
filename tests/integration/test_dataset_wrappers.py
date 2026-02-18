@@ -76,7 +76,6 @@ def test_dataset_factory_applies_wrappers(
 ) -> None:
     base_config = BaseDatasetConfig(
         kind="tests.test_training_pipeline.dummy_project.datasets.base_dataset.BaseDataset",
-        split="train",
         num_samples=12,
         num_classes=3,
         noise=0.0,

@@ -10,7 +10,7 @@ from noether.data.pipeline import Collator, MultiStagePipeline
 
 class IndexDataset(Dataset):
     def __init__(self, size: int):
-        super().__init__(dataset_config=DatasetBaseConfig(root=None, kind="index", split="train"))
+        super().__init__(dataset_config=DatasetBaseConfig(kind="index"))
         self.size = size
         self.indices = list(range(size))
 
@@ -63,7 +63,7 @@ def test_len_not_implemented_raises_error():
         pass
 
     with pytest.raises(NotImplementedError, match="__len__ method must be implemented"):
-        len(NoLenDataset(dataset_config=DatasetBaseConfig(root=None, kind="train", split="train")))
+        len(NoLenDataset(dataset_config=DatasetBaseConfig(kind="train")))
 
 
 def test_multiple_getitem_methods():
@@ -71,7 +71,7 @@ def test_multiple_getitem_methods():
 
     class MultiGetItemDataset(Dataset):
         def __init__(self):
-            super().__init__(dataset_config=DatasetBaseConfig(root=None, kind="multi", split="train"))
+            super().__init__(dataset_config=DatasetBaseConfig(kind="multi"))
 
         def __len__(self) -> int:
             return 1
@@ -117,7 +117,7 @@ def test_with_normalizers_decorator_key_error():
 
     class NormalizedDataset(Dataset):
         def __init__(self):
-            super().__init__(dataset_config=DatasetBaseConfig(root=None, kind="normalized", split="train"))
+            super().__init__(dataset_config=DatasetBaseConfig(kind="normalized"))
 
         def __len__(self) -> int:
             return 1

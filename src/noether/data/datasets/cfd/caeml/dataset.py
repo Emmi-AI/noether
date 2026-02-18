@@ -4,7 +4,7 @@ import logging
 
 import torch
 
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import CAEMLDatasetConfig, DatasetSplitIDs
 from noether.core.utils.common import validate_path
 from noether.data.datasets.cfd.caeml.filemap import CAEML_FILEMAP
 from noether.data.datasets.cfd.dataset import AeroDataset
@@ -23,7 +23,7 @@ class CAEMLDataset(AeroDataset):
 
     def __init__(
         self,
-        dataset_config: DatasetBaseConfig,
+        dataset_config: CAEMLDatasetConfig,
         dataset_name: str,
         filemap=CAEML_FILEMAP,
     ):
@@ -34,7 +34,7 @@ class CAEMLDataset(AeroDataset):
             dataset_name: Name of the dataset.
 
         Raises:
-            TypeError: If dataset_config is not ShapeNetDatasetConfig
+            TypeError: If dataset_config is not CAEMLDatasetConfig
             ValueError: If configuration is invalid or split is unknown
             FileNotFoundError: If data directory does not exist
         """
