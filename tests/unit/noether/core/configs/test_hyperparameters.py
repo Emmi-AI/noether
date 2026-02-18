@@ -37,13 +37,13 @@ class TestHyperparameters:
         expected_dump = mock_params.model_dump()
 
         with caplog.at_level(logging.INFO):
-            Hyperparameters.save_resolved(mock_params, out_file, exclude_unset=False)
+            Hyperparameters.save_resolved(mock_params, out_file)
 
         assert out_file.is_file()
         with open(out_file) as f:
             content = yaml.safe_load(f)
             # we only serialise this field
             content.pop("config_schema_kind", None)  # Remove added field for comparison
-        assert content == expected_dump
+        assert mock_params.model_dump(exclude_unset=True) == content
 
         assert f"Dumped resolved hyperparameters to {out_file}" in caplog.text

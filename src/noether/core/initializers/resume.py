@@ -98,11 +98,11 @@ class ResumeInitializer(CheckpointInitializer):
             if model.optimizer is None:
                 # e.g. EMA target network doesn't have an optimizer
                 self.logger.info(
-                    f"skip loading optim from checkpoint '{self.checkpoint}' for {name} ({model.name}) (optim is None)"
+                    f"skip loading optim from checkpoint '{self.checkpoint_tag}' for {name} ({model.name}) (optim is None)"
                 )
             elif model.is_frozen:
                 self.logger.info(
-                    f"skip loading optim from checkpoint '{self.checkpoint}' for {name}  ({model.name}) (is_frozen)"
+                    f"skip loading optim from checkpoint '{self.checkpoint_tag}' for {name}  ({model.name}) (is_frozen)"
                 )
             else:
                 model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
@@ -129,7 +129,7 @@ class ResumeInitializer(CheckpointInitializer):
         Returns:
             TrainingIteration: the start checkpoint for the model.
         """
-        if isinstance(self.checkpoint, str):
+        if isinstance(self.checkpoint_tag, str):
             trainer_ckpt = torch.load(self._get_trainer_ckpt_file())
             self.logger.info(f"loaded checkpoint from trainer_state_dict: {trainer_ckpt}")
             return TrainingIteration.from_dict(trainer_ckpt[CheckpointKeys.TRAINING_ITERATION])
@@ -139,7 +139,7 @@ class ResumeInitializer(CheckpointInitializer):
                     run_id=self.run_id,
                     stage_name=self.stage_name,
                 ).checkpoint_path.as_posix(),
-                training_iteration=self.checkpoint,
+                training_iteration=self.checkpoint_tag,
             )
 
     def init_trainer(self, trainer: BaseTrainer) -> None:

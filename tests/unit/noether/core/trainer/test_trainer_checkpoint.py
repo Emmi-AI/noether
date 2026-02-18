@@ -135,11 +135,11 @@ def test_trainer_checkpoint_reloading(tmp_path):
     trainer.update_counter.cur_iteration.sample = 100
 
     # 2. Save checkpoint
-    checkpoint = "E1_U50_S100"
+    checkpoint_tag = "E1_U50_S100"
 
     trainer.checkpoint_writer.save(
         model=model,
-        checkpoint_tag=checkpoint,
+        checkpoint_tag=checkpoint_tag,
         trainer=trainer,
         save_weights=True,
         save_optim=False,
@@ -152,7 +152,7 @@ def test_trainer_checkpoint_reloading(tmp_path):
         run_id=run_id,
         stage_name="train",
         model_name=model.name,
-        checkpoint=checkpoint,
+        checkpoint_tag=checkpoint_tag,
     )
 
     new_trainer_config = BaseTrainerConfig(

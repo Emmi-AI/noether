@@ -25,7 +25,7 @@ class PreviousRunInitializer(CheckpointInitializer):
             run_id: <run_id>
             model_name: transformer
             stage_name: train
-            checkpoint: last
+            checkpoint_tag: last
             keys_to_remove:
                 - encoder.block1.weight
     """

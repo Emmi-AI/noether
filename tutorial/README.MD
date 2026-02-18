@@ -1590,14 +1590,14 @@ model:
     - kind: noether.core.initializers.PreviousRunInitializer
       run_id: <run_id>
       model_name: ab_upt
-      checkpoint: latest  # Options: 'latest', 'best', or specific checkpoint such as E10_U100_S200
+      checkpoint_tag: latest  # Options: 'latest', 'best', or specific checkpoint such as E10_U100_S200
       # model_info: ema=0.9999  # Optional: for EMA weights or specific checkpoint variants
 ```
 
 **Required parameters:**
 - **`run_id`**: The run identifier from the previous training run
 - **`model_name`**: The name of the model to load weights from
-- **`checkpoint`**: Which checkpoint to use (`latest`, `best`, or a specific epoch number)
+- **`checkpoint_tag`**: Which checkpoint to use (`latest`, `best`, or a specific epoch number)
 
 **Optional parameters:**
 - **`model_info`**: Additional checkpoint metadata (e.g., `ema=0.9999` for exponential moving average weights, or specific loss metric identifiers for best checkpoints). Leave empty for standard checkpoints. 

@@ -16,7 +16,7 @@ class InitializerConfig(BaseModel):
     """The name of the stage training stage if defined. When training, the stage name is usually "train"."""
     model_name: str | None = None
     """The name of the model to load. This is the model_name used in CheckpointCallback."""
-    checkpoint: str | None | dict = None
+    checkpoint_tag: str | None | dict = None
     """Which checkpoint to load.
     Checkpoint is usually "latest" or "best_loss", or "E*_U*_S*", depending on which checkpoint you want to load.
     """

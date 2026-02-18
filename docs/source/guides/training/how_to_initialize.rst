@@ -76,7 +76,7 @@ in your model configuration:
          run_id: <previous run_id>
          model_name: <model_name>
          stage_name: <stage_name>     # Optional: leave empty if no stage
-         checkpoint: <checkpoint>      # e.g., latest, best.accuracy, E10_U100_S200
+         checkpoint_tag: <checkpoint>      # e.g., latest, best.accuracy, E10_U100_S200
          model_info: <model_info>      # Optional: e.g., ema_factor=0.9999
 
 This approach is useful for:
