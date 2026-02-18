@@ -52,3 +52,6 @@ class TimingWrapper(Dataset):
         if item == "dataset":
             return getattr(super(), item)
         return getattr(self.dataset, item)
+
+    def __str__(self) -> str:
+        return str(self.dataset)
