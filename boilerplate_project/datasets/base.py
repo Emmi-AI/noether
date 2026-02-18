@@ -18,7 +18,7 @@ class BaseDatasetStats:
 
 
 class BaseDataset(Dataset):
-    """A base dataset implementation for the `ksuit` framework that generates synthetic data for multi-class classification."""
+    """A base dataset implementation for the `noether` framework that generates synthetic data for multi-class classification."""
 
     def __init__(
         self,
