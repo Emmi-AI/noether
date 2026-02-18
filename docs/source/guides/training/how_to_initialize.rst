@@ -1,7 +1,7 @@
 How to continue Training from a Checkpoint
 ==========================================
 
-Noether stores model checkpoints using a structured file naming convention:
+Noether stores model checkpoints, with the :py:class:`~noether.core.writers.CheckpointWriter`, a structured file naming convention:
 
 .. code-block:: text
 
@@ -25,6 +25,7 @@ This naming scheme consists of three main components:
   
   - ``ema_factor=0.9999`` — Exponential Moving Average (EMA) weights
   - If omitted, the filename becomes: ``{model_name}_cp={checkpoint}_model.th``
+  - Model info is defined by the user (for example in a custom callback) and can be anything. Make sure the model info is informative and conistent. 
 
 
 Checkpoint Storage Location

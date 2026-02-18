@@ -127,7 +127,7 @@ class ResumeInitializer(CheckpointInitializer):
         """Get the start checkpoint for the model.
 
         Returns:
-            checkpoint: the start checkpoint for the model.
+            TrainingIteration: the start checkpoint for the model.
         """
         if isinstance(self.checkpoint, str):
             trainer_ckpt = torch.load(self._get_trainer_ckpt_file())

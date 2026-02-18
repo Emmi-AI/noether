@@ -21,7 +21,7 @@ class InitializerConfig(BaseModel):
     Checkpoint is usually "latest" or "best_loss", or "E*_U*_S*", depending on which checkpoint you want to load.
     """
     model_info: str | None = None
-    """Optional string that is used as suffix in the checkpoint filename."""
+    """Optional string to provide additional info about the model weights in the checkpoint filename. E.g., the stored weights are the EMA, or in a different precision."""
     model_config = {"extra": "forbid"}
 
 
