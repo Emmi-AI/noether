@@ -13,14 +13,14 @@ class SubsetWrapper(Subset):
 
     def __init__(
         self,
-        dataset: Dataset | DatasetWrapper,
         config: SubsetWrapperConfig,
+        dataset: Dataset | DatasetWrapper,
     ):
         """
         Args:
-            dataset: The dataset to wrap.
             config: The configuration to use. See :class:`~noether.core.schemas.dataset.SubsetWrapperConfig`
                 for available options.
+            dataset: The dataset to wrap.
 
         Raises:
             ValueError: If the input parameters are invalid.
