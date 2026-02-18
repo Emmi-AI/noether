@@ -43,7 +43,7 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run --no-sync pytest -q ./tests \
+          uv run --no-sync pytest \
             --maxfail=1 --disable-warnings \
             --cov=src --cov-report=term-missing:skip-covered \
             --cov-report=xml:coverage.xml \
