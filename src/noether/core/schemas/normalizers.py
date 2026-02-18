@@ -28,7 +28,7 @@ def validate_tensor(v: Any) -> torch.Tensor:
 TorchTensor = Annotated[
     torch.Tensor,
     PlainValidator(validate_tensor),
-    PlainSerializer(lambda x: x.tolist(), return_type=list, when_used="json"),
+    PlainSerializer(lambda x: x.tolist(), return_type=list, when_used="always"),
 ]
 
 FloatOrArray = float | Sequence[float] | TorchTensor

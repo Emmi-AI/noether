@@ -2,7 +2,6 @@
 
 from typing import Literal
 
-import torch.nn as nn
 from pydantic import BaseModel, Field, model_validator
 
 from noether.core.types import InitWeightsMode
@@ -25,9 +24,6 @@ class TransformerBlockConfig(BaseModel):
 
     drop_path: float = Field(0.0, ge=0.0, le=1.0)
     """Probability to drop the attention or MLP module. Defaults to 0.0."""
-
-    normalization_constructor: type = nn.LayerNorm
-    """Constructor for the normalization layer."""
 
     attention_constructor: Literal[
         "dot_product",
