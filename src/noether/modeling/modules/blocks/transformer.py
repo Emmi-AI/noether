@@ -43,7 +43,7 @@ class TransformerBlock(nn.Module):
             )
             elementwise_affine = False
 
-        self.norm1 = config.normalization_constructor(
+        self.norm1 = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
 
@@ -68,9 +68,10 @@ class TransformerBlock(nn.Module):
         self.drop_path1 = UnquantizedDropPath(
             config=UnquantizedDropPathConfig(drop_prob=config.drop_path)  # type: ignore[call-arg]
         )
-        self.norm2 = config.normalization_constructor(
+        self.norm2 = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
+
         self.mlp = UpActDownMlp(
             config=UpActDownMLPConfig(
                 input_dim=config.hidden_dim,
