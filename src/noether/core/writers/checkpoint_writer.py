@@ -61,7 +61,7 @@ class CheckpointWriter:
     def save_model_checkpoint(
         self,
         model_name: str,
-        checkpoint: str,
+        checkpoint_tag: str,
         state_dict: dict[str, Any],
         model_config: ModelBaseConfig | None = None,
         model_info: str | None = None,
@@ -76,7 +76,7 @@ class CheckpointWriter:
 
         Args:
             model_name: Name of the model.
-            checkpoint: Checkpoint tag, for example "latest" or "E10_U200_S800".
+            checkpoint_tag: Checkpoint tag, for example "latest" or "E10_U200_S800".
             state_dict: Model state dict to save.
             model_config: Model configuration. Defaults to None.
             model_info: Additional info to include in the output name. Defaults to None.
@@ -87,7 +87,7 @@ class CheckpointWriter:
         """
         output_dict = {
             CheckpointKeys.STATE_DICT: state_dict,
-            # CheckpointKeys.CHECKPOINT_TAG: str(checkpoint_tag), # TODO: fix this
+            CheckpointKeys.CHECKPOINT_TAG: str(checkpoint_tag),
             CheckpointKeys.TRAINING_ITERATION: dict(self.update_counter.cur_iteration),
             CheckpointKeys.RUN_ID: self.path_provider.run_id,
             **extra,
@@ -102,7 +102,7 @@ class CheckpointWriter:
 
         # Construct model URI with optional model_info; follows structure: {model_name}_{model_info}_cp={checkpoint}_model.th
         model_info = f"_{model_info}" if model_info else ""
-        model_uri = self.path_provider.checkpoint_path / f"{model_name}{model_info}_cp={checkpoint}_model.th"
+        model_uri = self.path_provider.checkpoint_path / f"{model_name}{model_info}_cp={checkpoint_tag}_model.th"
 
         torch.save(output_dict, model_uri)
         self.logger.info(f"Saved model to {model_uri}")
@@ -110,7 +110,7 @@ class CheckpointWriter:
     def save(
         self,
         model: ModelBase,
-        checkpoint: str,
+        checkpoint_tag: str,
         trainer: BaseTrainer | None = None,
         save_weights: bool = True,
         save_optim: bool = True,
@@ -142,7 +142,7 @@ class CheckpointWriter:
         if is_rank0():
             self._save_separate_models(
                 model=model,
-                checkpoint=checkpoint,
+                checkpoint_tag=checkpoint_tag,
                 save_weights=save_weights,
                 save_optim=save_optim,
                 save_latest_weights=save_latest_weights,
@@ -154,7 +154,7 @@ class CheckpointWriter:
 
             if trainer_sd is not None:
                 save_requests = [
-                    (save_weights or save_optim, checkpoint),
+                    (save_weights or save_optim, checkpoint_tag),
                     (save_latest_weights or save_latest_optim, "latest"),
                 ]
 
@@ -167,7 +167,7 @@ class CheckpointWriter:
     def _save_separate_models(
         self,
         model: ModelBase,
-        checkpoint: str,
+        checkpoint_tag: str,
         save_weights: bool,
         save_optim: bool,
         save_latest_weights: bool,
@@ -191,7 +191,7 @@ class CheckpointWriter:
 
             # --- Save Weights ---
             weight_requests = [
-                (save_weights, checkpoint),
+                (save_weights, checkpoint_tag),
                 (save_latest_weights, "latest"),
             ]
 
@@ -199,7 +199,7 @@ class CheckpointWriter:
                 if should_save:
                     self.save_model_checkpoint(
                         model_name=model.name if model_name is None else model_name,
-                        checkpoint=tag,
+                        checkpoint_tag=tag,
                         model_info=model_info,
                         state_dict=model.state_dict(),
                         model_config=getattr(model, "model_config", None),
@@ -208,7 +208,7 @@ class CheckpointWriter:
             # --- Save Optimizer ---
             if model.optimizer is not None:
                 optim_requests = [
-                    (save_optim, checkpoint),
+                    (save_optim, checkpoint_tag),
                     (save_latest_optim, "latest"),
                 ]
 
@@ -226,7 +226,7 @@ class CheckpointWriter:
                 self._save_separate_models(
                     model=v,
                     model_name=f"{model.name}.{k}",
-                    checkpoint=checkpoint,
+                    checkpoint_tag=checkpoint_tag,
                     model_info=model_info,
                     save_weights=save_weights,
                     save_optim=save_optim,

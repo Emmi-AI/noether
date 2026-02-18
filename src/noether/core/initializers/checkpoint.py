@@ -70,7 +70,7 @@ class CheckpointInitializer(InitializerBase):
         model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
             model=model, model_name=model_name, file_type="model"
         )
-        checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=False)
+        checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=True)
 
         if CheckpointKeys.STATE_DICT not in checkpoint:
             raise KeyError(f"Checkpoint at {checkpoint_uri} does not contain a state dict")

@@ -62,7 +62,7 @@ class ResumeInitializer(CheckpointInitializer):
             model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
                 model=model, model_name=name, file_type="model"
             )
-            checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=False)
+            checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=True)
             if CheckpointKeys.STATE_DICT not in checkpoint:
                 raise KeyError(f"state_dict not found in checkpoint {checkpoint_uri}")
             state_dict = checkpoint[CheckpointKeys.STATE_DICT]

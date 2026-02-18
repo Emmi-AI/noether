@@ -132,7 +132,7 @@ class BestCheckpointCallback(PeriodicCallback):
             self.logger.info(f"new best model ({self.metric_key}): {self.best_metric_value} --> {metric_value}")
             self.checkpoint_writer.save(
                 model=self.model,
-                checkpoint=f"best_model.{self.metric_key.replace('/', '.')}",
+                checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}",
                 save_optim=False,
                 model_names_to_save=self.model_names,
             )
@@ -148,7 +148,7 @@ class BestCheckpointCallback(PeriodicCallback):
                     continue
                 self.checkpoint_writer.save(
                     model=self.model,
-                    checkpoint=f"best_model.{self.metric_key.replace('/', '.')}.tolerance{tolerance}",
+                    checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}.tolerance{tolerance}",
                     save_optim=False,
                     model_names_to_save=self.model_names,
                 )

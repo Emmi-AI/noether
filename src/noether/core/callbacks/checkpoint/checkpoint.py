@@ -94,7 +94,7 @@ class CheckpointCallback(PeriodicCallback):
         self.checkpoint_writer.save(
             model=self.model,
             trainer=self.trainer,
-            checkpoint=str(update_counter.cur_iteration),
+            checkpoint_tag=str(update_counter.cur_iteration),
             save_weights=self.save_weights,
             save_optim=self.save_optim,
             save_latest_weights=self.save_latest_weights,
@@ -107,7 +107,7 @@ class CheckpointCallback(PeriodicCallback):
         self.checkpoint_writer.save(
             model=self.model,
             trainer=self.trainer,
-            checkpoint="last",
+            checkpoint_tag="last",
             save_weights=self.save_weights,
             save_optim=self.save_optim,
             save_latest_weights=self.save_latest_weights,

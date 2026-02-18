@@ -139,7 +139,7 @@ def test_trainer_checkpoint_reloading(tmp_path):
 
     trainer.checkpoint_writer.save(
         model=model,
-        checkpoint=checkpoint,
+        checkpoint_tag=checkpoint,
         trainer=trainer,
         save_weights=True,
         save_optim=False,
