@@ -4,23 +4,24 @@
 import numpy as np
 
 from noether.core.schemas.dataset import ShuffleWrapperConfig
-from noether.data.base import Dataset, Subset
+from noether.data.base import Dataset, DatasetWrapper, Subset
 
 
 class ShuffleWrapper(Subset):
     """Shuffles the dataset, optionally with seed."""
 
-    def __init__(self, dataset: Dataset, config: ShuffleWrapperConfig):
+    def __init__(self, config: ShuffleWrapperConfig, dataset: Dataset):
         """
         Args:
-            dataset: The dataset to shuffle.
             config: Configuration for the ShuffleWrapper. See :class:`~noether.core.schemas.dataset.ShuffleWrapperConfig`
                 for available options.
+            dataset: The dataset to shuffle.
+
         Raises:
-            ValueError: If the dataset is not an instance of noether.data.Dataset, or if the seed is not an integer or None.
+            ValueError: If the dataset is not an instance of noether.data.Dataset or DatasetWrapper, or if the seed is not an integer or None.
         """
-        if not isinstance(dataset, Dataset):
-            raise ValueError("The dataset must be an instance of noether.data.Dataset.")
+        if not isinstance(dataset, (Dataset, DatasetWrapper)):
+            raise ValueError("The dataset must be an instance of noether.data.Dataset or noether.data.DatasetWrapper.")
         self.seed = config.seed
 
         if self.seed is not None:
