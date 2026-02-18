@@ -48,18 +48,13 @@ class TestMainInference:
         # Mock hp_resolved.yaml existence:
         mock_hp_resolved = MagicMock()
         mock_hp_resolved.exists.return_value = True
-        # Chain the division operator for: input_dir / run_id / stage_name / "hp_resolved.yaml"
-        mock_input_dir.__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = mock_hp_resolved
+        mock_input_dir.__truediv__.return_value = mock_hp_resolved
 
         mock_path_cls.return_value = mock_input_dir
 
         # Mock YAML loading (the training config):
-        train_config_dict = {
-            "run_id": "train_run_id_123",
-            "stage_name": "train_stage_A",
-            "some_param": "original",
-        }
-        mock_yaml.full_load.return_value = train_config_dict
+        train_config_dict = {"run_id": "train_run_id_123", "stage_name": "train_stage_A", "some_param": "original"}
+        mock_yaml.safe_load.return_value = train_config_dict
 
         mock_merged_config = MagicMock()
         mock_omegaconf.merge.return_value = mock_merged_config
@@ -67,14 +62,7 @@ class TestMainInference:
         mock_omegaconf.to_container.return_value = final_dict_config
 
         # Input Inference Config (passed via CLI):
-        inference_config = DictConfig(
-            {
-                "input_dir": "/path/to/run",
-                "some_param": "overwritten",
-                "run_id": "some_run_id",
-                "stage_name": "train_stage_A",
-            }
-        )
+        inference_config = DictConfig({"input_dir": "/path/to/run", "some_param": "overwritten"})
 
         inference_main.__wrapped__(inference_config)
 
@@ -82,7 +70,7 @@ class TestMainInference:
         mock_sys.path.insert.assert_called_with(0, "/original/cwd")
         mock_path_cls.assert_called_with("/path/to/run")
 
-        mock_yaml.full_load.assert_called()
+        mock_yaml.safe_load.assert_called()
         mock_omegaconf.merge.assert_called_with(train_config_dict, inference_config)
 
         assert mock_merged_config.resume_run_id == "train_run_id_123"
@@ -106,11 +94,10 @@ class TestMainInference:
         mock_input_dir = MagicMock()
         mock_hp_resolved = MagicMock()
         mock_hp_resolved.exists.return_value = False  # missing file
-        # Chain the division operator for: input_dir / run_id / stage_name / "hp_resolved.yaml"
-        mock_input_dir.__truediv__.return_value.__truediv__.return_value.__truediv__.return_value = mock_hp_resolved
+        mock_input_dir.__truediv__.return_value = mock_hp_resolved
         mock_path_cls.return_value.resolve.return_value = mock_input_dir
 
-        config = DictConfig({"input_dir": "/bad/path", "run_id": "some_run_id"})
+        config = DictConfig({"input_dir": "/bad/path"})
 
         with pytest.raises(FileNotFoundError, match="hp_resolved.yaml not found"):
             inference_main.__wrapped__(config)
@@ -129,17 +116,18 @@ class TestMainInference:
         mock_hydra.utils.get_original_cwd.return_value = "/cwd"
 
         mock_input_dir = MagicMock()
+        mock_input_dir.name = "folder_run_id"
         mock_input_dir.resolve.return_value = mock_input_dir
         mock_input_dir.__truediv__.return_value.exists.return_value = True
         mock_path_cls.return_value = mock_input_dir
 
-        mock_yaml.full_load.return_value = {}
+        mock_yaml.safe_load.return_value = {}
 
         mock_merged_config = MagicMock()
         mock_omegaconf.merge.return_value = mock_merged_config
 
-        config = DictConfig({"input_dir": ".", "run_id": "some_run_id", "stage_name": "some_stage"})
+        config = DictConfig({"input_dir": "."})
 
         inference_main.__wrapped__(config)
 
-        assert mock_merged_config.resume_run_id == "some_run_id"
+        assert mock_merged_config.resume_run_id == "folder_run_id"
