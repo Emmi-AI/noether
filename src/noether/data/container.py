@@ -100,7 +100,7 @@ class DataContainer:
                 config=ShuffleWrapperConfig(kind="", seed=shuffle_seed),  # type: ignore[arg-type]
             )  # type: ignore  # FIXME: kind
         if max_size is not None:
-            dataset = SubsetWrapper(dataset, config=SubsetWrapperConfig(kind="", end_index=max_size))  # type: ignore[assignment]
+            dataset = SubsetWrapper(config=SubsetWrapperConfig(kind="", end_index=max_size), dataset=dataset)  # type: ignore[assignment]
         if properties is not None:
             dataset = PropertySubsetWrapper(dataset=dataset, properties=properties)  # type: ignore[assignment]
         dataset = TimingWrapper(dataset=dataset)  # type: ignore[assignment]
