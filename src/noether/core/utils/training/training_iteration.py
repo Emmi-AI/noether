@@ -13,6 +13,7 @@ from typing import Any, ClassVar
 @functools.total_ordering
 class TrainingIteration:
     _NAME_PATTERN: ClassVar[re.Pattern[str]] = re.compile(r"E(\d+)_U(\d+)_S(\d+)")
+
     _ITERATION_ATTRIBUTES: ClassVar[tuple[str, ...]] = (
         "epoch",
         "update",

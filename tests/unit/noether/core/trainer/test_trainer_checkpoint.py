@@ -152,7 +152,7 @@ def test_trainer_checkpoint_reloading(tmp_path):
         run_id=run_id,
         stage_name="train",
         model_name=model.name,
-        checkpoint=checkpoint_tag,
+        checkpoint_tag=checkpoint_tag,
     )
 
     new_trainer_config = BaseTrainerConfig(

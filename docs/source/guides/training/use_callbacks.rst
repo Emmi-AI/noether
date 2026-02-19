@@ -112,30 +112,11 @@ To create a custom callback, define a new class that inherits from one of the ba
        def __init__(self, callback_config: CustomCallbackConfig, **kwargs):
            super().__init__(callback_config, **kwargs)
 
-        def register_sampler_config(self) -> SamplerIntervalConfig:
-            # Define how to sample data for this callback. By default, this method takes 
-            # the sampler config by using the dataset_key from the callback config.
-
-   from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
-   from noether.core.callbacks.periodic import PeriodicCallback
-
-   class CustomCallbackConfig(PeriodicDataIteratorCallbackConfig):
-
-       # Define any configuration parameters your callback needs
-
-   class MyCustomCallback(PeriodicCallback):
-       def __init__(self, callback_config: CustomCallbackConfig, **kwargs):
-           super().__init__(callback_config, **kwargs)
-
-        def register_sampler_config(self) -> SamplerIntervalConfig:
-            # Define how to sample data for this callback. By default, this method takes the sampler config by using the dataset_key from the callback config.
-            # If you need custom sampling logic, override this method.
-            return SamplerIntervalConfig(...)
-
         def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
-              model_output = self.model(**batch)
-              # somem more custom logic
-              out = {"custom_output": model_output}
+            model_output = self.model(**batch)
+            # some more custom logic
+            out = {"custom_output": model_output}
+            return out
 
         def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
            # this method gets the aggregated results of the process_data method across the dataset

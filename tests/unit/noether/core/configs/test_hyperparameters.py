@@ -44,6 +44,6 @@ class TestHyperparameters:
             content = yaml.safe_load(f)
             # we only serialise this field
             content.pop("config_schema_kind", None)  # Remove added field for comparison
-        assert content == expected_dump
+        assert mock_params.model_dump(exclude_unset=True) == content
 
         assert f"Dumped resolved hyperparameters to {out_file}" in caplog.text

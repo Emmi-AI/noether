@@ -47,9 +47,7 @@ class CheckpointCallback(PeriodicCallback):
         self.save_optim = callback_config.save_optim
         self.save_latest_weights = callback_config.save_latest_weights
         self.save_latest_optim = callback_config.save_latest_optim
-        self.model_names = []
-        if callback_config.model_name is not None:
-            self.model_names.append(callback_config.model_name)
+        self.model_names = callback_config.model_names
 
     def before_training(self, *, update_counter: UpdateCounter) -> None:
         frozen_count = self.model.frozen_param_count
