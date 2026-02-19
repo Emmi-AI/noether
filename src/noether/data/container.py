@@ -90,21 +90,21 @@ class DataContainer:
                 `shuffle_seed`. Defaults to None (=no wrapping).
 
         Returns:
-            Dataset: Dataset of the DataContainer optionally wrapped into dataset wrappers.
+            Dataset | DatasetWrapper: Dataset of the DataContainer optionally wrapped into dataset wrappers.
         """
         key = key or next(iter(self.datasets.keys()))
-        dataset: Dataset = self.datasets[key]
+        dataset: Dataset | DatasetWrapper = self.datasets[key]
         if shuffle_seed is not None:
             dataset = ShuffleWrapper(
                 dataset=dataset,
                 config=ShuffleWrapperConfig(kind="", seed=shuffle_seed),  # type: ignore[arg-type]
-            )  # type: ignore  # FIXME: kind
+            )
         if max_size is not None:
-            dataset = SubsetWrapper(config=SubsetWrapperConfig(kind="", end_index=max_size), dataset=dataset)  # type: ignore[assignment]
+            dataset = SubsetWrapper(config=SubsetWrapperConfig(kind="", end_index=max_size), dataset=dataset)
         if properties is not None:
-            dataset = PropertySubsetWrapper(dataset=dataset, properties=properties)  # type: ignore[assignment]
-        dataset = TimingWrapper(dataset=dataset)  # type: ignore[assignment]
-        return dataset  # type: ignore
+            dataset = PropertySubsetWrapper(dataset=dataset, properties=properties)
+        dataset = TimingWrapper(dataset=dataset)
+        return dataset
 
     def get_main_sampler(self, train_dataset: Dataset | DatasetWrapper, shuffle: bool = True) -> Sampler[int]:
         """Creates the `main_sampler` for data loading.
