@@ -84,7 +84,7 @@ class HydraRunner:
     @staticmethod
     def _extract_name_from_overrides(overrides: list[str]) -> Iterator[str]:
         for override in overrides:
-            if any(override.startswith(key) for key in ("accelerator", "devices", "tracker")):
+            if any(override.startswith(key) for key in ("accelerator", "devices", "tracker", "name")):
                 continue
 
             # 2. Apply transformations to the items we keep:
