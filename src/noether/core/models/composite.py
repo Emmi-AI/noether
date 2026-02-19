@@ -12,7 +12,7 @@ from noether.core.models.base import ModelBase
 from noether.core.models.model import Model
 from noether.core.providers.path import PathProvider
 from noether.core.schemas.models import ModelBaseConfig
-from noether.core.utils.training import UpdateCounter  # fixme?
+from noether.core.utils.training import UpdateCounter
 
 if TYPE_CHECKING:
     from noether.data.container import DataContainer

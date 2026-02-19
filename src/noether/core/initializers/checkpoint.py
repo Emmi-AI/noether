@@ -10,7 +10,7 @@ from noether.core.initializers.base import InitializerBase
 from noether.core.models import Model, ModelBase
 from noether.core.schemas.initializers import CheckpointInitializerConfig
 from noether.core.types import CheckpointKeys
-from noether.core.utils.training.training_iteration import TrainingIteration  # fixme?
+from noether.core.utils.training.training_iteration import TrainingIteration
 
 
 class CheckpointInitializer(InitializerBase):

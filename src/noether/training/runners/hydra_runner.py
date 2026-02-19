@@ -310,7 +310,7 @@ class HydraRunner:
 
         logger.info(f"Initialized trainer {type(trainer).__name__}")
         if not isinstance(trainer, BaseTrainer):
-            raise TypeError(f"trainer is expected to be of type BaseTrainerConfig but got {type(trainer)}")
+            raise TypeError(f"trainer is expected to be of type BaseTrainer but got {type(trainer)}")
 
         # init model
         if config.model is None:

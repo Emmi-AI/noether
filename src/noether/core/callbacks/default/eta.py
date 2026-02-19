@@ -11,6 +11,7 @@ from noether.core.distributed import is_rank0
 from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.logging import short_number_str
 from noether.core.utils.training import UpdateCounter
+from noether.training.trainers.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 
 
 class EtaCallback(PeriodicCallback):
@@ -95,7 +96,7 @@ class EtaCallback(PeriodicCallback):
             updates_per_log_interval = None
 
         # add time
-        time_increment = times["data_time"] + times["update_time"]
+        time_increment = times[TRAINING_UPDATE_TIME] + times[TRAINING_DATA_WAIT_TIME]
         self.total_time += time_increment
         self.time_since_last_log += time_increment
         average_update_time = self.total_time / cur_update
