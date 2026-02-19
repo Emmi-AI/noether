@@ -213,7 +213,7 @@ class HydraRunner:
                 dict(
                     run_id=resume_run_id,
                     stage_name=config.resume_stage_name,
-                    checkpoint=checkpoint,
+                    checkpoint_tag=checkpoint,
                     model_name=config.model.name,
                 )
             )

@@ -48,10 +48,10 @@ class PerceiverBlock(nn.Module):
             )
             elementwise_affine = False
 
-        self.norm1q = config.normalization_constructor(
+        self.norm1q = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
-        self.norm1kv = config.normalization_constructor(
+        self.norm1kv = torch.nn.LayerNorm(
             config.kv_dim or config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
         self.attn = PerceiverAttention(
@@ -69,7 +69,7 @@ class PerceiverBlock(nn.Module):
             config=UnquantizedDropPathConfig(drop_prob=config.drop_path)  # type: ignore[call-arg]
         )
 
-        self.norm2 = config.normalization_constructor(
+        self.norm2 = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
 

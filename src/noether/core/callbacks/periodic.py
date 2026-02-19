@@ -458,7 +458,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         * **Progress Tracking**: Provides progress bars and timing information for data loading.
 
     Template Methods to Override:
-        Child classes must implement :meth:`process_data` and typically override :meth:`register_sampler_config` and
+        Child classes must implement :meth:`process_data` and
         :meth:`process_results`:
 
         * :meth:`process_data`: Process a single batch (e.g., run model inference).

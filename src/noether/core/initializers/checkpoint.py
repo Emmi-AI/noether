@@ -14,11 +14,11 @@ from noether.core.utils.training.training_iteration import TrainingIteration  # 
 
 
 class CheckpointInitializer(InitializerBase):
-    checkpoint: str | TrainingIteration
-
     """
     Base class to initialize models from checkpoints of previous runs. Should not be used directly, but inherited by other initializers such as PreviousRunInitializer or ResumeInitializer.
     """
+
+    checkpoint_tag: str | TrainingIteration
 
     def __init__(
         self,
@@ -44,14 +44,15 @@ class CheckpointInitializer(InitializerBase):
         )
         # checkpoint can be a string (e.g. "best_accuracy" for initializing from a model saved by BestModelLogger)
         # or dictionary with epoch/update/sample values
-        if isinstance(initializer_config.checkpoint, str):
-            self.checkpoint = initializer_config.checkpoint
+        if isinstance(initializer_config.checkpoint_tag, str):
+            self.checkpoint_tag = initializer_config.checkpoint_tag
         else:
-            if not isinstance(initializer_config.checkpoint, dict):
-                raise ValueError("checkpoint must be either a string or a dictionary")
-            self.checkpoint = TrainingIteration(**initializer_config.checkpoint)
-            if not self.checkpoint.is_minimally_specified and not self.checkpoint.is_fully_specified:
-                raise ValueError("checkpoint dictionary must be minimally or fully specified")
+            if not isinstance(initializer_config.checkpoint_tag, dict):
+                raise ValueError("checkpoint_tag must be either a string or a dictionary")
+            checkpoint_iteration = TrainingIteration(**initializer_config.checkpoint_tag)
+            if not checkpoint_iteration.is_minimally_specified and not checkpoint_iteration.is_fully_specified:
+                raise ValueError("checkpoint_tag dictionary must be minimally or fully specified")
+            self.checkpoint_tag = checkpoint_iteration
 
     def _get_model_state_dict(
         self, model: ModelBase, model_name: str | None = None
@@ -70,7 +71,7 @@ class CheckpointInitializer(InitializerBase):
         model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
             model=model, model_name=model_name, file_type="model"
         )
-        checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=False)
+        checkpoint = torch.load(checkpoint_uri, map_location=model.device, weights_only=True)
 
         if CheckpointKeys.STATE_DICT not in checkpoint:
             raise KeyError(f"Checkpoint at {checkpoint_uri} does not contain a state dict")
@@ -136,9 +137,9 @@ class CheckpointInitializer(InitializerBase):
             model_name = model.name
 
         # model_info is e.g. ema=0.99
-        model_info_str = "_" if self.model_info is None else f"_{self.model_info}_"
+        model_info_str = "" if self.model_info is None else f"_{self.model_info}"
 
-        checkpoint_uri = self._get_checkpoint_uri(prefix=f"{model_name}_cp=", suffix=f"{model_info_str}{file_type}.th")
+        checkpoint_uri = self._get_checkpoint_uri(prefix=f"{model_name}{model_info_str}_cp=", suffix=f"_{file_type}.th")
         if not checkpoint_uri.exists():
             raise FileNotFoundError(f"Checkpoint file '{checkpoint_uri}' does not exist")
         return model_name, checkpoint_uri
@@ -163,13 +164,13 @@ class CheckpointInitializer(InitializerBase):
         checkpoint_path = self.init_run_path_provider.checkpoint_path
 
         # find full checkpoint from minimal specification
-        checkpoint = self.checkpoint
-        if not isinstance(self.checkpoint, str) and not self.checkpoint.is_fully_specified:
-            checkpoint = TrainingIteration.to_fully_specified_from_filenames(
+        checkpoint_tag = self.checkpoint_tag
+        if not isinstance(self.checkpoint_tag, str) and not self.checkpoint_tag.is_fully_specified:
+            checkpoint_tag = TrainingIteration.to_fully_specified_from_filenames(
                 directory=checkpoint_path.as_posix(),
-                training_iteration=self.checkpoint,
+                training_iteration=self.checkpoint_tag,
                 prefix=prefix,
                 suffix=suffix,
             )
 
-        return checkpoint_path / f"{prefix}{checkpoint}{suffix}"
+        return checkpoint_path / f"{prefix}{checkpoint_tag}{suffix}"

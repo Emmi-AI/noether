@@ -69,14 +69,14 @@ class PathProvider:
     @property
     def _basetracker_path(self) -> Path:
         """Path where to log things for the BaseTracker"""
-        return self._mkdir(self.run_output_path / "basetracker")
+        return self._mkdir(self.run_output_path / "tracker")
 
     @property
     def basetracker_config_uri(self) -> Path:
         """Independent of whether or not (or which) online tracker is used, the log entries are also written to disk.
         This property defines where the config is written to.
         """
-        return self._mkdir(self.run_output_path / "basetracker") / "config.yaml"
+        return self._mkdir(self.run_output_path / "tracker") / "config.yaml"
 
     @property
     def basetracker_entries_uri(self) -> Path:
@@ -90,7 +90,7 @@ class PathProvider:
         """Independent of whether or not (or which) online tracker is used, the log entries are also written to disk.
         This property defines where the summary is written to.
         """
-        return self._mkdir(self.run_output_path / "basetracker") / "summary.yaml"
+        return self._mkdir(self.run_output_path / "tracker") / "summary.yaml"
 
     @staticmethod
     def generate_run_id(seed=None) -> str:
@@ -106,22 +106,16 @@ class PathProvider:
         return date.today().strftime("%Y-%m-%d_") + "".join(rng.choices(string.ascii_lowercase + string.digits, k=5))
 
     def link(self, ancestor: PathProvider) -> None:
-        """Create a symlink from the current run output path to the target run output path for resuming.
+        """Create a symlink from the current run output to the ancestor run output.
 
         Args:
-            target: The target PathProvider to link to.
+            ancestor: The ancestor PathProvider to link to.
         """
+        # If the target and current run are the same, we don't need to create a link
+        if self.output_root == ancestor.output_root and self.run_id == ancestor.run_id:
+            return
+
         link_path = self.run_output_path / "ancestor"
         if link_path.exists() and link_path.is_symlink():
             link_path.unlink()
         link_path.symlink_to(ancestor.run_output_path)
-
-        if self.run_id != ancestor.run_id or self.stage_name != ancestor.stage_name:
-            if self.stage_name is not None:
-                ancestor_link_path = ancestor.output_root / ancestor.run_id / self.stage_name / self.run_id
-            else:
-                ancestor_link_path = ancestor.output_root / ancestor.run_id / self.run_id
-            ancestor_link_path.parent.mkdir(parents=True, exist_ok=True)
-            if ancestor_link_path.exists() and ancestor_link_path.is_symlink():
-                ancestor_link_path.unlink()
-            ancestor_link_path.symlink_to(self.run_output_path)

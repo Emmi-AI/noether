@@ -24,3 +24,22 @@ defaults:
 stage_name: train
 store_code_in_output: false
 output_path: ./outputs
+
+
+# to continue training from a previous run checkpoint (which has not eneded yet), specify the run_id and stage_name to resume from. 
+#The model will be initialized from the lastest checkpoint of the specified stage if no checkpoint is specified.
+#resume_run_id: 2026-02-19_f7dy0
+#resume_stage_name: train
+#` stage_name: continue_training # optional, only needed if you want to use a different stage name for the continued training run. If not specified, the stage name will be the same as the stage name of the previous run (train in this case).
+#resume_checkpoint: E3 #If a full checkpoint path is E3_U5523_S5523. Either E*, U*, S* need to be provided
+
+# example of how to use the PreviousRunInitializer to initialize the model from a previous run.
+
+#model:
+#  initializers:
+#    - kind: noether.core.initializers.PreviousRunInitializer
+#      run_id: 2026-02-19_f7dy0
+#      model_name: transformer
+#      stage_name: train # only when a stage name is used for the previous run
+#      checkpoint_tag: E4_U3156_S3156 # can be `latest`, `last`, `best`, or a specific epoch like E3_U100_S1000
+#      model_info: ema=0.9999 # only needed when a checkoint has additional model info
