@@ -193,8 +193,6 @@ class PeriodicCallback(CallbackBase):
             and training_iteration.epoch % self.every_n_epochs == 0
         )
 
-    # TODO: rename to _should_invoke_after_update or something similar
-
     def _should_invoke_after_update(self, training_iteration: TrainingIteration) -> bool:
         """Check after every update if the PeriodicCallback should be invoked.
 
