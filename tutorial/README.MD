@@ -149,8 +149,7 @@ git clone https://github.com/Emmi-AI/noether.git
 cd noether/
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install torch==2.8.0
-uv pip install emmiai-noether==1.0.0 --no-build-isolation torch-cluster
+uv pip install emmiai-noether
 ```
 
 If the built package is not available, you can build it from source:
