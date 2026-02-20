@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from pydantic import ValidationError
 
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.schemas.dataset import CAEMLDatasetConfig
 from noether.data.datasets.cfd.caeml.ahmedml.dataset import AhmedMLDataset
 
 
@@ -15,7 +15,7 @@ def test_dataset_config_valid_minimal() -> None:
         "kind": "ahmed_ml",
         "split": "train",
     }
-    config = DatasetBaseConfig(**config_data)
+    config = CAEMLDatasetConfig(**config_data)
     assert config.kind == "ahmed_ml"
     assert config.split == "train"
     assert config.root is None
@@ -28,7 +28,7 @@ def test_dataset_config_invalid_split() -> None:
         "split": "validation",  # valid options are 'train', 'val', 'test'
     }
     with pytest.raises(ValidationError) as exc_info:
-        DatasetBaseConfig(**config_data)
+        CAEMLDatasetConfig(**config_data)
 
     assert "Input should be 'train', 'val' or 'test'" in str(exc_info.value)
 
@@ -41,7 +41,7 @@ def test_dataset_config_forbids_extra_fields() -> None:
         "random_field": 123,  # this should trigger an error
     }
     with pytest.raises(ValidationError) as exc_info:
-        DatasetBaseConfig(**config_data)
+        CAEMLDatasetConfig(**config_data)
 
     assert "Extra inputs are not permitted" in str(exc_info.value)
 
@@ -58,7 +58,7 @@ def test_ahmedml_dataset_initialization(mock_pipeline, tmp_path) -> None:
     Uses 'tmp_path' fixture to provide a real, existing directory.
     """
     # 1. Arrange: Use tmp_path (converted to string) as the root
-    config = DatasetBaseConfig(
+    config = CAEMLDatasetConfig(
         kind="ahmed_ml",
         root=str(tmp_path),
         split="train",

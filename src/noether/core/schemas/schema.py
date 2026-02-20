@@ -102,10 +102,17 @@ class ConfigSchema(BaseModel):
     """Whether to enable cudnn deterministic mode for this run."""
 
     datasets: dict[str, DatasetBaseConfig] = Field(...)
+    """Configuration for datasets. The key is the dataset and value is the configuration for that dataset.
+    See :class:`~noether.core.schemas.dataset.DatasetBaseConfig` for available options.
+    The key "train" is reserved for the training dataset, but if not provided, the first dataset will be used as training dataset by default,
+    other keys are arbitrary and can be used to identify datasets for different stages, e.g., "train", "val", "test", etc. or different datasets for the same stage, e.g., "train_cfd", "train_wind_turbine", etc.
+    """
 
     model: ModelBaseConfig = Field(...)
+    """Configuration for the model. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options."""
 
     trainer: BaseTrainerConfig = Field(...)
+    """Configuration for the trainer. See :class:`~noether.core.schemas.trainers.BaseTrainerConfig` for available options."""
 
     debug: bool = False
     """If True, enables debug mode with more verbose logging, no WandB logging and output written to debug directory."""
