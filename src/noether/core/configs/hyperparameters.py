@@ -29,7 +29,7 @@ class Hyperparameters:
         with open(out_file_uri, "w") as f:
             config_dict = stage_hyperparameters.model_dump(exclude_unset=True)
             config_dict["config_schema_kind"] = stage_hyperparameters.config_schema_kind
-            yaml.dump(config_dict, f)
+            yaml.dump(config_dict, f, sort_keys=False)
 
         _logger.info(f"Dumped resolved hyperparameters to {out_file_uri}")
 
