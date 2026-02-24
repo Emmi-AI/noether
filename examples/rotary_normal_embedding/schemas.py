@@ -4,12 +4,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from noether.core.schemas import ConfigSchema
-from noether.core.schemas.dataset import AeroDataSpecs
-from noether.core.schemas.statistics import AeroStatsSchema
-from tutorial.schemas.datasets import AeroDatasetConfig
+from tutorial.schemas.config_schema import TutorialConfigSchema
 from tutorial.schemas.models.ab_upt_config import ABUPTConfig
-from tutorial.schemas.trainers import AutomotiveAerodynamicsCfdTrainerConfig
 
 
 class AnchorBranchedUPTConfig(ABUPTConfig):
@@ -47,9 +43,5 @@ class AnchorBranchedUPTConfig(ABUPTConfig):
     position+normal frequencies."""
 
 
-class RoNEConfigSchema(ConfigSchema):
-    data_specs: AeroDataSpecs
+class RoNEConfigSchema(TutorialConfigSchema):
     model: AnchorBranchedUPTConfig = Field(..., discriminator="name")
-    trainer: AutomotiveAerodynamicsCfdTrainerConfig
-    datasets: dict[str, AeroDatasetConfig]
-    dataset_statistics: AeroStatsSchema | None = None
