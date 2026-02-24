@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from abc import ABC
+from collections import OrderedDict
 from collections.abc import Sequence
 from typing import Any, ClassVar, Literal, Union
 
@@ -146,7 +147,7 @@ class DatasetSplitIDs(BaseModel, ABC):
             assert self.train_subset.issubset(self.train), "train_subset is not a subset of the training set"
 
 
-class FieldDimSpec(RootModel[dict[str, int]]):
+class FieldDimSpec(RootModel[OrderedDict[str, int]]):
     """A specification for a group of named data fields and their dimensions."""
 
     @property
