@@ -1,0 +1,10 @@
+# @package _global_
+defaults:
+  - override /model: composite_transformer  
+  - override /tracker: shapenet_car_development_tracker
+  - override /optimizer: null 
+
+name: shapenet-car-transformer-composite-pre-training 
+
+trainer:
+  precision: bfloat16

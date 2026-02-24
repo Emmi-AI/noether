@@ -1,0 +1,41 @@
+# @package _global_
+defaults:
+  - override /model: ab_upt  
+  - override /tracker: development_tracker
+  - override /optimizer: lion
+
+name: drivaerml-ab-upt
+
+pipeline:
+    num_geometry_points: 65536
+    num_geometry_supernodes: 16384
+    num_surface_anchor_points: 16384
+    num_volume_anchor_points: 16384
+
+inference_pipeline:
+  num_geometry_points: 65536
+  num_geometry_supernodes: 16384
+  num_surface_anchor_points: 1000000000
+  num_volume_anchor_points: 1000000000
+
+trainer:
+  precision: float16
+
+model:
+  supernode_pooling_config:
+    radius: 0.25
+  num_surface_blocks: 6
+  num_volume_blocks: 6
+  physics_blocks:
+    - perceiver
+    - shared
+    - cross
+    - shared
+    - cross
+    - shared
+    
+sample_size_property: surface_anchor_position
+chunk_size: ${pipeline.num_surface_anchor_points}
+chunk_properties:
+  - surface_anchor_position
+  - volume_anchor_position

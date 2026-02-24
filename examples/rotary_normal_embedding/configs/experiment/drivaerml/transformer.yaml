@@ -1,0 +1,20 @@
+# @package _global_
+defaults:
+  - override /model: transformer  
+  - override /tracker: development_tracker
+  - override /optimizer: lion
+
+name: drivaerml-transformer
+
+trainer:
+  precision: float16
+  
+inference_pipeline:
+  num_surface_points: 1000000000
+  num_volume_points: 1000000000
+
+sample_size_property: surface_position
+chunk_size: ${pipeline.num_surface_points}
+chunk_properties:
+  - surface_position
+  - volume_position

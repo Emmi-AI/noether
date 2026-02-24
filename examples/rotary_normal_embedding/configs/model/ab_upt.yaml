@@ -1,0 +1,43 @@
+kind: examples.rotary_normal_embedding.model.ABUPT
+name: ab_upt
+geometry_depth: 1
+hidden_dim: 192
+use_bias_layers: false
+transformer_block_config:
+  hidden_dim: ${model.hidden_dim}
+  num_heads: 3
+  mlp_expansion_factor: 4
+  use_rope: true
+supernode_pooling_config:
+  input_dim: ${data_specs.position_dim}
+  hidden_dim: ${model.hidden_dim}
+  radius: 1
+  input_features_dim: 3
+use_normal_rope: true
+use_surface_normal_features: true
+normal_rope_dim_fraction: 0.25
+normal_rope_max_wavelength: 10.0
+cross_attention_normal_mode: position_only
+physics_blocks: 
+  - perceiver
+  - shared
+  - cross
+  - shared
+  - cross
+  - shared
+  - cross
+  - shared
+  - cross
+  - shared
+num_surface_blocks: 2
+num_volume_blocks: 2
+optimizer_config: ${optimizer}
+forward_properties:
+  - geometry_position
+  - geometry_supernode_idx
+  - geometry_batch_idx
+  - surface_anchor_position
+  - volume_anchor_position
+  - geometry_normals
+  - surface_anchor_normals
+data_specs: ${data_specs}

@@ -1,0 +1,167 @@
+# ============================================================================
+# Normal RoPE Ablation Study — DrivAerML
+# ============================================================================
+# Tests the impact of encoding surface normal orientation via RoPE
+# Total: 38 experiments
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# GROUP 1: Baselines (3 experiments)
+# Normals available but not used by model
+# ----------------------------------------------------------------------------
+
+# 1. Baseline seed=1 — no RoPE, no normal input features
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null
+
+# 2. Baseline seed=2 — no RoPE, no normal input features
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null
+
+# 3. Baseline seed=3 — no RoPE, no normal input features
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null
+
+# ----------------------------------------------------------------------------
+# GROUP 2: Normal RoPE Default (3 experiments)
+# dim_fraction=0.125, wavelength=10, with normal input features
+# ----------------------------------------------------------------------------
+
+# 5. Normal RoPE default seed=1 — dim_frac=0.125, wavelength=10
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 6. Normal RoPE default seed=2 — dim_frac=0.125, wavelength=10
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 7. Normal RoPE default seed=3 — dim_frac=0.125, wavelength=10
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# ----------------------------------------------------------------------------
+# GROUP 3: Dimension Fraction Sweep (6 experiments, seed=1, wavelength=10)
+# ShapeNet optimal was 0.09375 (9.375%)
+# ----------------------------------------------------------------------------
+
+# 8. dim_fraction=0.09375
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.09375 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 9. dim_fraction=0.10 (10%)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.10 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 10. dim_fraction=0.15 (15%)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.15 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 11. dim_fraction=0.20 (20%)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.20 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 12. dim_fraction=0.25 (25%)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.25 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# 13. dim_fraction=0.50 (50%, equal position/normal split)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.50 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3
+
+# ----------------------------------------------------------------------------
+# GROUP 4: Wavelength Sweep (5 experiments, dim_fraction=0.125, seed=1)
+# ShapeNet showed wavelength=10 was robust
+# ----------------------------------------------------------------------------
+
+# 14. wavelength=1.0 (high frequency, sharp normal sensitivity)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=1.0 model.supernode_pooling_config.input_features_dim=3
+
+# 15. wavelength=5.0
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=5.0 model.supernode_pooling_config.input_features_dim=3
+
+# 16. wavelength=20.0
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=20.0 model.supernode_pooling_config.input_features_dim=3
+
+# 17. wavelength=50.0
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=50.0 model.supernode_pooling_config.input_features_dim=3
+
+# 18. wavelength=100.0 (low frequency, smooth normal sensitivity)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=100.0 model.supernode_pooling_config.input_features_dim=3
+
+# ----------------------------------------------------------------------------
+# GROUP 5: Supernode Ablation (3 experiments)
+# Tests whether RoPE alone (without normal input features) is sufficient
+# ----------------------------------------------------------------------------
+
+# 19. Normal RoPE seed=1, no supernode features — RoPE only
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=null
+
+# 20. Normal RoPE seed=2, no supernode features — RoPE only
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=null
+
+# 21. Normal RoPE seed=3, no supernode features — RoPE only
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=null
+
+# ----------------------------------------------------------------------------
+# GROUP 6: Surface Normal Features Ablation (6 experiments)
+# Tests use_surface_normal_features: injects normals into the value stream of
+# the physics blocks (surface token initialisation), complementing RoNE.
+#   22-24: normals in V only — no RoPE, no supernode features
+#   25-27: full combination — RoPE + surface V features + supernode features
+# ----------------------------------------------------------------------------
+
+# 22. Surface V features only seed=1 — normals in value stream, no RoPE, no supernode features
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# 23. Surface V features only seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# 24. Surface V features only seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# 25. Full combination seed=1 — RoPE (Q/K) + surface V features + supernode features
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# 26. Full combination seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# 27. Full combination seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# ----------------------------------------------------------------------------
+# GROUP 7: Missing Ablation Cells (9 experiments)
+# Completes the 2³ grid: {use_normal_rope, use_surface_normal_features, input_features_dim≠null}
+#   28-30: supernode only — input features in SupernodePooling, no RoPE, no surface V
+#   31-33: supernode + surface V — input features + value stream normals, no RoPE
+#   34-36: RoPE + surface V — Q/K + V stream normals, no supernode features
+# ----------------------------------------------------------------------------
+
+# 28. Supernode only seed=1 — input features in SupernodePooling, no RoPE, no surface V
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=false model.supernode_pooling_config.input_features_dim=3
+
+# 29. Supernode only seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=false model.supernode_pooling_config.input_features_dim=3
+
+# 30. Supernode only seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=false model.supernode_pooling_config.input_features_dim=3
+
+# 31. Supernode + surface V seed=1 — input features + value stream normals, no RoPE
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# 32. Supernode + surface V seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# 33. Supernode + surface V seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=false model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=3
+
+# 34. RoPE + surface V seed=1 — Q/K + V stream normals, no supernode features
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# 35. RoPE + surface V seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# 36. RoPE + surface V seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.use_surface_normal_features=true model.supernode_pooling_config.input_features_dim=null
+
+# ----------------------------------------------------------------------------
+# GROUP 8: Cross-Attention Normal Mode Ablation (3 experiments)
+# Mirrors Group 2 (Normal RoPE Default) exactly, only changing cross_attention_normal_mode.
+# Compare directly with experiments 5–7 (position_only, the default) to isolate the effect.
+# ----------------------------------------------------------------------------
+
+# 37. cross_attention_normal_mode=zeros seed=1 — asymmetric cross-attn (surface Q rotated, volume K not)
++experiment/drivaerml=ab_upt +seed=1 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros
+
+# 38. cross_attention_normal_mode=zeros seed=2
++experiment/drivaerml=ab_upt +seed=2 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros
+
+# 39. cross_attention_normal_mode=zeros seed=3
++experiment/drivaerml=ab_upt +seed=3 tracker.entity=emmi-ai tracker.project=geometry-encoding-noether model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0 model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros

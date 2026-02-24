@@ -1,0 +1,24 @@
+# @package _global_
+
+# Define key values here that are used multiple times in the config files.
+config_schema_kind: tutorial.schemas.config_schema.TutorialConfigSchema
+excluded_properties: 
+  - volume_sdf
+  - volume_normals
+  - surface_normals
+defaults:
+  - data_specs: caeml
+  - dataset_normalizers: caeml_dataset_normalizers
+  - model: ??? # models are undefined and will be defined per experiment 
+  - trainer: caeml_trainer
+  - datasets: caeml_dataset
+  - tracker: ?? # trackers are undefined and will be defined depending on either development, training or evaluation
+  - callbacks: training_callbacks_caeml
+  - pipeline: caeml_pipeline
+  - /pipeline@inference_pipeline: caeml_pipeline
+  - optimizer: adamw
+  - _self_
+
+stage_name: train
+store_code_in_output: false
+output_path: ./outputs

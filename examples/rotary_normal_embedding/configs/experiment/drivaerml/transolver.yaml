@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - override /model: transolver  
+  - override /tracker: development_tracker 
+  - override /pipeline: shapenet_pipeline
+
+name: drivaerml-transolver
+
+inference_pipeline:
+  num_surface_points: 1000000000
+  num_volume_points: 1000000000
+
+sample_size_property: surface_position
+chunk_size: ${pipeline.num_surface_points}
+chunk_properties:
+  - surface_position
+  - volume_position

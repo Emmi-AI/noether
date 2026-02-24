@@ -1,0 +1,28 @@
+# @package _global_
+
+# Define key values here that are used multiple times in the config files.
+dataset_root: <path to your shapenet dataset root>
+dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
+config_schema_kind: examples.rotary_normal_embedding.schemas.RoNEConfigSchema
+
+excluded_properties: 
+  - surface_friction
+  - volume_pressure
+  - volume_vorticity
+
+defaults:
+  - data_specs: shapenet_car
+  - dataset_normalizers: shapenet_dataset_normalizers
+  - dataset_statistics: shapenet_car_stats
+  - model: ??? # models are undefined and will be defined per experiment 
+  - trainer: shapenet_trainer
+  - datasets: shapenet_dataset
+  - tracker: ?? # trackers are undefined and will be defined depending on either development, training or evaluation
+  - callbacks: training_callbacks_shapenet
+  - pipeline: shapenet_pipeline
+  - optimizer: adamw
+  - _self_
+
+stage_name: train
+store_code_in_output: false
+output_path: ./outputs

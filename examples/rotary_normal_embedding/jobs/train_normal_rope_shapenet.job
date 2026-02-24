@@ -1,0 +1,18 @@
+#!/bin/bash -l
+#SBATCH --nodes=1
+#SBATCH --cpus-per-task=28
+#SBATCH --partition=compute
+#SBATCH --gpus-per-node=1
+#SBATCH --ntasks-per-node=1
+#SBATCH --mem=64GB
+#SBATCH --output=/home/%u/projects/noether-RoNE/logs/shapenet/normal_rope_%A_%a.out
+#SBATCH --nice=0
+#SBATCH --array=1-38%8
+
+EXPERIMENT_FILE=normal_rope_encoding/tutorial/jobs/experiments/normal_rope_shapenet.txt
+
+# Skip comment lines and get the actual experiment line
+EXPERIMENT=$(grep -v '^#' $EXPERIMENT_FILE | grep -v '^$' | sed -n "${SLURM_ARRAY_TASK_ID}p")
+
+# run
+srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp tutorial/configs/train_shapenet.yaml $EXPERIMENT dataset_root=/nfs-gpu/research/datasets/shapenet_car/preprocessed

@@ -1,0 +1,33 @@
+# @package _global_
+defaults:
+  - override /model: upt  
+  - override /tracker: development_tracker 
+  - override /optimizer: lion
+  - override /pipeline: shapenet_pipeline
+
+name: drivaerml-no-query-sampling 
+
+trainer:
+  precision: float16
+
+model:
+  supernode_pooling_config:
+    radius: 0.25
+    
+pipeline:
+  num_supernodes: 16384
+  num_surface_queries: 16384
+  num_volume_queries: 16384
+  num_surface_points: 65536
+
+inference_pipeline:
+  num_supernodes: 16384
+  num_surface_queries: 1000000000
+  num_volume_queries: 1000000000
+  num_surface_points: 65536
+
+sample_size_property: surface_query_position
+chunk_size: ${pipeline.num_surface_queries}
+chunk_properties:
+  - surface_query_position
+  - volume_query_position
