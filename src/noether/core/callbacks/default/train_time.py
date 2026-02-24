@@ -1,9 +1,12 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-import numpy as np
+from collections import defaultdict
+
+import torch
 
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd
+from noether.core.distributed.gather import reduce_max_nograd, reduce_mean_nograd
 from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.logging import tensor_like_to_string
 
@@ -13,25 +16,41 @@ class TrainTimeCallback(PeriodicCallback):
 
     def __init__(self, callback_config: CallBackBaseConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)
-        self.train_data_times: list[float] = []
-        self.total_train_data_time = 0.0
+        self.train_times: dict[str, list[float]] = defaultdict(list)
+        self.total_train_times: dict[str, float] = {}
 
-    def track_after_update_step(self, *, times, **_) -> None:
-        self.train_data_times.append(times["data_time"])
+    def track_after_update_step(self, *, times: dict[str, float], **_) -> None:
+        for k, v in times.items():
+            self.train_times[k].append(v)
 
     def periodic_callback(self, **_) -> None:
-        sum_data_time = np.sum(self.train_data_times)
-        mean_data_time = sum_data_time / len(self.train_data_times)
-        self.total_train_data_time += sum_data_time
-        self.train_data_times.clear()
+        for k, v in self.train_times.items():
+            arr = torch.tensor(v)
+            mean = torch.mean(arr) if len(arr) > 0 else torch.tensor(0.0)
+            max_v = torch.max(arr) if len(arr) > 0 else torch.tensor(0.0)
 
-        # gather for all devices
-        mean_data_times = all_gather_nograd(mean_data_time)
-        if len(mean_data_times) == 1:
-            self.logger.info(f"Waited {tensor_like_to_string(mean_data_times)[1:-1]} [sec] for dataloading")
-        else:
-            self.logger.info(f"Waited {tensor_like_to_string(mean_data_times)} [sec] for dataloading")
+            # accumulate total for after_training
+            if k not in self.total_train_times:
+                self.total_train_times[k] = 0.0
+            self.total_train_times[k] += float(torch.sum(arr))
+
+            # we only reduce to rank=0 because we only log and track at rank=0.
+            mean_gathered = reduce_mean_nograd(mean)
+            max_gathered = reduce_max_nograd(max_v)
+            self.writer.add_scalar(
+                key=f"train_time/{k}/mean/{self.to_short_interval_string()}",
+                value=mean_gathered,
+                logger=self.logger,
+            )
+            self.writer.add_scalar(
+                key=f"train_time/{k}/max/{self.to_short_interval_string()}",
+                value=max_gathered,
+                logger=self.logger,
+            )
+
+        self.train_times.clear()
 
     def after_training(self, **_) -> None:
-        total_data_time = all_gather_nograd(self.total_train_data_time)
-        self.logger.info(f"Waited {tensor_like_to_string(total_data_time)} [sec] for dataloading in total")
+        for k, v in self.total_train_times.items():
+            total_time = all_gather_nograd(v)
+            self.logger.info(f"{k}: total={tensor_like_to_string(total_time)} [sec] in total")
