@@ -1,0 +1,32 @@
+output_path: ./output
+store_code_in_output: false
+config_schema_kind: examples.scaffolding_project.schema.ConfigSchema
+
+model:
+  name: my_model
+  kind: examples.scaffolding_project.model.Model
+  optimizer_config:
+    kind:
+    lr: 
+    schedule_config:
+      kind: 
+      warmup_percent: 
+      end_value: 
+      max_value: ${model.optimizer_config.lr}
+
+trainer:
+  kind: examples.scaffolding_project.trainer.Trainer
+  max_epochs: 
+  effective_batch_size: 
+  callbacks: null
+  forward_properties:
+    - 
+
+tracker: null 
+datasets:
+  train:
+    kind: examples.scaffolding_project.dataset.Dataset
+    split: train
+    pipeline:
+      kind: examples.scaffolding_project.pipeline.MultiStagePipeline
+      # pipeline options go here
