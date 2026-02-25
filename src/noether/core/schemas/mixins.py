@@ -83,7 +83,7 @@ class InjectSharedFieldFromParentMixin(BaseModel):
         # Iterate over all fields in the current model
         for field_name, field_info in config_model_type.model_fields.items():
             # Check if inheritance of shared fields is requested via Annotated[..., Shared]
-            if not any(x is Shared for x in field_info.metadata):
+            if not any(x is Shared or isinstance(x, Shared) for x in field_info.metadata):
                 continue
 
             # Check if the field is a Pydantic model (i.e., a sub-config)
