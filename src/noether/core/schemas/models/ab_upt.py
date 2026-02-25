@@ -1,10 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field
 
 from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.types import InitWeightsMode
@@ -12,12 +13,12 @@ from noether.core.types import InitWeightsMode
 from .base import ModelBaseConfig
 
 
-class AnchorBranchedUPTConfig(ModelBaseConfig):
+class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     model_config = ConfigDict(extra="forbid")
 
-    supernode_pooling_config: SupernodePoolingConfig
+    supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared]
 
-    transformer_block_config: TransformerBlockConfig
+    transformer_block_config: Annotated[TransformerBlockConfig, Shared]
 
     geometry_depth: int = Field(..., ge=0)
     """Number of transformer blocks in the geometry encoder."""
