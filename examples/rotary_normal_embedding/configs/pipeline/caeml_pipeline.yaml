@@ -1,4 +1,4 @@
-kind: tutorial.pipeline.AeroMultistagePipeline
+kind: examples.rotary_normal_embedding.pipeline.AeroMultistagePipeline
 num_surface_points: 16384 
 num_volume_points: ${pipeline.num_surface_points} # use same number of volume points as surface points 
 num_surface_queries: 0

@@ -1,7 +1,6 @@
 # @package _global_
 defaults:
   - override /model: ab_upt  
-  - override /tracker: development_tracker
   - override /optimizer: lion
 
 name: drivaerml-ab-upt
@@ -39,3 +38,4 @@ chunk_size: ${pipeline.num_surface_anchor_points}
 chunk_properties:
   - surface_anchor_position
   - volume_anchor_position
+  - surface_anchor_normals

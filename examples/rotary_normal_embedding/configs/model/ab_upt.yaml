@@ -15,7 +15,7 @@ supernode_pooling_config:
   input_features_dim: 3
 use_normal_rope: true
 use_surface_normal_features: true
-normal_rope_dim_fraction: 0.25
+normal_rope_dim_fraction: 0.15
 normal_rope_max_wavelength: 10.0
 cross_attention_normal_mode: position_only
 physics_blocks: 

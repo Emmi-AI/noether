@@ -1,6 +1,8 @@
 
 # caeml data specifications are for both AhmedML and DrivAerML datasets
 position_dim: 3
+surface_features:
+  surface_normals: 3
 surface_output_dims:
   pressure: 1
   friction: 3

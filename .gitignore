@@ -148,3 +148,4 @@ dmypy.json
 .pyre/
 tests/test_files/output
 /data
+/_stash
