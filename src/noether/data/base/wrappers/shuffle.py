@@ -10,12 +10,12 @@ from noether.data.base import Dataset, DatasetWrapper, Subset
 class ShuffleWrapper(Subset):
     """Shuffles the dataset, optionally with seed."""
 
-    def __init__(self, config: ShuffleWrapperConfig, dataset: Dataset):
+    def __init__(self, config: ShuffleWrapperConfig, dataset: Dataset | DatasetWrapper):
         """
         Args:
             config: Configuration for the ShuffleWrapper. See :class:`~noether.core.schemas.dataset.ShuffleWrapperConfig`
                 for available options.
-            dataset: The dataset to shuffle.
+            dataset: The dataset to shuffle. Can be a base dataset or an already wrapped dataset.
 
         Raises:
             ValueError: If the dataset is not an instance of noether.data.Dataset or DatasetWrapper, or if the seed is not an integer or None.

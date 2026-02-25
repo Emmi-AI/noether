@@ -2,35 +2,37 @@
 
 from typing import Any
 
-from torch.utils.data import Dataset
-
 from noether.core.utils.common.stopwatch import Stopwatch
+from noether.data.base import Dataset, DatasetWrapper
 
 META_GETITEM_TIME = "__meta_time_getitem"
 
 
-class TimingWrapper(Dataset):
+class TimingWrapper(DatasetWrapper):
     """Wrapper that times __getitem__ calls and returns both the item and the time taken."""
 
-    def __init__(self, dataset):
+    def __init__(self, dataset: Dataset | DatasetWrapper):
         """
         Args:
             dataset: The dataset to wrap
         """
-        self.dataset = dataset
+        super().__init__(dataset=dataset)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> dict[str, Any]:
         """
         Get item and measure time taken.
 
         Returns:
-            tuple: (item, time_taken) where time_taken is in seconds
+            Dictionary sample extended with ``META_GETITEM_TIME``.
+
+        Raises:
+            TypeError: If wrapped dataset does not return a dictionary sample.
         """
         with Stopwatch() as sw:
             item = self.dataset[index]
-        if isinstance(item, dict):
-            item[META_GETITEM_TIME] = sw.elapsed_seconds
-            return item
+        if not isinstance(item, dict):
+            raise TypeError(f"TimingWrapper expects dictionary samples, got {type(item)}")
+        item[META_GETITEM_TIME] = sw.elapsed_seconds
         return item
 
     def __len__(self):

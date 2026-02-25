@@ -48,11 +48,11 @@ class PropertySubsetWrapper(DatasetWrapper):
 
     """
 
-    def __init__(self, dataset: Dataset, properties: set[str]):
+    def __init__(self, dataset: Dataset | DatasetWrapper, properties: set[str]):
         """
 
         Args:
-            dataset: Base dataset to be wrapped.
+            dataset: Base dataset to be wrapped. Can be a dataset or another dataset wrapper.
             properties: Which properties to load from the wrapped dataset when __getitem__ is called.
         Raises:
             TypeError: If properties is not a set.
@@ -100,7 +100,7 @@ class PropertySubsetWrapper(DatasetWrapper):
             ValueError: If idx is negative.
             IndexError: If idx is out of bounds for the wrapped dataset.
         """
-        if not isinstance(idx, int | np.int64):
+        if not isinstance(idx, (int, np.integer)):
             raise TypeError(f"Index must be an integer, got {type(idx)}.")
         if idx < 0:
             raise ValueError(f"Index must be non-negative, got {idx}.")
