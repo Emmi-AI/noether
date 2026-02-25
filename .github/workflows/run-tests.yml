@@ -10,7 +10,6 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -49,11 +48,17 @@ jobs:
             --cov-report=xml:coverage.xml \
             --junitxml=pytest.xml
 
-      - name: Post Coverage Comment
-        uses: MishaKav/pytest-coverage-comment@main
-        if: github.event_name == 'pull_request'
+      - name: Save PR info
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo ${{ github.event.number }} > pr_number.txt
+
+      - name: Upload coverage artifacts
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
         with:
-          pytest-xml-coverage-path: ./coverage.xml
-          junitxml-path: ./pytest.xml
-          hide-report: true
-          xml-skip-covered: true
+          name: coverage-artifacts
+          path: |
+            coverage.xml
+            pytest.xml
+            pr_number.txt
