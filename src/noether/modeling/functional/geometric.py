@@ -27,8 +27,8 @@ try:
         batch_x_ptr,
         batch_y_ptr,
         edge_dst_ptr,
-        n_x: tl.constexpr,
-        n_y: tl.constexpr,
+        n_x,
+        n_y,
         dim: tl.constexpr,
         r_squared,
         max_neighbors: tl.constexpr,
@@ -96,12 +96,13 @@ try:
 
     @triton.autotune(
         configs=[
-            triton.Config({"BLOCK_X": 8}),
-            triton.Config({"BLOCK_X": 16}),
-            triton.Config({"BLOCK_X": 32}),
-            triton.Config({"BLOCK_X": 64}),
+            triton.Config({"BLOCK_X": 16}, num_warps=1),
+            triton.Config({"BLOCK_X": 16}, num_warps=2),
+            triton.Config({"BLOCK_X": 32}, num_warps=1),
+            triton.Config({"BLOCK_X": 32}, num_warps=2),
+            triton.Config({"BLOCK_X": 64}, num_warps=1),
         ],
-        key=["n_x", "n_y", "dim"],  # Retune when these change
+        key=["n_y", "dim", "k"],  # Retune when these change
     )
     @triton.jit
     def _knn_kernel(
@@ -111,10 +112,10 @@ try:
         batch_y_ptr,
         edge_dst_ptr,
         dist_ptr,
-        n_x: tl.constexpr,
-        n_y: tl.constexpr,
+        n_x,
+        n_y,
         dim: tl.constexpr,
-        k: tl.constexpr,
+        k,
         has_batch: tl.constexpr,
         BLOCK_K: tl.constexpr,
         BLOCK_X: tl.constexpr,
@@ -372,7 +373,6 @@ def knn_triton(
     k: int,
     batch_x: torch.Tensor | None = None,
     batch_y: torch.Tensor | None = None,
-    cosine: bool = False,
 ) -> torch.Tensor:
     """
     Calculates k-nearest neighbors using a Triton kernel.
@@ -442,9 +442,13 @@ def knn_triton(
     edge_src_valid = torch.arange(n_y, device=x.device).repeat_interleave(k)
     edge_dst_valid = output_indices
 
-    # Filter out invalid indices (from padding or small batches)
-    valid_mask = edge_dst_valid != -1
-    return torch.stack([edge_src_valid[valid_mask], edge_dst_valid[valid_mask]], dim=0)
+    if batch_x is not None and batch_y is not None:
+        # small batches may have fewer than k neighbors, resulting in -1 entries
+        valid_mask = edge_dst_valid != -1
+        edge_src_valid = edge_src_valid[valid_mask]
+        edge_dst_valid = edge_dst_valid[valid_mask]
+
+    return torch.stack([edge_src_valid, edge_dst_valid], dim=0)
 
 
 def knn_pytorch(

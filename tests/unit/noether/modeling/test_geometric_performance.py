@@ -39,15 +39,15 @@ class TestGeometricPerformance:
         Returns:
             Tuple of (x, y, batch_x, batch_y) tensors on the specified device.
         """
-        device = request.param
+        queries, device = request.param
         if device == "cuda" and not torch.cuda.is_available():
             pytest.skip("CUDA not available")
         if device == "mps" and not torch.backends.mps.is_available():
             pytest.skip("MPS not available")
 
         torch.manual_seed(42)
-        num_points = 100_000
-        num_queries = 8_000
+        num_points = 262144
+        num_queries = queries
 
         x = torch.randn(num_points, 3, device=device)
         y = torch.randn(num_queries, 3, device=device)
@@ -59,7 +59,7 @@ class TestGeometricPerformance:
         return x, y, batch_x, batch_y
 
     @pytest.mark.benchmark(group="radius")
-    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
+    @pytest.mark.parametrize("large_sample_data", [(8_000, "cpu"), (8_000, "cuda"), (8_000, "mps")], indirect=True)
     @pytest.mark.parametrize("implementation", ["fallback", "pyg", "triton"])
     def test_performance_radius(self, benchmark, large_sample_data, implementation):
         """Benchmark radius search implementations.
@@ -90,9 +90,21 @@ class TestGeometricPerformance:
         benchmark(wrap_with_sync(func, device), x, y, r, batch_x, batch_y, max_num_neighbors)
 
     @pytest.mark.benchmark(group="knn")
-    @pytest.mark.parametrize("large_sample_data", ["cpu", "cuda", "mps"], indirect=True)
-    @pytest.mark.parametrize("implementation", ["fallback", "pyg", "triton"])
-    def test_performance_knn(self, benchmark, large_sample_data, implementation):
+    @pytest.mark.parametrize(
+        "large_sample_data",
+        [(1_024, "cuda"), (4_096, "cuda"), (16_384, "cuda"), (8_192, "cpu"), (8_192, "mps")],
+        indirect=True,
+    )
+    @pytest.mark.parametrize(
+        "implementation",
+        [
+            # "fallback",
+            "pyg",
+            "triton",
+        ],
+    )
+    @pytest.mark.parametrize("k", [8])
+    def test_performance_knn(self, benchmark, large_sample_data, implementation, k):
         """Benchmark KNN search implementations.
 
         Args:
@@ -101,14 +113,13 @@ class TestGeometricPerformance:
             implementation: Implementation to benchmark ('fallback', 'pyg', or 'triton').
         """
         x, y, batch_x, batch_y = large_sample_data
-        k = 16
         device = x.device.type
 
         if implementation == "triton" and device != "cuda":
             pytest.skip("Triton implementation only supported on CUDA")
 
         if implementation == "pyg" and device == "mps":
-            pytest.skip("torch_geometric radius not supported on MPS")
+            pytest.skip("torch_geometric KNN not supported on MPS")
 
         if implementation == "fallback":
             func = knn_pytorch
