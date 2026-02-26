@@ -4,7 +4,7 @@ import logging
 
 import torch
 
-from noether.core.schemas.dataset import CAEMLDatasetConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.core.utils.common import validate_path
 from noether.data.datasets.cfd.caeml.filemap import CAEML_FILEMAP
 from noether.data.datasets.cfd.dataset import AeroDataset
@@ -23,7 +23,7 @@ class CAEMLDataset(AeroDataset):
 
     def __init__(
         self,
-        dataset_config: CAEMLDatasetConfig,
+        dataset_config: StandardDatasetConfig,
         dataset_name: str,
         filemap=CAEML_FILEMAP,
     ):
@@ -43,7 +43,7 @@ class CAEMLDataset(AeroDataset):
         self.split = dataset_config.split
         if self.split not in self.supported_splits:
             raise ValueError(f"Unsupported split '{self.split}'. Supported splits are: {self.supported_splits}")
-        self.source_root = validate_path(dataset_config.root)  # type: ignore[arg-type]
+        self.source_root = validate_path(dataset_config.root)
         self._load_design_ids()
         logger.info(f"Initialized {dataset_name} with {len(self.design_ids)} samples for split '{self.split}'")
 

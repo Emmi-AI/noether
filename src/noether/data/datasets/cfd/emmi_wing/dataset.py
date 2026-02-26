@@ -4,7 +4,7 @@ import logging
 
 import torch
 
-from noether.core.schemas.dataset import CAEMLDatasetConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common import validate_path
 from noether.data.base.dataset import with_normalizers
@@ -26,13 +26,13 @@ WING_FILE_MAP = FileMap(
 
 
 class EmmiWingDataset(AeroDataset):
-    def __init__(self, dataset_config: CAEMLDatasetConfig):
+    def __init__(self, dataset_config: StandardDatasetConfig):
         super().__init__(dataset_config=dataset_config, filemap=WING_FILE_MAP)
 
         self.split = dataset_config.split
         if self.split not in self.supported_splits:
             raise ValueError(f"Unsupported split '{self.split}'. Supported splits are: {self.supported_splits}")
-        self.source_root = validate_path(dataset_config.root)  # type: ignore[arg-type]
+        self.source_root = validate_path(dataset_config.root)
         self._load_design_ids()
         logger.info(f"Initialized Emmi-Wing with {len(self.design_ids)} samples for split '{self.split}'")
 
