@@ -59,19 +59,31 @@ class TestGeometricPerformance:
         return x, y, batch_x, batch_y
 
     @pytest.mark.benchmark(group="radius")
-    @pytest.mark.parametrize("large_sample_data", [(8_000, "cpu"), (8_000, "cuda"), (8_000, "mps")], indirect=True)
-    @pytest.mark.parametrize("implementation", ["fallback", "pyg", "triton"])
-    def test_performance_radius(self, benchmark, large_sample_data, implementation):
+    @pytest.mark.parametrize(
+        "large_sample_data",
+        [(1_024, "cuda"), (4_096, "cuda"), (16_384, "cuda"), (8_192, "cpu"), (8_192, "mps")],
+        indirect=True,
+    )
+    @pytest.mark.parametrize(
+        "implementation",
+        [
+            "fallback",
+            "pyg",
+            "triton",
+        ],
+    )
+    @pytest.mark.parametrize("max_num_neighbors", [32])
+    def test_performance_radius(self, benchmark, large_sample_data, implementation, max_num_neighbors):
         """Benchmark radius search implementations.
 
         Args:
             benchmark: Pytest benchmark fixture.
             large_sample_data: Fixture providing dataset.
             implementation: Implementation to benchmark ('fallback', 'pyg', or 'triton').
+            max_num_neighbors: Maximum number of neighbors to consider.
         """
         x, y, batch_x, batch_y = large_sample_data
         r = 0.5
-        max_num_neighbors = 32
         device = x.device.type
 
         if implementation == "triton" and device != "cuda":
@@ -98,12 +110,12 @@ class TestGeometricPerformance:
     @pytest.mark.parametrize(
         "implementation",
         [
-            # "fallback",
+            "fallback",
             "pyg",
             "triton",
         ],
     )
-    @pytest.mark.parametrize("k", [8])
+    @pytest.mark.parametrize("k", [8, 16])
     def test_performance_knn(self, benchmark, large_sample_data, implementation, k):
         """Benchmark KNN search implementations.
 
