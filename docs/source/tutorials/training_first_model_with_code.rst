@@ -76,7 +76,7 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         EmaCallbackConfig,
         OfflineLossCallbackConfig,
     )
-    from noether.core.schemas.dataset import AeroDataSpecs, DatasetBaseConfig, DatasetWrappers, RepeatWrapperConfig
+    from noether.core.schemas.dataset import AeroDataSpecs, CAEMLDatasetConfig, DatasetBaseConfig, DatasetWrappers, RepeatWrapperConfig
     from noether.core.schemas.modules import (
         DeepPerceiverDecoderConfig,
         SupernodePoolingConfig,
@@ -222,8 +222,8 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
         dataset_statistics: dict[str, Sequence[float]],
         dataset_normalizer: dict[str, list[AnyNormalizer]],
         dataset_wrappers: list[DatasetWrappers] | None = None,
-    ) -> DatasetBaseConfig:
-        return DatasetBaseConfig(
+    ) -> CAEMLDatasetConfig:
+        return CAEMLDatasetConfig(
             kind="noether.data.datasets.cfd.ShapeNetCarDataset",
             root=dataset_root,
             pipeline=AeroCFDPipelineConfig(
