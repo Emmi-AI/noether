@@ -97,3 +97,98 @@ Configuration inheritance only works for:
 
 
 If a submodule doesn't have a field matching the parent's shared parameter, that parameter simply isn't injected.
+
+How to Add It to Your Own Schemas
+----------------------------------
+
+To add configuration inheritance to your own schemas, follow these steps:
+
+1. **Add the mixin to your parent config**
+
+   Import and inherit from ``InjectSharedFieldFromParentMixin`` in your parent configuration class:
+
+   .. code-block:: python
+
+      from pydantic import BaseModel, Field
+      from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
+
+      class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+          hidden_dim: int = Field(..., ge=1)
+          num_layers: int = Field(..., ge=1)
+          # ...other fields
+
+2. **Mark sub-config fields with the Shared annotation**
+
+   Use ``Annotated[SubConfigType, Shared]`` to mark which sub-config fields should receive inherited parameters:
+
+   .. code-block:: python
+
+      from typing import Annotated
+
+      class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+          hidden_dim: int = Field(..., ge=1)
+          num_layers: int = Field(..., ge=1)
+          
+          # This sub-config will receive inherited fields
+          encoder_config: Annotated[EncoderConfig, Shared]
+          
+          # This sub-config will also receive inherited fields
+          decoder_config: Annotated[DecoderConfig, Shared]
+
+3. **Ensure sub-configs have matching field names**
+
+   Only fields with matching names will be inherited. If your sub-config has a ``hidden_dim`` field and the parent has a ``hidden_dim`` field, the value will be inherited:
+
+   .. code-block:: python
+
+      class EncoderConfig(BaseModel):
+          hidden_dim: int = Field(..., ge=1)  # Will inherit from parent
+          depth: int = Field(..., ge=1)  # Won't inherit (no matching parent field)
+
+4. **For nested inheritance, add the mixin to sub-configs too**
+
+   If your sub-config also has nested configurations, add the mixin to enable multi-level inheritance:
+
+   .. code-block:: python
+
+      class DecoderConfig(InjectSharedFieldFromParentMixin, BaseModel):
+          hidden_dim: int = Field(..., ge=1)
+          
+          # This nested config will also receive inherited fields
+          attention_config: Annotated[AttentionConfig, Shared]
+
+Complete Example
+^^^^^^^^^^^^^^^^
+
+.. code-block:: python
+
+   from typing import Annotated
+   from pydantic import BaseModel, Field
+   from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
+
+   class AttentionConfig(BaseModel):
+       hidden_dim: int = Field(..., ge=1)
+       num_heads: int = Field(..., ge=1)
+
+   class EncoderConfig(InjectSharedFieldFromParentMixin, BaseModel):
+       hidden_dim: int = Field(..., ge=1)
+       depth: int = Field(..., ge=1)
+       attention_config: Annotated[AttentionConfig, Shared]
+
+   class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+       hidden_dim: int = Field(256, ge=1)
+       num_heads: int = Field(8, ge=1)
+       encoder_config: Annotated[EncoderConfig, Shared]
+
+With this setup, a YAML configuration like:
+
+.. code-block:: yaml
+
+   hidden_dim: 256
+   num_heads: 8
+   encoder_config:
+     depth: 6
+     attention_config:
+       # hidden_dim and num_heads inherited from top level
+
+will automatically propagate ``hidden_dim`` and ``num_heads`` to both ``encoder_config`` and ``encoder_config.attention_config``.
