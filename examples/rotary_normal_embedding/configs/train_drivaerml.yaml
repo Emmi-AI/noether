@@ -23,4 +23,4 @@ defaults:
 stage_name: train
 store_code_in_output: false
 output_path: ./outputs
-dataset_root: /nfs-gpu/research/datasets/drivaerml/preprocessed/subsampled_10x
+dataset_root: </path/to/drivaerml>

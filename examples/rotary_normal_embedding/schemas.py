@@ -9,22 +9,23 @@ from tutorial.schemas.models.ab_upt_config import ABUPTConfig
 
 
 class AnchorBranchedUPTConfig(ABUPTConfig):
+    # New parameters for Rotary Normal Embedding (RoNE) (i.e., normal rope)
     use_normal_rope: bool = Field(False)
     """Enable Rotary Normal Embedding (RoNE): encodes relative surface normal orientation
     alongside relative position in the RoPE attention bias. Only affects surface and geometry
     tokens; volume tokens keep classic position-only RoPE."""
 
     use_surface_normal_features: bool = Field(False)
-    """When True, surface anchor token features are initialised with a learnable normal embedding
-    (nn.Linear(3, hidden_dim)) added to the position embedding.  This injects normal information
-    into the value stream of the physics blocks, complementing RoNE which only affects Q/K."""
+    """When True, surface normals are added to the anchor token, with a learnable embedding layer
+    (nn.Linear(3, hidden_dim)), and added to the position embedding (i.e., the x, y, z coordinates).
+    This injects normal information into the value representations of the physics blocks, complementing RoNE which only affects Q/K."""
 
     normal_rope_dim_fraction: float = Field(0.25, gt=0.0, lt=1.0)
-    """Fraction of head_dim allocated to normal orientation encoding. The remaining fraction
-    is used for position encoding. Only used when use_normal_rope=True."""
+    """Fraction of attention head dim (i.e., head_dim) allocated to normal orientation encoding. The remaining fraction
+    is used for position encoding (x,y,z coordinates). Only used when use_normal_rope=True."""
 
     normal_rope_max_wavelength: float = Field(10.0, gt=0.0)
-    """Max wavelength for normal RoPE frequencies. Normals live in [-1, 1], so this should be
+    """Max wavelength for normal RoPE frequencies. Normals live in the range [-1, 1], so this should be
     much smaller than the position max_wavelength (default 10000). Only used when use_normal_rope=True."""
 
     cross_attention_normal_mode: Literal["zeros", "position_only"] = Field("position_only")
@@ -44,4 +45,5 @@ class AnchorBranchedUPTConfig(ABUPTConfig):
 
 
 class RoNEConfigSchema(TutorialConfigSchema):
+    # Override the model config with our custom AnchorBranchedUPTConfig, which includes the new RoNE parameters.
     model: AnchorBranchedUPTConfig = Field(..., discriminator="name")

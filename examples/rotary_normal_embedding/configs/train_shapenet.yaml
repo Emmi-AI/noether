@@ -1,7 +1,7 @@
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-dataset_root: /nfs-gpu/research/datasets/shapenet_car/
+dataset_root: </path/to/shapenet_car>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
 config_schema_kind: examples.rotary_normal_embedding.schemas.RoNEConfigSchema
 

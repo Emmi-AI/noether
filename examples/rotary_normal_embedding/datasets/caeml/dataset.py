@@ -22,7 +22,7 @@ class DrivAerMLDataset(BaseDrivAerMLDataset):
         dataset_config: DatasetBaseConfig,
     ):
         """
-        Initialize the DrivaerML dataset.
+        Initialize the DrivaerML dataset with a different filemap including surface normals.
 
         Args:
             dataset_config: Configuration for the dataset.

@@ -21,7 +21,7 @@ from tutorial.pipeline.sample_processors import AnchorPointSamplingSampleProcess
 
 class AeroMultistagePipeline(BaseAeroMultistagePipeline):
     """
-    Extended pipeline for CFD AeroDynamics with Rotary Normal Embedding (RoNE) support.
+    Extended pipeline for CFD AeroMultistagePipeline with Rotary Normal Embedding (RoNE) support (i.e., load surface normals for the surface geometry).
 
     This extends the base AeroMultistagePipeline to handle surface normals alongside positions,
     which are used for normal-aware positional encoding in the model.

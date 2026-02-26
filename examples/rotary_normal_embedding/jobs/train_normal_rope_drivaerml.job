@@ -5,14 +5,14 @@
 #SBATCH --gpus-per-node=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --mem=128GB
-#SBATCH --output=/home/%u/projects/noether-RoNE/logs/drivaerml/normal_rope_%A_%a.out
+#SBATCH --output=./logs/drivaerml/normal_rope_%A_%a.out
 #SBATCH --nice=0
 #SBATCH --array=1-6%6
 
-EXPERIMENT_FILE=/home/mbleeker/projects/emmi.ai/noether/examples/rotary_normal_embedding/jobs/experiments/normal_rope_drivaerml.txt
+EXPERIMENT_FILE=./experiments/normal_rope_drivaerml.txt
 
 # Skip comment lines and get the actual experiment line
 EXPERIMENT=$(grep -v '^#' $EXPERIMENT_FILE | grep -v '^$' | sed -n "${SLURM_ARRAY_TASK_ID}p")
 
 # run
-srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp /home/mbleeker/projects/emmi.ai/noether/examples/rotary_normal_embedding/configs/train_drivaerml.yaml $EXPERIMENT dataset_root=/nfs-gpu/research/datasets/drivaerml/preprocessed/subsampled_10x
+srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp <path/to/noether>/noether/examples/rotary_normal_embedding/configs/train_drivaerml.yaml $EXPERIMENT dataset_root=</path/to/drivaerml> 
