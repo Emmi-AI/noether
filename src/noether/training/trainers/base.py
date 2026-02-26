@@ -919,8 +919,8 @@ class BaseTrainer:
         total_loss = total_loss / accumulation_steps
 
         if self.config.skip_nan_loss:
-            total_loss = all_gather_nograd(total_loss)
-            if torch.isnan(total_loss).item() is True:
+            reduced_loss = all_gather_nograd(total_loss)
+            if torch.any(torch.isnan(reduced_loss)).item():
                 self.logger.info(f"encountered nan loss -> skip (counter: {self.skip_nan_loss_counter})")
                 self.skip_nan_loss_counter += 1
                 if self.skip_nan_loss_counter > self.config.skip_nan_loss_max_count:
