@@ -14,7 +14,7 @@ from .base import ModelBaseConfig
 
 
 class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
-    """Configuration for a Transolver model."""
+    """Configuration for a UPT model."""
 
     model_config = ConfigDict(extra="forbid")
 
