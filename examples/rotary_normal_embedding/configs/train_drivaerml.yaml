@@ -2,7 +2,7 @@
 
 # Define key values here that are used multiple times in the config files.
 config_schema_kind: examples.rotary_normal_embedding.schemas.RoNEConfigSchema
-dataset_kind: examples.rotary_normal_embedding.datasets.caeml.dataset.DrivAerMLDataset
+dataset_kind: noether.data.datasets.cfd.DrivAerMLDataset
 excluded_properties: 
   - volume_sdf
   - volume_normals
