@@ -1,0 +1,45 @@
+- kind: noether.core.callbacks.CheckpointCallback
+  every_n_epochs: 10
+  save_weights: false
+  save_latest_weights: true
+  save_latest_optim: true
+  name: CheckpointCallback
+# validation loss
+- kind: noether.training.callbacks.OfflineLossCallback
+  batch_size: 1
+  every_n_epochs: 1
+  dataset_key: val
+  name: OfflineLossCallback
+- kind: noether.core.callbacks.BestCheckpointCallback
+  every_n_epochs: 1
+  metric_key: loss/val/total
+  name: BestCheckpointCallback
+# test loss
+- kind: tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback
+  batch_size: 1
+  every_n_epochs: 1
+  dataset_key: val
+  forward_properties: ${model.forward_properties}
+  name: SurfaceVolumeEvaluationMetricsCallback
+- kind: tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback
+  batch_size: 1
+  every_n_epochs: ${trainer.max_epochs}
+  dataset_key: chunked_test
+  name: SurfaceVolumeEvaluationMetricsCallback
+  forward_properties: ${model.forward_properties}
+  chunked_inference: true
+  chunk_properties: ${chunk_properties}
+  sample_size_property: ${sample_size_property}
+  chunk_size: ${chunk_size}
+- kind: noether.core.callbacks.EmaCallback
+  every_n_epochs: 10
+  save_weights: false
+  save_last_weights: false
+  save_latest_weights: true
+  target_factors:
+    - 0.9999
+  name: EmaCallback
+  # example of how to save/load only specific submodules of a composite model
+  # model_paths:
+  #    - low_level_blocks
+  #    - high_level_blocks

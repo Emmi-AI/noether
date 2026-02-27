@@ -1,0 +1,6 @@
++experiment/shapenet=ab_upt +seed=1 model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null model.use_surface_normal_features=False
++experiment/shapenet=ab_upt +seed=2 model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null model.use_surface_normal_features=False
++experiment/shapenet=ab_upt +seed=3 model.use_normal_rope=false model.supernode_pooling_config.input_features_dim=null model.use_surface_normal_features=False
++experiment/shapenet=ab_upt +seed=1 model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0  model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros
++experiment/shapenet=ab_upt +seed=2 model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0  model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros
++experiment/shapenet=ab_upt +seed=3 model.use_normal_rope=true model.normal_rope_dim_fraction=0.125 model.normal_rope_max_wavelength=10.0  model.supernode_pooling_config.input_features_dim=3 model.cross_attention_normal_mode=zeros

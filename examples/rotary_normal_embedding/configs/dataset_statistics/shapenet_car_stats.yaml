@@ -1,0 +1,8 @@
+raw_pos_min:  [-4.5,]
+raw_pos_max: [6.0,]
+surface_pressure_mean: [-36.4098]
+surface_pressure_std: [48.6757]
+volume_velocity_mean: [0.00293915, -0.0230546, 17.546032]
+volume_velocity_std: [1.361689, 1.267649, 5.850353]
+volume_sdf_mean: [3.74222e-01]
+volume_sdf_std: [1.78948e-01]
