@@ -8,8 +8,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from loguru import logger
 
-from noether.modeling.functional.geometric import segment_reduce
-
 try:
     import torch_geometric  # type: ignore
     from torch_geometric.nn import knn_graph, radius_graph  # type: ignore
@@ -90,14 +88,7 @@ class StabilityTestModel(torch.nn.Module):
         x = x + aggregated_messages
         x = F.relu(self.lin2(x))
 
-        num_nodes_per_graph = torch.bincount(batch)
-
-        # We pool all node features for each graph.
-        pooled_x = segment_reduce(src=x, lengths=num_nodes_per_graph, reduce=self.aggregation)
-
-        # 5. Final output
-        out = self.lin_out(pooled_x)
-        return out
+        return x
 
 
 def generate_fake_data(num_graphs, nodes_per_graph, num_features, device):
