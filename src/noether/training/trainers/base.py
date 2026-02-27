@@ -764,13 +764,15 @@ class BaseTrainer:
 
                 dist_model.train()
                 with Stopwatch() as sw:
-                    losses, additional_outputs = self.update(
+                    losses, additional_outputs, times_dict = self.update(
                         batch=batch,
                         dist_model=dist_model,
                         model=model,
                         accumulation_steps=accumulation_steps,
                     )
                 times[TRAINING_UPDATE_TIME] += sw.elapsed_seconds
+                for k, v in times_dict.items():
+                    times[k] += v.elapsed_seconds
 
                 with torch.no_grad():
                     for callback in periodic_callbacks:
@@ -874,24 +876,23 @@ class BaseTrainer:
         batch: dict[str, Tensor],
         dist_model: torch.nn.Module,
         model: ModelBase | None = None,
-        training: bool = True,
         accumulation_steps: int = 1,
         iter_step: int = 0,
         **kwargs,
-    ) -> tuple[dict[str, Tensor], dict[str, Tensor] | None]:
+    ) -> tuple[dict[str, Tensor], dict[str, Tensor] | None, dict[str, Stopwatch]]:
         """Perform forward and backward pass."""
 
-        if dist_model.training != training:
+        if not dist_model.training:
             raise ValueError(
-                f"model training attribute ({dist_model.training}) does not match training argument ({training})"
+                "Model is not in training mode, but update was called. Make sure to call model.train() before training."
             )
 
         # Forward pass
-        with self.autocast_context:
+        with self.autocast_context, Stopwatch() as forward_sw:
             trainer_result = self.train_step(batch, model=dist_model)
         if not isinstance(trainer_result, TrainerResult):
             raise TypeError("model forward needs to return a TrainerResult")
-        if training:
+        with Stopwatch() as backward_sw:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
                 model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
@@ -903,7 +904,7 @@ class BaseTrainer:
         all_losses = dict(total=trainer_result.total_loss.detach())
         if trainer_result.losses_to_log is not None:
             all_losses.update({k: v.detach() for k, v in trainer_result.losses_to_log.items()})
-        return all_losses, trainer_result.additional_outputs
+        return all_losses, trainer_result.additional_outputs, {"forward": forward_sw, "backward": backward_sw}
 
     def _gradient_step(
         self,
