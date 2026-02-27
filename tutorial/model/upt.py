@@ -2,8 +2,8 @@
 
 import torch
 
-from noether.core.schemas.models import UPTConfig
 from noether.modeling.models import UPT as UPTBackbone
+from tutorial.schemas.models import UPTConfig
 
 from .base import BaseModel
 
@@ -22,7 +22,7 @@ class UPT(BaseModel):
     ):
         """
         Args:
-           model_config: Configuration of the UPT model.
+           model_config: Configuration of the tutorial UPT model, extending the core UPTConfig with tutorial-specific parameters.
         """
         super().__init__(model_config=model_config, **kwargs)
 
@@ -47,17 +47,17 @@ class UPT(BaseModel):
         """Forward pass of the UPT model.
 
         Args:
-            surface_mask_query: surface mask for the query points, indicating which points are surface points.
-            surface_position_batch_idx: batch indices for the surface positions, since the surface positions are a sparse tensor for the supernode pooling.
-            surface_position_supernode_idx: supernode indices for the surface positions.
-            geometry_position: geometry position information.
-            query_position: input coordinates of the query points.
-            surface_query_position: surface query positions.
-            volume_query_position: volume query positions.
-            surface_features: surface features for the input points. Defaults to None.
+            surface_position_batch_idx: Batch indices for the surface positions, since the surface positions are a sparse tensor for the supernode pooling.
+            surface_position_supernode_idx: Supernode indices for the surface positions.
+            surface_position: Input coordinates of the surface points.
+            surface_query_position: Surface query positions.
+            volume_query_position: Volume query positions.
+            surface_features: Surface features for the input points. Defaults to None.
+            surface_query_features: Surface features for the query points. Defaults to None.
+            volume_query_features: Volume features for the query points. Defaults to None.
 
         Returns:
-            dict[str, torch.Tensor]: dictionary with the output tensors, containing the surface pressure and volume velocity.
+            dict[str, torch.Tensor]: Dictionary with the output tensors, containing the surface pressure and volume velocity.
         """
 
         # add features to queries
