@@ -6,7 +6,7 @@ from torch import nn
 
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, LinearProjectionConfig
-from noether.modeling.functional.geometric import knn, radius, segment_reduce
+from noether.modeling.functional.geometric import knn, radius
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection
 
@@ -126,7 +126,7 @@ class SupernodePooling(nn.Module):
         input_pos: torch.Tensor,
         supernode_idx: torch.Tensor,
         batch_idx: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """Compute the source and destination indices for the message passing to the supernodes.
 
         Args:
@@ -135,7 +135,8 @@ class SupernodePooling(nn.Module):
             batch_idx: 1D tensor, containing the batch index of each entry in input_pos. Default None.
 
         Returns:
-            Tensor with src and destination indexes for the message passing into the supernodes.
+            Tuple of (src_idx, dst_idx, local_dst_idx) where src_idx and dst_idx are absolute indices into
+            input_pos and local_dst_idx is a 0-indexed position into supernode_idx (used for scatter_reduce_).
         """
 
         # radius graph
@@ -164,10 +165,10 @@ class SupernodePooling(nn.Module):
         else:
             raise NotImplementedError
         # remap dst indices
-        dst_idx, src_idx = edges.unbind()
-        dst_idx = supernode_idx[dst_idx]
+        local_dst_idx, src_idx = edges.unbind()
+        dst_idx = supernode_idx[local_dst_idx]
 
-        return src_idx, dst_idx
+        return src_idx, dst_idx, local_dst_idx
 
     def create_messages(
         self,
@@ -247,39 +248,30 @@ class SupernodePooling(nn.Module):
     def accumulate_messages(
         self,
         x: torch.Tensor,
-        dst_idx: torch.Tensor,
+        local_dst_idx: torch.Tensor,
         supernode_idx: torch.Tensor,
-        batch_idx: torch.Tensor | None = None,
-    ) -> tuple[torch.Tensor, int]:
+    ) -> torch.Tensor:
         """Method to accumulate the messages of neighbouring points into the supernodes.
 
         Args:
             x: Tensor containing the message representation of each neighbour representation.
-            dst_idx: Index of the destination (i.e., supernode) where each message should go to.
+            local_dst_idx: 0-indexed position into supernode_idx for each message (no CUDA sync).
             supernode_idx: Indexes of the supernode in the input point cloud.
-            batch_idx: Batch index of the points in the sparse tensor.
 
         Returns:
             Tensor with the aggregated messages for each supernode.
         """
-        # accumulate messages
-        # indptr is a tensor of indices between which to aggregate
-        # i.e. a tensor of [0, 2, 5] would result in [src[0] + src[1], src[2] + src[3] + src[4]]
-        dst_indices, counts = dst_idx.unique_consecutive(return_counts=True)
-        if not torch.all(dst_indices == supernode_idx):
-            raise ValueError("dst_indices must match supernode_idx")
+        num_supernodes = supernode_idx.shape[0]
+        out = x.new_zeros(num_supernodes, x.shape[1])
+        out.scatter_reduce_(
+            0,
+            local_dst_idx.unsqueeze(1).expand_as(x),
+            x,
+            reduce=self.aggregation,
+            include_self=False,
+        )
 
-        x = segment_reduce(src=x, lengths=counts, reduce=self.aggregation)
-
-        # sanity check: dst_indices has len of batch_size * num_supernodes and has to be divisible by batch_size
-        # if num_supernodes is not set in dataset this assertion fails
-        if batch_idx is None:
-            batch_size = 1
-        else:
-            batch_size = int(batch_idx.max().item()) + 1
-            assert dst_indices.numel() % batch_size == 0
-
-        return x, batch_size
+        return out
 
     def forward(
         self,
@@ -314,7 +306,12 @@ class SupernodePooling(nn.Module):
             input_features is None or input_features.ndim == 2 and input_features.shape[1] == self.input_features_dim
         ), "input_features must match num_input_features"
 
-        src_idx, dst_idx = self.compute_src_and_dst_indices(
+        if batch_idx is None:
+            batch_size = 1
+        else:
+            batch_size = int(batch_idx.max().item()) + 1
+
+        src_idx, dst_idx, local_dst_idx = self.compute_src_and_dst_indices(
             batch_idx=batch_idx,
             input_pos=input_pos,
             supernode_idx=supernode_idx,
@@ -328,7 +325,7 @@ class SupernodePooling(nn.Module):
             input_features=input_features,
         )
 
-        x, batch_size = self.accumulate_messages(x, dst_idx, supernode_idx, batch_idx)
+        x = self.accumulate_messages(x, local_dst_idx, supernode_idx)
 
         # convert to dense tensor (dim last)
         x = einops.rearrange(
@@ -341,7 +338,7 @@ class SupernodePooling(nn.Module):
             supernode_pos_embed = einops.rearrange(
                 supernode_pos_embed,
                 "(batch_size num_supernodes) dim -> batch_size num_supernodes dim",
-                batch_size=len(x),
+                batch_size=batch_size,
             )
             # concatenate input and supernode embeddings
             x = torch.concat([x, supernode_pos_embed], dim=-1)
