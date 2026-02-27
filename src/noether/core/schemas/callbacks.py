@@ -125,7 +125,7 @@ class EmaCallbackConfig(CallBackBaseConfig):
 class OnlineLossCallbackConfig(CallBackBaseConfig):
     name: Literal["OnlineLossCallback"] = Field("OnlineLossCallback", frozen=True)
     verbose: bool = Field(True)
-    """Whether to log the loss."""
+    """Whether to also log to the (console) logger. If False, the loss will only logged to the experiment tracker."""
 
 
 class BestMetricCallbackConfig(CallBackBaseConfig):

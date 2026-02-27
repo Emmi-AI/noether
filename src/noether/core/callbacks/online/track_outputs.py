@@ -9,7 +9,7 @@ import torch
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_grad
 from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
-from noether.core.utils.training import UpdateCounter  # fixme?
+from noether.core.utils.training import UpdateCounter
 
 
 class TrackAdditionalOutputsCallback(PeriodicCallback):

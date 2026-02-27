@@ -1,8 +1,10 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from noether.core.schemas.callbacks import CallbacksConfig
 from noether.core.schemas.initializers import InitializerConfig
@@ -49,7 +51,7 @@ class BaseTrainerConfig(BaseModel):
     """The integer number of samples to periodically log at."""
     track_every_n_epochs: int | None = Field(None, ge=1)
     """The integer number of epochs to periodically track metrics at."""
-    track_every_n_updates: int | None = Field(50, ge=1)
+    track_every_n_updates: int | None = Field(None, ge=1)
     """The integer number of updates to periodically track metrics at."""
     track_every_n_samples: int | None = Field(None, ge=1)
     """The integer number of samples to periodically track metrics at."""
@@ -80,3 +82,44 @@ class BaseTrainerConfig(BaseModel):
     """Properties (i.e., keys from the batch dict) from the input batch that are used as targets for the model during the forward pass."""
 
     model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_callback_frequency(self) -> BaseTrainerConfig:
+        """
+        Ensures that exactly one frequency ('every_n_*') is specified and
+        that 'batch_size' is present if 'every_n_samples' is used.
+        """
+        if not self.add_default_callbacks:
+            return self
+
+        frequency_fields = [
+            (
+                "log",
+                [
+                    self.log_every_n_epochs,
+                    self.log_every_n_updates,
+                    self.log_every_n_samples,
+                ],
+            ),
+            (
+                "track",
+                [
+                    self.track_every_n_epochs,
+                    self.track_every_n_updates,
+                    self.track_every_n_samples,
+                ],
+            ),
+        ]
+
+        for prefix, fields in frequency_fields:
+            if sum(field is not None for field in fields) > 1:
+                raise ValueError(
+                    f"Only one of '{prefix}_every_n_epochs', '{prefix}_every_n_updates', or '{prefix}_every_n_samples' can be specified."
+                )
+
+        if self.log_every_n_samples is not None and self.effective_batch_size is None:
+            raise ValueError("'effective_batch_size' must be specified when using 'log_every_n_samples'.")
+        if self.track_every_n_samples is not None and self.effective_batch_size is None:
+            raise ValueError("'effective_batch_size' must be specified when using 'track_every_n_samples'.")
+
+        return self

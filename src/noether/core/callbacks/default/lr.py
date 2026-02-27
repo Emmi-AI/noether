@@ -8,7 +8,7 @@ from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.models import CompositeModel
 
 if TYPE_CHECKING:
-    from noether.core.utils.training.training_iteration import TrainingIteration  # fixme?
+    from noether.core.utils.training.training_iteration import TrainingIteration
 
 
 class LrCallback(PeriodicCallback):
