@@ -735,6 +735,9 @@ class BaseTrainer:
         """Run a single epoch. Returns True if training should stop."""
         iter_step = -1
         times: dict[str, float] = defaultdict(float)
+        # Collects forward/backward Stopwatches from each accumulation step;
+        # elapsed_seconds on each resolves GPU events lazily.
+        pending_times_dicts: list[dict[str, Stopwatch]] = []
 
         while True:
             # check end of epoch
@@ -754,6 +757,7 @@ class BaseTrainer:
                 iter_step += 1
                 if iter_step % accumulation_steps == 0:
                     times.clear()
+                    pending_times_dicts.clear()
                     model.optimizer_schedule_step()
                 times[TRAINING_DATA_WAIT_TIME] += sw.elapsed_seconds
                 for key in batch:
@@ -763,16 +767,13 @@ class BaseTrainer:
                 batch = move_items_to_device(self.device, batch)
 
                 dist_model.train()
-                with Stopwatch() as sw:
-                    losses, additional_outputs, times_dict = self.update(
-                        batch=batch,
-                        dist_model=dist_model,
-                        model=model,
-                        accumulation_steps=accumulation_steps,
-                    )
-                times[TRAINING_UPDATE_TIME] += sw.elapsed_seconds
-                for k, v in times_dict.items():
-                    times[k] += v.elapsed_seconds
+                losses, additional_outputs, times_dict = self.update(
+                    batch=batch,
+                    dist_model=dist_model,
+                    model=model,
+                    accumulation_steps=accumulation_steps,
+                )
+                pending_times_dicts.append(times_dict)
 
                 with torch.no_grad():
                     for callback in periodic_callbacks:
@@ -786,6 +787,12 @@ class BaseTrainer:
                         )
                 additional_outputs = None
                 batch = None
+
+            for td in pending_times_dicts:
+                for k, v in td.items():
+                    times[k] += v.elapsed_seconds
+                    # update is the sum of forward and backward time
+                    times[TRAINING_UPDATE_TIME] += v.elapsed_seconds
 
             # Advance counter
             self.update_counter.add_samples(self.config.effective_batch_size)
@@ -888,11 +895,11 @@ class BaseTrainer:
             )
 
         # Forward pass
-        with self.autocast_context, Stopwatch() as forward_sw:
+        with self.autocast_context, Stopwatch(device=self.device) as forward_sw:
             trainer_result = self.train_step(batch, model=dist_model)
         if not isinstance(trainer_result, TrainerResult):
             raise TypeError("model forward needs to return a TrainerResult")
-        with Stopwatch() as backward_sw:
+        with Stopwatch(device=self.device) as backward_sw:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
                 model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
