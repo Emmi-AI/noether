@@ -730,6 +730,9 @@ class BaseTrainer:
         """Run a single epoch. Returns True if training should stop."""
         iter_step = -1
         times: dict[str, float] = defaultdict(float)
+        # Collects forward/backward Stopwatches from each accumulation step;
+        # elapsed_seconds on each resolves GPU events lazily.
+        pending_times_dicts: list[dict[str, Stopwatch]] = []
 
         while True:
             # check end of epoch
@@ -749,6 +752,7 @@ class BaseTrainer:
                 iter_step += 1
                 if iter_step % accumulation_steps == 0:
                     times.clear()
+                    pending_times_dicts.clear()
                     model.optimizer_schedule_step()
                 times[TRAINING_DATA_WAIT_TIME] += sw.elapsed_seconds
                 for key in batch:
@@ -758,14 +762,13 @@ class BaseTrainer:
                 batch = move_items_to_device(self.device, batch)
 
                 dist_model.train()
-                with Stopwatch() as sw:
-                    losses, additional_outputs = self.update(
-                        batch=batch,
-                        dist_model=dist_model,
-                        model=model,
-                        accumulation_steps=accumulation_steps,
-                    )
-                times[TRAINING_UPDATE_TIME] += sw.elapsed_seconds
+                losses, additional_outputs, times_dict = self.update(
+                    batch=batch,
+                    dist_model=dist_model,
+                    model=model,
+                    accumulation_steps=accumulation_steps,
+                )
+                pending_times_dicts.append(times_dict)
 
                 with torch.no_grad():
                     for callback in periodic_callbacks:
@@ -779,6 +782,12 @@ class BaseTrainer:
                         )
                 additional_outputs = None
                 batch = None
+
+            for td in pending_times_dicts:
+                for k, v in td.items():
+                    times[k] += v.elapsed_seconds
+                    # update is the sum of forward and backward time
+                    times[TRAINING_UPDATE_TIME] += v.elapsed_seconds
 
             # Advance counter
             self.update_counter.add_samples(self.config.effective_batch_size)
@@ -869,24 +878,23 @@ class BaseTrainer:
         batch: dict[str, Tensor],
         dist_model: torch.nn.Module,
         model: ModelBase | None = None,
-        training: bool = True,
         accumulation_steps: int = 1,
         iter_step: int = 0,
         **kwargs,
-    ) -> tuple[dict[str, Tensor], dict[str, Tensor] | None]:
+    ) -> tuple[dict[str, Tensor], dict[str, Tensor] | None, dict[str, Stopwatch]]:
         """Perform forward and backward pass."""
 
-        if dist_model.training != training:
+        if not dist_model.training:
             raise ValueError(
-                f"model training attribute ({dist_model.training}) does not match training argument ({training})"
+                "Model is not in training mode, but update was called. Make sure to call model.train() before training."
             )
 
         # Forward pass
-        with self.autocast_context:
+        with self.autocast_context, Stopwatch(device=self.device) as forward_sw:
             trainer_result = self.train_step(batch, model=dist_model)
         if not isinstance(trainer_result, TrainerResult):
             raise TypeError("model forward needs to return a TrainerResult")
-        if training:
+        with Stopwatch(device=self.device) as backward_sw:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
                 model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
@@ -898,7 +906,7 @@ class BaseTrainer:
         all_losses = dict(total=trainer_result.total_loss.detach())
         if trainer_result.losses_to_log is not None:
             all_losses.update({k: v.detach() for k, v in trainer_result.losses_to_log.items()})
-        return all_losses, trainer_result.additional_outputs
+        return all_losses, trainer_result.additional_outputs, {"forward": forward_sw, "backward": backward_sw}
 
     def _gradient_step(
         self,

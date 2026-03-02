@@ -169,6 +169,39 @@ def all_reduce_sum_grad(x):
     return x
 
 
+def reduce_mean_grad(x, dest_rank=0):
+    x, og_device, to_bool = _prepare_tensor(x)
+    if is_distributed():
+        dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.SUM)
+        if dist.get_rank() == dest_rank:
+            x = x / get_world_size()
+    x = x.to(og_device)
+    if to_bool:
+        x = x.bool()
+    return x
+
+
+def reduce_mean_nograd(x, dest_rank=0):
+    with torch.no_grad():
+        return reduce_mean_grad(x, dest_rank=dest_rank)
+
+
+def reduce_max_grad(x, dest_rank=0):
+    if not is_distributed():
+        return x
+    x, og_device, to_bool = _prepare_tensor(x)
+    dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.MAX)
+    x = x.to(og_device)
+    if to_bool:
+        x = x.bool()
+    return x
+
+
+def reduce_max_nograd(x, dest_rank=0):
+    with torch.no_grad():
+        return reduce_max_grad(x, dest_rank=dest_rank)
+
+
 def all_reduce_mean_grad(x):
     x, og_device, to_bool = _prepare_tensor(x)
     if is_distributed():
