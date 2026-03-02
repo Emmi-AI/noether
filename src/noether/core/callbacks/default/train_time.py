@@ -53,4 +53,4 @@ class TrainTimeCallback(PeriodicCallback):
     def after_training(self, **_) -> None:
         for k, v in self.total_train_times.items():
             total_time = all_gather_nograd(v)
-            self.logger.info(f"{k}: total={tensor_like_to_string(total_time)} [sec] in total")
+            self.logger.info(f"{k}: total={tensor_like_to_string(total_time)} [sec]")
