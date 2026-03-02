@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from noether.core.callbacks.default.eta import EtaCallback
+from noether.training.trainers.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 
 _MONKEY_PATCH_IS_RANK0 = "noether.core.callbacks.default.eta.is_rank0"
 
@@ -143,7 +144,7 @@ def test_track_after_update_step_prints_carriage_return_by_default(
     )
     cb.before_training(update_counter=uc)
 
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.2, "update_time": 0.8})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.2, TRAINING_UPDATE_TIME: 0.8})
     err = capsys.readouterr().err
 
     assert "E " in err
@@ -170,7 +171,7 @@ def test_track_after_update_step_prints_newline_when_logger_was_called(
     cb.before_training(update_counter=uc)
 
     cb.handler.was_called = True
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.1, "update_time": 0.1})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.1, TRAINING_UPDATE_TIME: 0.1})
     err = capsys.readouterr().err
 
     assert err.endswith("\n")  # print(..., file=stderr) default newline
@@ -193,7 +194,7 @@ def test_time_since_last_log_resets_on_interval_boundary_update_schedule(
     cb.before_training(update_counter=uc)
 
     cb.time_since_last_log = 123.0
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.25, "update_time": 0.75})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.25, TRAINING_UPDATE_TIME: 0.75})
 
     # reset to 0.0 then add increment => 1.0
     assert cb.time_since_last_log == pytest.approx(1.0)
@@ -207,7 +208,7 @@ def test_periodic_callback_prints_newline_only_for_update(
     cb.periodic_callback(interval_type="epoch")
     assert capsys.readouterr().err == ""
 
-    cb.periodic_callback(interval_type="update")
+    cb.periodic_callback(interval_type=TRAINING_UPDATE_TIME)
     assert capsys.readouterr().err == "\n"
 
 
@@ -240,7 +241,7 @@ def test_epoch_boundary_resets_time_since_last_log(monkeypatch: pytest.MonkeyPat
     cb.before_training(update_counter=uc)
 
     cb.time_since_last_log = 123.0
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.25, "update_time": 0.75})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.25, TRAINING_UPDATE_TIME: 0.75})
 
     # reset to 0.0 then +1.0
     assert cb.time_since_last_log == pytest.approx(1.0)
@@ -269,7 +270,7 @@ def test_epoch_branch_updates_since_last_log_zero_becomes_full_interval(
     )
     cb.before_training(update_counter=uc)
 
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.0, "update_time": 1.0})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.0, TRAINING_UPDATE_TIME: 1.0})
     err = capsys.readouterr().err
 
     # Remove whitespace to avoid format padding issues.
@@ -303,7 +304,7 @@ def test_sample_branch_computes_log_interval_with_superfluous_samples(
     )
     cb.before_training(update_counter=uc)
 
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.0, "update_time": 1.0})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.0, TRAINING_UPDATE_TIME: 1.0})
     err = capsys.readouterr().err
     compact = "".join(err.split())
 
@@ -331,6 +332,6 @@ def test_sample_boundary_resets_time_since_last_log(monkeypatch: pytest.MonkeyPa
     cb.before_training(update_counter=uc)
 
     cb.time_since_last_log = 77.0
-    cb.track_after_update_step(update_counter=uc, times={"data_time": 0.25, "update_time": 0.75})
+    cb.track_after_update_step(update_counter=uc, times={TRAINING_DATA_WAIT_TIME: 0.25, TRAINING_UPDATE_TIME: 0.75})
 
     assert cb.time_since_last_log == pytest.approx(1.0)
