@@ -606,23 +606,3 @@ def knn(
         result = result.to(device)
 
     return result
-
-
-def segment_reduce(src, lengths, reduce):
-    # segment_reduce is not implemented on MPS, so we move to CPU if needed
-    device = src.device
-    if device.type == "mps":
-        src = src.cpu()
-        lengths = lengths.cpu()
-
-    result = torch.segment_reduce(
-        src,
-        reduce=reduce,
-        lengths=lengths,
-    )
-
-    # Move result back to MPS if original tensors were on MPS
-    if device.type == "mps":
-        result = result.to(device)
-
-    return result
