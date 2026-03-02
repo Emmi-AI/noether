@@ -1,0 +1,18 @@
+#!/bin/bash -l
+#SBATCH --nodes={nodes}
+#SBATCH --cpus-per-task={cpus_per_task}
+#SBATCH --partition={partition}
+#SBATCH --gpus-per-node={gpus_per_node}
+#SBATCH --ntasks-per-node={tasks_per_node}
+#SBATCH --mem={mem}
+#SBATCH --output={output}
+#SBATCH --chdir={chdir}
+#SBATCH --nice={nice}
+#SBATCH --array={array_string}
+
+
+EXPERIMENT_FILE={experiment_file}
+source {source}
+
+# run
+srun --kill-on-bad-exit=1 --cpus-per-task={cpus_per_task} uv run noether-train --hp {hp_file}  $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 

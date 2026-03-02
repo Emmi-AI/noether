@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field, field_serializer, field_validator
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.schemas.normalizers import AnyNormalizer
+from noether.core.schemas.slurm import SlurmConfig
 from noether.core.schemas.trackers import AnyTracker
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.utils.common import validate_path
@@ -122,6 +123,9 @@ class ConfigSchema(BaseModel):
     """Path to output directory."""
     master_port: int = Field(default_factory=master_port_from_env)
     """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
+
+    slurm: SlurmConfig | None = None
+    """Configuration for SLURM job submission."""
 
     @field_validator("tracker", mode="before")
     @classmethod
