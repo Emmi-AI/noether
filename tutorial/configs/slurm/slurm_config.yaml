@@ -9,5 +9,5 @@ nice: 0
 array: 1-1%1
 experiment_file: tutorial/jobs/experiments/shapenet_experiments.txt
 job_name: shapenet_experiment
-chdir: /home/mbleeker/projects/emmi.ai/noether
-source: .venv/bin/activate
+chdir: 
+source: 
