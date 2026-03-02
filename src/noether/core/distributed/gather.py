@@ -75,7 +75,9 @@ def all_gather_grad(x, batch_dim=0):
         result = torch.zeros(get_world_size(), device=x.device, dtype=x.dtype)
     else:
         result = torch.zeros(
-            [i * get_world_size() if i == batch_dim else i for i in range(x.ndim)], device=x.device, dtype=x.dtype
+            [d * get_world_size() if i == batch_dim else d for i, d in enumerate(x.shape)],
+            device=x.device,
+            dtype=x.dtype,
         )
     dist.all_gather_into_tensor(result, x)
 
@@ -86,7 +88,7 @@ def all_gather_grad(x, batch_dim=0):
 
 @torch.no_grad()
 def all_gather_nograd(x, batch_dim=0):
-    all_gather_grad(x, batch_dim=batch_dim)
+    return all_gather_grad(x, batch_dim=batch_dim)
 
 
 def all_gather_nograd_clipped(x, max_length):
@@ -127,11 +129,11 @@ def all_reduce_sum_grad(x):
 
 
 def reduce_mean_grad(x, dest_rank=0):
+    if not is_distributed():
+        return x
     x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.SUM)
-        if dist.get_rank() == dest_rank:
-            x = x / get_world_size()
+    x /= get_world_size()
+    dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.SUM)
     x = x.to(og_device)
     if to_bool:
         x = x.bool()
