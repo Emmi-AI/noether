@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.2.0](https://github.com/Emmi-AI/noether/compare/v1.1.0...v1.2.0) (2026-03-03)
+
+
+### ✨ Features
+
+* add parameter validity check to models ([#90](https://github.com/Emmi-AI/noether/issues/90)) ([7e619f2](https://github.com/Emmi-AI/noether/commit/7e619f206ffb1803ec3f010c6f358ca3e6a14a49))
+* add shared field propagation from parent to submodules for UPT schema ([#80](https://github.com/Emmi-AI/noether/issues/80)) ([6289105](https://github.com/Emmi-AI/noether/commit/628910599c0683420b61a30480024de4ffde920c))
+* Track step timings mean and max on exp tracker ([#82](https://github.com/Emmi-AI/noether/issues/82)) ([add8975](https://github.com/Emmi-AI/noether/commit/add8975a32a829c8c556d1aa281b4e3a41e57992))
+
+
+### 🐛 Bug Fixes
+
+* adjusted failing test ([#95](https://github.com/Emmi-AI/noether/issues/95)) ([66a336c](https://github.com/Emmi-AI/noether/commit/66a336ce8448ced6bf541269a03cb51d8893be27))
+* autograd error when skip_nan_loss is enabled ([#86](https://github.com/Emmi-AI/noether/issues/86)) ([1ff9873](https://github.com/Emmi-AI/noether/commit/1ff9873ccaf8e598695700893b4fb6aca0c55188))
+* docstrings for UPT args ([#91](https://github.com/Emmi-AI/noether/issues/91)) ([ee47116](https://github.com/Emmi-AI/noether/commit/ee47116a30b0a49777242c3953cdd5ffd2efcb08))
+* error when no callback samplers are set ([#78](https://github.com/Emmi-AI/noether/issues/78)) ([0beff9e](https://github.com/Emmi-AI/noether/commit/0beff9e179eadc239e336a69f02ec2750182c310))
+* Fix recursive field injection ([#84](https://github.com/Emmi-AI/noether/issues/84)) ([7973869](https://github.com/Emmi-AI/noether/commit/7973869f0d30bb537a676bb9862fe3de72f9924c))
+* ignore name config from name extraction ([#71](https://github.com/Emmi-AI/noether/issues/71)) ([8e6a602](https://github.com/Emmi-AI/noether/commit/8e6a60286797601e754c5359996779dd52f8b01a))
+* missing stingify and re-export ([#68](https://github.com/Emmi-AI/noether/issues/68)) ([607ed14](https://github.com/Emmi-AI/noether/commit/607ed14d6626c510520bd286d523f47a70a32cfb))
+* Never link a job to the resumption of itself ([#61](https://github.com/Emmi-AI/noether/issues/61)) ([108122b](https://github.com/Emmi-AI/noether/commit/108122b4c87dc4fb5c4df8a392eb6fb181c1a132))
+* persist order from dictionaries when saving out job config ([#79](https://github.com/Emmi-AI/noether/issues/79)) ([1158b51](https://github.com/Emmi-AI/noether/commit/1158b51ed9c529f43cacf798dc7dce8d50b9514b))
+* Tracker filenaming to avoid circular import when dependencies don't exist ([#77](https://github.com/Emmi-AI/noether/issues/77)) ([713e0bb](https://github.com/Emmi-AI/noether/commit/713e0bbca9d15aba95bb4c59b99e7ad5bec3399f))
+* typing issues in data module ([#69](https://github.com/Emmi-AI/noether/issues/69)) ([764cc95](https://github.com/Emmi-AI/noether/commit/764cc955ea4f3d0e870628a217bc57b5d448dd40))
+* update install instructions in the tutorial README ([#75](https://github.com/Emmi-AI/noether/issues/75)) ([62205b0](https://github.com/Emmi-AI/noether/commit/62205b0056c329bbfa765d18e321d8d3f984c6e2))
+
+
+### ⚡ Performance Improvements
+
+* Avoid device synchronize in supernode pooling ([#93](https://github.com/Emmi-AI/noether/issues/93)) ([f82850f](https://github.com/Emmi-AI/noether/commit/f82850fcdcf03afc3b67d2e70816112f4172c1a0))
+
+
+### ♻️ Code Refactoring
+
+* refactor and fix failing checkpoint loading inference module ([#66](https://github.com/Emmi-AI/noether/issues/66)) ([c03bc80](https://github.com/Emmi-AI/noether/commit/c03bc8096490ad1958fb3827c6ee36b772ec69be))
+* refactored the initializers and checkpointing  ([#59](https://github.com/Emmi-AI/noether/issues/59)) ([d7893bc](https://github.com/Emmi-AI/noether/commit/d7893bc83ec588f67e0c70b6f72f5371df71032d))
+
 ## [1.1.0](https://github.com/Emmi-AI/noether/compare/v1.0.0...v1.1.0) (2026-02-10)
 
 
