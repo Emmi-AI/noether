@@ -3,6 +3,7 @@
 import einops
 import torch
 import torch.distributed as dist
+import torch.distributed.nn.functional
 
 from noether.core.distributed.config import get_world_size, is_distributed
 
@@ -66,16 +67,12 @@ def all_gather_grad(x: torch.Tensor, batch_dim=0) -> torch.Tensor:
             x = x.unsqueeze(0)
         return x
 
-    x, _, to_bool = _prepare_tensor(x)
-    if x.ndim == 0:
-        result = torch.zeros(get_world_size(), device=x.device, dtype=x.dtype)
-    else:
-        result = torch.zeros(
-            [d * get_world_size() if i == batch_dim else d for i, d in enumerate(x.shape)],
-            device=x.device,
-            dtype=x.dtype,
-        )
-    dist.all_gather_into_tensor(result, x)
+    x, og_device, to_bool = _prepare_tensor(x)
+    result = torch.distributed.nn.functional.all_gather(x)
+    if result[0].ndim == 0:
+        # scalars can't be concatenated
+        result = [r.unsqueeze(0) for r in result]
+    result = torch.concat(result, dim=batch_dim).to(og_device)
 
     if to_bool:
         result = result.bool()
@@ -87,7 +84,7 @@ def all_gather_nograd(x: torch.Tensor, batch_dim=0) -> torch.Tensor:
     return all_gather_grad(x, batch_dim=batch_dim)
 
 
-def all_gather_nograd_clipped(x: torch.Tensor, max_length: int, batch_dim=0) -> torch.Tensor:
+def all_gather_nograd_clipped(x: torch.Tensor, max_length: int | None = None, batch_dim=0) -> torch.Tensor:
     result = all_gather_nograd(x, batch_dim=batch_dim)
     if is_distributed():
         # gathering changes the order of the samples -> correct them
@@ -101,6 +98,7 @@ def all_gather_nograd_clipped(x: torch.Tensor, max_length: int, batch_dim=0) -> 
             "(num_gpus len_per_gpu) ... -> (len_per_gpu num_gpus) ...",
             num_gpus=get_world_size(),
         )
-        # DistributedSampler pads the dataset to give every GPU the same amount of samples
-        return result[:max_length]
+        if max_length is not None:
+            # DistributedSampler pads the dataset to give every GPU the same amount of samples
+            return result[:max_length]
     return result
