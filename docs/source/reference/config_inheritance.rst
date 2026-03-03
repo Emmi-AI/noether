@@ -112,7 +112,7 @@ To add configuration inheritance to your own schemas, follow these steps:
       from pydantic import BaseModel, Field
       from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 
-      class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+      class MyModelConfig(InjectSharedFieldFromParentMixin, BaseModel):
           hidden_dim: int = Field(..., ge=1)
           num_layers: int = Field(..., ge=1)
           # ...other fields
@@ -125,7 +125,7 @@ To add configuration inheritance to your own schemas, follow these steps:
 
       from typing import Annotated
 
-      class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+      class MyModelConfig(InjectSharedFieldFromParentMixin, BaseModel):
           hidden_dim: int = Field(..., ge=1)
           num_layers: int = Field(..., ge=1)
           
@@ -160,7 +160,7 @@ To add configuration inheritance to your own schemas, follow these steps:
 Complete Example
 ^^^^^^^^^^^^^^^^
 
-.. code-block:: python
+.. testcode::
 
    from typing import Annotated
    from pydantic import BaseModel, Field
@@ -175,10 +175,15 @@ Complete Example
        depth: int = Field(..., ge=1)
        attention_config: Annotated[AttentionConfig, Shared]
 
-   class MyModelConfig(BaseModel, InjectSharedFieldFromParentMixin):
+   class MyModelConfig(InjectSharedFieldFromParentMixin, BaseModel):
        hidden_dim: int = Field(256, ge=1)
        num_heads: int = Field(8, ge=1)
        encoder_config: Annotated[EncoderConfig, Shared]
+
+.. testcode::
+   :hide:
+
+   _cfg = MyModelConfig(encoder_config=EncoderConfig(hidden_dim=256, depth=6, attention_config=AttentionConfig(hidden_dim=256, num_heads=8)))
 
 With this setup, a YAML configuration like:
 

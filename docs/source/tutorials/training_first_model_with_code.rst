@@ -60,7 +60,7 @@ Step 2: Create necessary imports
 Most schema classes live in ``noether.core.schemas``. They help us keep typing consistent and validate inputs at
 runtime. These configs are Pydantic models, so if something is wrong you will get a clear validation error.
 
-.. code-block:: python
+.. testcode:: tutorial
 
     from __future__ import annotations
 
@@ -69,7 +69,6 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
 
     import torch
 
-    from noether.core.configs import StaticConfig
     from noether.core.schemas.callbacks import (
         BestCheckpointCallbackConfig,
         CheckpointCallbackConfig,
@@ -174,7 +173,7 @@ Step 4: Dataset configs
 
 Now we will declare dataset constants and convenience ``build_`` methods (you can place it right under the imports):
 
-.. code-block:: python
+.. testcode:: tutorial
 
     DATASET_STATS = {
         "raw_pos_min":  [-4.5],
@@ -212,8 +211,13 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
     def build_specs() -> AeroDataSpecs:
         return AeroDataSpecs(**DATA_SPECS)
 
+.. testcode:: tutorial
+   :hide:
 
-.. code-block:: python
+   _stats = build_stats()
+   _specs = build_specs()
+
+.. testcode:: tutorial
 
     def build_dataset_config(
         mode: Literal["train", "test"],
@@ -245,6 +249,17 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
             excluded_properties={"surface_friction", "volume_pressure", "volume_vorticity"},
         )
 
+.. testcode:: tutorial
+   :hide:
+
+   _ds_cfg = build_dataset_config(
+       mode="train",
+       dataset_root="/tmp/test",
+       data_specs=build_specs(),
+       dataset_statistics=DATASET_STATS,
+       dataset_normalizer={},
+   )
+
 This config defines our datasets (both ``train`` and ``test``). Note the ``kind`` fields: they are strings that
 point to a Python class path inside the codebase. The factory uses them to build real objects, just like in the
 config-driven workflow.
@@ -252,7 +267,7 @@ config-driven workflow.
 Step 5: Trainer config
 ~~~~~~~~~~~~~~~~~~~~~~
 
-.. code-block:: python
+.. testcode:: tutorial
 
     def build_trainer_config(model_forward_properties: list[str]) -> AutomotiveAerodynamicsCfdTrainerConfig:
         batch_size = 1
@@ -321,6 +336,13 @@ Step 5: Trainer config
                 "volume_velocity_target",
             ],
         )
+
+.. testcode:: tutorial
+   :hide:
+
+   _trainer_cfg = build_trainer_config(
+       model_forward_properties=["surface_position", "surface_query_position"],
+   )
 
 Trainer configuration is at the core of the training pipeline, as you can see the callbacks is the crucial component
 of it.

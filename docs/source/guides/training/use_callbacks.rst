@@ -98,27 +98,31 @@ How to Implement Custom Callbacks
 To create a custom callback, define a new class that inherits from one of the base callback classes. Override the relevant methods to inject your logic at the desired points in the training process.
 
 
-.. code-block:: python
+.. testcode::
 
+   import torch
    from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
    from noether.core.callbacks.periodic import PeriodicCallback
-   import torch
 
    class CustomCallbackConfig(PeriodicDataIteratorCallbackConfig):
-
-       # Define any configuration parameters your callback needs
+       pass  # Define any configuration parameters your callback needs
 
    class MyCustomCallback(PeriodicCallback):
        def __init__(self, callback_config: CustomCallbackConfig, **kwargs):
            super().__init__(callback_config, **kwargs)
 
-        def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
-            model_output = self.model(**batch)
-            # some more custom logic
-            out = {"custom_output": model_output}
-            return out
+       def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
+           model_output = self.model(**batch)
+           # some more custom logic
+           out = {"custom_output": model_output}
+           return out
 
-        def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
+       def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
            # this method gets the aggregated results of the process_data method across the dataset
            # do something with the results
            self.writer.add_scalar("custom_metric", results["custom_output"].mean().item())
+
+.. testcode::
+   :hide:
+
+   _cfg = CustomCallbackConfig(dataset_key="test", every_n_epochs=1)

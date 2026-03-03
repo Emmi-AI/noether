@@ -19,6 +19,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.doctest",
     # "sphinx.ext.viewcode",
     "sphinx_autodoc_typehints",
     "autoapi.extension",  # <-- use AutoAPI
@@ -29,6 +30,11 @@ extensions = [
 ]
 extensions += ["sphinx_design"]
 extensions += ["myst_parser"]  # for Markdown code blocks parsing
+
+# When running the doctest builder, skip AutoAPI to avoid scanning all source files
+# We skip ruff checks for F821 (undefined name) in this block since the "tags" variable is injected by Sphinx and not defined in this file
+if tags.has("skip-autoapi"):  # noqa: F821
+    extensions = [ext for ext in extensions if ext != "autoapi.extension"]
 # --- THEME CUSTOMIZATION:
 html_theme = "furo"
 
@@ -213,6 +219,20 @@ html_logo = "_static/Emmi_AI_logo_black.svg"  # this works
 #     })
 
 
+import doctest
+
+# Imports packages for doctest setup, so they don't have to be imported in every code snippet
+# Add repo root to import path for doctest, so that imports from the tutorial code snippets work without needing to install the package
+doctest_global_setup = f"""
+import sys
+sys.path.insert(0, r'{ROOT}')
+import torch
+"""
+
+# ignores whitespaces when comparing outputs; match "..." in expected outputs with any string
+doctest_default_flags = doctest.NORMALIZE_WHITESPACE | doctest.ELLIPSIS
+
+
 def skip_handler(app, what, name, obj, skip, options):
     if what == "class":
         # Check if the docstring exists and matches the parent
@@ -239,4 +259,6 @@ def skip_handler(app, what, name, obj, skip, options):
 
 
 def setup(app):
-    app.connect("autoapi-skip-member", skip_handler)
+    # Only connect the skip handler if AutoAPI is enabled (i.e. not for doctest builds)
+    if "autoapi.extension" in extensions:
+        app.connect("autoapi-skip-member", skip_handler)
