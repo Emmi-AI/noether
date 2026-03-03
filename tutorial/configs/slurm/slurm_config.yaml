@@ -6,8 +6,6 @@ ntasks_per_node: 1
 mem: 64GB
 output: /home/%u/logs/shapenet_car/%x_%j.out
 nice: 0
-array: 1-1%1
-experiment_file: tutorial/jobs/experiments/shapenet_experiments.txt
 job_name: shapenet_experiment
 chdir: 
-source: 
+source: .venv/bin/activate
