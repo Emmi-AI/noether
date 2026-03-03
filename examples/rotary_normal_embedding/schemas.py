@@ -4,8 +4,8 @@ from typing import Literal
 
 from pydantic import Field
 
-from tutorial.schemas.config_schema import TutorialConfigSchema
-from tutorial.schemas.models.ab_upt_config import ABUPTConfig
+from examples.shared.cfd_automotive.schemas.config_schema import TutorialConfigSchema
+from examples.shared.cfd_automotive.schemas.models.ab_upt_config import ABUPTConfig
 
 
 class AnchorBranchedUPTConfig(ABUPTConfig):

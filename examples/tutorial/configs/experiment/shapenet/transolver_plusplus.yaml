@@ -1,0 +1,12 @@
+# @package _global_
+defaults:
+  - override /model: transolver  
+  - override /tracker: development_tracker 
+
+name: shapenet-car-transolver-plusplus
+
+model:
+  name: transolver_plusplus
+  attention_arguments:
+    num_slices: 512
+

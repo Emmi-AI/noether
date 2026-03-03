@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: transolver  
+  - override /tracker: development_tracker 
+
+name: shapenet-car-transolver

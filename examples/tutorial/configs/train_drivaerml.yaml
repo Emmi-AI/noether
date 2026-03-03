@@ -1,0 +1,8 @@
+# @package _global_
+
+# Define key values here that are used multiple times in the config files.
+dataset_root:  <path to your drivaerml dataset root>
+dataset_kind: noether.data.datasets.cfd.DrivAerMLDataset
+defaults:
+  - train_caeml 
+  - dataset_statistics: drivaerml_stats

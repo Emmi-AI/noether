@@ -3,12 +3,12 @@
 import torch
 from torch import nn
 
+from examples.shared.cfd_automotive.model.base import BaseModel
+from examples.shared.cfd_automotive.schemas.models import ABUPTConfig
 from noether.core.schemas.modules.layers import RopeFrequencyConfig
 from noether.modeling.models.ab_upt import AnchoredBranchedUPT
 from noether.modeling.modules.blocks import PerceiverBlock, TransformerBlock
 from noether.modeling.modules.layers import RopeFrequency
-from tutorial.model.base import BaseModel
-from tutorial.schemas.models import ABUPTConfig
 
 from .schemas import AnchorBranchedUPTConfig
 

@@ -1,0 +1,36 @@
+kind: examples.tutorial.model.CompositeTransformer
+name: composite_transformer
+use_rope: true 
+hidden_dim: 192
+num_heads: 3
+mlp_expansion_factor: 4
+data_specs: ${data_specs}
+low_level_blocks:
+  name: low_level_blocks
+  depth: 6
+  optimizer_config:
+    kind: torch.optim.AdamW
+    lr: 1.0e-4
+    weight_decay: 0.05
+    clip_grad_norm: 1.0
+    schedule_config:
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+      warmup_percent: 0.05
+      end_value: 1.0e-5
+      max_value: ${model.low_level_blocks.optimizer_config.lr}
+high_level_blocks:
+  name: high_level_blocks
+  depth: 4
+  optimizer_config: 
+    kind: torch.optim.AdamW
+    lr: 1.0e-3
+    weight_decay: 0.05
+    clip_grad_norm: 1.0
+    schedule_config:
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+      warmup_percent: 0.05
+      end_value: 1.0e-4
+      max_value: ${model.high_level_blocks.optimizer_config.lr}
+forward_properties:
+  - surface_position
+  - volume_position

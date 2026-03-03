@@ -1,5 +1,14 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from examples.shared.cfd_automotive.pipeline.multistage_pipelines.aero_multistage import (
+    AeroMultistagePipeline as BaseAeroMultistagePipeline,
+)
+from examples.shared.cfd_automotive.pipeline.multistage_pipelines.aero_multistage import (
+    DataKeys,
+    _split_by_underscore,
+    _split_three_or_none,
+)
+from examples.shared.cfd_automotive.pipeline.sample_processors import AnchorPointSamplingSampleProcessor
 from noether.data.pipeline import SampleProcessor
 from noether.data.pipeline.collators import (
     ConcatSparseTensorCollator,
@@ -12,11 +21,6 @@ from noether.data.pipeline.sample_processors import (
     RenameKeysSampleProcessor,
     SupernodeSamplingSampleProcessor,
 )
-from tutorial.pipeline.multistage_pipelines.aero_multistage import (
-    AeroMultistagePipeline as BaseAeroMultistagePipeline,
-)
-from tutorial.pipeline.multistage_pipelines.aero_multistage import DataKeys, _split_by_underscore, _split_three_or_none
-from tutorial.pipeline.sample_processors import AnchorPointSamplingSampleProcessor
 
 
 class AeroMultistagePipeline(BaseAeroMultistagePipeline):
