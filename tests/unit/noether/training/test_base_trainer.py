@@ -927,6 +927,7 @@ class TestGetDefaultCallbacks:
         )
         trainer.update_counter = MagicMock()
         trainer.update_counter.is_finished = False
+        trainer.update_counter.updates_per_epoch = 10
 
         with (
             patch(_MODULE_PATH + ".sys.stdout") as mock_stdout,
