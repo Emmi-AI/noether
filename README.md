@@ -202,28 +202,6 @@ backlog.
 - Settings -> Editor -> Code Style -> Python -> Spaces -> Around Operators -> `Power operator (**)`
 
 ---
-# Working with GitHub
-
-With available GitHub Actions we automate several workflows relevant to our development ranging from buildings the docs
-to building our modules as wheel files.
-
-To test the desired workflow locally it is recommended to use [act](https://github.com/nektos/act).
-
-> [!NOTE]
-> Make sure to install Docker Desktop as requested by the official documentation.
-
-Install it on a Mac with: `brew install act`
-
-For example, to check the package release pipeline:
-```console
-act workflow_dispatch --input version_type=patch -W .github/workflows/release.yml
-```
-or to see if tests are runnable:
-```console
-act pull_request -W .github/workflows/run-tests.yml
-```
-
----
 # Supported systems
 Worth noting that we work with macOS and Linux environments thus in case of any issues on Windows, at this time, you 
 have to find workarounds yourself.
