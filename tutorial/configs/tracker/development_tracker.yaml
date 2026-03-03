@@ -1,3 +1,0 @@
-kind: noether.core.trackers.WandBTracker
-entity: null # ADD YOUR_WANDB_ENTITY_HERE
-project: null # ADD YOUR_WANDB_PROJECT_HERE
