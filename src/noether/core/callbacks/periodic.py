@@ -8,7 +8,6 @@ from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
 from typing import TYPE_CHECKING, Any, Literal
 
-import numpy as np
 import torch
 from torch.utils.data import DistributedSampler, SequentialSampler
 from tqdm import tqdm
@@ -576,7 +575,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             name,
         )
         self.dataset_key = callback_config.dataset_key  # type: ignore
-        self.total_data_time = 0.0
+        self.total_data_time = torch.tensor(0.0)
         self.sampler_config = self._sampler_config_from_key(key=self.dataset_key)
 
     def _sampler_config_from_key(
@@ -687,8 +686,8 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
 
             results.append(self.process_data(batch, trainer_model=trainer_model))
 
-        mean_data_time = float(np.mean(data_times))
-        self.logger.info(f"waited {mean_data_time:.2f}s for dataloading")
+        mean_data_time = torch.mean(torch.tensor(data_times))
+        self.logger.info(f"waited {float(mean_data_time):.2f}s for dataloading")
         self.total_data_time += mean_data_time
 
         single_output = False
