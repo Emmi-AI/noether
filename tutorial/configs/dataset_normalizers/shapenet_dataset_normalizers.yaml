@@ -1,22 +1,22 @@
 surface_pressure:
-  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
-    mean: ${dataset_statistics.surface_pressure_mean}
-    std: ${dataset_statistics.surface_pressure_std}
+  kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+  mean: ${dataset_statistics.surface_pressure_mean}
+  std: ${dataset_statistics.surface_pressure_std}
 volume_velocity:
-  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
-    mean: ${dataset_statistics.volume_velocity_mean}
-    std: ${dataset_statistics.volume_velocity_std}
+  kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+  mean: ${dataset_statistics.volume_velocity_mean}
+  std: ${dataset_statistics.volume_velocity_std}
 volume_sdf:
-  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
-    mean: ${dataset_statistics.volume_sdf_mean}
-    std: ${dataset_statistics.volume_sdf_std}
+  kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+  mean: ${dataset_statistics.volume_sdf_mean}
+  std: ${dataset_statistics.volume_sdf_std}
 surface_position:
-  - kind: noether.data.preprocessors.normalizers.PositionNormalizer
-    raw_pos_min: ${dataset_statistics.raw_pos_min}
-    raw_pos_max: ${dataset_statistics.raw_pos_max}
-    scale: 1000
+  kind: noether.data.preprocessors.normalizers.PositionNormalizer
+  raw_pos_min: ${dataset_statistics.raw_pos_min}
+  raw_pos_max: ${dataset_statistics.raw_pos_max}
+  scale: 1000
 volume_position:
-  - kind: noether.data.preprocessors.normalizers.PositionNormalizer
-    raw_pos_min: ${dataset_statistics.raw_pos_min}
-    raw_pos_max: ${dataset_statistics.raw_pos_max}
-    scale: 1000
+  kind: noether.data.preprocessors.normalizers.PositionNormalizer
+  raw_pos_min: ${dataset_statistics.raw_pos_min}
+  raw_pos_max: ${dataset_statistics.raw_pos_max}
+  scale: 1000

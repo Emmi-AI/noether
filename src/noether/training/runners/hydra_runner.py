@@ -84,7 +84,7 @@ class HydraRunner:
     @staticmethod
     def _extract_name_from_overrides(overrides: list[str]) -> Iterator[str]:
         for override in overrides:
-            if any(override.startswith(key) for key in ("accelerator", "devices", "tracker")):
+            if any(override.startswith(key) for key in ("accelerator", "devices", "tracker", "name")):
                 continue
 
             # 2. Apply transformations to the items we keep:
@@ -213,7 +213,7 @@ class HydraRunner:
                 dict(
                     run_id=resume_run_id,
                     stage_name=config.resume_stage_name,
-                    checkpoint=checkpoint,
+                    checkpoint_tag=checkpoint,
                     model_name=config.model.name,
                 )
             )
@@ -310,7 +310,7 @@ class HydraRunner:
 
         logger.info(f"Initialized trainer {type(trainer).__name__}")
         if not isinstance(trainer, BaseTrainer):
-            raise TypeError(f"trainer is expected to be of type BaseTrainerConfig but got {type(trainer)}")
+            raise TypeError(f"trainer is expected to be of type BaseTrainer but got {type(trainer)}")
 
         # init model
         if config.model is None:

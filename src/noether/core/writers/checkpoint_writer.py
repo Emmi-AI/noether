@@ -35,13 +35,11 @@ class CheckpointWriter:
     - The encoder weights after every 10 epochs to evaluate performance at various training lengths.
     - The latest weights and optimizer states of encoder and decoder to allow resuming a run if it crashes.
     The CheckpointWriter provides functionality to store the following files:
-    - `autoencoder.encoder_cp=E10_... model.th`: encoder weights after 10 epochs
-    - `autoencoder.encoder_cp=E20_... model.th`: encoder weights after 20 epochs
-    - `autoencoder.encoder_cp=E30_... model.th`: encoder weights after 30 epochs
-    - `autoencoder.encoder_cp=last_model.th`: latest encoder weights
-    - `autoencoder.encoder_cp=last_optim.th`: latest encoder optimizer state
-    - `autoencoder.decoder_cp=last_model.th`: latest decoder weights
-    - `autoencoder.decoder_cp=last_optim.th`: latest decoder optimizer state
+    - `ab_upt_cp=E10_... model.th`: encoder weights after 10 epochs
+    - `ab_upt_cp=E20_... model.th`: encoder weights after 20 epochs
+    - `ab_upt_cp=E30_... model.th`: encoder weights after 30 epochs
+    - `ab_upt_cp=last_model.th`: latest encoder weights
+    - `ab_upt_cp=last_optim.th`: latest encoder optimizer state
 
 
     Each model checkpoint is populated with metadata. Each checkpoint will be a dictionary containing the keys:
@@ -62,19 +60,26 @@ class CheckpointWriter:
 
     def save_model_checkpoint(
         self,
-        output_name: str,
-        state_dict: dict[str, Any],
+        model_name: str,
         checkpoint_tag: str,
+        state_dict: dict[str, Any],
         model_config: ModelBaseConfig | None = None,
+        model_info: str | None = None,
         **extra,
     ) -> None:
         """Save a checkpoint to disk.
 
+        The ouput name of the checkpoint will be constructed as `{model_name}{model_info}_cp={checkpoint}_model.th` (where model_info is an optional string and will be empty if not provided).
+        For example, if model_name is "autoencoder.encoder" and checkpoint is "E10_U200_S800", the output name will be "autoencoder.encoder_cp=E10_U200_S800_model.th".
+        However, if we store different model that the current one that is trained, for example, the EMA model, we can also provide additional info in the output name.
+        For example, if model_name is "autoencoder.encoder" and model_info is "ema", and checkpoint is "E10_U200_S800", the output name will be "autoencoder.encoder_ema_cp=E10_U200_S800_model.th".
+
         Args:
-            output_name: Output name of the checkpoint (including an extension).
-            state_dict: Model state dict to save.
+            model_name: Name of the model.
             checkpoint_tag: Checkpoint tag, for example "latest" or "E10_U200_S800".
+            state_dict: Model state dict to save.
             model_config: Model configuration. Defaults to None.
+            model_info: Additional info to include in the output name. Defaults to None.
             **extra:
 
         Raises:
@@ -95,7 +100,10 @@ class CheckpointWriter:
                 raise RuntimeError(f"An unexpected error occurred during model_dump: {e}") from e
             output_dict[CheckpointKeys.CONFIG_KIND] = model_config.config_kind
 
-        model_uri = self.path_provider.checkpoint_path / output_name
+        # Construct model URI with optional model_info; follows structure: {model_name}_{model_info}_cp={checkpoint}_model.th
+        model_info = f"_{model_info}" if model_info else ""
+        model_uri = self.path_provider.checkpoint_path / f"{model_name}{model_info}_cp={checkpoint_tag}_model.th"
+
         torch.save(output_dict, model_uri)
         self.logger.info(f"Saved model to {model_uri}")
 
@@ -110,6 +118,7 @@ class CheckpointWriter:
         save_latest_optim: bool = False,
         model_names_to_save: list[str] | None = None,
         save_frozen_weights: bool = True,
+        model_info: str | None = None,
     ) -> None:
         """Saves a model to the disk.
 
@@ -132,7 +141,6 @@ class CheckpointWriter:
 
         if is_rank0():
             self._save_separate_models(
-                name=model.name,
                 model=model,
                 checkpoint_tag=checkpoint_tag,
                 save_weights=save_weights,
@@ -141,6 +149,7 @@ class CheckpointWriter:
                 save_latest_optim=save_latest_optim,
                 model_names_to_save=model_names_to_save,
                 save_frozen_weights=save_frozen_weights,
+                model_info=model_info,
             )
 
             if trainer_sd is not None:
@@ -157,7 +166,6 @@ class CheckpointWriter:
 
     def _save_separate_models(
         self,
-        name: str,
         model: ModelBase,
         checkpoint_tag: str,
         save_weights: bool,
@@ -166,6 +174,8 @@ class CheckpointWriter:
         save_latest_optim: bool,
         model_names_to_save: list[str] | None,
         save_frozen_weights: bool,
+        model_info: str | None = None,
+        model_name: str | None = None,
     ):
         if isinstance(model, DistributedDataParallel):
             raise RuntimeError("DistributedDataParallel models should be unwrapped before saving.")
@@ -176,7 +186,7 @@ class CheckpointWriter:
         if isinstance(model, Model):
             if model.is_frozen and not save_frozen_weights:
                 return
-            if model_names_to_save and name not in model_names_to_save:
+            if model_names_to_save and model.name not in model_names_to_save:
                 return
 
             # --- Save Weights ---
@@ -188,9 +198,10 @@ class CheckpointWriter:
             for should_save, tag in weight_requests:
                 if should_save:
                     self.save_model_checkpoint(
-                        output_name=f"{name}_cp={tag}_model.th",
-                        state_dict=model.state_dict(),
+                        model_name=model.name if model_name is None else model_name,
                         checkpoint_tag=tag,
+                        model_info=model_info,
+                        state_dict=model.state_dict(),
                         model_config=getattr(model, "model_config", None),
                     )
 
@@ -203,16 +214,20 @@ class CheckpointWriter:
 
                 for should_save, tag in optim_requests:
                     if should_save:
-                        optimizer_uri = self.path_provider.checkpoint_path / f"{name}_cp={tag}_optim.th"
+                        optimizer_uri = (
+                            self.path_provider.checkpoint_path
+                            / f"{model.name if model_name is None else model_name}_cp={tag}_optim.th"
+                        )
                         torch.save(model.optimizer.state_dict(), optimizer_uri)
-                        self.logger.info(f"Saved {name} optimizer to {optimizer_uri}")
+                        self.logger.info(f"Saved {model.name} optimizer to {optimizer_uri}")
 
         elif isinstance(model, CompositeModel):
             for k, v in model.submodels.items():
                 self._save_separate_models(
-                    name=f"{name}.{k}",
                     model=v,
+                    model_name=f"{model.name}.{k}",
                     checkpoint_tag=checkpoint_tag,
+                    model_info=model_info,
                     save_weights=save_weights,
                     save_optim=save_optim,
                     save_latest_weights=save_latest_weights,

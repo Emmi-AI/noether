@@ -2,7 +2,6 @@
 
 from typing import Literal
 
-import torch.nn as nn
 from pydantic import BaseModel, Field, model_validator
 
 from noether.core.types import InitWeightsMode
@@ -25,9 +24,6 @@ class TransformerBlockConfig(BaseModel):
 
     drop_path: float = Field(0.0, ge=0.0, le=1.0)
     """Probability to drop the attention or MLP module. Defaults to 0.0."""
-
-    normalization_constructor: type = nn.LayerNorm
-    """Constructor for the normalization layer."""
 
     attention_constructor: Literal[
         "dot_product",
@@ -60,6 +56,10 @@ class TransformerBlockConfig(BaseModel):
 
     @model_validator(mode="after")
     def set_mlp_hidden_dim(self):
+        # Validate hidden_dim is divisible by num_heads
+        if self.hidden_dim % self.num_heads != 0:
+            raise ValueError(f"hidden_dim ({self.hidden_dim}) must be divisible by num_heads ({self.num_heads}).")
+
         if self.mlp_hidden_dim is None:
             if self.mlp_expansion_factor is None:
                 raise ValueError("Either 'mlp_hidden_dim' or 'mlp_expansion_factor' must be provided.")

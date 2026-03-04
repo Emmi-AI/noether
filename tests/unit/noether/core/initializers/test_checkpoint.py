@@ -60,7 +60,7 @@ def base_config_dict():
         "model_info": "ema",
         "pop_ckpt_kwargs_keys": ["key1"],
         "stage_name": "train",
-        "checkpoint": "latest",
+        "checkpoint_tag": "latest",
     }
 
 
@@ -95,36 +95,36 @@ def test_checkpoint_initializer_init_with_string_checkpoint(base_config_dict, mo
     assert initializer.model_info == "ema"
     assert initializer.pop_ckpt_kwargs_keys == ["key1"]
     assert initializer.stage_name == "train"
-    assert initializer.checkpoint == "latest"
+    assert initializer.checkpoint_tag == "latest"
 
 
 def test_checkpoint_initializer_init_with_dict_checkpoint(base_config_dict, mock_path_provider):
     """Test initialization with a dictionary checkpoint."""
-    base_config_dict["checkpoint"] = "E10_U1000_S5000"
+    base_config_dict["checkpoint_tag"] = "E10_U1000_S5000"
     config = CheckpointInitializerConfig(**base_config_dict)
     initializer = DummyInitializer(initializer_config=config, path_provider=mock_path_provider)
 
-    assert isinstance(initializer.checkpoint, str)
-    assert initializer.checkpoint == "E10_U1000_S5000"
+    assert isinstance(initializer.checkpoint_tag, str)
+    assert initializer.checkpoint_tag == "E10_U1000_S5000"
 
-    base_config_dict["checkpoint"] = {"epoch": 10, "update": 1000, "sample": 5000}
+    base_config_dict["checkpoint_tag"] = {"epoch": 10, "update": 1000, "sample": 5000}
     config = CheckpointInitializerConfig(**base_config_dict)
     initializer = DummyInitializer(initializer_config=config, path_provider=mock_path_provider)
 
-    assert isinstance(initializer.checkpoint, TrainingIteration)
-    assert initializer.checkpoint.epoch == 10
-    assert initializer.checkpoint.update == 1000
-    assert initializer.checkpoint.sample == 5000
-    assert initializer.checkpoint.is_fully_specified
+    assert isinstance(initializer.checkpoint_tag, TrainingIteration)
+    assert initializer.checkpoint_tag.epoch == 10
+    assert initializer.checkpoint_tag.update == 1000
+    assert initializer.checkpoint_tag.sample == 5000
+    assert initializer.checkpoint_tag.is_fully_specified
 
-    base_config_dict["checkpoint"] = {"epoch": 10}
+    base_config_dict["checkpoint_tag"] = {"epoch": 10}
 
     config = CheckpointInitializerConfig(**base_config_dict)
     initializer = DummyInitializer(initializer_config=config, path_provider=mock_path_provider)
 
-    assert isinstance(initializer.checkpoint, TrainingIteration)
-    assert initializer.checkpoint.epoch == 10
-    assert initializer.checkpoint.is_minimally_specified
+    assert isinstance(initializer.checkpoint_tag, TrainingIteration)
+    assert initializer.checkpoint_tag.epoch == 10
+    assert initializer.checkpoint_tag.is_minimally_specified
 
 
 def test_get_checkpoint_from_uri(base_config_dict, path_provider_with_stage_name):
@@ -141,7 +141,7 @@ def test_get_checkpoint_from_uri(base_config_dict, path_provider_with_stage_name
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / f"{prefix}{base_config_dict['checkpoint']}{postfix}"
+        / f"{prefix}{base_config_dict['checkpoint_tag']}{postfix}"
     )
 
     assert initializer._get_checkpoint_uri("a", "b") == path
@@ -162,7 +162,7 @@ def test_get_model_state_dict(base_config_dict, path_provider_with_stage_name, d
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
     assert pytest.approx(sum([p.norm() for p in state_dict.values()]), 0.0001) == 2.4621
 
@@ -193,7 +193,7 @@ def test_get_modelname_and_checkpoint_uri(base_config_dict, path_provider_with_s
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
 
     model_name, checkpoint_uri = initializer._get_modelname_and_checkpoint_uri(
@@ -206,7 +206,7 @@ def test_get_modelname_and_checkpoint_uri(base_config_dict, path_provider_with_s
         / base_config_dict["run_id"]
         / base_config_dict["stage_name"]
         / "checkpoints"
-        / "dummy_model_cp=latest_ema_model.th"
+        / "dummy_model_ema_cp=latest_model.th"
     )
 
 

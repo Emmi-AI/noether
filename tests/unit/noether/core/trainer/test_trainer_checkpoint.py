@@ -21,7 +21,7 @@ from noether.training.trainers import BaseTrainer
 
 class DummyDataset(Dataset):
     def __init__(self, size=5):
-        super().__init__(DatasetBaseConfig(kind="", split="train"))
+        super().__init__(DatasetBaseConfig(kind=""))
         self._size, self.pipeline = size, Collator()
 
     def __len__(self):
@@ -152,7 +152,7 @@ def test_trainer_checkpoint_reloading(tmp_path):
         run_id=run_id,
         stage_name="train",
         model_name=model.name,
-        checkpoint=checkpoint_tag,
+        checkpoint_tag=checkpoint_tag,
     )
 
     new_trainer_config = BaseTrainerConfig(

@@ -16,20 +16,20 @@ class Hyperparameters:
 
     @staticmethod
     def save_resolved(stage_hyperparameters: ConfigSchema, out_file_uri: str | Path) -> None:
-        """Save the resolved hyperparameters to the output file.
+        """Save the resolved config schema hyperparameters to the output file.
+
 
         Args:
-            stage_hyperparameters: Hyperparameters to save.
+            stage_hyperparameters: Hyperparameters to save in a Pydantic object.
             out_file_uri: Path to the output file.
-
         Returns:
             None
         """
 
         with open(out_file_uri, "w") as f:
-            config_dict = stage_hyperparameters.model_dump()
+            config_dict = stage_hyperparameters.model_dump(exclude_unset=True)
             config_dict["config_schema_kind"] = stage_hyperparameters.config_schema_kind
-            yaml.dump(config_dict, f)
+            yaml.dump(config_dict, f, sort_keys=False)
 
         _logger.info(f"Dumped resolved hyperparameters to {out_file_uri}")
 

@@ -54,6 +54,27 @@ def test_eval_epochs0():
     )
 
 
+def test_only_main_sampler():
+    _run(
+        sampler=InterleavedSampler(
+            train_sampler=SequentialSampler(list(range(5))),
+            config=InterleavedSamplerConfig(
+                batch_size=4,
+                drop_last=False,
+                max_epochs=1,
+            ),
+        ),
+        expected=[
+            # configs[0]
+            0,
+            1,
+            2,
+            3,
+            4,
+        ],
+    )
+
+
 def test_eval_updates0():
     _run(
         sampler=InterleavedSampler(

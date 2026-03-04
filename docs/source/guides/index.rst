@@ -46,5 +46,6 @@ Inference & Evaluation
    training/implement_a_custom_trainer
    training/use_callbacks
    training/experiment_tracking
+   training/how_to_initialize
 
    inference/how_to_run_evaluation_on_trained_models

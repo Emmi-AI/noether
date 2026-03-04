@@ -14,6 +14,7 @@ class Factory:
     """Base factory. Implements base structures for creating a single object, a list of objects and a dict
     of objects.
 
+
     For example, creating a list:
 
     .. code-block:: python
@@ -81,7 +82,7 @@ class Factory:
 
         Args:
             obj_or_kwargs: Either an existing object or a description of how an object should be instantiated
-                (dict or :class:`~pydantic.BaseModel`).
+                (dict or :class:`pydantic.BaseModel`).
             kwargs: Further kwargs that are passed when creating the object. These are often dependencies such as
                 :class:`~noether.core.utils.training.counter.UpdateCounter`,
                 :class:`~noether.core.providers.path.PathProvider`,
@@ -174,8 +175,9 @@ class Factory:
         """Instantiates an object based on its fully specified classpath.
 
         Args:
-            object_config: Configuration containing the fully specified type of the object in the ``kind`` field such as: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
-            kwargs: kwargs passed to the type when instantiating the object.
+            object_config: Configuration containing the fully specified type of the object in the ``kind`` field.
+                For example: ``"torch.optim.SGD"`` or ``"noether.core.callbacks.CheckpointCallback"``.
+           kwargs: kwargs passed to the type when instantiating the object.
 
         Returns:
             The instantiated object.

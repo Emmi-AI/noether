@@ -10,14 +10,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  unit-tests:
+  tests:
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -43,17 +42,23 @@ jobs:
 
       - name: Run tests
         run: |
-          uv run --no-sync pytest -q ./tests \
+          uv run --no-sync pytest \
             --maxfail=1 --disable-warnings \
             --cov=src --cov-report=term-missing:skip-covered \
             --cov-report=xml:coverage.xml \
             --junitxml=pytest.xml
 
-      - name: Post Coverage Comment
-        uses: MishaKav/pytest-coverage-comment@main
-        if: github.event_name == 'pull_request'
+      - name: Save PR info
+        if: always() && github.event_name == 'pull_request'
+        run: |
+          echo ${{ github.event.number }} > pr_number.txt
+
+      - name: Upload coverage artifacts
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
         with:
-          pytest-xml-coverage-path: ./coverage.xml
-          junitxml-path: ./pytest.xml
-          hide-report: true
-          xml-skip-covered: true
+          name: coverage-artifacts
+          path: |
+            coverage.xml
+            pytest.xml
+            pr_number.txt

@@ -42,7 +42,7 @@ class TestCheckpointCallback:
         assert getattr(callback, flag) is True
 
     def test_model_name_added_to_list(self, callback_deps):
-        config = CheckpointCallbackConfig(every_n_updates=10, model_name="encoder")
+        config = CheckpointCallbackConfig(every_n_updates=10, model_names=["encoder"])
         callback = CheckpointCallback(callback_config=config, **callback_deps)
         assert callback.model_names == ["encoder"]
 

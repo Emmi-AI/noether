@@ -1,8 +1,6 @@
 train:
   kind: ${dataset_kind}
-  split: train
   num_samples: 100 
 test:
   kind: ${dataset_kind}
-  split: test
   num_samples: 10

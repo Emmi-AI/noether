@@ -128,7 +128,7 @@ def test_compute_src_and_dst_indices(setup_module):
     )
     supernode_pooling = SupernodePooling(config=config)
 
-    src_idx, dst_idx = supernode_pooling.compute_src_and_dst_indices(
+    src_idx, dst_idx, _ = supernode_pooling.compute_src_and_dst_indices(
         input_pos=input_pos, supernode_idx=supernode_idxs, batch_idx=None
     )
     assert torch.all(supernode_idxs == dst_idx)
@@ -147,7 +147,7 @@ def test_compute_src_and_dst_indices(setup_module):
     )
     supernode_pooling = SupernodePooling(config=config)
 
-    src_idx, dst_idx = supernode_pooling.compute_src_and_dst_indices(
+    src_idx, dst_idx, _ = supernode_pooling.compute_src_and_dst_indices(
         input_pos=input_pos, supernode_idx=supernode_idxs, batch_idx=None
     )
 

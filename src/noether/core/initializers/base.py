@@ -64,6 +64,6 @@ class InitializerBase(abc.ABC):
         By default , returns a TrainingIteration starting from zero.
 
         Returns:
-            checkpoint: the start checkpoint for the model.
+            TrainingIteration: the start checkpoint for the model.
         """
         return TrainingIteration(epoch=0, update=0, sample=0)

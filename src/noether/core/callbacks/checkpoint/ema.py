@@ -71,7 +71,8 @@ class EmaCallback(PeriodicCallback):
                 model_name_with_path = f"{model.name}.{model_path}"
             for target_factor in self.target_factors:
                 sd = torch.load(
-                    resumption_paths.checkpoint_path / f"{model_name_with_path}_cp=latest_ema={target_factor}_model.th"
+                    resumption_paths.checkpoint_path / f"{model_name_with_path}_ema={target_factor}_cp=latest_model.th",
+                    weights_only=True,
                 )[CheckpointKeys.STATE_DICT]
                 for name, _ in cur_model.named_parameters():
                     self.parameters[(model_path, target_factor)][name] = sd[name]
@@ -141,14 +142,14 @@ class EmaCallback(PeriodicCallback):
                     (self.save_latest_weights, "latest"),
                 ]
 
-                for should_save, tag in save_requests:
+                for should_save, checkpoint in save_requests:
                     if not should_save:
                         continue
-                    output_name = f"{cur_model_path}_cp={tag}_ema={target_factor}_model.th"
                     self.checkpoint_writer.save_model_checkpoint(
-                        output_name=output_name,
+                        model_name=cur_model_path,
+                        checkpoint_tag=checkpoint,
+                        model_info=f"ema={target_factor}",
                         state_dict=state_dict,
-                        checkpoint_tag=tag,
                         model_config=getattr(model, "model_config", None),
                         ema=target_factor,
                     )

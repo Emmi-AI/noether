@@ -24,7 +24,13 @@ Required Arguments
 
 ``noether-eval`` is also using Hydra. Config can be provided via the ``--hp`` flag or directly as CLI arguments. The following argument is required:
 
-- ``input_dir``: The absolute or relative path to the directory of the training run you wish to evaluate. This directory must contain a ``hp_resolved.yaml`` file.
+- ``input_dir``: The absolute or relative path to the directory of root of the outputs of the training run you wish to evaluate (without the `run_id`). 
+- ``run_id``: The specific run ID to evaluate a model from. 
+- ``stage_name``: The stage of the training run to evaluate (optinal and can be empty). This is used to locate the correct checkpoint and configuration files.
+
+
+The folder `input_dir/run_id/stage_name` should contain the desired checkpoint files and the resolved configuration file (`hp_resolved.yaml`).
+
 
 Supported Callbacks
 ~~~~~~~~~~~~~~~~~~~
@@ -41,13 +47,13 @@ Basic evaluation using the latest checkpoint. This runs the same callbacks as co
 
 .. code-block:: bash
 
-   noether-eval +input_dir=outputs/2026-01-10/10-00-00
+   noether-eval +input_dir=outputs/ +run_id=2026-01-10/10-00-00 +stage_name=train 
 
 Evaluation on a specific checkpoint:
 
 .. code-block:: bash
 
-   noether-eval +input_dir=outputs/2026-01-10/10-00-00 resume_checkpoint=best_accuracy \
+   noether-eval +input_dir=outputs run_id=2026-01-10/10-00-00 resume_checkpoint=best_accuracy \
    --hp configs/inference/visualization.yaml
 
 Run evaluation with modified callbacks, for example to calculate offline losses on the test set:
@@ -63,7 +69,7 @@ Run evaluation with modified callbacks, for example to calculate offline losses 
 
 .. code-block:: bash
 
-    noether-eval +input_dir=outputs/2026-01-10/10-00-00 --hp configs/inference/custom_eval_callbacks.yaml
+    noether-eval +input_dir=outputs run_id=2026-01-10/10-00-00 --hp configs/inference/custom_eval_callbacks.yaml
 
 
 Configuration Merging

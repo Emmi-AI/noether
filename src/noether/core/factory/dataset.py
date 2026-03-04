@@ -16,7 +16,9 @@ class DatasetFactory(Factory):
 
     .. code-block:: yaml
 
-        kind: path.to.model.MyModel
+        kind: path.to.custom_dataset.CustomDataset
+        dataset_param1: value1
+        dataset_param2: value2
         dataset_wrappers:
           - kind: noether.data.base.wrappers.SomeDatasetWrapper
             param1: value1
@@ -33,7 +35,6 @@ class DatasetFactory(Factory):
 
     def instantiate(self, dataset_config: DatasetBaseConfig, **kwargs) -> Any:  # type: ignore[override]
         """Instantiates the dataset either based on `dataset_config`
-
 
         Args:
             dataset_config: Configuration for the dataset. See

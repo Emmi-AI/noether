@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from abc import ABC
+from collections import OrderedDict
 from collections.abc import Sequence
 from typing import Any, ClassVar, Literal, Union
 
@@ -37,21 +38,33 @@ DatasetWrappers = Union[RepeatWrapperConfig, ShuffleWrapperConfig, SubsetWrapper
 class DatasetBaseConfig(BaseModel):
     kind: str
     """Kind of dataset to use."""
-    root: str | None = None
-    """Root directory of the dataset. If None, data is not loaded from disk, but somehow generated in memory."""
     pipeline: Any | None = Field(None)
     """Config of the pipeline to use for the dataset."""
-    split: Literal["train", "val", "test"]
 
-    dataset_normalizers: dict[str, list[AnyNormalizer]] | None = Field(None)
+    dataset_normalizers: dict[str, list[AnyNormalizer] | AnyNormalizer] | None = Field(
+        None, validation_alias="normalizers"
+    )
     """List of normalizers to apply to the dataset. The key is the data source name."""
-    dataset_wrappers: list[DatasetWrappers] | None = Field(None)
+    dataset_wrappers: list[DatasetWrappers] | None = Field(None, validation_alias="wrappers")
     included_properties: set[str] | None = Field(None)
     """Set of properties (i.e., getitem_* methods that are called) of this dataset that will be loaded, if not set all properties are loaded"""
     excluded_properties: set[str] | None = Field(None)
     """Set of properties of this dataset that will NOT be loaded, even if they are present in the included list"""
 
-    model_config = {"extra": "forbid"}  # Forbid extra fields in dataset configs
+    model_config = {
+        "extra": "forbid",
+        "validate_by_name": True,
+        "validate_by_alias": True,
+    }  # Forbid extra fields in dataset configs
+
+
+class StandardDatasetConfig(DatasetBaseConfig):
+    """Base config for datasets with fixed splits."""
+
+    root: str
+    """Root directory of the dataset."""
+    split: Literal["train", "val", "test"]
+    """Which split of the dataset to use. Must be one of "train", "val", or "test"."""
 
 
 class DatasetSplitIDs(BaseModel, ABC):
@@ -136,7 +149,7 @@ class DatasetSplitIDs(BaseModel, ABC):
             assert self.train_subset.issubset(self.train), "train_subset is not a subset of the training set"
 
 
-class FieldDimSpec(RootModel[dict[str, int]]):
+class FieldDimSpec(RootModel[OrderedDict[str, int]]):
     """A specification for a group of named data fields and their dimensions."""
 
     @property

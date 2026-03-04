@@ -69,7 +69,7 @@ class BaseTracker:
             config["dist/jobid"] = os.environ["SLURM_JOB_ID"]
         # save to disk
         with open(self.path_provider.basetracker_config_uri, "w") as f:
-            yaml.dump(dict(config), f)
+            yaml.dump(dict(config), f, sort_keys=False)
         # init implementing tracker
         self._init(config=config, output_uri=output_uri, run_id=run_id)
 

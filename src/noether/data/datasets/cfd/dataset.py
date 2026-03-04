@@ -36,42 +36,42 @@ class AeroDataset(Dataset):
     def _load(self, idx: int, filename: str) -> torch.Tensor:
         return self._load_from_disk(idx=idx, filename=filename)
 
-    @with_normalizers("surface_position")
+    @with_normalizers
     def getitem_surface_position(self, idx: int) -> torch.Tensor:
         """Retrieves surface positions (num_surface_points, 3)"""
         return self._load(idx=idx, filename=self.filemap.surface_position)  # type: ignore[arg-type]
 
-    @with_normalizers("surface_pressure")
+    @with_normalizers
     def getitem_surface_pressure(self, idx: int) -> torch.Tensor:
         """Retrieves surface pressures (num_surface_points, 1)"""
         return self._load(idx=idx, filename=self.filemap.surface_pressure).unsqueeze(1)  # type: ignore[arg-type]
 
-    @with_normalizers("surface_friction")
+    @with_normalizers
     def getitem_surface_friction(self, idx: int) -> torch.Tensor:
         """Retrieves surface friction (=wallshearstress) (num_surface_points, 3)"""
         return self._load(idx=idx, filename=self.filemap.surface_friction)  # type: ignore[arg-type]
 
-    @with_normalizers("volume_position")
+    @with_normalizers
     def getitem_volume_position(self, idx: int) -> torch.Tensor:
         """Retrieves volume position (num_volume_points, 3)"""
         return self._load(idx=idx, filename=self.filemap.volume_position)  # type: ignore[arg-type]
 
-    @with_normalizers("volume_pressure")
+    @with_normalizers
     def getitem_volume_pressure(self, idx: int) -> torch.Tensor:
         """Retrieves volume pressures (num_volume_points, 1)"""
         return self._load(idx=idx, filename=self.filemap.volume_pressure).unsqueeze(1)  # type: ignore[arg-type]
 
-    @with_normalizers("volume_velocity")
+    @with_normalizers
     def getitem_volume_velocity(self, idx: int) -> torch.Tensor:
         """Retrieves volume velocity (num_volume_points, 3)"""
         return self._load(idx=idx, filename=self.filemap.volume_velocity)  # type: ignore[arg-type]
 
-    @with_normalizers("volume_vorticity")
+    @with_normalizers
     def getitem_volume_vorticity(self, idx: int) -> torch.Tensor:
         """Retrieves volume vorticity (num_volume_points, 3)"""
         return self._load(idx=idx, filename=self.filemap.volume_vorticity)  # type: ignore[arg-type]
 
-    @with_normalizers("volume_sdf")
+    @with_normalizers
     def getitem_volume_sdf(self, idx: int) -> torch.Tensor:
         """Retrieve signed distance field at volume points."""
         return self._load(idx=idx, filename=self.filemap.volume_distance_to_surface).unsqueeze(1)  # type: ignore[arg-type]

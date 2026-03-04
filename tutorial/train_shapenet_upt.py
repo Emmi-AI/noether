@@ -14,7 +14,13 @@ from noether.core.schemas.callbacks import (
     EmaCallbackConfig,
     OfflineLossCallbackConfig,
 )
-from noether.core.schemas.dataset import AeroDataSpecs, DatasetBaseConfig, DatasetWrappers, RepeatWrapperConfig
+from noether.core.schemas.dataset import (
+    AeroDataSpecs,
+    DatasetBaseConfig,
+    DatasetWrappers,
+    RepeatWrapperConfig,
+    StandardDatasetConfig,
+)
 from noether.core.schemas.modules import (
     DeepPerceiverDecoderConfig,
     PerceiverBlockConfig,
@@ -79,7 +85,7 @@ def build_dataset_config(
     dataset_normalizer: dict[str, list[AnyNormalizer]],
     dataset_wrappers: list[DatasetWrappers] | None = None,
 ) -> DatasetBaseConfig:
-    return DatasetBaseConfig(
+    return StandardDatasetConfig(
         kind="noether.data.datasets.cfd.ShapeNetCarDataset",
         root=dataset_root,
         pipeline=AeroCFDPipelineConfig(

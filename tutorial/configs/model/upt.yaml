@@ -9,20 +9,13 @@ use_bias_layers: true
 data_specs: ${data_specs}
 supernode_pooling_config:
   input_dim: ${data_specs.position_dim}
-  hidden_dim: ${model.hidden_dim}
   radius: 9
 approximator_config:
-  num_heads: ${model.num_heads}
-  hidden_dim: ${model.hidden_dim}
-  mlp_expansion_factor: ${model.mlp_expansion_factor}
   use_rope: ${model.use_rope}
 decoder_config:
   depth: 12
   input_dim: ${data_specs.position_dim} 
   perceiver_block_config:
-     num_heads: ${model.num_heads}
-     hidden_dim: ${model.hidden_dim}
-     mlp_expansion_factor: ${model.mlp_expansion_factor}
      use_rope: ${model.use_rope}
 optimizer_config: ${optimizer}
 forward_properties:

@@ -225,9 +225,12 @@ class InterleavedSampler:
                 return sampler.dataset
             raise NotImplementedError
 
-        self.index_offsets = [len(_get_data_source(self.main_sampler))]
-        for extra_sampler in self.extra_samplers[:-1]:
-            self.index_offsets.append(self.index_offsets[-1] + len(_get_data_source(extra_sampler.sampler)))
+        self.index_offsets = []
+        if len(self.extra_samplers) > 0:
+            # extra samplers start after the main sampler, so the first offset is the length of the main sampler
+            self.index_offsets.append(len(_get_data_source(self.main_sampler)))
+            for extra_sampler in self.extra_samplers[:-1]:
+                self.index_offsets.append(self.index_offsets[-1] + len(_get_data_source(extra_sampler.sampler)))
 
         self.dataset = _InterleavedConcatDataset(
             [_get_data_source(self.main_sampler)]

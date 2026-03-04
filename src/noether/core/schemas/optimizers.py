@@ -38,6 +38,8 @@ class ParamGroupModifierConfig(BaseModel):
 
 
 class OptimizerConfig(BaseModel):
+    model_config = {"extra": "forbid"}
+
     kind: str | None = None
     """The class path of the torch optimizer to use. E.g., 'torch.optim.AdamW'."""
     lr: float | None = Field(None, gt=0.0)

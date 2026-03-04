@@ -19,6 +19,10 @@ class TransformerConfig(TransformerBlockConfig, ModelBaseConfig):
 
     @model_validator(mode="after")
     def set_mlp_hidden_dim(self):
+        # Validate hidden_dim is divisible by num_heads
+        if self.hidden_dim % self.num_heads != 0:
+            raise ValueError(f"hidden_dim ({self.hidden_dim}) must be divisible by num_heads ({self.num_heads}).")
+
         if self.mlp_hidden_dim is None:
             if self.mlp_expansion_factor is None:
                 raise ValueError("Either 'mlp_hidden_dim' or 'mlp_expansion_factor' must be provided.")
