@@ -3,29 +3,9 @@
 import einops
 import torch
 import torch.distributed as dist
+import torch.distributed.nn.functional
 
 from noether.core.distributed.config import get_world_size, is_distributed
-
-
-# noinspection PyAbstractClass
-class AllGatherGradAutograd(torch.autograd.Function):
-    """Gathers tensors from all process and supports backward propagation for the gradients across processes."""
-
-    # noinspection PyMethodOverriding
-    @staticmethod
-    def forward(ctx, x):
-        output = [torch.zeros_like(x) for _ in range(dist.get_world_size())]
-        dist.all_gather(output, x)
-        # without the tuple call here, the gradient is not propagated for some reason
-        # (therefore the backward is then not called)
-        return tuple(output)
-
-    @staticmethod
-    def backward(ctx, *grads):
-        all_gradients = torch.stack(grads)
-        dist.all_reduce(all_gradients, op=dist.ReduceOp.SUM)
-        grad_out = all_gradients[dist.get_rank()]
-        return grad_out
 
 
 def get_device_and_bfloat16supported():
@@ -53,7 +33,7 @@ def get_bool_gather_supported():
     raise NotImplementedError
 
 
-def _prepare_tensor(x):
+def _prepare_tensor(x: torch.Tensor):
     """
     prepare for distributed communication
     - wrap primitive types into tensors
@@ -64,15 +44,9 @@ def _prepare_tensor(x):
     device, bfloat16_supported = get_device_and_bfloat16supported()
     # I think this doesn't work in some configuration not sure in which though
     # note in which configuration and convert back to bool after gather
-    if isinstance(x, bool):
-        # x = torch.tensor(x, dtype=torch.float32, device=device)
-        # og_device = torch.device("cpu")
-        raise RuntimeError
-    if isinstance(x, float | int | list | tuple):
-        x = torch.tensor(x, device=device)
-        og_device = torch.device("cpu")
-    else:
-        og_device = x.device
+    if not isinstance(x, torch.Tensor):
+        raise ValueError(f"Expected a tensor but got {type(x)}")
+    og_device = x.device
     if x.dtype == torch.bfloat16 and not bfloat16_supported:
         x = x.type(torch.float32)
     # bool gather is not supported in some settings
@@ -86,56 +60,32 @@ def _prepare_tensor(x):
     return x.to(device), og_device, to_bool
 
 
-def _all_gather_grad(x, all_gather_fn, batch_dim=0):
+def all_gather_grad(x: torch.Tensor, batch_dim=0) -> torch.Tensor:
+    if not is_distributed():
+        if isinstance(x, torch.Tensor) and x.ndim == 0:
+            # distributed gather adds a dimension to scalars
+            x = x.unsqueeze(0)
+        return x
+
     x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        result = all_gather_fn(x)
-        if result[0].ndim == 0:
-            # scalars can't be concatenated
-            result = [r.unsqueeze(0) for r in result]
-        result = torch.concat(result, dim=batch_dim).to(og_device)
-    else:
-        result = _all_gather_nondistributed(x, og_device)
+    result = torch.distributed.nn.functional.all_gather(x)
+    if result[0].ndim == 0:
+        # scalars can't be concatenated
+        result = [r.unsqueeze(0) for r in result]
+    result = torch.concat(result, dim=batch_dim).to(og_device)
+
     if to_bool:
         result = result.bool()
     return result
-
-
-def all_gather_grad(x, batch_dim=0):
-    return _all_gather_grad(x, AllGatherGradAutograd.apply, batch_dim=batch_dim)
-
-
-def all_gather_grad_autograd(x):
-    return _all_gather_grad(x, AllGatherGradAutograd.apply)
 
 
 @torch.no_grad()
-def all_gather_nograd(x):
-    x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        all_results = [torch.zeros_like(x) for _ in range(get_world_size())]
-        dist.all_gather(all_results, x)
-        if all_results[0].ndim == 0:
-            # scalars can't be concatenated
-            result = torch.tensor(all_results, device=og_device)
-        else:
-            result = torch.concat(all_results).to(og_device)
-    else:
-        result = _all_gather_nondistributed(x, og_device).detach()
-    if to_bool:
-        result = result.bool()
-    return result
+def all_gather_nograd(x: torch.Tensor, batch_dim=0) -> torch.Tensor:
+    return all_gather_grad(x, batch_dim=batch_dim)
 
 
-def _all_gather_nondistributed(x, og_device):
-    if x.ndim == 0:
-        # distributed gather adds a dimension to scalars
-        x = x.unsqueeze(0)
-    return x.to(og_device)
-
-
-def all_gather_nograd_clipped(x, max_length):
-    result = all_gather_nograd(x)
+def all_gather_nograd_clipped(x: torch.Tensor, max_length: int | None = None, batch_dim=0) -> torch.Tensor:
+    result = all_gather_nograd(x, batch_dim=batch_dim)
     if is_distributed():
         # gathering changes the order of the samples -> correct them
         # most of the time this is not noeeded (e.g. for metrics) as the order is not important
@@ -148,75 +98,7 @@ def all_gather_nograd_clipped(x, max_length):
             "(num_gpus len_per_gpu) ... -> (len_per_gpu num_gpus) ...",
             num_gpus=get_world_size(),
         )
-        # DistributedSampler pads the dataset to give every GPU the same amount of samples
-        return result[:max_length]
+        if max_length is not None:
+            # DistributedSampler pads the dataset to give every GPU the same amount of samples
+            return result[:max_length]
     return result
-
-
-def all_reduce_sum_nograd(x):
-    with torch.no_grad():
-        return all_reduce_sum_grad(x)
-
-
-def all_reduce_sum_grad(x):
-    x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        # all_reduce is differentiable https://github.com/pytorch/pytorch/issues/58005
-        dist.all_reduce(x, op=dist.ReduceOp.SUM)
-    x = x.to(og_device)
-    if to_bool:
-        x = x.bool()
-    return x
-
-
-def reduce_mean_grad(x, dest_rank=0):
-    x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.SUM)
-        if dist.get_rank() == dest_rank:
-            x = x / get_world_size()
-    x = x.to(og_device)
-    if to_bool:
-        x = x.bool()
-    return x
-
-
-def reduce_mean_nograd(x, dest_rank=0):
-    with torch.no_grad():
-        return reduce_mean_grad(x, dest_rank=dest_rank)
-
-
-def reduce_max_grad(x, dest_rank=0):
-    if not is_distributed():
-        return x
-    x, og_device, to_bool = _prepare_tensor(x)
-    dist.reduce(x, dst=dest_rank, op=dist.ReduceOp.MAX)
-    x = x.to(og_device)
-    if to_bool:
-        x = x.bool()
-    return x
-
-
-def reduce_max_nograd(x, dest_rank=0):
-    with torch.no_grad():
-        return reduce_max_grad(x, dest_rank=dest_rank)
-
-
-def all_reduce_mean_grad(x):
-    x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        x = all_reduce_sum_grad(x) / get_world_size()
-    x = x.to(og_device)
-    if to_bool:
-        x = x.bool()
-    return x
-
-
-def all_reduce_mean_nograd(x):
-    x, og_device, to_bool = _prepare_tensor(x)
-    if is_distributed():
-        x = all_reduce_sum_nograd(x) / get_world_size()
-    x = x.to(og_device)
-    if to_bool:
-        x = x.bool()
-    return x
