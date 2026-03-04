@@ -530,6 +530,40 @@ num_heads: 3
 optimizer_config: ${optimizer}
 ```
 
+### Configuration inheritance
+
+UPT and AB-UPT models support automatic configuration injection from parent to submodules for shared parameters between parent and submodules.
+
+When you set `hidden_dim`, `num_heads`, or `mlp_expansion_factor` at the top level of a UPT config (or just `hidden_dim` for AB-UPT), these values automatically propagate to submodules unless explicitly overridden. This reduces redundancy and keeps consistency across your model architecture.
+
+**Example - UPT configuration:**
+
+```yaml
+kind: tutorial.model.UPT
+name: upt
+hidden_dim: 192 
+num_heads: 3 
+mlp_expansion_factor: 4  
+approximator_depth: 12
+use_rope: true
+
+supernode_pooling_config:
+  input_dim: 3
+  radius: 9
+  # hidden_dim is automatically 192 (inherited from parent)
+
+approximator_config:
+  use_rope: true
+  # hidden_dim, num_heads, mlp_expansion_factor all inherited from parent
+
+decoder_config:
+  depth: 12
+  input_dim: 3
+  perceiver_block_config:
+    use_rope: true
+    # hidden_dim, num_heads, mlp_expansion_factor all inherited from parent
+```
+
 ### Tutorial configuration schema
 
 Your downstream project must define a top-level configuration schema that specifies the complete experiment structure. 

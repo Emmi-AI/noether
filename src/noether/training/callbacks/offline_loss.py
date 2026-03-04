@@ -20,13 +20,14 @@ class OfflineLossCallback(PeriodicDataIteratorCallback):
         self.output_patterns_to_log = callback_config.output_patterns_to_log or []
 
     def process_data(self, batch, *, trainer_model, **_):
-        all_losses, all_outputs = self.trainer.update(dist_model=trainer_model, batch=batch, training=False)
-        all_outputs = all_outputs or {}
+        train_out = self.trainer.train_step(batch=batch, model=trainer_model)
 
         # extract
-        all_losses = {name: loss.cpu() for name, loss in all_losses.items()}
+        all_losses = {"total": train_out.total_loss.detach().cpu()}
+        if train_out.losses_to_log is not None:
+            all_losses.update({name: loss.cpu() for name, loss in train_out.losses_to_log.items()})
         outputs_to_log = {}
-        for key, value in (all_outputs or {}).items():
+        for key, value in (train_out.additional_outputs or {}).items():
             for pattern in self.output_patterns_to_log:
                 if pattern in key:
                     if not torch.is_tensor(value):

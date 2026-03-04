@@ -1,10 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, model_validator
 
 from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.core.types import InitWeightsMode
@@ -12,12 +13,12 @@ from noether.core.types import InitWeightsMode
 from .base import ModelBaseConfig
 
 
-class AnchorBranchedUPTConfig(ModelBaseConfig):
+class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     model_config = ConfigDict(extra="forbid")
 
-    supernode_pooling_config: SupernodePoolingConfig
+    supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared]
 
-    transformer_block_config: TransformerBlockConfig
+    transformer_block_config: Annotated[TransformerBlockConfig, Shared]
 
     geometry_depth: int = Field(..., ge=0)
     """Number of transformer blocks in the geometry encoder."""
@@ -47,3 +48,26 @@ class AnchorBranchedUPTConfig(ModelBaseConfig):
 
     data_specs: AeroDataSpecs
     """Data specifications for the model."""
+
+    @model_validator(mode="after")
+    def validate_parameters(self) -> "AnchorBranchedUPTConfig":
+        """Validate validity of parameters across the model and its submodules.
+
+        Ensures that hidden_dim is consistent across parent and all submodules.
+        Note: transformer_block_config validates hidden_dim % num_heads == 0 in its own validator.
+        """
+        # SupernodePoolingConfig: hidden_dim equality
+        if self.supernode_pooling_config.hidden_dim != self.hidden_dim:
+            raise ValueError(
+                f"supernode_pooling_config.hidden_dim ({self.supernode_pooling_config.hidden_dim}) "
+                f"must match model hidden_dim ({self.hidden_dim})."
+            )
+
+        # TransformerBlockConfig: hidden_dim equality
+        if self.transformer_block_config.hidden_dim != self.hidden_dim:
+            raise ValueError(
+                f"transformer_block_config.hidden_dim ({self.transformer_block_config.hidden_dim}) "
+                f"must match model hidden_dim ({self.hidden_dim})."
+            )
+
+        return self

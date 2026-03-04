@@ -14,7 +14,7 @@ from .callbacks import (
     PeriodicDataIteratorCallbackConfig,
     TrackAdditionalOutputsCallbackConfig,
 )
-from .dataset import DatasetBaseConfig
+from .dataset import DatasetBaseConfig, StandardDatasetConfig
 from .initializers import (
     AnyInitializer,
     CheckpointInitializerConfig,
@@ -61,6 +61,8 @@ __all__ = [
     "ModelBaseConfig",
     "ConfigSchema",
     "AnyInitializer",
+    "DatasetBaseConfig",
+    "StandardDatasetConfig",
     "CheckpointInitializerConfig",
     "InitializerConfig",
     "PreviousRunInitializerConfig",

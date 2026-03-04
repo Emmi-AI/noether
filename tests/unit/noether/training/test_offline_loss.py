@@ -7,6 +7,7 @@ import torch
 
 from noether.core.schemas.callbacks import OfflineLossCallbackConfig
 from noether.training.callbacks.offline_loss import OfflineLossCallback
+from noether.training.trainers.types import TrainerResult
 
 _MODULE_LOGGER_PATH = "noether.training.callbacks.offline_loss.OfflineLossCallback.logger"
 
@@ -79,11 +80,13 @@ class TestOfflineLossCallback:
             "pred_mask_2": [0.1],  # matches pattern (list, needs conversion)
             "logits": torch.tensor([0.9]),  # does NOT match pattern
         }
-        callback_deps["trainer"].update.return_value = (returned_losses, returned_outputs)
+        callback_deps["trainer"].train_step.return_value = TrainerResult(
+            torch.tensor(1.0), returned_losses, returned_outputs
+        )
 
         losses, outputs = callback.process_data(mock_batch, trainer_model=mock_model)
 
-        callback_deps["trainer"].update.assert_called_once_with(dist_model=mock_model, batch=mock_batch, training=False)
+        callback_deps["trainer"].train_step.assert_called_once_with(model=mock_model, batch=mock_batch)
 
         assert "loss_a" in losses
         assert "loss_b" in losses
@@ -177,7 +180,7 @@ class TestOfflineLossCallback:
         config = OfflineLossCallbackConfig(every_n_epochs=1, dataset_key="val")
         callback = OfflineLossCallback(callback_config=config, **callback_deps)
 
-        callback_deps["trainer"].update.return_value = ({"l1": torch.tensor(1.0)}, None)
+        callback_deps["trainer"].train_step.return_value = TrainerResult(torch.tensor(1.0), {"l1": torch.tensor(1.0)})
 
         losses, outputs = callback.process_data({}, trainer_model=Mock())
 

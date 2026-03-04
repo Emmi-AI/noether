@@ -5,7 +5,7 @@ from pathlib import Path
 
 import torch
 
-from noether.core.schemas.dataset import CAEMLDatasetConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.core.utils.common import validate_path
 from noether.data.datasets.cfd.dataset import AeroDataset
 from noether.data.datasets.cfd.shapenet_car.filemap import SHAPENET_CAR_FILEMAP
@@ -54,7 +54,7 @@ class ShapeNetCarDataset(AeroDataset):
 
     def __init__(
         self,
-        dataset_config: CAEMLDatasetConfig,
+        dataset_config: StandardDatasetConfig,
     ):
         """
         Initialize the ShapeNet Car dataset.
@@ -71,7 +71,7 @@ class ShapeNetCarDataset(AeroDataset):
         self.split = dataset_config.split
         if self.split not in SUPPORTED_SPLITS:
             raise ValueError(f"Unsupported split '{self.split}'. Supported splits are: {SUPPORTED_SPLITS}")
-        self.source_root: Path = validate_path(dataset_config.root)  # type: ignore[arg-type]
+        self.source_root: Path = validate_path(dataset_config.root)
         self._resolve_source_root_path()
         self._load_design_ids()
         logger.info(f"Initialized ShapeNetCarDataset with {len(self.design_ids)} samples for split '{self.split}'")

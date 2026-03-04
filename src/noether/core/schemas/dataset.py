@@ -58,9 +58,11 @@ class DatasetBaseConfig(BaseModel):
     }  # Forbid extra fields in dataset configs
 
 
-class CAEMLDatasetConfig(DatasetBaseConfig):
-    root: str | None = None
-    """Root directory of the dataset. If None, data is not loaded from disk, but somehow generated in memory."""
+class StandardDatasetConfig(DatasetBaseConfig):
+    """Base config for datasets with fixed splits."""
+
+    root: str
+    """Root directory of the dataset."""
     split: Literal["train", "val", "test"]
     """Which split of the dataset to use. Must be one of "train", "val", or "test"."""
 

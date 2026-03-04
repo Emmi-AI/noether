@@ -120,13 +120,12 @@ class UPT(nn.Module):
         """Forward pass of the UPT model.
 
         Args:
-            input_position: input coordinates of the surface points.
-            surface_mask_query: surface mask for the query points, indicating which points are surface points.
-            surface_position_batch_idx: batch indices for the surface positions, since the surface positions are
+            surface_position_batch_idx: Batch indices for the surface positions, since the surface positions are
                 a sparse tensor for the supernode pooling.
-            surface_position_supernode_idx: supernode indices for the surface positions.
-            geometry_position: geometry position information.
-            query_position: input coordinates of the query points.
+            surface_position_supernode_idx: Supernode indices for the surface positions.
+            surface_position: Input coordinates of the surface points.
+            query_position: Input coordinates of the query points.
+
         Returns:
             torch.Tensor: Output tensor containing the predictions for the surface and volume fields, sliced according to the data specifications.
         """

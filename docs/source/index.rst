@@ -54,6 +54,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
 
    noether/io/caching
    reference/hardware_setup
+   reference/config_inheritance
    API Reference <../autoapi/noether/index>
 
 
