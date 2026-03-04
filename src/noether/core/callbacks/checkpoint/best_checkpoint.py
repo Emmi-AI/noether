@@ -141,26 +141,25 @@ class BestCheckpointCallback(PeriodicCallback):
             # Reset the tolerance flag and the exceeded flags so tolerance tracking starts over:
             self.tolerance_counter = 0
             self.tolerances_is_exceeded = dict.fromkeys(self.tolerances_is_exceeded, False)
-
-            # log tolerance checkpoints
-            for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
-                if is_exceeded:
-                    continue
-                self.checkpoint_writer.save(
-                    model=self.model,
-                    checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}.tolerance{tolerance}",
-                    save_optim=False,
-                    model_names_to_save=self.model_names,
-                )
         else:
             self.tolerance_counter += 1
             for tolerance, is_exceeded in self.tolerances_is_exceeded.items():
-                if is_exceeded:
+                if is_exceeded or self.tolerance_counter <= tolerance:
                     continue
                 # Check if counter is STRICTLY greater than tolerance:
-                if self.tolerance_counter > tolerance:
-                    self.tolerances_is_exceeded[tolerance] = True
-                    self.metric_at_exceeded_tolerance[tolerance] = metric_value
+                self.tolerances_is_exceeded[tolerance] = True
+                self.metric_at_exceeded_tolerance[tolerance] = metric_value
+
+                # Only save checkpoint if we got a better value at least once.
+                if self.best_metric_value in [float("inf"), -float("inf")]:
+                    continue
+
+                self.checkpoint_writer.save(
+                    model=self.model,
+                    checkpoint_tag=f"best_model.{self.metric_key.replace('/', '.')}.tolerance={tolerance}",
+                    save_optim=False,
+                    model_names_to_save=self.model_names,
+                )
 
     def after_training(self, **kwargs) -> None:
         """Log the best metric values at different tolerance thresholds after training completes.
