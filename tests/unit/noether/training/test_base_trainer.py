@@ -521,7 +521,7 @@ class TestGradientStep:
         model = MagicMock()
         model.is_frozen = True
         # Should return immediately without error
-        trainer._gradient_step(torch.tensor(1.0), model, accumulation_steps=1, iter_step=0)
+        trainer._gradient_step(torch.tensor(1.0), model, accumulation_steps_total=1, accumulation_step=0)
         model.optimizer_step.assert_not_called()
 
     def test_basic_gradient_step(self):
@@ -532,7 +532,7 @@ class TestGradientStep:
         loss = torch.tensor(2.0, requires_grad=True)
 
         with patch.object(trainer.grad_scaler, "scale", return_value=MagicMock()) as mock_scale:
-            trainer._gradient_step(loss, model, accumulation_steps=1, iter_step=0)
+            trainer._gradient_step(loss, model, accumulation_steps_total=1, accumulation_step=0)
 
         mock_scale.assert_called_once()
         model.optimizer_step.assert_called_once_with(trainer.grad_scaler)
@@ -547,7 +547,7 @@ class TestGradientStep:
         nan_loss = torch.tensor(float("nan"))
 
         with patch(_MODULE_PATH + ".all_gather_nograd", return_value=nan_loss):
-            trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=0)
+            trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
         assert trainer.skip_nan_loss_counter == 1
         assert trainer._skip_nan_step is False
@@ -562,7 +562,7 @@ class TestGradientStep:
         nan_loss = torch.tensor(float("nan"))
         with patch(_MODULE_PATH + ".all_gather_nograd", return_value=nan_loss):
             with pytest.raises(RuntimeError, match="nan losses in a row"):
-                trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=0)
+                trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
     def test_valid_loss_after_nan_resets_counter(self):
         trainer = self._make_gradient_step_trainer(skip_nan=True)
@@ -577,7 +577,7 @@ class TestGradientStep:
             patch(_MODULE_PATH + ".all_gather_nograd", return_value=valid_loss),
             patch.object(trainer.grad_scaler, "scale", return_value=MagicMock()),
         ):
-            trainer._gradient_step(valid_loss, model, accumulation_steps=1, iter_step=0)
+            trainer._gradient_step(valid_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
         assert trainer.skip_nan_loss_counter == 0
 
@@ -589,12 +589,12 @@ class TestGradientStep:
         loss = torch.tensor(1.0, requires_grad=True)
 
         with patch.object(trainer.grad_scaler, "scale", return_value=MagicMock()):
-            # iter_step=0, accumulation_steps=2 → not yet at step boundary
-            trainer._gradient_step(loss, model, accumulation_steps=2, iter_step=0)
+            # iter_step=0, accumulation_steps_total=2 → not yet at step boundary
+            trainer._gradient_step(loss, model, accumulation_steps_total=2, accumulation_step=0)
             model.optimizer_step.assert_not_called()
 
             # iter_step=1 → (1+1) % 2 == 0 → step happens
-            trainer._gradient_step(loss, model, accumulation_steps=2, iter_step=1)
+            trainer._gradient_step(loss, model, accumulation_steps_total=2, accumulation_step=1)
             model.optimizer_step.assert_called_once()
 
 
@@ -1004,18 +1004,18 @@ class TestSkipRemainingBatches:
         trainer = _make_trainer()
         data_iter = self._make_data_iter_with_sampler(has_epochs=True, has_samples=False)
         # remaining=5, acc=2 → skip 5-2=3 batches
-        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps=2, batch_size=4)
+        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
         assert data_iter.__next__.call_count == 3
 
     def test_skips_when_samples_based(self):
         trainer = _make_trainer()
         data_iter = self._make_data_iter_with_sampler(has_epochs=False, has_samples=True)
         # samples branch: total_batches=100//4=25, 25 % 2 = 1 skip
-        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps=2, batch_size=4)
+        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
         assert data_iter.__next__.call_count >= 0  # verify no crash; exact count depends on sampler mock
 
     def test_no_special_sampler_no_skip(self):
         trainer = _make_trainer()
         data_iter = MagicMock(spec=[])  # no batch_sampler attribute
         # Should not raise
-        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps=2, batch_size=4)
+        trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
