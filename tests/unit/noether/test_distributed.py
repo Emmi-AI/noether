@@ -21,12 +21,17 @@ from noether.core.distributed import (
 
 _WORLD_SIZE = 2
 
+_cuda_skip = pytest.mark.skipif(
+    not torch.cuda.is_available() or torch.cuda.device_count() < _WORLD_SIZE,
+    reason="Requires at least 2 CUDA GPUs",
+)
 
-def _dist_worker_loop(rank, world_size, task_queue, result_queue):
+
+def _dist_worker_loop(rank, world_size, device, task_queue, result_queue):
     os.environ["MASTER_ADDR"] = "127.0.0.1"
     os.environ["MASTER_PORT"] = "29500"
 
-    if torch.cuda.is_available():
+    if device == "cuda":
         backend = "nccl"
         torch.cuda.set_device(rank)
     else:
@@ -48,11 +53,12 @@ def _dist_worker_loop(rank, world_size, task_queue, result_queue):
         dist.destroy_process_group()
 
 
-@pytest.fixture(scope="module")
-def run_distributed():
-    # skip if less than 2 GPUs are available for NCCL backend
-    if torch.cuda.is_available() and torch.cuda.device_count() < _WORLD_SIZE:
-        pytest.skip("Distributed tests require at least 2 GPUs for NCCL backend")
+@pytest.fixture(
+    scope="module",
+    params=["cpu", pytest.param("cuda", marks=_cuda_skip)],
+)
+def run_distributed(request):
+    device = request.param
 
     sys.path.append(os.getcwd())
 
@@ -61,7 +67,7 @@ def run_distributed():
     result_queue = ctx.Queue()
 
     processes = [
-        ctx.Process(target=_dist_worker_loop, args=(rank, _WORLD_SIZE, task_queues[rank], result_queue))
+        ctx.Process(target=_dist_worker_loop, args=(rank, _WORLD_SIZE, device, task_queues[rank], result_queue))
         for rank in range(_WORLD_SIZE)
     ]
     for p in processes:
@@ -69,7 +75,7 @@ def run_distributed():
 
     def _run(fn, args=()):
         for q in task_queues:
-            q.put((fn, args))
+            q.put((fn, (device,) + args))
         errors = [result_queue.get() for _ in range(_WORLD_SIZE)]
         errors = [e for e in errors if e is not None]
         if errors:
@@ -83,9 +89,8 @@ def run_distributed():
         p.join()
 
 
-def _check_all_gather_grad_rank_2():
+def _check_all_gather_grad_rank_2(device):
     rank = get_rank()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # rank 0: [1, 1], rank 1: [2, 2]
     source = torch.full((2,), fill_value=float(rank + 1), device=device, requires_grad=True)
@@ -106,9 +111,8 @@ def test_all_gather_grad_rank_2(run_distributed):
     run_distributed(_check_all_gather_grad_rank_2)
 
 
-def _check_all_reduce_sum_grad_rank_2():
+def _check_all_reduce_sum_grad_rank_2(device):
     rank = get_rank()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # rank 0: [1, 1], rank 1: [2, 2]
     source = torch.full((2,), fill_value=float(rank + 1), device=device, requires_grad=True)
@@ -127,9 +131,8 @@ def test_all_reduce_sum_grad_rank_2(run_distributed):
     run_distributed(_check_all_reduce_sum_grad_rank_2)
 
 
-def _check_all_reduce_mean_grad_rank_2():
+def _check_all_reduce_mean_grad_rank_2(device):
     rank = get_rank()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # rank 0: [1, 1], rank 1: [2, 2]
     source = torch.full((2,), fill_value=float(rank + 1), device=device, requires_grad=True)
@@ -148,9 +151,8 @@ def test_all_reduce_mean_grad_rank_2(run_distributed):
     run_distributed(_check_all_reduce_mean_grad_rank_2)
 
 
-def _check_all_gather_nograd_clipped_rank_2():
+def _check_all_gather_nograd_clipped_rank_2(device):
     rank = get_rank()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     # rank 0: [1, 1], rank 1: [2, 2] -> [1, 1, 2, 2]
     source = torch.full((2,), fill_value=float(rank + 1), device=device, requires_grad=True)
@@ -168,9 +170,8 @@ def test_all_gather_nograd_clipped_rank_2(run_distributed):
     run_distributed(_check_all_gather_nograd_clipped_rank_2)
 
 
-def _check_distributed_ops_generic(op, has_grad, is_gather):
+def _check_distributed_ops_generic(device, op, has_grad, is_gather):
     world_size = get_world_size()
-    device = "cuda" if torch.cuda.is_available() else "cpu"
 
     source = torch.randn(5, 6, device=device)
     source_clone = source.clone().requires_grad_(True)
