@@ -80,6 +80,10 @@ class CompositeModel(ModelBase):
 
     def _validate_submodels(self) -> None:
         """Validate that all submodels are of type Model."""
+        if not self.submodels:
+            raise ValueError("CompositeModel must have at least one submodel")
+        if len(self.submodels) == 1:
+            self.logger.warning("CompositeModel has only one submodel, consider using a regular Model instead")
         for name, submodel in self.submodels.items():
             if not isinstance(submodel, Model):
                 raise TypeError(f"Submodel {name} is not of type Model, but {type(submodel)}")
@@ -104,6 +108,8 @@ class CompositeModel(ModelBase):
     @property
     def device(self) -> torch.device:
         devices = [submodel.device for submodel in self.submodels.values() if submodel is not None]
+        if not devices:
+            raise RuntimeError("No submodels are set; cannot determine device")
         if not all(device == devices[0] for device in devices[1:]):
             raise RuntimeError("All submodels must be on the same device")
         return devices[0]

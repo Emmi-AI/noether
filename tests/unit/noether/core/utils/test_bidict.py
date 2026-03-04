@@ -47,11 +47,7 @@ def test_missing_keys():
 
 
 def test_update_existing_key():
-    """
-    Test updating the value for an existing key.
-    Note: Based on current implementation, the old value in the backward map is NOT removed, but the forward map
-    is updated.
-    """
+    """Test updating the value for an existing key cleans up stale backward mapping."""
     b = Bidict({"k": "v_old"})
 
     # Update k to point to v_new:
@@ -63,9 +59,25 @@ def test_update_existing_key():
     # Backward map should have the new mapping:
     assert b.get_key_by_value("v_new") == "k"
 
-    # CURRENT BEHAVIOR check: The old backward link remains orphan
-    # (v_old -> k) still exists because the code doesn't explicitly delete it.
-    assert b.get_key_by_value("v_old") == "k"
+    # Old backward link should be cleaned up:
+    with pytest.raises(KeyError):
+        b.get_key_by_value("v_old")
+
+
+def test_update_existing_value():
+    """Test that reassigning a value to a new key cleans up stale forward mapping."""
+    b = Bidict({"k_old": "v"})
+
+    # Reassign value "v" to a new key "k_new":
+    b.set("k_new", "v")
+
+    # Backward should point to the new key:
+    assert b.get_key_by_value("v") == "k_new"
+    assert b.get_value_by_key("k_new") == "v"
+
+    # Old forward link should be cleaned up:
+    with pytest.raises(KeyError):
+        b.get_value_by_key("k_old")
 
 
 def test_to_dictionaries_are_copies():

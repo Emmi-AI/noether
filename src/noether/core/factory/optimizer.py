@@ -46,6 +46,8 @@ class OptimizerFactory(Factory):
         )  # filter out all the kwargs of the wrapper
         if len(optimizer_config_dict) > 0:
             torch_optim_constructor = partial(torch_optimizer_kind, **optimizer_config_dict)
+        else:
+            torch_optim_constructor = torch_optimizer_kind  # type: ignore[assignment]
 
         return partial(
             OptimizerWrapper,

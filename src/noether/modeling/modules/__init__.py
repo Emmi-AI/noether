@@ -16,7 +16,6 @@ __all__ = [
     "PerceiverBlock",
     "TransformerBlock",
     "DeepPerceiverDecoder",
-    "MlpEncoder",
     "SupernodePooling",
     "ContinuousSincosEmbed",
     "LayerScale",
