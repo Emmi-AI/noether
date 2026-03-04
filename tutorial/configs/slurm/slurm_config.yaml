@@ -8,4 +8,4 @@ output: /home/%u/logs/shapenet_car/%x_%j.out
 nice: 0
 job_name: shapenet_experiment
 chdir: 
-source: .venv/bin/activate
+env_path: .venv/bin/activate

@@ -3,6 +3,7 @@
 """Submit SLURM jobs for training with config validation."""
 
 import logging
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,91 @@ from noether.training.cli import setup_hydra
 
 logger = logging.getLogger(__name__)
 
+_HELP_TEXT = """\
+noether-submit-job — validate a training config and submit it as a SLURM job
+
+USAGE
+  noether-submit-job --hp <config.yaml> [hydra overrides] [--dry-run]
+  noether-submit-job <config.yaml> [hydra overrides] [--dry-run]
+
+ARGUMENTS
+  <config.yaml>         Path to the Hydra training configuration file.
+                        Can be passed as the first positional argument or
+                        via the --hp flag.
+
+  overrides             Hydra-style key=value overrides applied on top of
+                        the config file before validation and submission.
+                        Examples:
+                          seed=42
+                          trainer.max_epochs=100
+                          +slurm.job_name=my_experiment
+                          tracker=disabled
+
+  --dry-run             Print the sbatch command that would be executed
+                        without actually submitting the job.
+
+  --help, -h            Show this help message and exit.
+
+DESCRIPTION
+  1. Loads and resolves the Hydra config (config file + overrides).
+  2. Validates it against the schema declared by config_schema_kind.
+  3. Builds an sbatch command from the [slurm] section of the config.
+  4. Submits:  sbatch <slurm-flags> --wrap="uv run noether-train --hp <config> [overrides]"
+
+  A [slurm] section is required in the config. Set env_path to source a
+  virtual environment inside the job (e.g. env_path: .venv/bin/activate).
+
+SLURM CONFIG (config.yaml → slurm:)
+  job_name        Job name shown in squeue (--job-name)
+  partition       Target partition, e.g. gpu  (--partition)
+  nodes           Number of nodes  (--nodes)
+  ntasks_per_node Tasks per node  (--ntasks-per-node)
+  cpus_per_task   CPUs per task  (--cpus-per-task)
+  gpus_per_node   GPUs per node, e.g. 4 or a100:4  (--gpus-per-node)
+  mem             Memory per node, e.g. 64G  (--mem)
+  time            Wall-clock limit, e.g. 12:00:00  (--time)
+  output          Stdout file path, supports %j %x %u  (--output)
+  error           Stderr file path  (--error)
+  chdir           Working directory inside the job  (--chdir)
+  env_path        Script to source before running, e.g. .venv/bin/activate
+
+EXAMPLES
+  # Submit with default config
+  noether-submit-job --hp configs/train_shapenet.yaml
+
+  # Override seed and disable tracker
+  noether-submit-job --hp configs/train_shapenet.yaml seed=1 tracker=disabled
+
+  # Preview the sbatch command without submitting
+  noether-submit-job --hp configs/train_shapenet.yaml --dry-run
+
+  # Override a SLURM field on the fly
+  noether-submit-job --hp configs/train_shapenet.yaml +slurm.time=02:00:00
+"""
+
+if "--help" in sys.argv or "-h" in sys.argv:
+    print(_HELP_TEXT)
+    sys.exit(0)
+
+# Strip --dry-run from sys.argv BEFORE setup_hydra() and Hydra see it —
+# Hydra errors on any unrecognised flags.
+_DRY_RUN: bool = "--dry-run" in sys.argv
+if _DRY_RUN:
+    sys.argv.remove("--dry-run")
+
+# Capture the config path from argv BEFORE setup_hydra() rewrites sys.argv.
+# setup_hydra() replaces --hp <path> with -cp <dir> -cn <name>, so parsing
+# must happen here at import time, not inside main().
+_RAW_CONFIG_PATH: str | None = None
+_i = 0
+while _i < len(sys.argv) - 1:
+    if sys.argv[_i] == "--hp":
+        _RAW_CONFIG_PATH = sys.argv[_i + 1]
+        break
+    _i += 1
+if _RAW_CONFIG_PATH is None and len(sys.argv) > 1 and sys.argv[1].endswith(".yaml"):
+    _RAW_CONFIG_PATH = sys.argv[1]
+
 setup_hydra()
 
 
@@ -31,7 +117,8 @@ def validate_config(config: DictConfig) -> ConfigSchema:
         The validated configuration schema
 
     Raises:
-        ValidationError: If the configuration is invalid
+        ValueError: If the configuration is missing required fields
+        RuntimeError: If the schema class cannot be loaded
     """
     config_dict = yaml.safe_load(OmegaConf.to_yaml(config, resolve=True))
 
@@ -40,26 +127,37 @@ def validate_config(config: DictConfig) -> ConfigSchema:
         raise ValueError("Configuration must specify 'config_schema_kind'")
 
     logger.info(f"Validating configuration with schema: {config_schema_kind}")
-    config_schema_class = class_constructor_from_class_path(config_schema_kind)
-    validated_config: ConfigSchema = config_schema_class(**config_dict)
-    logger.info("Configuration validated successfully")
+    try:
+        config_schema_class = class_constructor_from_class_path(config_schema_kind)
+    except Exception as e:
+        raise RuntimeError(f"Failed to load config schema class '{config_schema_kind}': {e}") from e
+
+    try:
+        validated_config: ConfigSchema = config_schema_class(**config_dict)
+        logger.info("Configuration validated successfully")
+    except Exception as e:
+        logger.error(f"Configuration validation failed: {e}")
+        raise
 
     return validated_config
 
 
 def _find_config_path() -> str:
-    """Extract the config file path from sys.argv."""
-    config_path = None
+    """Return the config file path, resolved to an absolute path.
+
+    Reads from the pre-captured _RAW_CONFIG_PATH (set before setup_hydra()
+    mutates sys.argv), or falls back to reconstructing from -cp/-cn.
+    """
+    if _RAW_CONFIG_PATH is not None:
+        return str(Path(_RAW_CONFIG_PATH).resolve())
+
+    # Fallback: reconstruct from -cp / -cn (post-setup_hydra argv)
     config_dir = None
     config_name = None
 
     i = 0
     while i < len(sys.argv):
         arg = sys.argv[i]
-        if arg == "--hp" and i + 1 < len(sys.argv):
-            config_path = sys.argv[i + 1]
-            i += 2
-            continue
         if arg == "-cp" and i + 1 < len(sys.argv):
             config_dir = sys.argv[i + 1]
             i += 2
@@ -70,16 +168,14 @@ def _find_config_path() -> str:
             continue
         i += 1
 
-    if not config_path and config_dir and config_name:
+    if config_dir and config_name:
         config_path = str(Path(config_dir) / config_name)
         if not config_path.endswith((".yaml", ".yml")):
             config_path += ".yaml"
+        return str(Path(config_path).resolve())
 
-    if not config_path:
-        logger.error(f"Error: Could not determine config path from arguments\nsys.argv: {sys.argv}")
-        sys.exit(1)
-
-    return config_path
+    logger.error(f"Error: Could not determine config path from arguments\nsys.argv: {sys.argv}")
+    sys.exit(1)
 
 
 def _collect_hydra_overrides() -> list[str]:
@@ -107,18 +203,19 @@ def _collect_hydra_overrides() -> list[str]:
 def main(config: DictConfig):
     """Main entry point for SLURM job submission.
 
-    Validates a Hydra config and submits a training job via ``srun``.
+    Validates a Hydra config and submits a training job via ``sbatch``.
 
     Example:
     .. code-block:: bash
 
        noether-submit-job --hp configs/train_shapenet.yaml +seed=1 tracker=disabled
+       noether-submit-job --hp configs/train_shapenet.yaml --dry-run
     """
 
     try:
         validated_config = validate_config(config)
     except Exception as e:
-        logger.info(f"Configuration validation failed: {e}")
+        logger.error(f"Configuration validation failed: {e}")
         sys.exit(1)
 
     if validated_config.slurm is None:
@@ -128,34 +225,28 @@ def main(config: DictConfig):
 
     slurm_config: SlurmConfig = validated_config.slurm
 
-    # Build the sbatch command
+    # Build the sbatch arguments from the SLURM config (chdir is included here)
     sbatch_args = slurm_config.to_srun_args()
 
     config_path = _find_config_path()
 
-    train_cmd = f"uv run noether-train --hp {config_path}"
+    train_cmd = f"uv run noether-train --hp {shlex.quote(config_path)}"
     hydra_overrides = _collect_hydra_overrides()
 
     if hydra_overrides:
-        # Replace single quotes with escaped single quotes (\') for shell compatibility
-        escaped_overrides = [o.replace("'", "'") for o in hydra_overrides]
-        train_cmd += " " + " ".join(escaped_overrides)
+        quoted_overrides = [shlex.quote(o) for o in hydra_overrides]
+        train_cmd += " " + " ".join(quoted_overrides)
 
-    # Build the wrapped command (runs inside the job)
-    wrap_cmd = train_cmd
-
-    cd_cmd = ""
     source_cmd = ""
-
-    if slurm_config.chdir:
-        logger.info(f"Changing directory to: {slurm_config.chdir}")
-        cd_cmd = f"cd {slurm_config.chdir};"
-
     if slurm_config.env_path:
         logger.info(f"Sourcing environment from: {slurm_config.env_path}")
-        source_cmd = f"source {slurm_config.env_path};"
+        source_cmd = f"source {shlex.quote(slurm_config.env_path)};"
 
-    full_cmd = cd_cmd + source_cmd + f'sbatch {sbatch_args} --wrap="{wrap_cmd}"'
+    full_cmd = source_cmd + f"sbatch {sbatch_args} --wrap={shlex.quote(train_cmd)}"
+
+    if _DRY_RUN:
+        print(f"[dry-run] Would execute:\n  {full_cmd}")
+        sys.exit(0)
 
     logger.info(f"Executing: {full_cmd}")
     result = subprocess.run(full_cmd, shell=True)
