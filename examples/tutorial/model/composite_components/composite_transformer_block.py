@@ -1,6 +1,5 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
 
 import torch
 import torch.nn as nn
@@ -22,7 +21,6 @@ class CompositeTransformerBlock(Model):
         update_counter: UpdateCounter | None = None,
         path_provider: PathProvider | None = None,
         data_container: DataContainer | None = None,
-        static_context: dict[str, Any] | None = None,
     ):
         """Composite Transformer Block Model.
 
@@ -41,7 +39,6 @@ class CompositeTransformerBlock(Model):
             update_counter=update_counter,
             path_provider=path_provider,
             data_container=data_container,
-            static_context=static_context,
         )
 
         self.blocks = nn.ModuleList(
