@@ -20,10 +20,16 @@ from .gather import (
     all_gather_grad,
     all_gather_nograd,
     all_gather_nograd_clipped,
+)
+from .reduce import (
     all_reduce_mean_grad,
     all_reduce_mean_nograd,
     all_reduce_sum_grad,
     all_reduce_sum_nograd,
+    reduce_max_grad,
+    reduce_max_nograd,
+    reduce_mean_grad,
+    reduce_mean_nograd,
 )
 from .run import (
     run,
@@ -57,10 +63,15 @@ __all__ = [
     "all_gather_grad",
     "all_gather_nograd",
     "all_gather_nograd_clipped",
+    # --- from reduce:
     "all_reduce_mean_grad",
     "all_reduce_mean_nograd",
     "all_reduce_sum_grad",
     "all_reduce_sum_nograd",
+    "reduce_max_grad",
+    "reduce_max_nograd",
+    "reduce_mean_grad",
+    "reduce_mean_nograd",
     # --- from run:
     "run",
     "run_managed",

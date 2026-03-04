@@ -5,8 +5,7 @@ from collections import defaultdict
 import torch
 
 from noether.core.callbacks.periodic import PeriodicCallback
-from noether.core.distributed import all_gather_nograd
-from noether.core.distributed.gather import reduce_max_nograd, reduce_mean_nograd
+from noether.core.distributed import all_gather_nograd, reduce_max_nograd, reduce_mean_nograd
 from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.logging import tensor_like_to_string
 
@@ -17,7 +16,7 @@ class TrainTimeCallback(PeriodicCallback):
     def __init__(self, callback_config: CallBackBaseConfig, **kwargs):
         super().__init__(callback_config=callback_config, **kwargs)
         self.train_times: dict[str, list[float]] = defaultdict(list)
-        self.total_train_times: dict[str, float] = {}
+        self.total_train_times: dict[str, torch.Tensor] = defaultdict(lambda: torch.tensor(0.0))
 
     def track_after_update_step(self, *, times: dict[str, float], **_) -> None:
         for k, v in times.items():
@@ -30,9 +29,7 @@ class TrainTimeCallback(PeriodicCallback):
             max_v = torch.max(arr) if len(arr) > 0 else torch.tensor(0.0)
 
             # accumulate total for after_training
-            if k not in self.total_train_times:
-                self.total_train_times[k] = 0.0
-            self.total_train_times[k] += float(torch.sum(arr))
+            self.total_train_times[k] += torch.sum(arr)
 
             # we only reduce to rank=0 because we only log and track at rank=0.
             mean_gathered = reduce_mean_nograd(mean)
