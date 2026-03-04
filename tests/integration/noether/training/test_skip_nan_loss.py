@@ -78,7 +78,7 @@ def test_skip_nan_loss_logic(mock_path_provider, mock_tracker, mock_data_contain
     # We mock grad_scaler since BaseTrainer initializes it
     trainer.grad_scaler = MagicMock()
 
-    trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=0)
+    trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
     assert trainer.skip_nan_loss_counter == 1
     assert trainer._skip_nan_step is False  # Reset at the end of _gradient_step
@@ -86,7 +86,7 @@ def test_skip_nan_loss_logic(mock_path_provider, mock_tracker, mock_data_contain
     model.optimizer_step.assert_not_called()
 
     # 2. Encounter second NaN loss: should increment counter to 2
-    trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=1)
+    trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=1)
 
     assert trainer.skip_nan_loss_counter == 2
     trainer.grad_scaler.scale(nan_loss).backward.assert_not_called()
@@ -94,11 +94,11 @@ def test_skip_nan_loss_logic(mock_path_provider, mock_tracker, mock_data_contain
 
     # 3. Encounter third NaN loss: should exceed skip_nan_loss_max_count=2 and raise error
     with pytest.raises(RuntimeError, match="encountered 2 nan losses in a row"):
-        trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=2)
+        trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=2)
 
     # 4. Recovery: Reset counter and encounter valid loss
     trainer.skip_nan_loss_counter = 1
-    trainer._gradient_step(valid_loss, model, accumulation_steps=1, iter_step=3)
+    trainer._gradient_step(valid_loss, model, accumulation_steps_total=1, accumulation_step=3)
 
     assert trainer.skip_nan_loss_counter == 0
     # Backward should have been called for valid_loss
@@ -133,7 +133,7 @@ def test_skip_nan_loss_disabled(mock_path_provider, mock_tracker, mock_data_cont
     nan_loss.requires_grad = True  # Ensure it requires grad to test backward call
 
     # Should call backward even if it's NaN because skipping is disabled
-    trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=0)
+    trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
     assert trainer.skip_nan_loss_counter == 0
     model.optimizer_step.assert_called()
@@ -164,7 +164,7 @@ def test_skip_nan_loss_no_nan(mock_path_provider, mock_tracker, mock_data_contai
     nan_loss.requires_grad = True  # Ensure it requires grad to test backward call
 
     # Should call backward even if it's NaN because skipping is disabled
-    trainer._gradient_step(nan_loss, model, accumulation_steps=1, iter_step=0)
+    trainer._gradient_step(nan_loss, model, accumulation_steps_total=1, accumulation_step=0)
 
     assert trainer.skip_nan_loss_counter == 0
     model.optimizer_step.assert_called()
