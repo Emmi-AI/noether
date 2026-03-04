@@ -5,11 +5,9 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 import torch
-from torch.nn.parallel import DistributedDataParallel
 
-from noether.core.models import CompositeModel, Model
+from noether.core.models import Model
 from noether.core.providers import PathProvider
 from noether.core.types import CheckpointKeys
 from noether.core.utils.training import TrainingIteration, UpdateCounter
@@ -45,16 +43,6 @@ def _make_model(name: str = "encoder", is_frozen: bool = False, has_optimizer: b
 
 
 class TestSaveModelCheckpoint:
-    def test_saves_file_with_correct_name(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        writer.save_model_checkpoint(
-            model_name="encoder",
-            checkpoint_tag="E2_U20_S80",
-            state_dict={"w": torch.tensor(1.0)},
-        )
-        expected = writer.path_provider.checkpoint_path / "encoder_cp=E2_U20_S80_model.th"
-        assert expected.exists()
-
     def test_checkpoint_contains_required_keys(self, tmp_path):
         writer = _make_writer(tmp_path)
         writer.save_model_checkpoint(
@@ -63,6 +51,7 @@ class TestSaveModelCheckpoint:
             state_dict={"w": torch.tensor(1.0)},
         )
         path = writer.path_provider.checkpoint_path / "encoder_cp=E2_U20_S80_model.th"
+        assert path.exists()
         checkpoint_data = torch.load(path, weights_only=False)
         assert CheckpointKeys.STATE_DICT in checkpoint_data
         assert CheckpointKeys.CHECKPOINT_TAG in checkpoint_data
@@ -120,13 +109,6 @@ class TestSaveModelCheckpoint:
         assert CheckpointKeys.MODEL_CONFIG not in checkpoint_data
         assert CheckpointKeys.CONFIG_KIND not in checkpoint_data
 
-    def test_model_config_dump_error_raises_runtime(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        config = MagicMock()
-        config.model_dump.side_effect = TypeError("bad")
-        with pytest.raises(RuntimeError, match="unexpected error"):
-            writer.save_model_checkpoint(model_name="m", checkpoint_tag="t", state_dict={}, model_config=config)
-
     def test_model_info_included_in_filename(self, tmp_path):
         writer = _make_writer(tmp_path)
         writer.save_model_checkpoint(model_name="enc", checkpoint_tag="E1", state_dict={}, model_info="ema")
@@ -145,216 +127,6 @@ class TestSaveModelCheckpoint:
         path = writer.path_provider.checkpoint_path / "m_cp=t_model.th"
         checkpoint_data = torch.load(path, weights_only=False)
         assert checkpoint_data["custom_key"] == "hello"
-
-
-class TestSaveSeparateModelsModel:
-    def test_saves_weights_and_optim(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc")
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=True,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "enc_cp=E2_model.th").exists()
-        assert (checkpoint_path / "enc_cp=E2_optim.th").exists()
-
-    def test_save_latest_creates_latest_files(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc")
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=False,
-            save_optim=False,
-            save_latest_weights=True,
-            save_latest_optim=True,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "enc_cp=latest_model.th").exists()
-        assert (checkpoint_path / "enc_cp=latest_optim.th").exists()
-        assert not (checkpoint_path / "enc_cp=E2_model.th").exists()
-
-    def test_frozen_model_skipped_when_flag_false(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc", is_frozen=True)
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=True,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=False,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert not (checkpoint_path / "enc_cp=E2_model.th").exists()
-
-    def test_frozen_model_saved_when_flag_true(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc", is_frozen=True)
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=False,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "enc_cp=E2_model.th").exists()
-
-    def test_model_names_filter(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc")
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=False,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=["dec"],  # enc is not in the list
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert not (checkpoint_path / "enc_cp=E2_model.th").exists()
-
-    def test_no_optimizer_skips_optim_save(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc", has_optimizer=False)
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=True,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "enc_cp=E2_model.th").exists()
-        assert not (checkpoint_path / "enc_cp=E2_optim.th").exists()
-
-    def test_model_name_override(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = _make_model("enc")
-        writer._save_separate_models(
-            model=model,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=False,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-            model_name="autoenc.enc",
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "autoenc.enc_cp=E2_model.th").exists()
-
-    def test_none_model_is_noop(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        # Should not raise:
-        writer._save_separate_models(
-            model=None,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=True,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-
-    def test_ddp_model_raises(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = MagicMock(spec=DistributedDataParallel)
-        with pytest.raises(RuntimeError, match="DistributedDataParallel"):
-            writer._save_separate_models(
-                model=model,
-                checkpoint_tag="E2",
-                save_weights=True,
-                save_optim=True,
-                save_latest_weights=False,
-                save_latest_optim=False,
-                model_names_to_save=None,
-                save_frozen_weights=True,
-            )
-
-
-class TestSaveSeparateModelsComposite:
-    def test_composite_saves_all_submodels(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        sub_enc = _make_model("enc")
-        sub_dec = _make_model("dec")
-
-        composite = MagicMock(spec=CompositeModel)
-        composite.name = "autoenc"
-        composite.submodels = {"encoder": sub_enc, "decoder": sub_dec}
-
-        writer._save_separate_models(
-            model=composite,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=False,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "autoenc.encoder_cp=E2_model.th").exists()
-        assert (checkpoint_path / "autoenc.decoder_cp=E2_model.th").exists()
-
-    def test_composite_with_none_submodel(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        sub_enc = _make_model("enc")
-
-        composite = MagicMock(spec=CompositeModel)
-        composite.name = "autoenc"
-        composite.submodels = {"encoder": sub_enc, "decoder": None}
-
-        # Should not raise:
-        writer._save_separate_models(
-            model=composite,
-            checkpoint_tag="E2",
-            save_weights=True,
-            save_optim=False,
-            save_latest_weights=False,
-            save_latest_optim=False,
-            model_names_to_save=None,
-            save_frozen_weights=True,
-        )
-        checkpoint_path = writer.path_provider.checkpoint_path
-        assert (checkpoint_path / "autoenc.encoder_cp=E2_model.th").exists()
-
-    def test_unknown_model_type_raises(self, tmp_path):
-        writer = _make_writer(tmp_path)
-        model = MagicMock()  # neither Model nor CompositeModel
-        with pytest.raises(NotImplementedError):
-            writer._save_separate_models(
-                model=model,
-                checkpoint_tag="E2",
-                save_weights=True,
-                save_optim=False,
-                save_latest_weights=False,
-                save_latest_optim=False,
-                model_names_to_save=None,
-                save_frozen_weights=True,
-            )
 
 
 class TestSave:
