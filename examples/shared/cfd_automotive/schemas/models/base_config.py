@@ -7,13 +7,13 @@ from pydantic import BaseModel, Field
 from noether.core.schemas.dataset import AeroDataSpecs
 
 
-class TutorialBaseModelConfig(BaseModel):
+class AeroAutomotivCFDBaseModelConfig(BaseModel):
     name: str = Field(...)
     """Name of the model, also used as identifier when saving/loading checkpoints and finding the correct model schema."""
     hidden_dim: int = Field(...)
     """Hidden dimension of the model."""
     kind: str = Field(...)
-    """Kind of model to use, i.e. class path (tutorials.models.<model_class>)."""
+    """Kind of model to use, i.e. class path (examples.tutorial.models.<model_class>)."""
     position_projection: Literal["linear", "sincos"] = "sincos"
     """String to indicate the type of position projection to use. Can be "sincos" or "linear". Defaults to "sincos"."""
     use_output_projection: bool = False

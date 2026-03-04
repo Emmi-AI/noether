@@ -2,10 +2,9 @@
 
 from typing import Literal
 
+from examples.shared.cfd_automotive.schemas.models.base_config import AeroAutomotivCFDBaseModelConfig
 from noether.core.schemas.models import UPTConfig
 
-from .base_config import TutorialBaseModelConfig
 
-
-class UPTConfig(TutorialBaseModelConfig, UPTConfig):
+class UPTConfig(AeroAutomotivCFDBaseModelConfig, UPTConfig):
     name: Literal["upt"] = "upt"

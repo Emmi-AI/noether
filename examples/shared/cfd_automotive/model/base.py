@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from examples.shared.cfd_automotive.schemas.models.base_config import TutorialBaseModelConfig
+from examples.shared.cfd_automotive.schemas.models.base_config import AeroAutomotivCFDBaseModelConfig
 from noether.core.models import Model
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, LinearProjectionConfig
 from noether.core.schemas.modules.mlp import MLPConfig
@@ -13,7 +13,7 @@ from noether.modeling.modules.mlp import MLP
 
 
 class BaseModel(Model):
-    """Base class for all model we use in this tutorial.
+    """Base class for all Aero Automotive CFD models.
 
     Args:
         Model: Base class for single models.
@@ -21,7 +21,7 @@ class BaseModel(Model):
 
     def __init__(
         self,
-        model_config: TutorialBaseModelConfig,
+        model_config: AeroAutomotivCFDBaseModelConfig,
         **kwargs,
     ):
         """

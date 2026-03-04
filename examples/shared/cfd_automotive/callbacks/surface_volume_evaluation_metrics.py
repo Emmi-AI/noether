@@ -4,7 +4,7 @@ from collections import defaultdict
 
 import torch
 
-from examples.shared.cfd_automotive.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
+from examples.tutorial.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 
 # Constants

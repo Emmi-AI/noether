@@ -2,10 +2,9 @@
 
 from typing import Literal
 
+from examples.shared.cfd_automotive.schemas.models.base_config import AeroAutomotivCFDBaseModelConfig
 from noether.core.schemas.models import TransformerConfig
 
-from .base_config import TutorialBaseModelConfig
 
-
-class TransformerConfig(TutorialBaseModelConfig, TransformerConfig):
+class TransformerConfig(AeroAutomotivCFDBaseModelConfig, TransformerConfig):
     name: Literal["transformer"] = "transformer"

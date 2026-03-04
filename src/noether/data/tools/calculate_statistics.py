@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from noether.core.factory.dataset import DatasetFactory
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.schemas.dataset import StandardDatasetConfig
 from noether.data.base.dataset import Dataset
 from noether.data.base.wrappers import PropertySubsetWrapper
 from noether.data.stats import RunningMoments
@@ -251,7 +251,7 @@ def calculate_dataset_statistics(
     """
     try:
         # Instantiate dataset
-        config = DatasetBaseConfig(kind=dataset_kind, **dataset_constructor_args)
+        config = StandardDatasetConfig(kind=dataset_kind, **dataset_constructor_args)
         dataset: Dataset | PropertySubsetWrapper = DatasetFactory().instantiate(config)
         dataset.compute_statistics = True  # type: ignore[union-attr]
 

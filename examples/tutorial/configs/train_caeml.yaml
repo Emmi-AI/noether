@@ -1,7 +1,7 @@
 # @package _global_
 
 # Define key values here that are used multiple times in the config files.
-config_schema_kind: examples.shared.cfd_automotive.schemas.config_schema.TutorialConfigSchema
+config_schema_kind: examples.shared.cfd_automotive.schemas.config_schema.AeroAutomotiveCFDConfigSchema
 excluded_properties: 
   - volume_sdf
   - volume_normals

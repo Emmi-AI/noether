@@ -2,7 +2,7 @@
 import torch
 
 from examples.shared.cfd_automotive.model.base import BaseModel
-from examples.shared.cfd_automotive.schemas.models.transformer_config import TransformerConfig
+from examples.tutorial.schemas.models.transformer_config import TransformerConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
 from noether.modeling.models import Transformer as TransformerBackbone
 from noether.modeling.modules.layers import ContinuousSincosEmbed, RopeFrequency

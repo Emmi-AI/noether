@@ -4,8 +4,8 @@ from typing import Literal
 
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 
-from .base_config import TutorialBaseModelConfig
+from .base_config import AeroAutomotivCFDBaseModelConfig
 
 
-class ABUPTConfig(TutorialBaseModelConfig, AnchorBranchedUPTConfig):
+class ABUPTConfig(AeroAutomotivCFDBaseModelConfig, AnchorBranchedUPTConfig):
     name: Literal["ab_upt"] = "ab_upt"

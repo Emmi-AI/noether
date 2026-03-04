@@ -2,11 +2,11 @@
 
 import torch
 
-from examples.shared.cfd_automotive.schemas.models.composite_transformer_config import (
+from examples.tutorial.model.composite_components import CompositeTransformerBlock
+from examples.tutorial.schemas.models.composite_transformer_config import (
     CompositeTransformerBlockConfig,
     CompositeTransformerConfig,
 )
-from examples.tutorial.model.composite_components import CompositeTransformerBlock
 from noether.core.models import CompositeModel, Model
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig

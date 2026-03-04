@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from examples.shared.cfd_automotive.model.base import BaseModel
-from examples.shared.cfd_automotive.schemas.models.transolver_config import TransolverConfig
+from examples.tutorial.schemas.models.transolver_config import TransolverConfig
 from noether.modeling.models import Transformer as TransformerBackbone
 
 

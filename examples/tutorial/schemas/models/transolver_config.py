@@ -2,12 +2,11 @@
 
 from typing import Literal
 
+from examples.shared.cfd_automotive.schemas.models.base_config import AeroAutomotivCFDBaseModelConfig
 from noether.core.schemas.models import TransolverConfig
 
-from .base_config import TutorialBaseModelConfig
 
-
-class TransolverConfig(TutorialBaseModelConfig, TransolverConfig):
+class TransolverConfig(AeroAutomotivCFDBaseModelConfig, TransolverConfig):
     """expansion factor for the MLP."""
 
     name: Literal["transolver"] = "transolver"

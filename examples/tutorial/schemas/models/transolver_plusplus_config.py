@@ -2,10 +2,9 @@
 
 from typing import Literal
 
+from examples.shared.cfd_automotive.schemas.models.base_config import AeroAutomotivCFDBaseModelConfig
 from noether.core.schemas.models import TransolverPlusPlusConfig
 
-from .base_config import TutorialBaseModelConfig
 
-
-class TransolverPlusPlusConfig(TutorialBaseModelConfig, TransolverPlusPlusConfig):
+class TransolverPlusPlusConfig(AeroAutomotivCFDBaseModelConfig, TransolverPlusPlusConfig):
     name: Literal["transolver_plusplus"] = "transolver_plusplus"

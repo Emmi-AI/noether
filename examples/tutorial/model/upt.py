@@ -3,7 +3,7 @@
 import torch
 
 from examples.shared.cfd_automotive.model.base import BaseModel
-from examples.shared.cfd_automotive.schemas.models import UPTConfig
+from examples.tutorial.schemas.models.upt_config import UPTConfig
 from noether.modeling.models import UPT as UPTBackbone
 
 

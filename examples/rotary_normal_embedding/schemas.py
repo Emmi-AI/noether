@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from examples.shared.cfd_automotive.schemas.config_schema import TutorialConfigSchema
+from examples.shared.cfd_automotive.schemas.config_schema import AeroAutomotiveCFDConfigSchema
 from examples.shared.cfd_automotive.schemas.models.ab_upt_config import ABUPTConfig
 
 
@@ -44,6 +44,6 @@ class AnchorBranchedUPTConfig(ABUPTConfig):
     position+normal frequencies."""
 
 
-class RoNEConfigSchema(TutorialConfigSchema):
+class RoNEConfigSchema(AeroAutomotiveCFDConfigSchema):
     # Override the model config with our custom AnchorBranchedUPTConfig, which includes the new RoNE parameters.
     model: AnchorBranchedUPTConfig = Field(..., discriminator="name")

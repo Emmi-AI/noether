@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-from examples.shared.cfd_automotive.schemas.models.composite_transformer_config import CompositeTransformerBlockConfig
+from examples.tutorial.schemas.models.composite_transformer_config import CompositeTransformerBlockConfig
 from noether.core.models import Model
 from noether.core.providers import PathProvider
 from noether.core.schemas.modules.layers import LinearProjectionConfig

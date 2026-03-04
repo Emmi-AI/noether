@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 import torch
+from examples.shared.cfd_automotive.schemas.models.upt_config import UPTConfig
 
 from examples.shared.cfd_automotive.callbacks.surface_volume_evaluation_metrics import (
     SurfaceVolumeEvaluationMetricsCallbackConfig,
 )
-from examples.shared.cfd_automotive.schemas.models.upt_config import UPTConfig
 from examples.shared.cfd_automotive.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfig
 from examples.shared.cfd_automotive.schemas.trainers.automotive_aerodynamics_trainer_config import (
     AutomotiveAerodynamicsCfdTrainerConfig,

@@ -3,7 +3,7 @@
 # Define key values here that are used multiple times in the config files.
 dataset_root: <path to your shapenet dataset root>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
-config_schema_kind: examples.shared.cfd_automotive.schemas.config_schema.TutorialConfigSchema
+config_schema_kind: examples.shared.cfd_automotive.schemas.config_schema.AeroAutomotiveCFDConfigSchema
 excluded_properties: 
   - surface_friction
   - volume_pressure
