@@ -351,19 +351,19 @@ class BaseTrainer:
         max_batch_size = int(self.config.max_batch_size / world_size)
         self.logger.info(f"Using provided max_batch_size {self.config.max_batch_size} ({max_batch_size} per device)")
 
-        # calculate batch_size and accumulation_steps
+        # calculate batch_size and accumulation_steps_total
         if effective_batch_size_per_device <= max_batch_size:
             # fits into memory
             batch_size = effective_batch_size_per_device
-            accumulation_steps = 1
+            accumulation_steps_total = 1
         else:
             # multiple accumulation steps
             if not effective_batch_size_per_device % max_batch_size == 0:
                 raise ValueError("effective_batch_size_per_device needs to be multiple of max_batch_size")
-            accumulation_steps = int(effective_batch_size_per_device / max_batch_size)
+            accumulation_steps_total = int(effective_batch_size_per_device / max_batch_size)
 
-            batch_size = int(effective_batch_size_per_device / accumulation_steps)
-        return batch_size, accumulation_steps
+            batch_size = int(effective_batch_size_per_device / accumulation_steps_total)
+        return batch_size, accumulation_steps_total
 
     def state_dict(self) -> dict[str, Any]:
         """Get the state dict of the trainer."""
@@ -587,7 +587,7 @@ class BaseTrainer:
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device)
 
-        batch_size, accumulation_steps, train_batches_per_epoch = self._prepare_batch_size()
+        batch_size, accumulation_steps_total, train_batches_per_epoch = self._prepare_batch_size()
 
         data_loader = self.get_data_loader(iterator_callbacks=iterator_callbacks, batch_size=batch_size)
         dist_model.eval()
@@ -598,7 +598,7 @@ class BaseTrainer:
             model=model,
             dist_model=dist_model,
             batch_size=batch_size,
-            accumulation_steps=accumulation_steps,
+            accumulation_steps_total=accumulation_steps_total,
             data_loader=data_loader,
             train_batches_per_epoch=train_batches_per_epoch,
             periodic_callbacks=[
@@ -617,7 +617,7 @@ class BaseTrainer:
         model: ModelBase,
         dist_model: torch.nn.Module,
         batch_size: int,
-        accumulation_steps: int,
+        accumulation_steps_total: int,
         data_loader: torch.utils.data.DataLoader,
         train_batches_per_epoch: int,
         periodic_callbacks: list[PeriodicCallback],
@@ -638,7 +638,7 @@ class BaseTrainer:
                     model=model,
                     dist_model=dist_model,
                     batch_size=batch_size,
-                    accumulation_steps=accumulation_steps,
+                    accumulation_steps_total=accumulation_steps_total,
                     data_iter=data_iter,
                     train_batches_per_epoch=train_batches_per_epoch,
                     periodic_callbacks=periodic_callbacks,
@@ -722,13 +722,13 @@ class BaseTrainer:
         model: ModelBase,
         dist_model: torch.nn.Module,
         batch_size: int,
-        accumulation_steps: int,
+        accumulation_steps_total: int,
         data_iter: Iterator,
         train_batches_per_epoch: int,
         periodic_callbacks: list[PeriodicCallback],
     ) -> bool:
         """Run a single epoch. Returns True if training should stop."""
-        iter_step = -1
+        accumulation_step = -1
         times: dict[str, float] = defaultdict(float)
         # Collects forward/backward Stopwatches from each accumulation step;
         # elapsed_seconds on each resolves GPU events lazily.
@@ -736,21 +736,21 @@ class BaseTrainer:
 
         while True:
             # check end of epoch
-            remaining_batches = train_batches_per_epoch - (iter_step + 1)
-            if remaining_batches < accumulation_steps:
+            remaining_batches = train_batches_per_epoch - (accumulation_step + 1)
+            if remaining_batches < accumulation_steps_total:
                 # InterleavedSampler already have the next batches preloaded -> skip them
                 for _ in range(remaining_batches):
                     _ = next(data_iter)
                 break
 
-            is_last_update_in_epoch = remaining_batches - accumulation_steps < accumulation_steps
+            is_last_update_in_epoch = remaining_batches - accumulation_steps_total < accumulation_steps_total
 
             # Run accumulation steps
-            for _ in range(accumulation_steps):
+            for _ in range(accumulation_steps_total):
                 with Stopwatch() as sw:
                     batch = next(data_iter)
-                iter_step += 1
-                if iter_step % accumulation_steps == 0:
+                accumulation_step += 1
+                if accumulation_step % accumulation_steps_total == 0:
                     times.clear()
                     pending_times_dicts.clear()
                     model.optimizer_schedule_step()
@@ -766,7 +766,9 @@ class BaseTrainer:
                     batch=batch,
                     dist_model=dist_model,
                     model=model,
-                    accumulation_steps=accumulation_steps,
+                    accumulation_steps_total=accumulation_steps_total,
+                    accumulation_step=accumulation_step,
+                    retain_graph=False,
                 )
                 pending_times_dicts.append(times_dict)
 
@@ -777,8 +779,8 @@ class BaseTrainer:
                             batch=batch,
                             losses=losses,
                             update_outputs=additional_outputs,
-                            accumulation_steps=accumulation_steps,
-                            accumulation_step=iter_step,
+                            accumulation_steps=accumulation_steps_total,
+                            accumulation_step=accumulation_step,
                         )
                 additional_outputs = None
                 batch = None
@@ -816,7 +818,7 @@ class BaseTrainer:
 
             # Check end of training
             if self.update_counter.is_finished:
-                self._skip_remaining_batches(data_iter, remaining_batches, accumulation_steps, batch_size)
+                self._skip_remaining_batches(data_iter, remaining_batches, accumulation_steps_total, batch_size)
 
         return self._handle_end_of_epoch(
             model=model,
@@ -827,7 +829,7 @@ class BaseTrainer:
         )
 
     def _skip_remaining_batches(
-        self, data_iter, remaining_batches: int, accumulation_steps: int, batch_size: int
+        self, data_iter, remaining_batches: int, accumulation_steps_total: int, batch_size: int
     ) -> None:
         """Skip remaining preloaded batches after training ends."""
         if (
@@ -836,7 +838,7 @@ class BaseTrainer:
             and hasattr(data_iter.batch_sampler.sampler, "epochs")
             and data_iter.batch_sampler.sampler.epochs is not None
         ):
-            for _ in range(remaining_batches - accumulation_steps):
+            for _ in range(remaining_batches - accumulation_steps_total):
                 _ = next(data_iter)
 
         if (
@@ -846,7 +848,7 @@ class BaseTrainer:
             and data_iter.batch_sampler.sampler.samples is not None
         ):
             total_batches = int(data_iter.batch_sampler.sampler.samples / batch_size)
-            for _ in range(total_batches % accumulation_steps):
+            for _ in range(total_batches % accumulation_steps_total):
                 _ = next(data_iter)
 
     def _handle_end_of_epoch(
@@ -877,10 +879,10 @@ class BaseTrainer:
         self,
         batch: dict[str, Tensor],
         dist_model: torch.nn.Module,
-        model: ModelBase | None = None,
-        accumulation_steps: int = 1,
-        iter_step: int = 0,
-        **kwargs,
+        model: ModelBase,
+        accumulation_steps_total: int,
+        accumulation_step: int,
+        retain_graph: bool = False,
     ) -> tuple[dict[str, Tensor], dict[str, Tensor] | None, dict[str, Stopwatch]]:
         """Perform forward and backward pass."""
 
@@ -898,11 +900,10 @@ class BaseTrainer:
             self._gradient_step(
                 total_loss=trainer_result.total_loss,
                 model=model if model is not None else dist_model.model,  # type: ignore[arg-type]
-                accumulation_steps=accumulation_steps,
-                iter_step=iter_step,
-                **kwargs,
+                accumulation_steps_total=accumulation_steps_total,
+                accumulation_step=accumulation_step,
+                retain_graph=retain_graph,
             )
-
         all_losses = dict(total=trainer_result.total_loss.detach())
         if trainer_result.losses_to_log is not None:
             all_losses.update({k: v.detach() for k, v in trainer_result.losses_to_log.items()})
@@ -912,14 +913,14 @@ class BaseTrainer:
         self,
         total_loss: Tensor,
         model: ModelBase,
-        accumulation_steps: int,
-        iter_step: int,
+        accumulation_steps_total: int,
+        accumulation_step: int,
         retain_graph: bool = False,
     ) -> None:
         if model.is_frozen:
             return
 
-        total_loss = total_loss / accumulation_steps
+        total_loss = total_loss / accumulation_steps_total
 
         if self.config.skip_nan_loss:
             reduced_loss = all_gather_nograd(total_loss)
@@ -940,8 +941,8 @@ class BaseTrainer:
             self.grad_scaler.scale(total_loss).backward(retain_graph=retain_graph)
             self._warn_unused_params(model)
 
-        if (iter_step + 1) % accumulation_steps == 0:
-            # only take optimizer step every `accumulation_steps` steps
+        if (accumulation_step + 1) % accumulation_steps_total == 0:
+            # only take optimizer step every `accumulation_steps_total` steps
 
             if not self._skip_nan_step:
                 # skip entire step if all accumulation steps were skipped
@@ -966,23 +967,23 @@ class BaseTrainer:
         self._has_logged_unused_params = True
 
     def _prepare_batch_size(self) -> tuple[int, int, int]:
-        batch_size, accumulation_steps = self._calculate_batch_size_and_accumulation_steps()
-        if accumulation_steps > 1 and self.end_checkpoint.update is not None:
+        batch_size, accumulation_steps_total = self._calculate_batch_size_and_accumulation_steps()
+        if accumulation_steps_total > 1 and self.end_checkpoint.update is not None:
             raise NotImplementedError(
                 "InterleavedSampler counts every batch as update "
                 "-> accumulation steps not supported with update-based end_checkpoint"
             )
-        # set accumulation steps in model (e.g. for AsyncBatchNorm it is initialized with accumulation_steps=1
-        # but needs to be updated once the actual accumulation_steps are known)
+        # set accumulation steps in model (e.g. for AsyncBatchNorm it is initialized with accumulation_steps_total=1
+        # but needs to be updated once the actual accumulation_steps_total are known)
         train_dataset = self.data_container.get_dataset("train")  # mode is not needed because only size is relevant
-        train_batches_per_epoch = int(len(train_dataset) / self.config.effective_batch_size * accumulation_steps)
+        train_batches_per_epoch = int(len(train_dataset) / self.config.effective_batch_size * accumulation_steps_total)
         self.logger.info(
-            f"Calculated local batch_size: {batch_size}, accumulation_steps: {accumulation_steps} "
+            f"Calculated local batch_size: {batch_size}, accumulation_steps_total: {accumulation_steps_total} "
             f"(effective_batch_size={self.config.effective_batch_size}), "
             f"train_batches per epoch: {train_batches_per_epoch} "
             f"(world_size={get_world_size()})"
         )
-        return batch_size, accumulation_steps, train_batches_per_epoch
+        return batch_size, accumulation_steps_total, train_batches_per_epoch
 
     @torch.no_grad()
     def call_before_training(self, callbacks: list[CallbackBase]) -> None:
