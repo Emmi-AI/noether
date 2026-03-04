@@ -163,7 +163,7 @@ def tensor_like_to_string(tensor_or_list: torch.Tensor | list[Any]) -> str:
         The string representation of the tensor or list.
     """
     if isinstance(tensor_or_list, torch.Tensor):
-        tensor_data = tensor_or_list.numpy()
+        tensor_data = tensor_or_list.cpu().numpy()
     elif isinstance(tensor_or_list, list):
         tensor_data = np.array(tensor_or_list)
     else:
