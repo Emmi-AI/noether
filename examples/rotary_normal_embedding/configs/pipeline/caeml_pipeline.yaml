@@ -1,0 +1,8 @@
+kind: examples.rotary_normal_embedding.pipeline.AeroMultistagePipeline
+num_surface_points: 16384 
+num_volume_points: ${pipeline.num_surface_points} # use same number of volume points as surface points 
+num_surface_queries: 0
+num_volume_queries: 0
+use_physics_features: ${trainer.use_physics_features}
+dataset_statistics: ${dataset_statistics}
+data_specs: ${data_specs}

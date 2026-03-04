@@ -10,4 +10,5 @@ CAEML_FILEMAP = FileMap(
     volume_pressure="volume_cell_totalpcoeff.pt",
     volume_velocity="volume_cell_velocity.pt",
     volume_vorticity="volume_cell_vorticity.pt",
+    surface_normals="surface_normal_vtp.pt",
 )

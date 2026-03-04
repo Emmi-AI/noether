@@ -1,0 +1,19 @@
+# @package _global_
+defaults:
+  - override /model: ab_upt  
+  - override /optimizer: lion
+
+name: shapenet-car-ab-upt
+
+model:
+  supernode_pooling_config:
+    radius: 9
+   
+pipeline:
+    num_geometry_points: 3586
+    num_geometry_supernodes: 3586
+    num_surface_anchor_points: 3586
+    num_volume_anchor_points: 4096
+
+trainer:
+  precision: float16
