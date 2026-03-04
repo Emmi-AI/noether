@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import os
+import sys
 from functools import partial
 
 import pytest
@@ -18,8 +19,10 @@ from noether.core.distributed import (
     get_world_size,
 )
 
+_WORLD_SIZE = 2
 
-def _dist_worker(rank, world_size, fn, args):
+
+def _dist_worker_loop(rank, world_size, task_queue, result_queue):
     os.environ["MASTER_ADDR"] = "127.0.0.1"
     os.environ["MASTER_PORT"] = "29500"
 
@@ -31,25 +34,53 @@ def _dist_worker(rank, world_size, fn, args):
 
     dist.init_process_group(backend=backend, init_method="env://", world_size=world_size, rank=rank)
     try:
-        fn(*args)
+        while True:
+            item = task_queue.get()
+            if item is None:
+                break
+            fn, args = item
+            try:
+                fn(*args)
+                result_queue.put(None)
+            except Exception as e:
+                result_queue.put(e)
     finally:
         dist.destroy_process_group()
 
 
-@pytest.fixture
+@pytest.fixture(scope="module")
 def run_distributed():
     # skip if less than 2 GPUs are available for NCCL backend
-    if torch.cuda.is_available() and torch.cuda.device_count() < 2:
+    if torch.cuda.is_available() and torch.cuda.device_count() < _WORLD_SIZE:
         pytest.skip("Distributed tests require at least 2 GPUs for NCCL backend")
 
-    def _run(fn, world_size=2, args=()):
-        # add cwd to path so that the worker can import the test module
-        import sys
+    sys.path.append(os.getcwd())
 
-        sys.path.append(os.getcwd())
-        mp.spawn(_dist_worker, args=(world_size, fn, args), nprocs=world_size)
+    ctx = mp.get_context("spawn")
+    task_queues = [ctx.Queue() for _ in range(_WORLD_SIZE)]
+    result_queue = ctx.Queue()
 
-    return _run
+    processes = [
+        ctx.Process(target=_dist_worker_loop, args=(rank, _WORLD_SIZE, task_queues[rank], result_queue))
+        for rank in range(_WORLD_SIZE)
+    ]
+    for p in processes:
+        p.start()
+
+    def _run(fn, args=()):
+        for q in task_queues:
+            q.put((fn, args))
+        errors = [result_queue.get() for _ in range(_WORLD_SIZE)]
+        errors = [e for e in errors if e is not None]
+        if errors:
+            raise errors[0]
+
+    yield _run
+
+    for q in task_queues:
+        q.put(None)
+    for p in processes:
+        p.join()
 
 
 def _check_all_gather_grad_rank_2():
@@ -72,7 +103,7 @@ def _check_all_gather_grad_rank_2():
 
 
 def test_all_gather_grad_rank_2(run_distributed):
-    run_distributed(_check_all_gather_grad_rank_2, world_size=2)
+    run_distributed(_check_all_gather_grad_rank_2)
 
 
 def _check_all_reduce_sum_grad_rank_2():
@@ -93,7 +124,7 @@ def _check_all_reduce_sum_grad_rank_2():
 
 
 def test_all_reduce_sum_grad_rank_2(run_distributed):
-    run_distributed(_check_all_reduce_sum_grad_rank_2, world_size=2)
+    run_distributed(_check_all_reduce_sum_grad_rank_2)
 
 
 def _check_all_reduce_mean_grad_rank_2():
@@ -114,7 +145,7 @@ def _check_all_reduce_mean_grad_rank_2():
 
 
 def test_all_reduce_mean_grad_rank_2(run_distributed):
-    run_distributed(_check_all_reduce_mean_grad_rank_2, world_size=2)
+    run_distributed(_check_all_reduce_mean_grad_rank_2)
 
 
 def _check_all_gather_nograd_clipped_rank_2():
@@ -134,7 +165,7 @@ def _check_all_gather_nograd_clipped_rank_2():
 
 
 def test_all_gather_nograd_clipped_rank_2(run_distributed):
-    run_distributed(_check_all_gather_nograd_clipped_rank_2, world_size=2)
+    run_distributed(_check_all_gather_nograd_clipped_rank_2)
 
 
 def _check_distributed_ops_generic(op, has_grad, is_gather):
@@ -188,4 +219,4 @@ def _check_distributed_ops_generic(op, has_grad, is_gather):
     ],
 )
 def test_distributed_ops_generic(op, has_grad, is_gather, run_distributed):
-    run_distributed(_check_distributed_ops_generic, world_size=2, args=(op, has_grad, is_gather))
+    run_distributed(_check_distributed_ops_generic, args=(op, has_grad, is_gather))
