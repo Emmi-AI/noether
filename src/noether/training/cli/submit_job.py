@@ -1,7 +1,5 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-"""Submit SLURM jobs for training with config validation."""
-
 import os
 import subprocess
 import sys
@@ -100,8 +98,6 @@ while _i < len(sys.argv) - 1:
     _i += 1
 if _RAW_CONFIG_PATH is None and len(sys.argv) > 1 and sys.argv[1].endswith(".yaml"):
     _RAW_CONFIG_PATH = sys.argv[1]
-
-setup_hydra()
 
 
 def validate_config(config: DictConfig) -> ConfigSchema:
@@ -249,4 +245,5 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
+    setup_hydra()
     main()

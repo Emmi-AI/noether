@@ -1,7 +1,5 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-"""Tests for noether.training.cli.submit_job."""
-
 import sys
 from unittest.mock import MagicMock, patch
 

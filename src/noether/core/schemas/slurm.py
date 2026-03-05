@@ -1,4 +1,4 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 from __future__ import annotations
 
