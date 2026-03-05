@@ -429,7 +429,7 @@ def knn_triton(
     # 3. Allocate Output
     # We return indices (LongTensor) and Distances (FloatTensor)
     # The prompt requested returning "Tensor", usually indices are the goal of KNN.
-    output_indices = torch.empty((n_y * k,), device=x.device, dtype=torch.int32)
+    output_indices = torch.empty((n_y * k,), device=x.device, dtype=torch.int64)
     output_dists = torch.full((n_y, k), float("inf"), device=x.device, dtype=torch.float32)
 
     # 4. Launch Kernel

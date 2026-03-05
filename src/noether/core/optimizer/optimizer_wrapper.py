@@ -129,8 +129,11 @@ class OptimizerWrapper:
     def _log_param_groups(self, merged_groups, merged_groups_paramnames) -> None:
         def param_group_str(param_group):
             return " ".join(
-                [f"{key}={value}" for key, value in param_group.items() if key not in ["params", "name"]]
-                or ["default"] + [f"len(params)={len(param_group['params'])}"]
+                (
+                    [f"{key}={value}" for key, value in param_group.items() if key not in ["params", "name"]]
+                    or ["default"]
+                )
+                + [f"len(params)={len(param_group['params'])}"]
             )
 
         param_group_names = ", ".join([param_group_str(pg) for pg in merged_groups])

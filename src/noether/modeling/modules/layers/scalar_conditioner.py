@@ -39,7 +39,7 @@ class ScalarsConditioner(nn.Module):
                             init_weights=config.init_weights,  # type: ignore[arg-type]
                         )  # type: ignore[call-arg]
                     ),
-                    Activation.GELU.value,
+                    Activation.GELU.build(),
                 )
                 for _ in range(config.num_scalars)
             ],
@@ -53,7 +53,7 @@ class ScalarsConditioner(nn.Module):
                     init_weights=config.init_weights,  # type: ignore[arg-type]
                 )  # type: ignore[call-arg]
             ),
-            Activation.GELU.value,
+            Activation.GELU.build(),
             LinearProjection(
                 LinearProjectionConfig(
                     input_dim=config.hidden_dim,
@@ -61,7 +61,7 @@ class ScalarsConditioner(nn.Module):
                     init_weights=config.init_weights,  # type: ignore[arg-type]
                 )  # type: ignore[call-arg]
             ),
-            Activation.GELU.value,
+            Activation.GELU.build(),
         )
 
     def forward(self, *args: torch.Tensor, **kwargs: torch.Tensor) -> torch.Tensor:

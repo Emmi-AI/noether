@@ -14,7 +14,7 @@ def check_exclusive(*args: Any) -> bool:
     return sum(arg is not None for arg in args) == 1
 
 
-def check_inclusive(*args: Any) -> int:
+def check_inclusive(*args: Any) -> bool:
     """Checks if either all arguments are not None or if all are None."""
     return sum(arg is not None for arg in args) in [0, len(args)]
 

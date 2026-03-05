@@ -58,5 +58,13 @@ class Bidict[KT, VT]:
             key: The key to add.
             value: The value to associate with the key.
         """
+        # Clean up stale backward mapping if overwriting an existing key
+        if key in self._forward:
+            old_value = self._forward[key]
+            del self._backward[old_value]
+        # Clean up stale forward mapping if overwriting an existing value
+        if value in self._backward:
+            old_key = self._backward[value]
+            del self._forward[old_key]
         self._forward[key] = value
         self._backward[value] = key
