@@ -46,7 +46,7 @@ class TestValidateConfig:
     def test_raises_if_class_constructor_fails(self):
         config = self._make_config()
         with patch(_MODULE_PATH + ".class_constructor_from_class_path", side_effect=ImportError("module not found")):
-            with pytest.raises(RuntimeError, match="Failed to load config schema class"):
+            with pytest.raises(ImportError, match="module not found"):
                 validate_config(config)
 
     def test_propagates_validation_error_from_schema(self):
@@ -189,8 +189,9 @@ class TestMain:
         mock_validated_config.slurm = None
         mock_config = OmegaConf.create({})
         with patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config):
-            with pytest.raises(ValueError, match="SLURM configuration is required"):
+            with pytest.raises(SystemExit) as exc_info:
                 self._call_main(mock_config)
+        assert exc_info.value.code == 1
 
     def test_submits_sbatch_command(self, mock_validated_config):
         mock_config = OmegaConf.create({})

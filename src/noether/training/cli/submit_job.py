@@ -2,7 +2,7 @@
 
 """Submit SLURM jobs for training with config validation."""
 
-import logging
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -15,9 +15,6 @@ from noether.core.factory import class_constructor_from_class_path
 from noether.core.schemas.schema import ConfigSchema
 from noether.core.schemas.slurm import SlurmConfig
 from noether.training.cli import setup_hydra
-
-logging.basicConfig(level=logging.INFO, stream=sys.stdout)
-logger = logging.getLogger(__name__)
 
 _HELP_TEXT = """\
 noether-submit-job — validate a training config and submit it as a SLURM job
@@ -126,19 +123,10 @@ def validate_config(config: DictConfig) -> ConfigSchema:
     if not config_schema_kind:
         raise ValueError("Configuration must specify 'config_schema_kind'")
 
-    logger.info(f"Validating configuration with schema: {config_schema_kind}")
-    try:
-        config_schema_class = class_constructor_from_class_path(config_schema_kind)
-    except Exception as e:
-        raise RuntimeError(f"Failed to load config schema class '{config_schema_kind}': {e}") from e
-
-    try:
-        validated_config: ConfigSchema = config_schema_class(**config_dict)
-        logger.info("Configuration validated successfully")
-    except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
-        raise
-
+    print(f"Validating configuration with schema: {config_schema_kind}")
+    config_schema_class = class_constructor_from_class_path(config_schema_kind)
+    validated_config: ConfigSchema = config_schema_class(**config_dict)
+    print("Configuration validated successfully")
     return validated_config
 
 
@@ -174,7 +162,7 @@ def _find_config_path() -> str:
             config_path += ".yaml"
         return str(Path(config_path).resolve())
 
-    logger.error(f"Error: Could not determine config path from arguments\nsys.argv: {sys.argv}")
+    print(f"Error: Could not determine config path from arguments\nsys.argv: {sys.argv}")
     sys.exit(1)
 
 
@@ -211,39 +199,42 @@ def main(config: DictConfig):
        noether-submit-job --hp configs/train_shapenet.yaml +seed=1 tracker=disabled
        noether-submit-job --hp configs/train_shapenet.yaml --dry-run
     """
-
-    logger.info("Starting job submission process")
+    print("Starting job submission process")
+    if os.getcwd() not in sys.path:
+        sys.path.insert(0, os.getcwd())
 
     try:
         validated_config = validate_config(config)
     except Exception as e:
-        logger.error(f"Configuration validation failed: {e}")
+        print(f"Configuration validation failed: {e}", file=sys.stderr)
         sys.exit(1)
 
     if validated_config.slurm is None:
-        raise ValueError(
-            "SLURM configuration is required for job submission. Please specify the 'slurm' section in your config."
+        print(
+            "Error: SLURM configuration is required. Please specify the 'slurm' section in your config.",
+            file=sys.stderr,
         )
+        sys.exit(1)
 
     slurm_config: SlurmConfig = validated_config.slurm
 
     # Build the sbatch arguments from the SLURM config (chdir is included here)
     sbatch_args = slurm_config.to_srun_args()
-    logger.info(f"SLURM args: {sbatch_args}")
+    print(f"SLURM args: {sbatch_args}")
 
     config_path = _find_config_path()
-    logger.info(f"Config path: {config_path}")
+    print(f"Config path: {config_path}")
 
     train_cmd = f"uv run noether-train --hp {config_path}"
     hydra_overrides = _collect_hydra_overrides()
 
     if hydra_overrides:
         train_cmd += " " + " ".join(hydra_overrides)
-        logger.info(f"Hydra overrides: {hydra_overrides}")
+        print(f"Hydra overrides: {hydra_overrides}")
 
     source_cmd = ""
     if slurm_config.env_path:
-        logger.info(f"Sourcing environment from: {slurm_config.env_path}")
+        print(f"Sourcing environment from: {slurm_config.env_path}")
         source_cmd = f"source {slurm_config.env_path};"
 
     full_cmd = source_cmd + f'sbatch {sbatch_args} --wrap="{train_cmd}"'
@@ -252,7 +243,7 @@ def main(config: DictConfig):
         print(f"[dry-run] Would execute:\n  {full_cmd}")
         sys.exit(0)
 
-    logger.info(f"Executing: {full_cmd}")
+    print(f"Executing: {full_cmd}")
     result = subprocess.run(full_cmd, shell=True)
     sys.exit(result.returncode)
 
