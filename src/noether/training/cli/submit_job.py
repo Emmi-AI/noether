@@ -16,6 +16,7 @@ from noether.core.schemas.schema import ConfigSchema
 from noether.core.schemas.slurm import SlurmConfig
 from noether.training.cli import setup_hydra
 
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 logger = logging.getLogger(__name__)
 
 _HELP_TEXT = """\
@@ -211,6 +212,8 @@ def main(config: DictConfig):
        noether-submit-job --hp configs/train_shapenet.yaml --dry-run
     """
 
+    logger.info("Starting job submission process")
+
     try:
         validated_config = validate_config(config)
     except Exception as e:
@@ -226,14 +229,17 @@ def main(config: DictConfig):
 
     # Build the sbatch arguments from the SLURM config (chdir is included here)
     sbatch_args = slurm_config.to_srun_args()
+    logger.info(f"SLURM args: {sbatch_args}")
 
     config_path = _find_config_path()
+    logger.info(f"Config path: {config_path}")
 
     train_cmd = f"uv run noether-train --hp {config_path}"
     hydra_overrides = _collect_hydra_overrides()
 
     if hydra_overrides:
         train_cmd += " " + " ".join(hydra_overrides)
+        logger.info(f"Hydra overrides: {hydra_overrides}")
 
     source_cmd = ""
     if slurm_config.env_path:
