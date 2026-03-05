@@ -85,7 +85,6 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
     from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
     from noether.core.schemas.optimizers import OptimizerConfig
     from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
-    from noether.core.schemas.schema import ConfigSchema, StaticConfigSchema
     from noether.core.schemas.statistics import AeroStatsSchema
     from noether.training.runners import HydraRunner
     from tutorial.callbacks.surface_volume_evaluation_metrics import (
