@@ -93,7 +93,7 @@ class SupernodePooling(nn.Module):
                         input_dim=message_input_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
                     )  # type: ignore[call-arg]
                 ),
-                Activation.GELU.value,
+                Activation.GELU.build(),
                 LinearProjection(
                     config=LinearProjectionConfig(
                         input_dim=config.hidden_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
@@ -213,7 +213,7 @@ class SupernodePooling(nn.Module):
             supernode_pos_embed = x[supernode_idx]
             x = torch.concat([x[src_idx], x[dst_idx]], dim=1)
         elif self.spool_pos_mode == "absrelpos":
-            if self.input_features_dim is not None or input_features is not None and self.rel_pos_embed is not None:
+            if (self.input_features_dim is not None or input_features is not None) and self.rel_pos_embed is not None:
                 raise NotImplementedError
             src_pos = input_pos[src_idx]
             dst_pos = input_pos[dst_idx]
