@@ -2,7 +2,6 @@
 
 """Tests for noether.training.cli.submit_job."""
 
-import shlex
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -225,7 +224,7 @@ class TestMain:
             self._call_main(mock_config)
 
         cmd = mock_run.call_args[0][0]
-        assert shlex.quote(spaced_path) in cmd
+        assert spaced_path in cmd
 
     def test_includes_hydra_overrides_in_train_cmd(self, mock_validated_config):
         mock_config = OmegaConf.create({})
@@ -255,7 +254,7 @@ class TestMain:
             self._call_main(mock_config)
 
         cmd = mock_run.call_args[0][0]
-        assert shlex.quote(override) in cmd
+        assert override in cmd
 
     def test_chdir_appears_in_sbatch_args_not_as_cd_prefix(self, mock_validated_config):
         mock_validated_config.slurm = SlurmConfig(job_name="job", chdir="/workspace/project")

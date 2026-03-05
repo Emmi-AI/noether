@@ -3,7 +3,6 @@
 """Submit SLURM jobs for training with config validation."""
 
 import logging
-import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -230,19 +229,18 @@ def main(config: DictConfig):
 
     config_path = _find_config_path()
 
-    train_cmd = f"uv run noether-train --hp {shlex.quote(config_path)}"
+    train_cmd = f"uv run noether-train --hp {config_path}"
     hydra_overrides = _collect_hydra_overrides()
 
     if hydra_overrides:
-        quoted_overrides = [shlex.quote(o) for o in hydra_overrides]
-        train_cmd += " " + " ".join(quoted_overrides)
+        train_cmd += " " + " ".join(hydra_overrides)
 
     source_cmd = ""
     if slurm_config.env_path:
         logger.info(f"Sourcing environment from: {slurm_config.env_path}")
-        source_cmd = f"source {shlex.quote(slurm_config.env_path)};"
+        source_cmd = f"source {slurm_config.env_path};"
 
-    full_cmd = source_cmd + f"sbatch {sbatch_args} --wrap={shlex.quote(train_cmd)}"
+    full_cmd = source_cmd + f'sbatch {sbatch_args} --wrap="{train_cmd}"'
 
     if _DRY_RUN:
         print(f"[dry-run] Would execute:\n  {full_cmd}")
