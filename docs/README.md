@@ -62,3 +62,44 @@ Examples:
 for more information check out the [Sphinx docs](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html).
 
 > Make sure to use syntax highlight based on your example.
+
+## Code examples in `.rst` files
+
+Use `.. testcode::` by default for code examples in `.rst` documentation files. These blocks are executed and validated in CI via Sphinx doctest, ensuring examples stay in sync with the codebase.
+
+```rst
+.. testcode::
+
+   from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+
+   config = PeriodicDataIteratorCallbackConfig(dataset_key="test", every_n_epochs=1)
+```
+
+For code examples that that **cannot** or **should not** be executed, use `.. code-block::`.
+
+To assert expected output, add a `.. testoutput::` block directly after:
+
+```rst
+.. testcode::
+
+   print(1 + 1)
+
+.. testoutput::
+
+   2
+```
+
+Use `:hide:` for setup or teardown code that shouldn't appear in the rendered docs:
+
+```rst
+.. testcode::
+   :hide:
+
+   _cfg = CustomCallbackConfig(dataset_key="test", every_n_epochs=1)
+```
+
+To run doctests locally:
+
+```bash
+uv run sphinx-build -b doctest -t skip-autoapi docs/source _build/doctest
+```
