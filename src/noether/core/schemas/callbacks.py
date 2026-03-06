@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal, Union
+from abc import ABC
+from typing import TYPE_CHECKING, ClassVar, Literal, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from noether.core.schemas.lib import _RegistryBase
 
-class CallBackBaseConfig(BaseModel):
-    if TYPE_CHECKING:
-        name: str
-    else:
-        name: Literal["BaseCallbacksConfig"] = Field(default="BaseCallbacksConfig", frozen=True)
+
+class CallBackBaseConfig(_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
 
     kind: str | None = None
     every_n_epochs: int | None = Field(None, ge=0)
@@ -70,17 +71,19 @@ class CallBackBaseConfig(BaseModel):
         return v
 
 
-class PeriodicDataIteratorCallbackConfig(CallBackBaseConfig):
+class PeriodicDataIteratorCallbackConfig(CallBackBaseConfig, ABC):
     if TYPE_CHECKING:
         name: str
     else:
         name: Literal["PeriodicDataIteratorCallback"] = Field(default="PeriodicDataIteratorCallback", frozen=True)
+
     dataset_key: str = Field(...)
     """The key of the dataset to be used for the loss calculation. Can be any key that is registered in the `DataContainer`."""
 
 
 class BestCheckpointCallbackConfig(CallBackBaseConfig):
     name: Literal["BestCheckpointCallback"] = Field("BestCheckpointCallback", frozen=True)
+
     metric_key: str = Field(...)
     """"The key of the metric to be used for checking the best model."""
     save_frozen_weights: bool = Field(True)
@@ -110,6 +113,7 @@ class CheckpointCallbackConfig(CallBackBaseConfig):
 
 class EmaCallbackConfig(CallBackBaseConfig):
     name: Literal["EmaCallback"] = Field("EmaCallback", frozen=True)
+
     target_factors: list[float] = Field(...)
     """The factors for the EMA."""
     model_paths: list[str | None] | None = Field(None)
@@ -203,8 +207,7 @@ class FixedEarlyStopperConfig(BaseModel):
 
 
 CallbacksConfig = Union[
-    CallBackBaseConfig
-    | BestCheckpointCallbackConfig
+    BestCheckpointCallbackConfig
     | CheckpointCallbackConfig
     | EmaCallbackConfig
     | OnlineLossCallbackConfig

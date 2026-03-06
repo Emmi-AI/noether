@@ -1,14 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
-
 from noether.core.schemas.dataset import DatasetBaseConfig
 
 
 class BaseDatasetConfig(DatasetBaseConfig):
     num_samples: int
     """Total number of samples to generate."""
-    pipeline: Any | None = None
     num_classes: int = 10
     """The number of distinct classes (clusters) to generate."""
     noise: float = 0.1

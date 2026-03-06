@@ -2,7 +2,6 @@
 
 collator_kind: boilerplate_project.pipelines.BaseMultiStagePipeline
 dataset_kind: boilerplate_project.datasets.BaseDataset
-config_schema_kind : boilerplate_project.schemas.config_schema.BoilerplateConfigSchema
 
 defaults:
   - model: base_model

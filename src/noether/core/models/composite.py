@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import abc
-from typing import TYPE_CHECKING, Self
+from typing import Self
 
 import torch
 from torch.amp.grad_scaler import GradScaler
@@ -13,9 +13,7 @@ from noether.core.models.model import Model
 from noether.core.providers.path import PathProvider
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.utils.training import UpdateCounter
-
-if TYPE_CHECKING:
-    from noether.data.container import DataContainer
+from noether.data.container import DataContainer
 
 
 class CompositeModel(ModelBase):

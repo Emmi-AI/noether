@@ -3,6 +3,7 @@
 import torch
 import torch.nn as nn
 
+from boilerplate_project.schemas.models.base_model_config import BaseModelConfig
 from noether.core.models import Model
 
 ACTIVATION_FUNCTIONS = {
@@ -26,7 +27,7 @@ class BaseModel(Model):
 
     def __init__(
         self,
-        model_config,
+        model_config: BaseModelConfig,
         **kwargs,
     ):
         """
