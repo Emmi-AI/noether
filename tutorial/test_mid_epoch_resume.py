@@ -13,8 +13,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Literal
 
-import torch
-
+from noether.core.distributed.utils import accelerator_to_device
 from noether.core.schemas.callbacks import (
     CheckpointCallbackConfig,
     OfflineLossCallbackConfig,
@@ -377,7 +376,7 @@ def find_signal_interrupt_checkpoint(output_path: Path, run_id: str, stage_name:
 def run_training_with_sigterm(
     dataset_root: Path,
     output_path: Path,
-    device: torch.device,
+    accelerator: str,
     max_epochs: int,
     stage_name: str,
     signal_delay_seconds: float = 5.0,
@@ -401,7 +400,7 @@ def run_training_with_sigterm(
         run_id = run_training(
             dataset_root=dataset_root,
             output_path=output_path,
-            device=device,
+            accelerator=accelerator,
             max_epochs=max_epochs,
             stage_name=stage_name,
             checkpoint_every_n_updates=checkpoint_every_n_updates,
@@ -428,12 +427,14 @@ def find_run_id(output_path: Path, stage_name: str) -> str | None:
     return None
 
 
-def run_training(
+def build_config(
     dataset_root: Path,
     output_path: Path,
-    device: torch.device,
+    accelerator: str,
     max_epochs: int,
     stage_name: str,
+    devices: str | None = None,
+    effective_batch_size: int = 1,
     checkpoint_every_n_updates: int | None = None,
     checkpoint_every_n_epochs: int | None = None,
     resume_run_id: str | None = None,
@@ -442,8 +443,8 @@ def run_training(
     run_id: str | None = None,
     max_train_samples: int | None = None,
     max_test_samples: int | None = None,
-) -> str:
-    """Run a training session and return the run_id."""
+) -> ConfigSchema:
+    """Build the training config."""
     data_specs = build_specs()
     dataset_normalizer = build_dataset_normalizer()
     model_config = build_model_config(data_specs)
@@ -452,10 +453,11 @@ def run_training(
         checkpoint_every_n_updates=checkpoint_every_n_updates,
         checkpoint_every_n_epochs=checkpoint_every_n_epochs,
     )
+    trainer_config.effective_batch_size = effective_batch_size
 
-    config = ConfigSchema(
+    return ConfigSchema(
         name="mid-epoch-resume-test",
-        accelerator=str(device.type),
+        accelerator=accelerator,
         stage_name=stage_name,
         dataset_kind="noether.data.datasets.cfd.ShapeNetCarDataset",
         dataset_root=dataset_root.as_posix(),
@@ -468,7 +470,7 @@ def run_training(
         static_config=StaticConfigSchema(output_path=output_path.as_posix()),
         tracker=None,
         run_id=run_id,
-        devices=None,
+        devices=devices,
         num_workers=None,
         datasets=build_datasets(
             dataset_root.as_posix(),
@@ -484,13 +486,91 @@ def run_training(
         output_path=output_path.as_posix(),
     )
 
-    # Run setup to capture the run_id, then train
+
+def run_training(
+    dataset_root: Path,
+    output_path: Path,
+    accelerator: str,
+    max_epochs: int,
+    stage_name: str,
+    devices: str | None = None,
+    effective_batch_size: int = 1,
+    checkpoint_every_n_updates: int | None = None,
+    checkpoint_every_n_epochs: int | None = None,
+    resume_run_id: str | None = None,
+    resume_stage_name: str | None = None,
+    resume_checkpoint: str | None = None,
+    run_id: str | None = None,
+    max_train_samples: int | None = None,
+    max_test_samples: int | None = None,
+) -> str:
+    """Run a training session and return the run_id."""
+    config = build_config(
+        dataset_root=dataset_root,
+        output_path=output_path,
+        accelerator=accelerator,
+        max_epochs=max_epochs,
+        stage_name=stage_name,
+        devices=devices,
+        effective_batch_size=effective_batch_size,
+        checkpoint_every_n_updates=checkpoint_every_n_updates,
+        checkpoint_every_n_epochs=checkpoint_every_n_epochs,
+        resume_run_id=resume_run_id,
+        resume_stage_name=resume_stage_name,
+        resume_checkpoint=resume_checkpoint,
+        run_id=run_id,
+        max_train_samples=max_train_samples,
+        max_test_samples=max_test_samples,
+    )
+
+    # For multi-GPU, go through run_unmanaged which spawns processes
+    if devices is not None and len(devices.split(",")) > 1:
+        from noether.core.distributed import run_unmanaged
+
+        # We need to capture the run_id from the spawned process. Use a shared file.
+        run_id_file = output_path / f".run_id_{stage_name}.txt"
+
+        def _main(device: str, config: ConfigSchema = config, run_id_file: Path = run_id_file) -> None:
+            from noether.core.distributed import is_rank0
+
+            trainer, model, tracker, message_counter = HydraRunner.setup_experiment(
+                device=device,
+                config=config,
+            )
+            actual_run_id = str(trainer.path_provider.run_id)
+            if is_rank0():
+                run_id_file.write_text(actual_run_id)
+                print(f"\n{'=' * 60}")
+                print(f"Stage: {config.stage_name}")
+                print(f"Run ID: {actual_run_id}")
+                print(f"Max epochs: {max_epochs}")
+                if config.resume_checkpoint:
+                    print(f"Resuming from: {config.resume_checkpoint} (run {config.resume_run_id})")
+                print(f"Start checkpoint: {trainer.start_checkpoint}")
+                print(f"End checkpoint: {trainer.end_checkpoint}")
+                print(f"Updates per epoch: {trainer.updates_per_epoch}")
+                print(f"{'=' * 60}\n")
+            trainer.train(model)
+            tracker.summarize_logvalues()
+            message_counter.log()
+            tracker.close()
+
+        run_unmanaged(
+            main=_main,
+            devices=devices,
+            accelerator=config.accelerator,
+            master_port=config.master_port,
+        )
+        return run_id_file.read_text().strip()
+
+    # Single-GPU path (original)
+    device = accelerator_to_device(accelerator=config.accelerator)
+
     trainer, model, tracker, message_counter = HydraRunner.setup_experiment(
-        device=str(device),
+        device=device,
         config=config,
     )
 
-    # Extract run_id from the path provider output
     actual_run_id = str(trainer.path_provider.run_id)
 
     print(f"\n{'=' * 60}")
@@ -540,11 +620,23 @@ def main() -> None:
         help="Path to ShapeNet Car dataset root",
     )
     parser.add_argument(
-        "--device",
+        "--accelerator",
         type=str,
         default="mps",
-        choices=["cpu", "mps", "cuda"],
-        help="Device to train on",
+        choices=["cpu", "mps", "gpu"],
+        help="Accelerator to train on",
+    )
+    parser.add_argument(
+        "--devices",
+        type=str,
+        default=None,
+        help="Comma-separated device IDs for multi-GPU (e.g. '0,1'). If None, uses a single device.",
+    )
+    parser.add_argument(
+        "--effective-batch-size",
+        type=int,
+        default=1,
+        help="Effective batch size (must be >= number of GPUs for multi-GPU)",
     )
     parser.add_argument(
         "--initial-epochs",
@@ -590,7 +682,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    device = torch.device(args.device)
+    accelerator = args.accelerator
+    devices = args.devices
+    effective_batch_size = args.effective_batch_size
     output_path = args.dataset_root / "outputs" / "mid_epoch_resume_test"
 
     print("=" * 60)
@@ -598,7 +692,9 @@ def main() -> None:
     print("=" * 60)
     print(f"Dataset root:      {args.dataset_root}")
     print(f"Output path:       {output_path}")
-    print(f"Device:            {device}")
+    print(f"Accelerator:       {accelerator}")
+    print(f"Devices:           {devices or 'single'}")
+    print(f"Eff. batch size:   {effective_batch_size}")
     print(f"Max train samples: {args.max_train_samples}")
     print(f"Max test samples:  {args.max_test_samples}")
     print()
@@ -610,9 +706,11 @@ def main() -> None:
     initial_run_id = run_training(
         dataset_root=args.dataset_root,
         output_path=output_path,
-        device=device,
+        accelerator=accelerator,
         max_epochs=args.initial_epochs,
         stage_name="train",
+        devices=devices,
+        effective_batch_size=effective_batch_size,
         checkpoint_every_n_updates=args.checkpoint_every_n_updates,
         max_train_samples=args.max_train_samples,
         max_test_samples=args.max_test_samples,
@@ -624,7 +722,7 @@ def main() -> None:
     print("\nSTEP 2: Finding mid-epoch checkpoint")
     print("-" * 40)
 
-    updates_per_epoch = args.max_train_samples  # effective_batch_size=1, so updates_per_epoch == train samples
+    updates_per_epoch = args.max_train_samples // effective_batch_size
     checkpoint_tag = find_mid_epoch_checkpoint(output_path, initial_run_id, "train", updates_per_epoch)
     if checkpoint_tag is None:
         # Fall back to "latest" which might be at epoch boundary
@@ -640,9 +738,11 @@ def main() -> None:
     resume_run_id = run_training(
         dataset_root=args.dataset_root,
         output_path=output_path,
-        device=device,
+        accelerator=accelerator,
         max_epochs=args.resume_epochs,
         stage_name="resume",
+        devices=devices,
+        effective_batch_size=effective_batch_size,
         checkpoint_every_n_epochs=1,
         resume_run_id=initial_run_id,
         resume_stage_name="train",
@@ -659,7 +759,7 @@ def main() -> None:
         signal_run_id, signal_tag = run_training_with_sigterm(
             dataset_root=args.dataset_root,
             output_path=output_path,
-            device=device,
+            accelerator=accelerator,
             max_epochs=20,  # many epochs so SIGTERM arrives mid-training
             stage_name="signal_test",
             signal_delay_seconds=args.signal_delay,
