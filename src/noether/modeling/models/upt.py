@@ -29,6 +29,7 @@ class UPT(nn.Module):
         self.pos_embed = ContinuousSincosEmbed(config=config.pos_embedding_config)
 
         if self.use_rope:
+            # move to schema
             if not config.approximator_config.use_rope and config.decoder_config.perceiver_block_config.use_rope:
                 raise ValueError(
                     "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
@@ -51,7 +52,7 @@ class UPT(nn.Module):
             eps=config.decoder_config.perceiver_block_config.eps,
         )
 
-        assert config.linear_projection_config is not None
+        assert config.linear_projection_config is not None  # move to schema
         self.prediction_layer = LinearProjection(config=config.linear_projection_config)
 
     def compute_rope_args(

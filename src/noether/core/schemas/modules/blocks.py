@@ -4,6 +4,9 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from noether.core.schemas.modules.attention import PerceiverAttentionConfig
+from noether.core.schemas.modules.layers import LayerScaleConfig, LinearProjectionConfig, UnquantizedDropPathConfig
+from noether.core.schemas.modules.mlp import UpActDownMLPConfig
 from noether.core.types import InitWeightsMode
 
 
@@ -54,6 +57,16 @@ class TransformerBlockConfig(BaseModel):
     attention_arguments: dict = {}
     """Additional arguments for the attention module that are only needed for a specific attention implementation."""
 
+    linear_projection_config: LinearProjectionConfig | None = None
+
+    layerscale_config: LayerScaleConfig | None = None
+
+    drop_path_config: UnquantizedDropPathConfig | None = None
+
+    modulation_linear_projection_config: LinearProjectionConfig | None = None
+
+    up_act_down_mlp_config: UpActDownMLPConfig | None = None
+
     @model_validator(mode="after")
     def set_mlp_hidden_dim(self):
         # Validate hidden_dim is divisible by num_heads
@@ -66,16 +79,62 @@ class TransformerBlockConfig(BaseModel):
             self.mlp_hidden_dim = self.hidden_dim * self.mlp_expansion_factor
         return self
 
+    @model_validator(mode="after")
+    def set_transformer_block_submodules_configs(self) -> "TransformerBlockConfig":
+        if self.linear_projection_config is None:
+            self.linear_projection_config = LinearProjectionConfig(
+                input_dim=self.hidden_dim,
+                output_dim=self.hidden_dim,
+                bias=self.bias,
+                init_weights=self.init_weights,
+            )
+        if self.layerscale_config is None:
+            self.layerscale_config = LayerScaleConfig(
+                hidden_dim=self.hidden_dim,
+                init_values=self.layerscale,
+            )
+        if self.drop_path_config is None:
+            self.drop_path_config = UnquantizedDropPathConfig(drop_prob=self.drop_path)
+
+        if self.modulation_linear_projection_config is None and self.condition_dim is not None:
+            self.modulation_linear_projection_config = LinearProjectionConfig(
+                input_dim=self.condition_dim,
+                output_dim=self.hidden_dim * 6,
+                init_weights="zeros",
+            )
+        if self.up_act_down_mlp_config is None:
+            self.up_act_down_mlp_config = UpActDownMLPConfig(
+                input_dim=self.hidden_dim,
+                hidden_dim=self.mlp_hidden_dim,  # type: ignore[assignment]
+                bias=self.bias,
+                init_weights=self.init_weights,
+            )
+        return self
+
 
 class PerceiverBlockConfig(TransformerBlockConfig):
     """Configuration for the PerceiverBlock module."""
 
     kv_dim: int | None = Field(None)
     """Dimensionality of the key and value representations. Defaults to None. If None, hidden_dim is used."""
+    perceiver_attention_config: PerceiverAttentionConfig | None = None
 
     @model_validator(mode="after")
     def set_kv_dim(self) -> "PerceiverBlockConfig":
         """Set kv_dim to hidden_dim if not provided."""
         if self.kv_dim is None and self.condition_dim is None:
             self.kv_dim = self.hidden_dim
+        return self
+
+    @model_validator(mode="after")
+    def set_perceiver_submodules_configs(self) -> "PerceiverBlockConfig":
+        if self.perceiver_attention_config is None:
+            self.perceiver_attention_config = PerceiverAttentionConfig(
+                hidden_dim=self.hidden_dim,
+                num_heads=self.num_heads,
+                kv_dim=self.kv_dim,
+                bias=self.bias,
+                init_weights=self.init_weights,
+                use_rope=self.use_rope,
+            )
         return self
