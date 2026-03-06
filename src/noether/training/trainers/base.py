@@ -394,7 +394,7 @@ class BaseTrainer:
         # load grad_scaler
         grad_scaler_state_dict = state_dict.pop(CheckpointKeys.GRAD_SCALER, None)
         if isinstance(self.grad_scaler, GradScaler):
-            if grad_scaler_state_dict := state_dict.pop(CheckpointKeys.GRAD_SCALER, None):
+            if grad_scaler_state_dict is not None:
                 self.grad_scaler.load_state_dict(grad_scaler_state_dict)
             else:
                 self.logger.warning(

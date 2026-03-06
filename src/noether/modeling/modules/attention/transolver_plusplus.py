@@ -63,13 +63,13 @@ class TransolverPlusPlusAttention(nn.Module):
                     bias=config.bias,
                 )  # type: ignore[call-arg]
             ),
-            Activation.GELU.value,
+            Activation.GELU.build(),
             LinearProjection(
                 config=LinearProjectionConfig(
                     input_dim=config.num_slices, output_dim=1, init_weights=config.init_weights, bias=config.bias
                 )  # type: ignore[call-arg]
             ),
-            Activation.GELU.value,
+            Activation.GELU.build(),
         )
 
         self.in_project_x = nn.Linear(config.hidden_dim, inner_dim)
