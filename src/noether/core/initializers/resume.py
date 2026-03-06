@@ -162,12 +162,24 @@ class ResumeInitializer(CheckpointInitializer):
         trainer_state_dict: dict = torch.load(self._get_trainer_ckpt_file())
         callback_state_dicts = trainer_state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(callbacks)})"
+        num_in_checkpoint = len(callback_state_dicts)
+        num_current = len(callbacks)
+        if num_in_checkpoint != num_current:
+            # Callback count can differ between runs (e.g. EtaCallback is only added in TTY
+            # environments, spawned multi-GPU processes lose TTY). Only stateful callbacks matter.
+            num_stateful_ckpt = sum(1 for sd in callback_state_dicts if sd is not None)
+            num_stateful_current = sum(1 for cb in callbacks if cb.state_dict() is not None)
+            if num_stateful_ckpt != num_stateful_current:
+                raise ValueError(
+                    f"Number of stateful callbacks in checkpoint ({num_stateful_ckpt}) does not match "
+                    f"number of stateful callbacks in current trainer ({num_stateful_current})"
+                )
+            self.logger.warning(
+                f"Callback count mismatch: checkpoint has {num_in_checkpoint}, current trainer has {num_current}. "
+                f"All {num_stateful_ckpt} stateful callbacks match - loading positionally."
             )
 
-        for callback, state_dict in zip(callbacks, callback_state_dicts, strict=True):
+        for callback, state_dict in zip(callbacks, callback_state_dicts, strict=False):
             callback.load_state_dict(state_dict)
             callback.resume_from_checkpoint(
                 resumption_paths=self.init_run_path_provider,

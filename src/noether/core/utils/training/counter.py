@@ -51,6 +51,10 @@ class UpdateCounter:
         )
 
         self.end_iteration = self.start_iteration + fully_specified_delta
+        # Recompute epoch from absolute updates to avoid truncation artifacts from delta-based computation
+        # (e.g. mid-epoch resume: delta=679 updates truncates to 4 epochs, but absolute 750 updates = 5 epochs):
+        if self.end_iteration.update is not None:
+            self.end_iteration.epoch = self.end_iteration.update // updates_per_epoch
         if not self.end_iteration.is_fully_specified:
             raise ValueError(f"end_iteration must be fully specified, got {self.end_iteration} instead")
 

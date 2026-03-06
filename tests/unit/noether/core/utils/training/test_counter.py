@@ -161,3 +161,18 @@ def test_is_finished_overshoot(start_iter):
     # Epoch 0 is fine (0 >= 0)
 
     assert counter.is_finished
+
+
+def test_mid_epoch_resume_end_epoch():
+    """Test that end_iteration.epoch is correct for mid-epoch resume.
+
+    When resuming mid-epoch with an update-based end, the epoch should be derived from the absolute update count,
+    not the delta. E.g. start=U71, end=U750, updates_per_epoch=150 -> end epoch = 5 (not 4).
+    """
+    start = TrainingIteration(epoch=0, update=71, sample=71)
+    end = TrainingIteration(update=750)
+    counter = UpdateCounter(start, end, updates_per_epoch=150, effective_batch_size=1)
+
+    assert counter.end_iteration.epoch == 5
+    assert counter.end_iteration.update == 750
+    assert counter.end_iteration.sample == 750

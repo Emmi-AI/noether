@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import sys
 import warnings
 from collections import defaultdict
@@ -22,6 +23,7 @@ from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
     all_gather_nograd,
+    all_reduce_sum_nograd,
     get_num_nodes,
     get_world_size,
     is_distributed,
@@ -158,22 +160,25 @@ class BaseTrainer:
                 )
             self.start_checkpoint = self.initializer.start_checkpoint()
 
-            if not (
-                self.start_checkpoint.epoch is not None
-                and self.start_checkpoint.epoch * self.updates_per_epoch == self.start_checkpoint.update
-            ):
-                raise ValueError(
-                    "resuming from non-epoch based checkpoint is not supported (DataLoading is tricky in this setting)"
-                )
-
         self.tracker = tracker
         self.path_provider = path_provider
 
         self.metric_property_provider = metric_property_provider
 
+        # When resuming mid-epoch, convert epoch-based end to an update-based. This will avoid rounding in
+        # UpdateCounter's delta computation (epoch-based delta truncates the mid-epoch offset):
+        end_iteration = self.end_checkpoint
+        if (
+            self.start_checkpoint.update is not None
+            and self.start_checkpoint.update % self.updates_per_epoch != 0  # mid-epoch
+            and end_iteration.epoch is not None  # epoch-based end
+            and end_iteration.update is None  # not already update-based
+        ):
+            end_iteration = TrainingIteration(update=end_iteration.epoch * self.updates_per_epoch)
+
         self.update_counter = UpdateCounter(
             start_iteration=self.start_checkpoint,
-            end_iteration=self.end_checkpoint,
+            end_iteration=end_iteration,
             updates_per_epoch=self.updates_per_epoch,
             effective_batch_size=config.effective_batch_size,
         )
@@ -194,13 +199,34 @@ class BaseTrainer:
         if not type(self).wrap_model == BaseTrainer.wrap_model:
             raise ValueError("Derived classes should not implement the wrap_model method.")
 
-        self._has_logged_unused_params = False
-        self._skip_nan_step = False
+        self._has_logged_unused_params: bool = False
+        self._skip_nan_step: bool = False
+        self._signal_received: bool = False
+        self._original_sigterm: signal.Handlers | None = None
+        self._original_sigint: signal.Handlers | None = None
 
         self.forward_properties = config.forward_properties if config.forward_properties is not None else []
         self.target_properties = config.target_properties if config.target_properties is not None else []
 
         self.batch_keys = set(self.forward_properties).union(set(self.target_properties))
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        sig_name = signal.Signals(signum).name
+        self.logger.warning(f"Received {sig_name} - will save checkpoint and exit after current update")
+        self._signal_received = True
+
+    def _install_signal_handlers(self) -> None:
+        self._signal_received = False
+        self._original_sigterm = signal.signal(signal.SIGTERM, self._signal_handler)  # type: ignore[assignment]
+        self._original_sigint = signal.signal(signal.SIGINT, self._signal_handler)  # type: ignore[assignment]
+
+    def _restore_signal_handlers(self) -> None:
+        if self._original_sigterm is not None:
+            signal.signal(signal.SIGTERM, self._original_sigterm)
+            self._original_sigterm = None
+        if self._original_sigint is not None:
+            signal.signal(signal.SIGINT, self._original_sigint)
+            self._original_sigint = None
 
     def get_user_callbacks(self, model: ModelBase, evaluation=False) -> list[CallbackBase]:
         callback_default_args = self._get_default_callback_kwargs(model)
@@ -384,11 +410,24 @@ class BaseTrainer:
         # load callback state_dicts
         callback_state_dicts = state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(self.callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(self.callbacks)})"
+        num_in_checkpoint = len(callback_state_dicts)
+        num_current = len(self.callbacks)
+        if num_in_checkpoint != num_current:
+            # Callback count can differ between runs (e.g. EtaCallback is only added in TTY environments, or spawned
+            # multi-GPU processes lose TTY). Only stateful callbacks (non-None state_dict) matter - log a warning and
+            # load positionally up to the shorter list, skipping trailing None entries.
+            num_stateful_in_checkpoint = sum(1 for sd in callback_state_dicts if sd is not None)
+            num_stateful_current = sum(1 for cb in self.callbacks if cb.state_dict() is not None)
+            if num_stateful_in_checkpoint != num_stateful_current:
+                raise ValueError(
+                    f"Number of stateful callbacks in checkpoint ({num_stateful_in_checkpoint}) does not match "
+                    f"number of stateful callbacks in current trainer ({num_stateful_current})"
+                )
+            self.logger.warning(
+                f"Callback count mismatch: checkpoint has {num_in_checkpoint}, current trainer has {num_current}. "
+                f"All {num_stateful_in_checkpoint} stateful callbacks match — loading positionally."
             )
-        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=True):
+        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=False):
             callback.load_state_dict(sd)
 
         # load grad_scaler
@@ -629,10 +668,25 @@ class BaseTrainer:
         for handler in logging.getLogger().handlers:
             handler.addFilter(context_filter)
 
+        self._install_signal_handlers()
         try:
             self.logger.debug("initializing dataloader workers")
             data_iter = iter(data_loader)
             self.logger.debug("initialized dataloader workers")
+
+            # Mid-epoch resume: skip already-processed batches, shorten first epoch
+            updates_into_epoch = (
+                self.start_checkpoint.update % self.updates_per_epoch if self.start_checkpoint.update else 0
+            )
+            batches_to_skip = updates_into_epoch * accumulation_steps_total
+            if batches_to_skip > 0:
+                self.logger.info(
+                    f"Mid-epoch resume: skipping {batches_to_skip} batches ({updates_into_epoch} updates into epoch)"
+                )
+                for _ in range(batches_to_skip):
+                    next(data_iter)
+
+            current_train_batches = train_batches_per_epoch - batches_to_skip
             while True:
                 should_stop = self._run_epoch(
                     model=model,
@@ -640,13 +694,15 @@ class BaseTrainer:
                     batch_size=batch_size,
                     accumulation_steps_total=accumulation_steps_total,
                     data_iter=data_iter,
-                    train_batches_per_epoch=train_batches_per_epoch,
+                    train_batches_per_epoch=current_train_batches,
                     periodic_callbacks=periodic_callbacks,
                 )
+                current_train_batches = train_batches_per_epoch  # full epochs after the first
 
                 if should_stop:
                     break
         finally:
+            self._restore_signal_handlers()
             for handler in logging.getLogger().handlers:
                 handler.removeFilter(context_filter)
 
@@ -814,6 +870,19 @@ class BaseTrainer:
                 batch_size=batch_size,
             )
             if early_exit:
+                return True
+
+            # Check for signal interrupt (synchronized across all ranks so every rank enters checkpoint_writer.save
+            # together - required for collective ops)
+            signal_flag = all_reduce_sum_nograd(torch.tensor(int(self._signal_received), dtype=torch.int32))
+            if signal_flag.item() > 0:
+                self._signal_received = True
+                self.logger.info(f"Saving signal interrupt checkpoint at {self.update_counter.cur_iteration}")
+                self.checkpoint_writer.save(
+                    model=model,
+                    checkpoint_tag=f"{self.update_counter.cur_iteration}.signal_interrupt",
+                    trainer=self,
+                )
                 return True
 
             # Check end of training

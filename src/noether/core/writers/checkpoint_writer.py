@@ -136,7 +136,6 @@ class CheckpointWriter:
             save_frozen_weights: If true, also stores the weights of frozen models.
         """
 
-        # NOTE: this has to be called from all ranks because random states are gathered to rank0
         trainer_sd = trainer.state_dict() if trainer is not None else None
 
         if is_rank0():
