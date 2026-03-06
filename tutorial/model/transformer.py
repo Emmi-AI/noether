@@ -28,13 +28,17 @@ class Transformer(BaseModel):
         super().__init__(model_config=model_config, **kwargs)
 
         self.encoder = ContinuousSincosEmbed(
-            config=ContinuousSincosEmbeddingConfig(hidden_dim=model_config.hidden_dim, input_dim=3)
+            config=ContinuousSincosEmbeddingConfig(
+                hidden_dim=model_config.transformer_block_config.hidden_dim, input_dim=3
+            )
         )
 
-        self.use_rope = model_config.use_rope
+        self.use_rope = model_config.transformer_block_config.use_rope
         self.rope = (
             RopeFrequency(
-                config=RopeFrequencyConfig(hidden_dim=model_config.hidden_dim // model_config.num_heads, input_dim=3)
+                config=RopeFrequencyConfig(
+                    hidden_dim=model_config.hidden_dim // model_config.transformer_block_config.num_heads, input_dim=3
+                )
             )
             if self.use_rope
             else None

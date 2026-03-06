@@ -7,13 +7,6 @@ from torch import Tensor, nn
 
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 from noether.core.schemas.modules.attention import TokenSpec
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-    RopeFrequencyConfig,
-)
-from noether.core.schemas.modules.mlp import MLPConfig
 from noether.modeling.modules.attention.anchor_attention import (
     CrossAnchorAttention,
     JointAnchorAttention,
@@ -40,6 +33,7 @@ class AnchoredBranchedUPT(nn.Module):
             config: Configuration for the AB-UPT model. See :class:`~noether.core.schemas.models.AnchorBranchedUPTConfig` for details."""
         super().__init__()
 
+        # move this to schema?
         self.data_specs = config.data_specs
         if config.data_specs.conditioning_dims is not None and config.data_specs.conditioning_dims.total_dim > 0:
             condition_dim = config.data_specs.conditioning_dims.total_dim
@@ -51,22 +45,21 @@ class AnchoredBranchedUPT(nn.Module):
         if not config.transformer_block_config.use_rope:
             raise ValueError("AB-UPT requires RoPE to be enabled in the transformer block config.")
 
-        self.rope = RopeFrequency(
-            config=RopeFrequencyConfig(
-                hidden_dim=config.transformer_block_config.hidden_dim // config.transformer_block_config.num_heads,
-                input_dim=config.data_specs.position_dim,
-                implementation="complex",
-            )  # type: ignore[call-arg]
-        )  # type: ignore[call-arg]
+        assert config.rope_frequency_config is not None, (
+            "rope_frequency_config must be provided when using RoPE in the transformer blocks."
+        )
+        self.rope = RopeFrequency(config=config.rope_frequency_config)
 
         # pos_embed
-        self.pos_embed = ContinuousSincosEmbed(
-            config=ContinuousSincosEmbeddingConfig(
-                hidden_dim=config.hidden_dim, input_dim=config.data_specs.position_dim
-            )  # type: ignore[call-arg]
+        assert config.pos_embed_config is not None, (
+            "pos_embed_config must be provided for the positional embedding layer."
         )
+        self.pos_embed = ContinuousSincosEmbed(config=config.pos_embed_config)
 
         # geometry
+        assert config.supernode_pooling_config is not None, (
+            "supernode_pooling_config must be provided for the geometry encoder."
+        )
         self.encoder = SupernodePooling(config=config.supernode_pooling_config)
 
         self.geometry_blocks = nn.ModuleList(
@@ -74,21 +67,9 @@ class AnchoredBranchedUPT(nn.Module):
         )
 
         # position bias
-        self.surface_bias = MLP(
-            config=MLPConfig(  # type: ignore[call-arg]
-                input_dim=config.hidden_dim,
-                hidden_dim=config.hidden_dim,
-                output_dim=config.hidden_dim,
-            )
-        )
-
-        self.volume_bias = MLP(
-            config=MLPConfig(  # type: ignore[call-arg]
-                input_dim=config.hidden_dim,
-                hidden_dim=config.hidden_dim,
-                output_dim=config.hidden_dim,
-            )
-        )
+        assert config.bias_mlp_config is not None, "bias_mlp_config must be provided for surface and volume bias MLPs."
+        self.surface_bias = MLP(config=config.bias_mlp_config)
+        self.volume_bias = MLP(config=config.bias_mlp_config)
 
         # physics blocks
         self.num_perceivers = 0
@@ -97,16 +78,10 @@ class AnchoredBranchedUPT(nn.Module):
         for block in config.physics_blocks:
             if block == "perceiver":
                 self.use_geometry_branch = True
-                block = PerceiverBlock(
-                    config=PerceiverBlockConfig(
-                        hidden_dim=config.hidden_dim,
-                        num_heads=config.transformer_block_config.num_heads,
-                        mlp_expansion_factor=config.transformer_block_config.mlp_expansion_factor,
-                        kv_dim=None,
-                        use_rope=config.transformer_block_config.use_rope,
-                        condition_dim=condition_dim,
-                    )  # type: ignore[call-arg]
-                )  # type: ignore[assignment]
+                assert config.perceiver_block_config is not None, (
+                    "perceiver_block_config must be provided when using perceiver blocks."
+                )
+                block = PerceiverBlock(config=config.perceiver_block_config)  # type: ignore[assignment]
             else:
                 if block == "shared":
                     attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
@@ -142,20 +117,10 @@ class AnchoredBranchedUPT(nn.Module):
         )
 
         # output projection
-        self.surface_decoder = LinearProjection(
-            config=LinearProjectionConfig(
-                input_dim=config.hidden_dim,
-                output_dim=config.data_specs.surface_output_dims.total_dim,
-                init_weights="truncnormal002",
-            )  # type: ignore[call-arg]
-        )
-        self.volume_decoder = LinearProjection(
-            config=LinearProjectionConfig(
-                input_dim=config.hidden_dim,
-                output_dim=config.data_specs.volume_output_dims.total_dim,  # type: ignore[union-attr]
-                init_weights="truncnormal002",
-            )  # type: ignore[call-arg]
-        )
+        assert config.surface_decoder_config is not None, "surface_decoder_config must be provided."
+        self.surface_decoder = LinearProjection(config=config.surface_decoder_config)
+        assert config.volume_decoder_config is not None, "volume_decoder_config must be provided."
+        self.volume_decoder = LinearProjection(config=config.volume_decoder_config)
 
     def _slice_predictions(
         self,

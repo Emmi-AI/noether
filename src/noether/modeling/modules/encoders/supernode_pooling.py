@@ -11,6 +11,7 @@ from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection
 
 
+# TODO: check what and if we need to move things to the schema
 class SupernodePooling(nn.Module):
     """Supernode pooling layer.
 
