@@ -1,11 +1,13 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from collections.abc import Sequence
-from typing import Annotated, Any, Self, Union
+from typing import Annotated, Any, ClassVar, Self, Union
 
 import numpy as np
 import torch
 from pydantic import BaseModel, Field, PlainSerializer, PlainValidator, model_validator
+
+from noether.core.schemas.lib import _RegistryBase
 
 
 # 1. Define a function to validate the input.
@@ -35,8 +37,16 @@ FloatOrArray = float | Sequence[float] | TorchTensor
 SequenceOrTensor = Sequence[float] | TorchTensor
 
 
-class MeanStdNormalizerConfig(BaseModel):
+class NormalizerConfig(_RegistryBase):
+    """Base configuration for normalizers. All normalizer configs should inherit from this class."""
+
+    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
+    _type_field: ClassVar[str] = "kind"
     kind: str | None = None
+    """Kind of normalizer to use, i.e. class path"""
+
+
+class MeanStdNormalizerConfig(NormalizerConfig):
     mean: TorchTensor
     """mean to subtract from the input data. Can be a single value or a Sequence if we want to apply a different mean per dimension."""
     std: TorchTensor
@@ -45,8 +55,7 @@ class MeanStdNormalizerConfig(BaseModel):
     """If true, the input data is assumed to be in log scale."""
 
 
-class PositionNormalizerConfig(BaseModel):
-    kind: str | None = None
+class PositionNormalizerConfig(NormalizerConfig):
     raw_pos_min: TorchTensor
     """Minimum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
     raw_pos_max: TorchTensor
@@ -68,8 +77,7 @@ class PositionNormalizerConfig(BaseModel):
         return self
 
 
-class ShiftAndScaleNormalizerConfig(BaseModel):
-    kind: str | None = None
+class ShiftAndScaleNormalizerConfig(NormalizerConfig):
     shift: TorchTensor
     """Value to subtract from the input data. Can be a single value or a Sequence if we want to apply a different shift per dimension.
     Assumed in log scale if logscale is True.

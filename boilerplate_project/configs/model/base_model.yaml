@@ -3,5 +3,5 @@ name: base_model_boilerplate
 hidden_dim: 128
 dropout: 0.1
 optimizer_config: ${optim}
-input_dim: ${trainer.input_dim}
+input_dim: 2
 output_dim: 10

@@ -1,16 +1,20 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 
-from typing import Annotated
+from typing import Annotated, ClassVar
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from noether.core.schemas.initializers import AnyInitializer
+from noether.core.schemas.lib import _RegistryBase
 from noether.core.schemas.optimizers import OptimizerConfig
 
 
-class ModelBaseConfig(BaseModel):
-    kind: str
+class ModelBaseConfig(_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
+    kind: str | None = None
     """Kind of model to use, i.e. class path"""
     name: str
     """Name of the model. Needs to be unique"""
