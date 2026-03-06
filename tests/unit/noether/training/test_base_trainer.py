@@ -686,7 +686,7 @@ class TestStateDict:
             CheckpointKeys.CALLBACK_STATE_DICT: [{"a": 1}, {"b": 2}],
             CheckpointKeys.TRAINING_ITERATION: {},
         }
-        with pytest.raises(ValueError, match="Number of callbacks"):
+        with pytest.raises(ValueError, match="Number of stateful callbacks"):
             trainer.load_state_dict(state_dict)
 
     def test_load_state_dict_loads_callbacks(self):

@@ -410,11 +410,24 @@ class BaseTrainer:
         # load callback state_dicts
         callback_state_dicts = state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(self.callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(self.callbacks)})"
+        num_in_checkpoint = len(callback_state_dicts)
+        num_current = len(self.callbacks)
+        if num_in_checkpoint != num_current:
+            # Callback count can differ between runs (e.g. EtaCallback is only added in TTY environments, or spawned
+            # multi-GPU processes lose TTY). Only stateful callbacks (non-None state_dict) matter - log a warning and
+            # load positionally up to the shorter list, skipping trailing None entries.
+            num_stateful_in_checkpoint = sum(1 for sd in callback_state_dicts if sd is not None)
+            num_stateful_current = sum(1 for cb in self.callbacks if cb.state_dict() is not None)
+            if num_stateful_in_checkpoint != num_stateful_current:
+                raise ValueError(
+                    f"Number of stateful callbacks in checkpoint ({num_stateful_in_checkpoint}) does not match "
+                    f"number of stateful callbacks in current trainer ({num_stateful_current})"
+                )
+            self.logger.warning(
+                f"Callback count mismatch: checkpoint has {num_in_checkpoint}, current trainer has {num_current}. "
+                f"All {num_stateful_in_checkpoint} stateful callbacks match — loading positionally."
             )
-        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=True):
+        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=False):
             callback.load_state_dict(sd)
 
         # load grad_scaler
