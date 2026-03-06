@@ -3,11 +3,12 @@
 from abc import ABC
 from collections import OrderedDict
 from collections.abc import Sequence
-from typing import Any, ClassVar, Literal, Union
+from typing import Annotated, Any, ClassVar, Literal, TypeVar, Union
 
 from pydantic import BaseModel, Field, RootModel, model_validator
 
-from noether.core.schemas.normalizers import AnyNormalizer
+from noether.core.schemas.lib import Discriminated, _RegistryBase
+from noether.core.schemas.normalizers import NormalizerConfig
 
 
 class DatasetWrapperConfig(BaseModel):
@@ -32,18 +33,35 @@ class SubsetWrapperConfig(DatasetWrapperConfig):
     end_percent: float | None = None
 
 
+class PipelineConfig(_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
+    kind: str
+
+
 DatasetWrappers = Union[RepeatWrapperConfig, ShuffleWrapperConfig, SubsetWrapperConfig]
 
+TPipelineConfig = TypeVar("TPipelineConfig", bound=PipelineConfig)
 
-class DatasetBaseConfig(BaseModel):
-    kind: str
+
+class DatasetBaseConfig[TPipelineConfig: PipelineConfig](_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
+    kind: str | None = None
     """Kind of dataset to use."""
-    pipeline: Any | None = Field(None)
+    pipeline: Annotated[TPipelineConfig | None, Discriminated(PipelineConfig)] = Field(None)
     """Config of the pipeline to use for the dataset."""
 
-    dataset_normalizers: dict[str, list[AnyNormalizer] | AnyNormalizer] | None = Field(
-        None, validation_alias="normalizers"
-    )
+    dataset_normalizers: (
+        dict[
+            str,
+            list[Annotated[Any, Discriminated(NormalizerConfig)]] | Annotated[Any, Discriminated(NormalizerConfig)],
+        ]
+        | None
+    ) = None
+
     """List of normalizers to apply to the dataset. The key is the data source name."""
     dataset_wrappers: list[DatasetWrappers] | None = Field(None, validation_alias="wrappers")
     included_properties: set[str] | None = Field(None)
@@ -58,7 +76,7 @@ class DatasetBaseConfig(BaseModel):
     }  # Forbid extra fields in dataset configs
 
 
-class StandardDatasetConfig(DatasetBaseConfig):
+class StandardDatasetConfig(DatasetBaseConfig, ABC):
     """Base config for datasets with fixed splits."""
 
     root: str

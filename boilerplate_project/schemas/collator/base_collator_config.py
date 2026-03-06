@@ -1,8 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from pydantic import BaseModel
+from noether.core.schemas.dataset import PipelineConfig
 
 
-class BasePipeline(BaseModel):
-    kind: str
-    default_collate_modes: list[str]
+class BasePipelineConfig(PipelineConfig):
+    default_collate_modes: list[str] = ["x", "y"]

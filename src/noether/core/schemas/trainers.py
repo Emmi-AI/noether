@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, ClassVar, Literal, TypeVar
 
 from pydantic import BaseModel, Field, model_validator
 
-from noether.core.schemas.callbacks import CallbacksConfig
+from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.schemas.initializers import InitializerConfig
+from noether.core.schemas.lib import Discriminated, _RegistryBase
 
 
 class CheckpointConfig(BaseModel):
@@ -16,7 +17,13 @@ class CheckpointConfig(BaseModel):
     sample: int | None = None
 
 
-class BaseTrainerConfig(BaseModel):
+TCallbackConfig = TypeVar("TCallbackConfig", bound=CallBackBaseConfig)
+
+
+class BaseTrainerConfig[TCallbackConfig: CallBackBaseConfig](_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
     kind: str
 
     max_epochs: int | None = Field(None)
@@ -38,7 +45,9 @@ class BaseTrainerConfig(BaseModel):
     """The effective batch size used for optimization. This is the number of samples that are processed before an update step is taken: the "global batch size". In multi-GPU setups, the batch size per device, ("local batch size") is `effective_batch_size / number of devices`. If gradient accumulation is used, the forward-pass batch size is derived by dividing by the number of gradient accumulation steps."""
     precision: Literal["float32", "fp32", "float16", "fp16", "bfloat16", "bf16"] = Field("float32")
     """The precision to use for training (e.g., "float32"). Mixed precision training (e.g., "float16" or "bfloat16") can be used to speed up training and reduce memory usage on supported hardware (e.g., NVIDIA GPUs)."""
-    callbacks: list[CallbacksConfig] | None = Field(..., description="List of callback configurations")
+    callbacks: list[Annotated[TCallbackConfig, Discriminated(CallBackBaseConfig)]] | None = Field(
+        ..., description="List of callback configurations"
+    )
     """The callbacks to use for training."""
     initializer: InitializerConfig | None = Field(None)
     """The initializer to use for training. Mainly used for resuming training via ResumeInitializer."""

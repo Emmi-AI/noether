@@ -5,15 +5,15 @@ from __future__ import annotations
 import os
 import random
 from pathlib import Path
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, TypeVar
 
 import torch
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.schemas.lib import Discriminated
 from noether.core.schemas.models import ModelBaseConfig
-from noether.core.schemas.normalizers import AnyNormalizer
-from noether.core.schemas.trackers import AnyTracker
+from noether.core.schemas.trackers import BaseTrackerConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.utils.common import validate_path
 
@@ -42,7 +42,14 @@ def default_accelerator() -> ACCELERATOR_TYPES:
         return "cpu"
 
 
-class ConfigSchema(BaseModel):
+TModelConfig = TypeVar("TModelConfig", bound=ModelBaseConfig)
+TDatasetConfig = TypeVar("TDatasetConfig", bound=DatasetBaseConfig)
+TTrainerConfig = TypeVar("TTrainerConfig", bound=BaseTrainerConfig)
+
+
+class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseConfig, TTrainerConfig: BaseTrainerConfig](
+    BaseModel
+):
     """Root configuration schema for all experiments in Noether."""
 
     name: str | None = None
@@ -65,9 +72,7 @@ class ConfigSchema(BaseModel):
     """Random seed for reproducibility."""
     dataset_statistics: dict[str, list[float | int]] | None = None
     """Pre-computed dataset statistics, e.g., mean and std for normalization. Since some tensors are multi-dimensional, the statistics are stored as lists."""
-    dataset_normalizer: dict[str, list[AnyNormalizer]] | None = None
-    """List of normalizers to apply to the dataset. The key is the data source name."""
-    tracker: AnyTracker | None = Field(None, discriminator="kind")
+    tracker: Annotated[BaseTrackerConfig, Discriminated(BaseTrackerConfig)] | None = Field(None)
     """Configuration for experiment tracking. If None, no tracking is used. If "disabled", tracking is explicitly disabled.  WandB is currently the only supported tracker."""
     run_id: str | None = None
     """Unique identifier for the run. If None, a new ID will be generated."""
@@ -80,17 +85,17 @@ class ConfigSchema(BaseModel):
     cudnn_deterministic: bool = False
     """Whether to enable cudnn deterministic mode for this run."""
 
-    datasets: dict[str, DatasetBaseConfig] = Field(...)
+    datasets: dict[str, Annotated[TDatasetConfig, Discriminated(DatasetBaseConfig)]] = Field(...)
     """Configuration for datasets. The key is the dataset and value is the configuration for that dataset.
     See :class:`~noether.core.schemas.dataset.DatasetBaseConfig` for available options.
     The key "train" is reserved for the training dataset, but if not provided, the first dataset will be used as training dataset by default,
     other keys are arbitrary and can be used to identify datasets for different stages, e.g., "train", "val", "test", etc. or different datasets for the same stage, e.g., "train_cfd", "train_wind_turbine", etc.
     """
 
-    model: ModelBaseConfig = Field(...)
+    model: Annotated[TModelConfig, Discriminated(ModelBaseConfig)] = Field(...)
     """Configuration for the model. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options."""
 
-    trainer: BaseTrainerConfig = Field(...)
+    trainer: Annotated[TTrainerConfig, Discriminated(BaseTrainerConfig)] = Field(...)
     """Configuration for the trainer. See :class:`~noether.core.schemas.trainers.BaseTrainerConfig` for available options."""
 
     debug: bool = False

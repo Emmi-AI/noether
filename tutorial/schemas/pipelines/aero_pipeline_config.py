@@ -1,13 +1,10 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from pydantic import BaseModel
-
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import AeroDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 
 
-class AeroCFDPipelineConfig(BaseModel):
-    kind: str
+class AeroCFDPipelineConfig(PipelineConfig):
     num_surface_points: int
     """Number of surface points we sample as input for the model. """
     num_volume_points: int

@@ -5,4 +5,3 @@ max_epochs: 50
 effective_batch_size: 8
 log_every_n_epochs: 1
 callbacks: ${callbacks}
-input_dim: 2
