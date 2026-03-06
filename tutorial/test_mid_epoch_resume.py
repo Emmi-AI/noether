@@ -427,6 +427,32 @@ def find_run_id(output_path: Path, stage_name: str) -> str | None:
     return None
 
 
+def _multigpu_main(device: str, config: ConfigSchema, run_id_file: Path) -> None:
+    """Entry point for each spawned GPU process in multi-GPU training."""
+    from noether.core.distributed import is_rank0
+
+    trainer, model, tracker, message_counter = HydraRunner.setup_experiment(
+        device=device,
+        config=config,
+    )
+    actual_run_id = str(trainer.path_provider.run_id)
+    if is_rank0():
+        run_id_file.write_text(actual_run_id)
+        print(f"\n{'=' * 60}")
+        print(f"Stage: {config.stage_name}")
+        print(f"Run ID: {actual_run_id}")
+        if config.resume_checkpoint:
+            print(f"Resuming from: {config.resume_checkpoint} (run {config.resume_run_id})")
+        print(f"Start checkpoint: {trainer.start_checkpoint}")
+        print(f"End checkpoint: {trainer.end_checkpoint}")
+        print(f"Updates per epoch: {trainer.updates_per_epoch}")
+        print(f"{'=' * 60}\n")
+    trainer.train(model)
+    tracker.summarize_logvalues()
+    message_counter.log()
+    tracker.close()
+
+
 def build_config(
     dataset_root: Path,
     output_path: Path,
@@ -525,38 +551,15 @@ def run_training(
 
     # For multi-GPU, go through run_unmanaged which spawns processes
     if devices is not None and len(devices.split(",")) > 1:
+        from functools import partial
+
         from noether.core.distributed import run_unmanaged
 
         # We need to capture the run_id from the spawned process. Use a shared file.
         run_id_file = output_path / f".run_id_{stage_name}.txt"
 
-        def _main(device: str, config: ConfigSchema = config, run_id_file: Path = run_id_file) -> None:
-            from noether.core.distributed import is_rank0
-
-            trainer, model, tracker, message_counter = HydraRunner.setup_experiment(
-                device=device,
-                config=config,
-            )
-            actual_run_id = str(trainer.path_provider.run_id)
-            if is_rank0():
-                run_id_file.write_text(actual_run_id)
-                print(f"\n{'=' * 60}")
-                print(f"Stage: {config.stage_name}")
-                print(f"Run ID: {actual_run_id}")
-                print(f"Max epochs: {max_epochs}")
-                if config.resume_checkpoint:
-                    print(f"Resuming from: {config.resume_checkpoint} (run {config.resume_run_id})")
-                print(f"Start checkpoint: {trainer.start_checkpoint}")
-                print(f"End checkpoint: {trainer.end_checkpoint}")
-                print(f"Updates per epoch: {trainer.updates_per_epoch}")
-                print(f"{'=' * 60}\n")
-            trainer.train(model)
-            tracker.summarize_logvalues()
-            message_counter.log()
-            tracker.close()
-
         run_unmanaged(
-            main=_main,
+            main=partial(_multigpu_main, config=config, run_id_file=run_id_file),
             devices=devices,
             accelerator=config.accelerator,
             master_port=config.master_port,
