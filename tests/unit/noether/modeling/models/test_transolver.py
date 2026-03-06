@@ -14,13 +14,18 @@ def transolver_model(request):
 
     config = (
         TransolverConfig(
-            hidden_dim=3, num_heads=1, depth=2, attention_constructor="transolver", kind="single", name="transolver"
+            transformer_block_config={"num_heads": 1, "mlp_expansion_factor": 4},
+            hidden_dim=3,
+            depth=2,
+            attention_constructor="transolver",
+            kind="single",
+            name="transolver",
         )
         if not use_transolver_plusplus
         else TransolverPlusPlusConfig(
-            hidden_dim=3,
-            num_heads=1,
+            transformer_block_config={"num_heads": 1, "mlp_expansion_factor": 4},
             depth=2,
+            hidden_dim=3,
             attention_constructor="transolver_plusplus",
             kind="single",
             name="transolver_plusplus",

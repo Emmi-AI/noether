@@ -9,6 +9,11 @@ from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
+from noether.core.schemas.modules.layers import (
+    ContinuousSincosEmbeddingConfig,
+    LinearProjectionConfig,
+    RopeFrequencyConfig,
+)
 
 from .base import ModelBaseConfig
 
@@ -41,6 +46,52 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     bias_layers: bool = Field(False)
 
     data_specs: AeroDataSpecs
+
+    pos_embedding_config: ContinuousSincosEmbeddingConfig | None = None
+
+    rope_frequency_config: RopeFrequencyConfig | None = None
+
+    linear_projection_config: LinearProjectionConfig | None = None
+
+    @model_validator(mode="after")
+    def set_linear_projection_config(self) -> "UPTConfig":
+        """Set the input_dim of the LinearProjectionConfig to match the hidden_dim of the model and the output_dim to match the total_output_dim of the data_specs."""
+        if self.linear_projection_config is None:
+            self.linear_projection_config = LinearProjectionConfig(
+                input_dim=self.hidden_dim,
+                output_dim=self.data_specs.total_output_dim,
+                init_weights=self.decoder_config.perceiver_block_config.init_weights,
+            )
+        return self
+
+    @model_validator(mode="after")
+    def set_rope_frequency_config(self) -> "UPTConfig":
+        """If use_rope is True, set the hidden_dim and input_dim of the RopeFrequencyConfig to match the model's hidden_dim and data_specs.position_dim."""
+        if self.use_rope:
+            self.rope_frequency_config = RopeFrequencyConfig(
+                hidden_dim=self.hidden_dim // self.num_heads,
+                input_dim=self.data_specs.position_dim,
+                implementation="complex",
+            )
+        return self
+
+    @model_validator(mode="after")
+    def update_supernode_pooling_config(self) -> "UPTConfig":
+        """Inject shared fields into supernode_pooling_config."""
+        if self.data_specs.use_physics_features:
+            self.supernode_pooling_config.input_features_dim = self.data_specs.surface_feature_dim_total
+        return self
+
+    @model_validator(mode="after")
+    def set_sincos_embedding_config(self) -> "UPTConfig":
+        # TODO: check if we can set this sucht that it cannot be configured via YAML
+        """Set the hidden_dim of the ContinuousSincosEmbeddingConfig to match the model's hidden_dim."""
+        if self.pos_embedding_config is None:
+            self.pos_embedding_config = ContinuousSincosEmbeddingConfig(
+                hidden_dim=self.hidden_dim,
+                input_dim=self.data_specs.position_dim,
+            )
+        return self
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "UPTConfig":
