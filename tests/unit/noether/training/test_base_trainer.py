@@ -1019,3 +1019,288 @@ class TestSkipRemainingBatches:
         data_iter = MagicMock(spec=[])  # no batch_sampler attribute
         # Should not raise
         trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
+
+
+class TestMidEpochResume:
+    """Tests for mid-epoch checkpoint resume support."""
+
+    def test_mid_epoch_resume_accepted(self):
+        """Checkpoint at update=25 (10 updates/epoch) should not raise."""
+        from noether.core.initializers import InitializerBase
+
+        config = MagicMock()
+        config.max_epochs = 5
+        config.max_updates = None
+        config.max_samples = None
+        config.effective_batch_size = 10
+        config.precision = "float32"
+        config.start_at_epoch = None
+        config.forward_properties = list()
+        config.target_properties = list()
+        config.callbacks = list()
+        config.initializer = "some_initializer"
+
+        dataset = MagicMock()
+        dataset.__len__ = MagicMock(return_value=100)
+        data_container = MagicMock()
+        data_container.get_dataset.return_value = dataset
+
+        with (
+            patch(_MODULE_PATH + ".Factory") as mock_factory,
+            patch(_MODULE_PATH + ".get_supported_precision", return_value="float32"),
+            patch(
+                _MODULE_PATH + ".get_grad_scaler_and_autocast_context",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(_MODULE_PATH + ".LogWriter"),
+            patch(_MODULE_PATH + ".CheckpointWriter"),
+        ):
+            real_initializer = MagicMock(spec=InitializerBase)
+            # update=25, epoch=2 (floor of 25/10), sample=250
+            real_initializer.start_checkpoint.return_value = TrainingIteration(epoch=2, update=25, sample=250)
+            mock_factory.return_value.create.return_value = real_initializer
+            mock_factory.return_value.create_list.return_value = list()
+
+            class ConcreteTrainer(BaseTrainer):
+                def loss_compute(self, forward_output, targets):
+                    return torch.tensor(1.0)
+
+            # Should NOT raise ValueError
+            trainer = ConcreteTrainer(
+                config=config,
+                data_container=data_container,
+                device="cpu",
+                tracker=MagicMock(),
+                path_provider=MagicMock(),
+                metric_property_provider=MagicMock(),
+            )
+            assert trainer.start_checkpoint.update == 25
+
+    def test_batch_skipping(self):
+        """Verify data_iter is advanced by the correct number of batches."""
+        trainer = _make_trainer(effective_batch_size=10, dataset_len=100)
+        # updates_per_epoch = 100 / 10 = 10
+        trainer.start_checkpoint = TrainingIteration(epoch=2, update=25, sample=250)
+
+        data_iter_items = list(range(100))
+
+        # Mock _run_epoch to return True immediately (stop after first call)
+        with patch.object(trainer, "_run_epoch", return_value=True) as mock_run:
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=10,
+                accumulation_steps_total=1,
+                data_loader=data_iter_items,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        # 25 % 10 = 5 updates into epoch, accumulation=1 → 5 batches to skip
+        # first epoch should be 10 - 5 = 5 batches
+        call_kwargs = mock_run.call_args[1]
+        assert call_kwargs["train_batches_per_epoch"] == 5
+
+    def test_first_epoch_shortened(self):
+        """Verify _run_epoch receives reduced train_batches_per_epoch on first call."""
+        trainer = _make_trainer(effective_batch_size=4, dataset_len=40)
+        # updates_per_epoch = 40 / 4 = 10
+        trainer.start_checkpoint = TrainingIteration(epoch=1, update=13, sample=52)
+
+        call_count = 0
+        batches_per_call = []
+
+        def fake_run_epoch(**kwargs):
+            nonlocal call_count
+            batches_per_call.append(kwargs["train_batches_per_epoch"])
+            call_count += 1
+            return call_count >= 2  # stop after second call
+
+        mock_data_loader = MagicMock()
+        mock_data_loader.__iter__ = MagicMock(return_value=iter(range(100)))
+
+        with patch.object(trainer, "_run_epoch", side_effect=fake_run_epoch):
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=4,
+                accumulation_steps_total=1,
+                data_loader=mock_data_loader,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        # 13 % 10 = 3 updates into epoch, accumulation=1 → 3 batches to skip
+        # first epoch: 10 - 3 = 7
+        assert batches_per_call[0] == 7
+
+    def test_subsequent_epochs_full(self):
+        """Verify normal train_batches_per_epoch after the partial first epoch."""
+        trainer = _make_trainer(effective_batch_size=4, dataset_len=40)
+        trainer.start_checkpoint = TrainingIteration(epoch=1, update=13, sample=52)
+
+        call_count = 0
+        batches_per_call = []
+
+        def fake_run_epoch(**kwargs):
+            nonlocal call_count
+            batches_per_call.append(kwargs["train_batches_per_epoch"])
+            call_count += 1
+            return call_count >= 3  # run 3 epochs
+
+        mock_data_loader = MagicMock()
+        mock_data_loader.__iter__ = MagicMock(return_value=iter(range(200)))
+
+        with patch.object(trainer, "_run_epoch", side_effect=fake_run_epoch):
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=4,
+                accumulation_steps_total=1,
+                data_loader=mock_data_loader,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        # First epoch shortened, subsequent full
+        assert batches_per_call[0] == 7  # 10 - 3
+        assert batches_per_call[1] == 10  # full
+        assert batches_per_call[2] == 10  # full
+
+    def test_epoch_boundary_no_skip(self):
+        """At an epoch boundary (update % updates_per_epoch == 0), no batches are skipped."""
+        trainer = _make_trainer(effective_batch_size=10, dataset_len=100)
+        trainer.start_checkpoint = TrainingIteration(epoch=2, update=20, sample=200)
+
+        batches_per_call = []
+
+        def fake_run_epoch(**kwargs):
+            batches_per_call.append(kwargs["train_batches_per_epoch"])
+            return True
+
+        mock_data_loader = MagicMock()
+        mock_data_loader.__iter__ = MagicMock(return_value=iter(range(100)))
+
+        with patch.object(trainer, "_run_epoch", side_effect=fake_run_epoch):
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=10,
+                accumulation_steps_total=1,
+                data_loader=mock_data_loader,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        # No shortening — full epoch
+        assert batches_per_call[0] == 10
+
+    def test_batch_skipping_with_accumulation(self):
+        """With accumulation_steps_total > 1, batch skip count is updates * accumulation_steps_total."""
+        trainer = _make_trainer(effective_batch_size=4, dataset_len=40)
+        trainer.start_checkpoint = TrainingIteration(epoch=1, update=12, sample=48)
+
+        batches_per_call = []
+
+        def fake_run_epoch(**kwargs):
+            batches_per_call.append(kwargs["train_batches_per_epoch"])
+            return True
+
+        mock_data_loader = MagicMock()
+        mock_data_loader.__iter__ = MagicMock(return_value=iter(range(200)))
+
+        with patch.object(trainer, "_run_epoch", side_effect=fake_run_epoch):
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=2,
+                accumulation_steps_total=2,
+                data_loader=mock_data_loader,
+                train_batches_per_epoch=20,  # 10 updates * 2 accumulation
+                periodic_callbacks=[],
+            )
+
+        # 12 % 10 = 2 updates into epoch, 2 * 2 = 4 batches to skip
+        # first epoch: 20 - 4 = 16 batches
+        assert batches_per_call[0] == 16
+
+
+class TestSignalHandler:
+    def test_signal_flag_triggers_checkpoint_save_and_stop(self):
+        """Simulating a signal sets the flag, _run_epoch saves checkpoint and returns True."""
+        trainer = _make_trainer(
+            effective_batch_size=4, dataset_len=40, forward_properties=["x"], target_properties=["y"]
+        )
+
+        # Simulate signal received mid-training
+        trainer._signal_received = True
+
+        mock_model = MagicMock()
+        mock_model.device = torch.device("cpu")
+        mock_dist_model = MagicMock()
+        mock_batch = {"x": torch.zeros(4), "y": torch.zeros(4)}
+        data_iter = iter([mock_batch] * 200)
+
+        with patch(_MODULE_PATH + ".move_items_to_device", side_effect=lambda dev, b: b):
+            result = trainer._run_epoch(
+                model=mock_model,
+                dist_model=mock_dist_model,
+                batch_size=4,
+                accumulation_steps_total=1,
+                data_iter=data_iter,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        assert result is True
+        trainer.checkpoint_writer.save.assert_called_once()
+        call_kwargs = trainer.checkpoint_writer.save.call_args
+        tag = call_kwargs.kwargs.get("checkpoint_tag") or call_kwargs[1].get("checkpoint_tag", "")
+        assert ".signal_interrupt" in tag
+
+    def test_install_and_restore_signal_handlers(self):
+        """Signal handlers are installed and restored correctly."""
+        import signal
+
+        trainer = _make_trainer()
+        original_sigterm = signal.getsignal(signal.SIGTERM)
+        original_sigint = signal.getsignal(signal.SIGINT)
+
+        trainer._install_signal_handlers()
+        assert signal.getsignal(signal.SIGTERM) == trainer._signal_handler
+        assert signal.getsignal(signal.SIGINT) == trainer._signal_handler
+
+        trainer._restore_signal_handlers()
+        assert signal.getsignal(signal.SIGTERM) == original_sigterm
+        assert signal.getsignal(signal.SIGINT) == original_sigint
+
+    def test_signal_handler_sets_flag(self):
+        """The signal handler method sets _signal_received flag."""
+        trainer = _make_trainer()
+        assert trainer._signal_received is False
+
+        trainer._signal_handler(14, None)  # 14 = SIGALRM (safe to use in tests)
+        assert trainer._signal_received is True
+
+    def test_train_restores_handlers_on_exception(self):
+        """Signal handlers are restored even if _train raises."""
+        import signal
+
+        trainer = _make_trainer()
+        original_sigterm = signal.getsignal(signal.SIGTERM)
+
+        mock_data_loader = MagicMock()
+        mock_data_loader.__iter__ = MagicMock(side_effect=RuntimeError("boom"))
+
+        with pytest.raises(RuntimeError, match="boom"):
+            trainer._train(
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                batch_size=4,
+                accumulation_steps_total=1,
+                data_loader=mock_data_loader,
+                train_batches_per_epoch=10,
+                periodic_callbacks=[],
+            )
+
+        assert signal.getsignal(signal.SIGTERM) == original_sigterm
