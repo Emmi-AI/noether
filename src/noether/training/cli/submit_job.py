@@ -90,12 +90,12 @@ if _DRY_RUN:
 # setup_hydra() replaces --hp <path> with -cp <dir> -cn <name>, so parsing
 # must happen here at import time, not inside main().
 _RAW_CONFIG_PATH: str | None = None
-_i = 0
-while _i < len(sys.argv) - 1:
-    if sys.argv[_i] == "--hp":
-        _RAW_CONFIG_PATH = sys.argv[_i + 1]
+
+for idx, arg in enumerate(sys.argv[:-1]):
+    if arg == "--hp":
+        _RAW_CONFIG_PATH = sys.argv[idx + 1]
         break
-    _i += 1
+
 if _RAW_CONFIG_PATH is None and len(sys.argv) > 1 and sys.argv[1].endswith(".yaml"):
     _RAW_CONFIG_PATH = sys.argv[1]
 
