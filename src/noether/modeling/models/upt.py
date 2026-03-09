@@ -22,20 +22,11 @@ class UPT(nn.Module):
 
         super().__init__()
 
-        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
         self.use_rope = config.use_rope
-
-        assert config.pos_embedding_config is not None
-        self.pos_embed = ContinuousSincosEmbed(config=config.pos_embedding_config)
-
+        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
+        self.pos_embed = ContinuousSincosEmbed(config=config.pos_embedding_config)  # type: ignore[arg-type]
         if self.use_rope:
-            # move to schema
-            if not config.approximator_config.use_rope and config.decoder_config.perceiver_block_config.use_rope:
-                raise ValueError(
-                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
-                )
-            assert config.rope_frequency_config is not None
-            self.rope = RopeFrequency(config=config.rope_frequency_config)
+            self.rope = RopeFrequency(config=config.rope_frequency_config)  # type: ignore[arg-type]
 
         self.approximator_blocks = nn.ModuleList(
             [
@@ -45,15 +36,15 @@ class UPT(nn.Module):
                 for _ in range(config.approximator_depth)
             ],
         )
-        self.decoder = DeepPerceiverDecoder(config=config.decoder_config)
+
+        self.decoder = DeepPerceiverDecoder(config=config.decoder_config)  # type: ignore[arg-type]
 
         self.norm = nn.LayerNorm(
             config.decoder_config.perceiver_block_config.hidden_dim,
             eps=config.decoder_config.perceiver_block_config.eps,
         )
 
-        assert config.linear_projection_config is not None  # move to schema
-        self.prediction_layer = LinearProjection(config=config.linear_projection_config)
+        self.prediction_layer = LinearProjection(config=config.linear_output_projection_config)  # type: ignore[arg-type]
 
     def compute_rope_args(
         self,

@@ -34,8 +34,10 @@ class TransformerBlock(nn.Module):
             elementwise_affine = True
         else:
             assert config.bias
-            assert config.modulation_linear_projection_config is not None
-            self.modulation = LinearProjection(config=config.modulation_linear_projection_config)
+            if config.modulation_linear_projection_config is None:
+                raise ValueError("modulation_linear_projection_config must be provided if condition_dim is not None.")
+
+            self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
             elementwise_affine = False
 
         self.norm1 = torch.nn.LayerNorm(
@@ -58,23 +60,18 @@ class TransformerBlock(nn.Module):
                 **config.model_dump(),
                 **(config.attention_arguments or {}),
             )
-        )  # TODO: check if we can also move this to the schema
-        assert config.layerscale_config is not None, "layerscale_config must be provided in the config"
-        self.ls1 = LayerScale(config=config.layerscale_config)
-        assert config.drop_path_config is not None, "drop_path_config must be provided in the config"
+        )
+        self.ls1 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
         self.drop_path1 = UnquantizedDropPath(
-            config=config.drop_path_config  # type: ignore[call-arg]
+            config=config.drop_path_config  # type: ignore[arg-type]
         )
 
         self.norm2 = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
-        assert config.up_act_down_mlp_config is not None, "up_act_down_mlp_config must be provided in the config"
-        self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)
-        assert config.layerscale_config is not None, "layerscale_config must be provided in the config"
-        self.ls2 = LayerScale(config=config.layerscale_config)
-        assert config.drop_path_config is not None, "drop_path_config must be provided in the config"
-        self.drop_path2 = UnquantizedDropPath(config=config.drop_path_config)
+        self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
+        self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
+        self.drop_path2 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
 
     def forward(
         self,

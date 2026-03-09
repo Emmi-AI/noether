@@ -3,7 +3,7 @@
 
 from typing import Annotated
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, computed_field, model_validator
 
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
@@ -47,32 +47,30 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
 
     data_specs: AeroDataSpecs
 
-    pos_embedding_config: ContinuousSincosEmbeddingConfig | None = None
+    @computed_field
+    def linear_output_projection_config(self) -> "LinearProjectionConfig":
+        return LinearProjectionConfig(
+            input_dim=self.hidden_dim,
+            output_dim=self.data_specs.total_output_dim,
+            init_weights=self.decoder_config.perceiver_block_config.init_weights,
+        )
 
-    rope_frequency_config: RopeFrequencyConfig | None = None
-
-    linear_projection_config: LinearProjectionConfig | None = None
+    @computed_field
+    def rope_frequency_config(self) -> "RopeFrequencyConfig":
+        return RopeFrequencyConfig(
+            hidden_dim=self.hidden_dim // self.num_heads,
+            input_dim=self.data_specs.position_dim,
+            implementation="complex",
+        )
 
     @model_validator(mode="after")
-    def set_linear_projection_config(self) -> "UPTConfig":
-        """Set the input_dim of the LinearProjectionConfig to match the hidden_dim of the model and the output_dim to match the total_output_dim of the data_specs."""
-        if self.linear_projection_config is None:
-            self.linear_projection_config = LinearProjectionConfig(
-                input_dim=self.hidden_dim,
-                output_dim=self.data_specs.total_output_dim,
-                init_weights=self.decoder_config.perceiver_block_config.init_weights,
-            )
-        return self
-
-    @model_validator(mode="after")
-    def set_rope_frequency_config(self) -> "UPTConfig":
-        """If use_rope is True, set the hidden_dim and input_dim of the RopeFrequencyConfig to match the model's hidden_dim and data_specs.position_dim."""
+    def validate_rope_usage(self) -> "UPTConfig":
+        """Ensure that if use_rope is True in the main config, it is also True in the approximator_config."""
         if self.use_rope:
-            self.rope_frequency_config = RopeFrequencyConfig(
-                hidden_dim=self.hidden_dim // self.num_heads,
-                input_dim=self.data_specs.position_dim,
-                implementation="complex",
-            )
+            if not (self.approximator_config.use_rope and self.decoder_config.perceiver_block_config.use_rope):
+                raise ValueError(
+                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
+                )
         return self
 
     @model_validator(mode="after")
@@ -82,16 +80,12 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
             self.supernode_pooling_config.input_features_dim = self.data_specs.surface_feature_dim_total
         return self
 
-    @model_validator(mode="after")
-    def set_sincos_embedding_config(self) -> "UPTConfig":
-        # TODO: check if we can set this sucht that it cannot be configured via YAML
-        """Set the hidden_dim of the ContinuousSincosEmbeddingConfig to match the model's hidden_dim."""
-        if self.pos_embedding_config is None:
-            self.pos_embedding_config = ContinuousSincosEmbeddingConfig(
-                hidden_dim=self.hidden_dim,
-                input_dim=self.data_specs.position_dim,
-            )
-        return self
+    @computed_field
+    def pos_embedding_config(self) -> ContinuousSincosEmbeddingConfig:
+        return ContinuousSincosEmbeddingConfig(
+            hidden_dim=self.hidden_dim,
+            input_dim=self.data_specs.position_dim,
+        )
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "UPTConfig":

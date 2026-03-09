@@ -9,7 +9,6 @@ from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig
 from noether.modeling.modules.layers import LinearProjection
 
 
-# TODO: fix the attention(s)
 class TransolverAttention(nn.Module):
     """Adapted from https://github.com/thuml/Transolver/blob/main/Car-Design-ShapeNetCar/models/Transolver.py
     - Readable reshaping operations via einops
