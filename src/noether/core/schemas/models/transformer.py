@@ -16,7 +16,9 @@ class TransformerConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     model_config = ConfigDict(extra="forbid")
 
     hidden_dim: int = Field(..., ge=1)
+    """Hidden dimension of the model. Used for all transformer blocks."""
 
     depth: int = Field(..., ge=1)
+    """Number of transformer blocks in the model."""
 
     transformer_block_config: Annotated[TransformerBlockConfig, Shared]
