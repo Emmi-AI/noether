@@ -66,9 +66,6 @@ class AnchoredBranchedUPT(nn.Module):
         for block in config.physics_blocks:
             if block == "perceiver":
                 self.use_geometry_branch = True
-                assert config.perceiver_block_config is not None, (
-                    "perceiver_block_config must be provided when using perceiver blocks."
-                )
                 perceiver_block = PerceiverBlock(config=config.perceiver_block_config)  # type: ignore[arg-type]
                 self.physics_blocks.append(perceiver_block)  # type: ignore[arg-type]
             else:
