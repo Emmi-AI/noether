@@ -11,7 +11,7 @@ For example:
 
    noether-train-submit-job /path/to/noether/tutorial/configs/train_shapenet.yaml  +experiment/shapenet=transformer +seed=1 tracker=disabled dataset_root=/path/to/datasets/shapenet_car/
 
-The SLURM variables that are used for the job (e.g., number of GPUs, number of CPUs, etc.) are should be defined in the config schema under the ``slurm`` key. 
+The SLURM variables used for the job (e.g., number of GPUs, number of CPUs, etc.) have to be defined in the config schema under the ``slurm`` key. 
 
 An example of the SLURM config in YAML looks like this:
 
