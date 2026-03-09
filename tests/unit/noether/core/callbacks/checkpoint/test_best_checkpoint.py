@@ -63,7 +63,7 @@ class TestBestCheckpointCallback:
         cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
         cb.periodic_callback()
 
-        assert callback_deps["checkpoint_writer"].save.call_count == 3
+        assert callback_deps["checkpoint_writer"].save.call_count == 1
         checkpoint = [call.kwargs["checkpoint_tag"] for call in callback_deps["checkpoint_writer"].save.call_args_list]
         assert "best_model.val.acc" in checkpoint
 
@@ -98,6 +98,12 @@ class TestBestCheckpointCallback:
         assert cb.tolerance_counter == 3
         assert cb.tolerances_is_exceeded[2] is True
         assert cb.metric_at_exceeded_tolerance[2] == 0.85
+
+        assert callback_deps["checkpoint_writer"].save.call_count == 1  # Only the tolerance checkpoint should be saved
+        assert any(
+            "best_model.val.acc.tolerance=2" in call.kwargs["checkpoint_tag"]
+            for call in callback_deps["checkpoint_writer"].save.call_args_list
+        )
 
     def test_tolerance_counter_resets_on_new_best(self, callback_deps, base_config):
         """Tolerance counter AND exceeded flags must reset on new best model."""

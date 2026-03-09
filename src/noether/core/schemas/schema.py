@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import torch
-from omegaconf import OmegaConf
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from noether.core.schemas.dataset import DatasetBaseConfig
@@ -20,26 +19,6 @@ from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.utils.common import validate_path
 
 ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]
-
-
-class StaticConfigSchema(BaseModel):
-    output_path: str
-    """Path to store all outputs of the run, including logs, checkpoints, etc."""
-    default_cudnn_benchmark: bool = True
-    """Whether to enable cudnn benchmark mode by default."""
-    default_cudnn_deterministic: bool | None = False
-    """Whether to enable cudnn deterministic mode by default."""
-    master_port: int | None = None
-    """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
-    model_config = {"extra": "forbid"}  # Forbid extra fields in static configs
-
-    @staticmethod
-    def from_uri(uri: str) -> StaticConfigSchema:
-        """Load static config from a given URI (file path)."""
-        config_path = validate_path(uri, exists="must")
-        raw_config = OmegaConf.load(config_path)
-        resolved_config = OmegaConf.to_container(raw_config, resolve=True)
-        return StaticConfigSchema(**resolved_config)  # type: ignore[arg-type]
 
 
 def master_port_from_env() -> int:

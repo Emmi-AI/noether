@@ -3,25 +3,25 @@ How to Implement a Custom Trainer
 
 To implement a custom trainer in **Noether**, you need to create a new class that inherits from the ``BaseTrainer`` class and implements the ``loss_compute`` method to define your custom loss computation logic.
 
-.. code-block:: python
+.. testcode::
 
+    import torch
     from noether.training.trainers import BaseTrainer
     from noether.core.schemas.trainers import BaseTrainerConfig
 
     class CustomTrainerConfig(BaseTrainerConfig):
-        # Add any custom configuration parameters here
-
+        pass  # Add any custom configuration parameters here
 
     class CustomTrainer(BaseTrainer):
 
         def __init__(self, trainer_config: CustomTrainerConfig, **kwargs):
             super().__init__(trainer_config, **kwargs)
 
-
         def loss_compute(
             self, forward_output: dict[str, torch.Tensor], targets: dict[str, torch.Tensor]
         ) -> dict[str, torch.Tensor]:
             """Compute the loss given model outputs and targets.
+
             Args:
                 forward_output (dict[str, torch.Tensor]): The output from the model's forward pass.
                 targets (dict[str, torch.Tensor]): The ground truth targets.
@@ -29,8 +29,13 @@ To implement a custom trainer in **Noether**, you need to create a new class tha
             Returns:
                 dict[str, torch.Tensor]: A dictionary containing the computed loss values.
             """
-            # Implement your custom loss computation logic here
+            pass # Implement your custom loss computation logic here
+            
 
+.. testcode::
+   :hide:
+
+   _cfg = CustomTrainerConfig(kind="test.CustomTrainer", effective_batch_size=1, callbacks=[])
 
 The default ``train_step`` implementation of the BaseTrainer calls the ``loss_compute`` method to calculate the loss.
 Best practice is to return a dictionary of losses from the ``loss_compute`` method, where each key is a loss name and the value is the corresponding loss tensor.

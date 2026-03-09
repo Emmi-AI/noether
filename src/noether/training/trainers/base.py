@@ -19,6 +19,7 @@ from torch.nn.parallel import DistributedDataParallel
 from noether.core.callbacks import CallbackBase, PeriodicCallback
 from noether.core.callbacks.early_stoppers import EarlyStopIteration
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
+from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
     all_gather_nograd,
     get_num_nodes,
@@ -40,7 +41,6 @@ from noether.core.utils.common.stopwatch import Stopwatch
 from noether.core.utils.torch import get_grad_scaler_and_autocast_context, get_supported_precision, move_items_to_device
 from noether.core.utils.training import TrainingIteration, UpdateCounter
 from noether.core.writers import CheckpointWriter, LogWriter
-from noether.training.trainers.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.training.trainers.types import LossResult, TrainerResult
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports

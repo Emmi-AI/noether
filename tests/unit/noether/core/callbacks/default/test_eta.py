@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from noether.core.callbacks.default.eta import EtaCallback
-from noether.training.trainers.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
+from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 
 _MONKEY_PATCH_IS_RANK0 = "noether.core.callbacks.default.eta.is_rank0"
 
