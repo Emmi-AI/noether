@@ -57,7 +57,7 @@ class MixedAttention(DotProductAttention):
         x: torch.Tensor,
         token_specs: Sequence[TokenSpec],
         attention_patterns: Sequence[AttentionPattern],
-        attention_mask: torch.Tensor | None = None,
+        key_padding_mask: torch.Tensor | None = None,
         freqs: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Apply mixed attention with flexible token-name-based patterns.
@@ -70,10 +70,12 @@ class MixedAttention(DotProductAttention):
                 token groups (queries) attend to which other token groups (keys/values).
                 The provided patterns must be exhaustive and non-overlapping. This means every
                 token group defined in `token_specs` must be a query in exactly one pattern.
-            attention_mask: Optional attention mask (not currently supported)
+            key_padding_mask: Optional boolean mask of shape ``(batch_size, n_tokens)``.
+                ``True`` indicates a real token; ``False`` indicates a padding token that should not be attended to.
+                The mask is sliced per attention pattern to cover only the key/value tokens of that pattern.
             freqs: RoPE frequencies for positional encoding
         """
-        self._validate_inputs(x, token_specs, attention_patterns, attention_mask, freqs)
+        self._validate_inputs(x, token_specs, attention_patterns, key_padding_mask, freqs)
 
         # Initial Projection
         q, k, v = einops.rearrange(
@@ -91,7 +93,15 @@ class MixedAttention(DotProductAttention):
         }
         spec_size_map = {spec.name: spec.size for spec in token_specs}
 
-        token_outputs = self._process_pattern_batched(attention_patterns, q, k, v, token_slices, spec_size_map)  # type: ignore[arg-type]
+        token_outputs = self._process_pattern_batched(
+            attention_patterns=attention_patterns,
+            q=q,
+            k=k,
+            v=v,
+            token_slices=token_slices,  # type: ignore[arg-type]
+            spec_size_map=spec_size_map,  # type: ignore[arg-type]
+            key_padding_mask=key_padding_mask,
+        )
 
         # Final assembly and output projection
         output_parts = [token_outputs[spec.name] for spec in token_specs]
@@ -107,6 +117,7 @@ class MixedAttention(DotProductAttention):
         v: torch.Tensor,
         token_slices: dict[str, slice],
         spec_size_map: dict[str, int],
+        key_padding_mask: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         """Efficient mixed attention implementation that batches compatible (same shape) attention patterns."""
         # Group compatible patterns
@@ -126,8 +137,26 @@ class MixedAttention(DotProductAttention):
             q_batched = torch.cat(qs, dim=0)
             k_batched = torch.cat(ks, dim=0)
             v_batched = torch.cat(vs, dim=0)
+
+            attn_mask_batched: torch.Tensor | None = None
+            if key_padding_mask is not None:
+                # For each pattern, slice the mask to its KV tokens (mirroring how k/v are assembled).
+                # Shape (batch, 1, 1, kv_len): the 1s let PyTorch broadcast the same key mask
+                # across all heads and all query positions (every query sees the same valid key set).
+                per_pattern_masks = []
+                for patt in group:
+                    kv_bool = torch.cat(
+                        [key_padding_mask[:, token_slices[name]] for name in patt.key_value_tokens], dim=1
+                    )
+                    per_pattern_masks.append(kv_bool[:, None, None, :])  # (batch, 1, 1, kv_len)
+                attn_mask_batched = torch.cat(per_pattern_masks, dim=0)
+
             output_batched = F.scaled_dot_product_attention(
-                q_batched, k_batched, v_batched, dropout_p=self.dropout if self.training else 0.0
+                q_batched,
+                k_batched,
+                v_batched,
+                attn_mask=attn_mask_batched,
+                dropout_p=self.dropout if self.training else 0.0,
             )
             # Undo the batch concatenation
             output_chunks = torch.chunk(output_batched, chunks=len(group), dim=0)
@@ -143,15 +172,24 @@ class MixedAttention(DotProductAttention):
         x: torch.Tensor,
         token_specs: Sequence[TokenSpec],
         attention_patterns: Sequence[AttentionPattern],
-        attention_mask: torch.Tensor | None,
+        key_padding_mask: torch.Tensor | None,
         freqs: torch.Tensor | None,
     ) -> None:
         """Validate input consistency."""
         if not self.use_rope == (freqs is not None):
             raise ValueError(f"RoPE usage mismatch: self.use_rope = {self.use_rope}, but freqs is {freqs is not None}")
 
-        if attention_mask is not None:
-            raise NotImplementedError("Attention masks are not supported in this implementation.")
+        if key_padding_mask is not None:
+            if key_padding_mask.dtype != torch.bool:
+                raise ValueError(f"key_padding_mask must be a bool tensor, got {key_padding_mask.dtype}.")
+            if key_padding_mask.ndim != 2:
+                raise ValueError(
+                    f"key_padding_mask must be 2D with shape (batch_size, n_tokens), got shape {tuple(key_padding_mask.shape)}."
+                )
+            if key_padding_mask.shape[1] != x.shape[1]:
+                raise ValueError(
+                    f"key_padding_mask n_tokens dim ({key_padding_mask.shape[1]}) must match x sequence length ({x.shape[1]})."
+                )
 
         expected_size = sum(spec.size for spec in token_specs)
         if expected_size != x.shape[1]:
