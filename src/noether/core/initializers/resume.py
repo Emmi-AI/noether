@@ -162,13 +162,9 @@ class ResumeInitializer(CheckpointInitializer):
         trainer_state_dict: dict = torch.load(self._get_trainer_ckpt_file())
         callback_state_dicts = trainer_state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(callbacks)})"
-            )
+        CallbackBase.load_callback_state_dicts(callbacks, callback_state_dicts, self.logger)
 
-        for callback, state_dict in zip(callbacks, callback_state_dicts, strict=True):
-            callback.load_state_dict(state_dict)
+        for callback in callbacks:
             callback.resume_from_checkpoint(
                 resumption_paths=self.init_run_path_provider,
                 model=model,
