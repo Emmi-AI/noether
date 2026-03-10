@@ -62,12 +62,13 @@ class MultiBranchAnchorAttention(nn.Module, metaclass=abc.ABCMeta):
         self,
         x: torch.Tensor,
         token_specs: Sequence[TokenSpec],
+        key_padding_mask: torch.Tensor | None = None,
         freqs: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Apply attention using the patterns defined by the subclass."""
         self._validate(token_specs)
         patterns = self._create_attention_patterns(token_specs)
-        return self.mixed_attention(x, token_specs, patterns, freqs=freqs)  # type: ignore[no-any-return]
+        return self.mixed_attention(x, token_specs, patterns, key_padding_mask=key_padding_mask, freqs=freqs)  # type: ignore[no-any-return]
 
     @abstractmethod
     def _create_attention_patterns(self, token_specs: Sequence[TokenSpec]) -> Sequence[AttentionPattern]:
