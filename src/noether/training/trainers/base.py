@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import sys
 import warnings
 from collections import defaultdict
@@ -196,11 +197,34 @@ class BaseTrainer:
 
         self._has_logged_unused_params = False
         self._skip_nan_step = False
+        self._signal_received = False
+        self._original_sigterm: signal.Handlers | None = None
+        self._original_sigint: signal.Handlers | None = None
+        self._save_on_sigint = config.save_on_sigint
 
         self.forward_properties = config.forward_properties if config.forward_properties is not None else []
         self.target_properties = config.target_properties if config.target_properties is not None else []
 
         self.batch_keys = set(self.forward_properties).union(set(self.target_properties))
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        sig_name = signal.Signals(signum).name
+        self.logger.warning(f"Received {sig_name} — will save checkpoint and exit after current update")
+        self._signal_received = True
+
+    def _install_signal_handlers(self) -> None:
+        self._signal_received = False
+        self._original_sigterm = signal.signal(signal.SIGTERM, self._signal_handler)  # type:ignore [assignment]
+        if self._save_on_sigint:
+            self._original_sigint = signal.signal(signal.SIGINT, self._signal_handler)  # type:ignore [assignment]
+
+    def _restore_signal_handlers(self) -> None:
+        if self._original_sigterm is not None:
+            signal.signal(signal.SIGTERM, self._original_sigterm)
+            self._original_sigterm = None
+        if self._original_sigint is not None:
+            signal.signal(signal.SIGINT, self._original_sigint)
+            self._original_sigint = None
 
     def get_user_callbacks(self, model: ModelBase, evaluation=False) -> list[CallbackBase]:
         callback_default_args = self._get_default_callback_kwargs(model)
@@ -629,6 +653,7 @@ class BaseTrainer:
         for handler in logging.getLogger().handlers:
             handler.addFilter(context_filter)
 
+        self._install_signal_handlers()
         try:
             self.logger.debug("initializing dataloader workers")
             data_iter = iter(data_loader)
@@ -647,6 +672,7 @@ class BaseTrainer:
                 if should_stop:
                     break
         finally:
+            self._restore_signal_handlers()
             for handler in logging.getLogger().handlers:
                 handler.removeFilter(context_filter)
 
@@ -814,6 +840,16 @@ class BaseTrainer:
                 batch_size=batch_size,
             )
             if early_exit:
+                return True
+
+            # Check for signal interrupt
+            if self._signal_received:
+                self.logger.info(f"Saving signal interrupt checkpoint at {self.update_counter.cur_iteration}")
+                self.checkpoint_writer.save(
+                    model=model,
+                    checkpoint_tag=f"{self.update_counter.cur_iteration}.signal_interrupt",
+                    trainer=self,
+                )
                 return True
 
             # Check end of training
