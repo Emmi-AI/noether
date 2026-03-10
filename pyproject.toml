@@ -45,6 +45,7 @@ write_to = "src/noether/_version.py"
 
 [project.scripts]
 noether-train = "noether.training.cli.main_train:main"
+noether-train-submit-job = "noether.training.cli.submit_job:main"
 noether-eval = "noether.inference.cli.main_inference:main"
 noether-data = "noether.io.cli.cli:app"
 noether-dataset-stats = "noether.data.tools.calculate_statistics:main"

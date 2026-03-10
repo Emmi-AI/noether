@@ -43,6 +43,7 @@ from .schedules import (
     StepIntervalScheduleConfig,
 )
 from .schema import ConfigSchema
+from .slurm import SlurmConfig
 from .trackers import WandBTrackerSchema
 from .trainers import BaseTrainerConfig
 
@@ -87,4 +88,5 @@ __all__ = [
     "StepIntervalScheduleConfig",
     "WandBTrackerSchema",
     "BaseTrainerConfig",
+    "SlurmConfig",
 ]
