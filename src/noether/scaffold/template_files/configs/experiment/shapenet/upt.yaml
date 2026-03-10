@@ -1,0 +1,16 @@
+# @package _global_
+defaults:
+  - override /model: upt
+  - override /tracker: __TRACKER__
+
+name: __PROJECT__-upt
+
+model:
+  supernode_pooling_config:
+    radius: 9
+
+pipeline:
+  num_supernodes: 3586
+  num_surface_queries: 3586
+  num_volume_queries: 4096
+  sample_query_points: true

@@ -1,0 +1,8 @@
+experiment_category: caeml
+data_specs_file: caeml
+normalizers_file: caeml_dataset_normalizers
+statistics_file: drivaernet++_stats
+pipeline_file: caeml_pipeline
+dataset_config_file: caeml_dataset
+trainer_config_file: caeml_trainer
+callbacks_file: training_callbacks_caeml

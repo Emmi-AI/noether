@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: transolver
+  - override /tracker: __TRACKER__
+
+name: __PROJECT__-transolver

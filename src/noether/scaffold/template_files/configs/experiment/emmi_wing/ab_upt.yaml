@@ -1,0 +1,36 @@
+# @package _global_
+defaults:
+  - override /model: ab_upt
+  - override /tracker: __TRACKER__
+
+name: __PROJECT__-ab-upt
+
+model:
+  supernode_pooling_config:
+    radius: 0.25
+  forward_properties:
+    - geometry_position
+    - geometry_supernode_idx
+    - geometry_batch_idx
+    - surface_anchor_position
+    - volume_anchor_position
+    - geometry_design_parameters
+    - inflow_design_parameters
+
+pipeline:
+  num_geometry_points: 65536
+  num_geometry_supernodes: 16384
+  num_surface_anchor_points: 16384
+  num_volume_anchor_points: 16384
+
+inference_pipeline:
+  num_geometry_points: 65536
+  num_geometry_supernodes: 16384
+  num_surface_anchor_points: 1000000000
+  num_volume_anchor_points: 1000000000
+
+sample_size_property: surface_anchor_position
+chunk_size: ${pipeline.num_surface_anchor_points}
+chunk_properties:
+  - surface_anchor_position
+  - volume_anchor_position

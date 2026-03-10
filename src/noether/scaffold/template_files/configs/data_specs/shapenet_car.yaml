@@ -1,0 +1,13 @@
+
+position_dim: 3
+surface_feature_dim:
+  surface_sdf: 1
+  surface_normals: 3
+volume_feature_dim:
+  volume_sdf: 1
+  volume_normals: 3
+surface_output_dims:
+  pressure: 1
+volume_output_dims:
+  velocity: 3
+use_physics_features: ${trainer.use_physics_features}
