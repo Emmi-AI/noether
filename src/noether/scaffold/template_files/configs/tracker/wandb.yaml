@@ -1,0 +1,3 @@
+kind: noether.core.trackers.WandBTracker
+entity: null
+project: __PROJECT__

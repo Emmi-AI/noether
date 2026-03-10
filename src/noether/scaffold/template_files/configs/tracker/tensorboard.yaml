@@ -1,0 +1,2 @@
+kind: noether.core.trackers.TensorboardTracker
+log_dir: tensorboard_logs

@@ -1,0 +1,38 @@
+surface_position:
+  - kind: noether.data.preprocessors.normalizers.PositionNormalizer
+    raw_pos_min: ${dataset_statistics.raw_pos_min}
+    raw_pos_max: ${dataset_statistics.raw_pos_max}
+    scale: 1000
+surface_pressure:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.surface_pressure_mean}
+    std: ${dataset_statistics.surface_pressure_std}
+surface_friction:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.surface_friction_mean}  
+    std: ${dataset_statistics.surface_friction_std}
+volume_position:
+  - kind: noether.data.preprocessors.normalizers.PositionNormalizer
+    raw_pos_min: ${dataset_statistics.raw_pos_min}
+    raw_pos_max: ${dataset_statistics.raw_pos_max}
+    scale: 1000
+volume_vorticity:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: 0.0
+    std: ${dataset_statistics.volume_vorticity_magnitude_mean}
+volume_velocity:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.volume_velocity_mean}
+    std: ${dataset_statistics.volume_velocity_std}
+volume_pressure:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.volume_pressure_mean}
+    std: ${dataset_statistics.volume_pressure_std}
+geometry_design_parameters:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.geometry_design_parameters_mean}
+    std: ${dataset_statistics.geometry_design_parameters_std}
+inflow_design_parameters:
+  - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+    mean: ${dataset_statistics.inflow_design_parameters_mean}
+    std: ${dataset_statistics.inflow_design_parameters_std}

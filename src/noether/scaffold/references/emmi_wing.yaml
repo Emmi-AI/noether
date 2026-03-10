@@ -1,0 +1,8 @@
+experiment_category: emmi_wing
+data_specs_file: emmi_wing
+normalizers_file: wing_dataset_normalizers
+statistics_file: wing_stats
+pipeline_file: caeml_pipeline
+dataset_config_file: caeml_dataset
+trainer_config_file: caeml_trainer
+callbacks_file: training_callbacks_caeml

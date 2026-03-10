@@ -1,0 +1,8 @@
+experiment_category: shapenet
+data_specs_file: shapenet_car
+normalizers_file: shapenet_dataset_normalizers
+statistics_file: shapenet_car_stats
+pipeline_file: shapenet_pipeline
+dataset_config_file: shapenet_dataset
+trainer_config_file: shapenet_trainer
+callbacks_file: training_callbacks_shapenet

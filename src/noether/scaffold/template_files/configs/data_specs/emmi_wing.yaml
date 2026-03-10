@@ -1,0 +1,12 @@
+
+position_dim: 3
+surface_output_dims:
+  pressure: 1
+  friction: 3
+volume_output_dims:
+  pressure: 1
+  velocity: 3
+  vorticity: 3
+conditioning_dims:
+  geometry_design_parameters: 5
+  inflow_design_parameters: 2

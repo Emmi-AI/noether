@@ -43,12 +43,16 @@ Docs = "https://noether-docs.emmi.ai/"
 [tool.setuptools_scm]
 write_to = "src/noether/_version.py"
 
+[tool.setuptools.package-data]
+"noether.scaffold" = ["references/*.yaml", "template_files/**/*"]
+
 [project.scripts]
 noether-train = "noether.training.cli.main_train:main"
 noether-train-submit-job = "noether.training.cli.submit_job:main"
 noether-eval = "noether.inference.cli.main_inference:main"
 noether-data = "noether.io.cli.cli:app"
 noether-dataset-stats = "noether.data.tools.calculate_statistics:main"
+noether-init = "noether.scaffold.cli:app"
 
 # --- Centralized Development & Tooling Dependencies ---
 # These are dependencies for developing the *entire* workspace.
@@ -129,6 +133,10 @@ module = [
     #    "trimesh.*",
     #    "rtree.*"
 ]
+
+[[tool.mypy.overrides]]
+module = ["noether.scaffold.template_files.*"]
+ignore_errors = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

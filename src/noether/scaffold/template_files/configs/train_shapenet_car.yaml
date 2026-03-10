@@ -1,0 +1,25 @@
+# @package _global_
+
+defaults:
+  - data_specs: shapenet_car
+  - dataset_normalizers: shapenet_dataset_normalizers
+  - dataset_statistics: shapenet_car_stats
+  - model: "???"
+  - trainer: shapenet_trainer
+  - datasets: shapenet_dataset
+  - tracker: "??"
+  - callbacks: training_callbacks_shapenet
+  - pipeline: shapenet_pipeline
+  - optimizer: __OPTIMIZER__
+  - _self_
+
+dataset_root: __DATASET_PATH__
+dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
+config_schema_kind: __PROJECT__.schemas.config_schema.ConfigSchema
+excluded_properties:
+  - surface_friction
+  - volume_pressure
+  - volume_vorticity
+stage_name: train
+store_code_in_output: false
+output_path: ./outputs
