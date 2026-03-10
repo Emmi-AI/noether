@@ -860,15 +860,14 @@ class TestRunPeriodicCallbacks:
         cb_mock = MagicMock(spec=PeriodicCallback)
         cb_mock.after_update.side_effect = EarlyStopIteration
 
-        with patch(_MODULE_PATH + ".PeriodicDataIteratorCallback", MagicMock):
-            early = trainer._run_periodic_callbacks(
-                periodic_callbacks=[cb_mock],
-                model=MagicMock(),
-                dist_model=MagicMock(),
-                data_iter=iter([]),
-                batch_size=4,
-                end_of_epoch=False,
-            )
+        early = trainer._run_periodic_callbacks(
+            periodic_callbacks=[cb_mock],
+            model=MagicMock(),
+            dist_model=MagicMock(),
+            data_iter=iter([]),
+            batch_size=4,
+            end_of_epoch=False,
+        )
         assert early is True
 
     def test_callback_exception_reraises_after_all_run(self):
