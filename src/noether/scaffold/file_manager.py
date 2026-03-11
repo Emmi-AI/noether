@@ -5,7 +5,7 @@ from __future__ import annotations
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
-from .choices import HardwareChoice, ModelChoice
+from .choices import HardwareChoice
 from .config import TEMPLATES, ScaffoldConfig, substitute
 
 
@@ -216,11 +216,10 @@ class FileManager:
             content = train_path.read_text()
             train_path.write_text(content + f"accelerator: {config.hardware.value}\n")
 
-        # --- Experiment configs (all 4 models for the dataset's category) ---
+        # --- Experiment config (selected model only) ---
         category = ref.get("experiment_category", "shapenet")
-        for model in ModelChoice:
-            _copy(
-                tpl / "experiment" / category / f"{model.value}.yaml",
-                dst / "experiment" / f"{model.value}.yaml",
-                config,
-            )
+        _copy(
+            tpl / "experiment" / category / f"{config.model.value}.yaml",
+            dst / "experiment" / f"{config.model.value}.yaml",
+            config,
+        )
