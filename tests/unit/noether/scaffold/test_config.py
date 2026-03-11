@@ -9,10 +9,6 @@ import pytest
 from noether.scaffold.choices import DatasetChoice, HardwareChoice, ModelChoice, OptimizerChoice, TrackerChoice
 from noether.scaffold.config import ScaffoldConfig, load_reference, resolve_config, substitute
 
-# ---------------------------------------------------------------------------
-# substitute()
-# ---------------------------------------------------------------------------
-
 
 def test_substitute_replaces_all_placeholders() -> None:
     config = ScaffoldConfig(
@@ -34,10 +30,6 @@ def test_substitute_replaces_all_placeholders() -> None:
     assert result == "kind: my_proj.model.UPT\ndataset_root: /data/shapenet\noptimizer: adamw\ntracker: wandb"
 
 
-# ---------------------------------------------------------------------------
-# load_reference()
-# ---------------------------------------------------------------------------
-
 REFERENCE_KEYS = {
     "experiment_category",
     "data_specs_file",
@@ -56,11 +48,6 @@ def test_load_reference_returns_expected_keys(dataset: DatasetChoice) -> None:
     assert isinstance(ref, dict)
     for key in REFERENCE_KEYS:
         assert key in ref, f"Missing key '{key}' in reference for {dataset.value}"
-
-
-# ---------------------------------------------------------------------------
-# resolve_config()
-# ---------------------------------------------------------------------------
 
 
 def test_resolve_config_populates_reference(tmp_path: Path) -> None:
