@@ -183,6 +183,7 @@ autoapi_ignore = [
     "**/*.ipynb",
     "**/*.md",
     "**/.venv/**",
+    "**/scaffold/template_files/**",
 ]
 
 
