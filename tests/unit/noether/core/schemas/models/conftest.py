@@ -67,6 +67,7 @@ def base_ab_upt_config_dict():
         "data_specs": AeroDataSpecs(
             position_dim=3,
             surface_output_dims={"loss_var": 1},
+            volume_output_dims={"loss_var": 1},
         ),
     }
 

@@ -5,7 +5,6 @@ import torch
 import torch.nn as nn
 
 from noether.core.schemas.models import TransformerConfig
-from noether.core.schemas.modules import TransformerBlockConfig
 from noether.modeling.modules.blocks import TransformerBlock
 
 
@@ -25,9 +24,7 @@ class Transformer(nn.Module):
         self.blocks = nn.ModuleList(
             [
                 TransformerBlock(
-                    config=TransformerBlockConfig(
-                        **config.model_dump(),  # pass down all relevant config parameters, everything that is not used is ignored by the TransformerBlockConfig
-                    ),
+                    config=config.transformer_block_config,  # type: ignore[arg-type]
                 )
                 for _ in range(config.depth)
             ]

@@ -1,12 +1,13 @@
 kind: tutorial.model.Transformer
 name: transformer
 hidden_dim: 192
+transformer_block_config: 
+  num_heads: 3
+  mlp_expansion_factor: 4
+  use_rope: true
 depth: 12
-num_heads: 3
-mlp_expansion_factor: 4
 optimizer_config: ${optimizer}
 use_output_projection: true
-use_rope: true
 data_specs: ${data_specs}
 forward_properties:
   - surface_position

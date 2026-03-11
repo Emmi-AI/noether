@@ -21,10 +21,8 @@ def transformer_config() -> TransformerConfig:
         kind="noether.modeling.models.transformer.Transformer",
         name="test_transformer",
         hidden_dim=8,
-        num_heads=2,
+        transformer_block_config={"num_heads": 2, "mlp_expansion_factor": 2, "drop_path": 0.0},
         depth=2,
-        mlp_expansion_factor=2,
-        drop_path=0.0,
     )
 
 

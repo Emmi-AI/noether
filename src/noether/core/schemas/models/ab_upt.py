@@ -2,12 +2,18 @@
 
 from typing import Annotated, Literal
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, computed_field, model_validator
 
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
+from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
+from noether.core.schemas.modules.layers import (
+    ContinuousSincosEmbeddingConfig,
+    LinearProjectionConfig,
+    RopeFrequencyConfig,
+)
+from noether.core.schemas.modules.mlp import MLPConfig
 from noether.core.types import InitWeightsMode
 
 from .base import ModelBaseConfig
@@ -48,6 +54,70 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
 
     data_specs: AeroDataSpecs
     """Data specifications for the model."""
+
+    @model_validator(mode="after")
+    def set_condition_dim(self) -> "AnchorBranchedUPTConfig":
+        """Set condition_dim in transformer_block_config based on data_specs."""
+
+        if self.data_specs.conditioning_dims is not None and self.data_specs.conditioning_dims.total_dim > 0:
+            condition_dim = self.data_specs.conditioning_dims.total_dim
+        else:
+            condition_dim = None
+        self.transformer_block_config.condition_dim = condition_dim
+
+        return self
+
+    @computed_field
+    def rope_frequency_config(self) -> RopeFrequencyConfig:
+        return RopeFrequencyConfig(
+            hidden_dim=self.transformer_block_config.hidden_dim // self.transformer_block_config.num_heads,
+            input_dim=self.data_specs.position_dim,
+            implementation="complex",
+        )
+
+    @computed_field
+    def pos_embed_config(self) -> ContinuousSincosEmbeddingConfig:
+        return ContinuousSincosEmbeddingConfig(
+            hidden_dim=self.hidden_dim,
+            input_dim=self.data_specs.position_dim,
+        )
+
+    @computed_field
+    def bias_mlp_config(self) -> MLPConfig:
+        return MLPConfig(
+            input_dim=self.hidden_dim,
+            hidden_dim=self.hidden_dim,
+            output_dim=self.hidden_dim,
+        )
+
+    @computed_field
+    def perceiver_block_config(self) -> PerceiverBlockConfig:
+        return PerceiverBlockConfig(
+            hidden_dim=self.hidden_dim,
+            num_heads=self.transformer_block_config.num_heads,
+            mlp_expansion_factor=self.transformer_block_config.mlp_expansion_factor,
+            kv_dim=None,
+            use_rope=self.transformer_block_config.use_rope,
+            condition_dim=self.transformer_block_config.condition_dim,
+        )
+
+    @computed_field
+    def surface_decoder_config(self) -> LinearProjectionConfig:
+        return LinearProjectionConfig(
+            input_dim=self.hidden_dim,
+            output_dim=self.data_specs.surface_output_dims.total_dim,
+            init_weights="truncnormal002",
+        )
+
+    @computed_field
+    def volume_decoder_config(self) -> LinearProjectionConfig | None:
+        if self.data_specs.volume_output_dims is None:
+            return None
+        return LinearProjectionConfig(
+            input_dim=self.hidden_dim,
+            output_dim=self.data_specs.volume_output_dims.total_dim,
+            init_weights="truncnormal002",
+        )
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "AnchorBranchedUPTConfig":

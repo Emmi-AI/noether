@@ -5,10 +5,7 @@ from typing import Any
 import torch
 from torch import nn
 
-from noether.core.schemas.modules.attention import PerceiverAttentionConfig
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig
-from noether.core.schemas.modules.layers import LayerScaleConfig, LinearProjectionConfig, UnquantizedDropPathConfig
-from noether.core.schemas.modules.mlp import UpActDownMLPConfig
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
 from noether.modeling.modules.attention import PerceiverAttention
 from noether.modeling.modules.layers import LayerScale, LinearProjection, UnquantizedDropPath
@@ -39,14 +36,13 @@ class PerceiverBlock(nn.Module):
         else:
             assert config.kv_dim is None
             assert config.bias
-            self.modulation = LinearProjection(
-                config=LinearProjectionConfig(
-                    input_dim=config.condition_dim,
-                    output_dim=config.hidden_dim * 8,
-                    init_weights="zeros",
-                )  # type: ignore[call-arg]
-            )
-            elementwise_affine = False
+            if config.modulation_linear_projection_config is not None:
+                self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
+                elementwise_affine = False
+            else:
+                raise ValueError(
+                    "If modulation is enabled, modulation_linear_projection_config must be provided. Likely condition_dim is not set."
+                )
 
         self.norm1q = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
@@ -54,37 +50,20 @@ class PerceiverBlock(nn.Module):
         self.norm1kv = torch.nn.LayerNorm(
             config.kv_dim or config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
-        self.attn = PerceiverAttention(
-            config=PerceiverAttentionConfig(
-                hidden_dim=config.hidden_dim,
-                num_heads=config.num_heads,
-                kv_dim=config.kv_dim,
-                bias=config.bias,
-                init_weights=config.init_weights,
-                use_rope=config.use_rope,
-            )  # type: ignore[call-arg]
-        )
-        self.ls1 = LayerScale(config=LayerScaleConfig(hidden_dim=config.hidden_dim, init_values=config.layerscale))
-        self.drop_path1 = UnquantizedDropPath(
-            config=UnquantizedDropPathConfig(drop_prob=config.drop_path)  # type: ignore[call-arg]
-        )
+
+        self.attn = PerceiverAttention(config=config.perceiver_attention_config)  # type: ignore[arg-type]
+
+        self.ls1 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
+
+        self.drop_path1 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
 
         self.norm2 = torch.nn.LayerNorm(
             config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
         )
 
-        self.mlp = UpActDownMlp(
-            config=UpActDownMLPConfig(
-                input_dim=config.hidden_dim,
-                hidden_dim=config.mlp_hidden_dim or config.hidden_dim * 4,
-                bias=config.bias,
-                init_weights=config.init_weights,
-            )  # type: ignore[call-arg]
-        )
-        self.ls2 = LayerScale(config=LayerScaleConfig(hidden_dim=config.hidden_dim, init_values=config.layerscale))
-        self.drop_path2 = UnquantizedDropPath(
-            config=UnquantizedDropPathConfig(drop_prob=config.drop_path)  # type: ignore[call-arg]
-        )
+        self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
+        self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
+        self.drop_path2 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
 
     def forward(
         self,

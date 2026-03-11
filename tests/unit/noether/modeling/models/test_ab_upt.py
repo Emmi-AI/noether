@@ -78,10 +78,10 @@ def real_config():
         physics_blocks=["perceiver", "shared"],
         num_surface_blocks=2,
         num_volume_blocks=2,
-        data_specs=data_specs,
         transformer_block_config=tf_config,
         supernode_pooling_config=pool_config,
         init_weights="truncnormal002",
+        data_specs=data_specs,
     )
 
 

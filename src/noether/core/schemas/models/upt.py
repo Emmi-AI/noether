@@ -3,12 +3,17 @@
 
 from typing import Annotated
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import ConfigDict, Field, computed_field, model_validator
 
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
+from noether.core.schemas.modules.layers import (
+    ContinuousSincosEmbeddingConfig,
+    LinearProjectionConfig,
+    RopeFrequencyConfig,
+)
 
 from .base import ModelBaseConfig
 
@@ -41,6 +46,46 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     bias_layers: bool = Field(False)
 
     data_specs: AeroDataSpecs
+
+    @computed_field
+    def linear_output_projection_config(self) -> "LinearProjectionConfig":
+        return LinearProjectionConfig(
+            input_dim=self.hidden_dim,
+            output_dim=self.data_specs.total_output_dim,
+            init_weights=self.decoder_config.perceiver_block_config.init_weights,
+        )
+
+    @computed_field
+    def rope_frequency_config(self) -> "RopeFrequencyConfig":
+        return RopeFrequencyConfig(
+            hidden_dim=self.hidden_dim // self.num_heads,
+            input_dim=self.data_specs.position_dim,
+            implementation="complex",
+        )
+
+    @model_validator(mode="after")
+    def validate_rope_usage(self) -> "UPTConfig":
+        """Ensure that if use_rope is True in the main config, it is also True in the approximator_config."""
+        if self.use_rope:
+            if not (self.approximator_config.use_rope and self.decoder_config.perceiver_block_config.use_rope):
+                raise ValueError(
+                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
+                )
+        return self
+
+    @model_validator(mode="after")
+    def update_supernode_pooling_config(self) -> "UPTConfig":
+        """Inject shared fields into supernode_pooling_config."""
+        if self.data_specs.use_physics_features:
+            self.supernode_pooling_config.input_features_dim = self.data_specs.surface_feature_dim_total
+        return self
+
+    @computed_field
+    def pos_embedding_config(self) -> ContinuousSincosEmbeddingConfig:
+        return ContinuousSincosEmbeddingConfig(
+            hidden_dim=self.hidden_dim,
+            input_dim=self.data_specs.position_dim,
+        )
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "UPTConfig":
