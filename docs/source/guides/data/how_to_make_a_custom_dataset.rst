@@ -7,7 +7,7 @@ By default, all ``getitem_*`` will be called when fetching a data sample, unless
 To apply data normalization, the ``@with_normalizers`` decorator must be used on each ``getitem_*`` method.
 The key provided to the decorator must match the key of the configured normalizer.
 
-.. code-block:: python
+.. testcode::
 
     from noether.data import Dataset, with_normalizers
     from noether.core.schemas.dataset import DatasetBaseConfig
@@ -39,6 +39,10 @@ The key provided to the decorator must match the key of the configured normalize
             # Load and return the data sample and its corresponding label as tensors
             return torch.load(os.path.join(self.root, self.data_paths[idx]), weights_only=True)
 
+.. testcode::
+   :hide:
+
+   _cfg = MyCustomDatasetConfig(kind="path.to.MyCustomDataset", data_paths={0: "a.pt"})
 
 .. code-block:: yaml
 

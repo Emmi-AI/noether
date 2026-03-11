@@ -48,7 +48,7 @@ class UPT(nn.Module):
         if self.use_rope:
             if not config.approximator_config.use_rope and config.decoder_config.perceiver_block_config.use_rope:
                 raise ValueError(
-                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the encoder_config."
+                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
                 )
             self.rope = RopeFrequency(
                 config=RopeFrequencyConfig(

@@ -73,5 +73,4 @@ def test_instantiate_no_torch_args():
     mock_config.model_dump.return_value = dict()  # No args for optimizer
 
     with patch("noether.core.factory.optimizer.class_constructor_from_class_path") as mock_loader:
-        mock_config.model_dump.return_value = {"lr": 0.1}
         factory.instantiate(mock_config)

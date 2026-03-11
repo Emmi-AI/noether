@@ -188,7 +188,11 @@ class Model(ModelBase):
         Args:
             device: The desired device of the tensor. Can be a string (e.g. "cuda:0") or "cpu".
         """
-        if isinstance(device, str):
+        if device is None:
+            return self
+        if isinstance(device, int):
+            device = torch.device(device)
+        elif isinstance(device, str):
             try:
                 device = torch.device(device)
             except RuntimeError as e:

@@ -30,7 +30,7 @@ from noether.core.schemas.modules import (
 from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
 from noether.core.schemas.optimizers import OptimizerConfig
 from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
-from noether.core.schemas.schema import ConfigSchema, StaticConfigSchema
+from noether.core.schemas.schema import ConfigSchema
 from noether.core.schemas.statistics import AeroStatsSchema
 from noether.training.runners import HydraRunner
 from tutorial.callbacks.surface_volume_evaluation_metrics import (
@@ -304,7 +304,6 @@ def main() -> None:
             seed=42,
             dataset_statistics=DATASET_STATS,
             dataset_normalizer=dataset_normalizer,
-            static_config=StaticConfigSchema(output_path=output_path.as_posix()),
             tracker=None,
             run_id=None,
             devices=None,

@@ -65,6 +65,9 @@ class BaseTrainerConfig(BaseModel):
     disable_gradient_accumulation: bool = Field(True)
     """Whether to disable gradient accumulation. Gradient accumulation is sometimes used to simulate larger batch sizes, but can lead to worse generalization."""
 
+    save_on_sigint: bool = Field(False)
+    """Whether to save a checkpoint on SIGINT (Ctrl+C). SIGTERM always triggers a checkpoint save. When False (default), Ctrl+C will stop training immediately without saving."""
+
     use_torch_compile: bool = Field(False)
     """Whether to use `torch.compile` to compile the model for faster training."""
 

@@ -65,7 +65,7 @@ def all_reduce_mean_grad(x: torch.Tensor) -> torch.Tensor:
     x, og_device, to_bool = _prepare_tensor(x)
     # divide before all_reduce to avoid overflow in sum
     x = x / get_world_size()
-    x = all_reduce_sum_grad(x)
+    x = fdist.all_reduce(x, op=dist.ReduceOp.SUM)
     x = x.to(og_device)
     if to_bool:
         x = x.bool()
