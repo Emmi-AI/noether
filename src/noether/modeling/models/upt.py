@@ -4,12 +4,6 @@ import torch
 from torch import nn
 
 from noether.core.schemas.models import UPTConfig
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-    RopeFrequencyConfig,
-)
 from noether.modeling.modules import DeepPerceiverDecoder, SupernodePooling, TransformerBlock
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
 
@@ -28,35 +22,11 @@ class UPT(nn.Module):
 
         super().__init__()
 
-        self.encoder = SupernodePooling(
-            config=SupernodePoolingConfig(
-                **config.supernode_pooling_config.model_dump(exclude={"input_features_dim"}),
-                input_features_dim=config.data_specs.surface_feature_dim_total
-                if config.data_specs.use_physics_features
-                else None,
-            )
-        )  # type: ignore[call-arg]
         self.use_rope = config.use_rope
-
-        self.pos_embed = ContinuousSincosEmbed(
-            config=ContinuousSincosEmbeddingConfig(
-                hidden_dim=config.decoder_config.perceiver_block_config.hidden_dim,
-                input_dim=config.data_specs.position_dim,
-            )  # type: ignore[call-arg]
-        )
-
+        self.encoder = SupernodePooling(config=config.supernode_pooling_config)
+        self.pos_embed = ContinuousSincosEmbed(config=config.pos_embedding_config)  # type: ignore[arg-type]
         if self.use_rope:
-            if not config.approximator_config.use_rope and config.decoder_config.perceiver_block_config.use_rope:
-                raise ValueError(
-                    "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
-                )
-            self.rope = RopeFrequency(
-                config=RopeFrequencyConfig(
-                    hidden_dim=config.hidden_dim // config.num_heads,
-                    input_dim=config.data_specs.position_dim,
-                    implementation="complex",
-                )  # type: ignore[call-arg]
-            )
+            self.rope = RopeFrequency(config=config.rope_frequency_config)  # type: ignore[arg-type]
 
         self.approximator_blocks = nn.ModuleList(
             [
@@ -66,19 +36,15 @@ class UPT(nn.Module):
                 for _ in range(config.approximator_depth)
             ],
         )
-        self.decoder = DeepPerceiverDecoder(config=config.decoder_config)
+
+        self.decoder = DeepPerceiverDecoder(config=config.decoder_config)  # type: ignore[arg-type]
 
         self.norm = nn.LayerNorm(
             config.decoder_config.perceiver_block_config.hidden_dim,
             eps=config.decoder_config.perceiver_block_config.eps,
         )
-        self.prediction_layer = LinearProjection(
-            config=LinearProjectionConfig(
-                input_dim=config.decoder_config.perceiver_block_config.hidden_dim,
-                output_dim=config.data_specs.total_output_dim,
-                init_weights=config.decoder_config.perceiver_block_config.init_weights,
-            )  # type: ignore[call-arg]
-        )
+
+        self.prediction_layer = LinearProjection(config=config.linear_output_projection_config)  # type: ignore[arg-type]
 
     def compute_rope_args(
         self,

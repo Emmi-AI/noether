@@ -105,6 +105,7 @@ torch = [
 python_version = "3.12"
 mypy_path = ["src"]
 files = ["src"]
+plugins = ["pydantic.mypy"]
 
 ignore_missing_imports = true
 

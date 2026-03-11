@@ -1,7 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 import torch
 
-from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
 from noether.modeling.models import Transformer as TransformerBackbone
 from noether.modeling.modules.layers import ContinuousSincosEmbed, RopeFrequency
 from tutorial.schemas.models.transformer_config import TransformerConfig
@@ -27,14 +26,12 @@ class Transformer(BaseModel):
         """
         super().__init__(model_config=model_config, **kwargs)
 
-        self.encoder = ContinuousSincosEmbed(
-            config=ContinuousSincosEmbeddingConfig(hidden_dim=model_config.hidden_dim, input_dim=3)
-        )
+        self.encoder = ContinuousSincosEmbed(config=model_config.pos_encoding_config)
 
-        self.use_rope = model_config.use_rope
+        self.use_rope = model_config.transformer_block_config.use_rope
         self.rope = (
             RopeFrequency(
-                config=RopeFrequencyConfig(hidden_dim=model_config.hidden_dim // model_config.num_heads, input_dim=3)
+                config=model_config.rope_frequency_config  # type: ignore[union-attr]
             )
             if self.use_rope
             else None
