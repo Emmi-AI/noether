@@ -19,6 +19,7 @@ defaults:
   - callbacks: training_callbacks_shapenet
   - pipeline: shapenet_pipeline
   - optimizer: adamw
+  - slurm: slurm_config 
   - _self_
 
 stage_name: train
