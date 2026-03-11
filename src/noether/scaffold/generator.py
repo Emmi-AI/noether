@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from .config import ScaffoldConfig
-from .file_copier import copy_python_files, copy_yaml_configs, generate_python_files
+from .file_manager import FileManager
 
 
 def generate_project(config: ScaffoldConfig) -> None:
     """Orchestrate full project generation."""
-    copy_python_files(config)
-    generate_python_files(config)
-    copy_yaml_configs(config)
+    FileManager.copy_python_files(config)
+    FileManager.generate_python_files(config)
+    FileManager.copy_yaml_configs(config)
