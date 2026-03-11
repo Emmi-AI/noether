@@ -14,6 +14,10 @@ class CallBackBaseConfig(BaseModel):
         name: Literal["BaseCallbacksConfig"] = Field(default="BaseCallbacksConfig", frozen=True)
 
     kind: str | None = None
+    id: str | None = Field(None)
+    """Optional unique identifier for this callback instance. Required when multiple stateful callbacks of the same
+    type exist (e.g., two BestCheckpointCallbacks tracking different metrics). Used as the key when saving/loading
+    callback state dicts to ensure correct matching on resume."""
     every_n_epochs: int | None = Field(None, ge=0)
     """Epoch-based interval. Invokes the callback after every n epochs. Mutually exclusive with other intervals."""
     every_n_updates: int | None = Field(None, ge=0)

@@ -675,23 +675,26 @@ class TestStateDict:
         sd = trainer.state_dict()
         assert "callback_state_dicts" in sd or any("CALLBACK" in str(k).upper() for k in sd)
 
-    def test_load_state_dict_callback_mismatch_raises(self):
+    def test_load_state_dict_callback_mismatch_raises_legacy(self):
+        """Legacy list format: mismatch in stateful callback count raises."""
         trainer = _make_trainer()
         trainer.callbacks = [MagicMock()]
 
-        # Provide 2 callback state dicts but trainer has 1 callback
         from noether.core.types import CheckpointKeys
 
         state_dict = {
             CheckpointKeys.CALLBACK_STATE_DICT: [{"a": 1}, {"b": 2}],
             CheckpointKeys.TRAINING_ITERATION: {},
         }
-        with pytest.raises(ValueError, match="Number of callbacks"):
+        with pytest.raises(ValueError, match="Number of stateful callbacks"):
             trainer.load_state_dict(state_dict)
 
-    def test_load_state_dict_loads_callbacks(self):
+    def test_load_state_dict_loads_callbacks_legacy(self):
+        """Legacy list format: stateful callback is mutated in-place via positional matching."""
         trainer = _make_trainer()
         cb = MagicMock()
+        cb._loaded_state = None
+        cb.load_state_dict = lambda sd: setattr(cb, "_loaded_state", sd)
         trainer.callbacks = [cb]
         trainer.grad_scaler = MagicMock(spec=[])  # not a real GradScaler
 
@@ -702,7 +705,106 @@ class TestStateDict:
             CheckpointKeys.TRAINING_ITERATION: {},
         }
         trainer.load_state_dict(state_dict)
-        cb.load_state_dict.assert_called_once_with({"step": 5})
+        assert cb._loaded_state == {"step": 5}
+
+    def test_load_state_dict_loads_callbacks_keyed(self):
+        """Dict format: stateful callback is mutated in-place via key matching."""
+        trainer = _make_trainer()
+        cb = MagicMock()
+        cb.checkpoint_key = "MyCallback"
+        cb._loaded_state = None
+        cb.load_state_dict = lambda sd: setattr(cb, "_loaded_state", sd)
+        trainer.callbacks = [cb]
+        trainer.grad_scaler = MagicMock(spec=[])  # not a real GradScaler
+
+        from noether.core.types import CheckpointKeys
+
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {"MyCallback": {"step": 5}},
+            CheckpointKeys.TRAINING_ITERATION: {},
+        }
+        trainer.load_state_dict(state_dict)
+        assert cb._loaded_state == {"step": 5}
+
+    def test_load_state_dict_keyed_ignores_unmatched(self):
+        """Dict format: loads matched key, unmatched checkpoint key does not affect callback."""
+        trainer = _make_trainer()
+        cb = MagicMock()
+        cb.checkpoint_key = "MyCallback"
+        cb._loaded_state = None
+        cb.load_state_dict = lambda sd: setattr(cb, "_loaded_state", sd)
+        trainer.callbacks = [cb]
+        trainer.grad_scaler = MagicMock(spec=[])
+
+        from noether.core.types import CheckpointKeys
+
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {
+                "MyCallback": {"step": 5},
+                "RemovedCallback": {"old": True},
+            },
+            CheckpointKeys.TRAINING_ITERATION: {},
+        }
+        trainer.load_state_dict(state_dict)
+        assert cb._loaded_state == {"step": 5}
+
+    def test_load_state_dict_keyed_skips_unmatched_current(self):
+        """Dict format: current stateful callback with no checkpoint match is not loaded."""
+        trainer = _make_trainer()
+        cb = MagicMock()
+        cb.checkpoint_key = "NewCallback"
+        cb._loaded_state = None
+        cb.load_state_dict = lambda sd: setattr(cb, "_loaded_state", sd)
+        trainer.callbacks = [cb]
+        trainer.grad_scaler = MagicMock(spec=[])
+
+        from noether.core.types import CheckpointKeys
+
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {"OldCallback": {"step": 5}},
+            CheckpointKeys.TRAINING_ITERATION: {},
+        }
+        trainer.load_state_dict(state_dict)
+        assert cb._loaded_state is None
+
+    def test_validate_checkpoint_keys_passes_for_unique_keys(self):
+        """No error when stateful callbacks have distinct checkpoint keys."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "Alpha"
+        cb1.state_dict.return_value = {"x": 1}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "Beta"
+        cb2.state_dict.return_value = {"x": 2}
+        # Should not raise
+        CallbackBase.validate_checkpoint_keys([cb1, cb2])
+
+    def test_validate_checkpoint_keys_ignores_non_stateful(self):
+        """Non-stateful callbacks (state_dict returns None) are ignored."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "Same"
+        cb1.state_dict.return_value = {"x": 1}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "Same"
+        cb2.state_dict.return_value = None  # non-stateful
+        # Should not raise — only one is stateful
+        CallbackBase.validate_checkpoint_keys([cb1, cb2])
+
+    def test_validate_checkpoint_keys_raises_on_duplicate(self):
+        """Two stateful callbacks with the same key raise immediately."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "BestCheckpointCallback"
+        cb1.state_dict.return_value = {"best": 0.5}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "BestCheckpointCallback"
+        cb2.state_dict.return_value = {"best": 0.3}
+        with pytest.raises(ValueError, match="Two stateful callbacks share checkpoint key"):
+            CallbackBase.validate_checkpoint_keys([cb1, cb2])
 
 
 class TestWrapCompile:

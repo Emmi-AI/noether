@@ -240,6 +240,11 @@ class BaseTrainer:
             callbacks += self.get_default_callbacks(callback_default_args)
         if self.config.add_trainer_callbacks:
             callbacks += self.get_trainer_callbacks(callback_default_args)
+
+        # Fail fast if two stateful callbacks share a checkpoint key, rather than discovering the conflict hours later
+        # when the first checkpoint is saved.
+        CallbackBase.validate_checkpoint_keys(callbacks)
+
         return callbacks
 
     def get_trainer_callbacks(self, callback_default_args: dict[str, Any]) -> list[CallbackBase]:
@@ -391,7 +396,7 @@ class BaseTrainer:
 
     def state_dict(self) -> dict[str, Any]:
         """Get the state dict of the trainer."""
-        callback_state_dicts = [callback.state_dict() for callback in self.callbacks]
+        callback_state_dicts = CallbackBase.build_callback_state_dict(self.callbacks)
         state_dict: dict[str, Any] = {
             CheckpointKeys.CALLBACK_STATE_DICT: callback_state_dicts,
             CheckpointKeys.TRAINING_ITERATION: dict(self.update_counter.cur_iteration),
@@ -408,12 +413,7 @@ class BaseTrainer:
         # load callback state_dicts
         callback_state_dicts = state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(self.callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(self.callbacks)})"
-            )
-        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=True):
-            callback.load_state_dict(sd)
+        CallbackBase.load_callback_state_dicts(self.callbacks, callback_state_dicts, self.logger)
 
         # load grad_scaler
         grad_scaler_state_dict = state_dict.pop(CheckpointKeys.GRAD_SCALER, None)

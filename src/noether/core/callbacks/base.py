@@ -107,6 +107,113 @@ class CallbackBase:
         self.metric_property_provider = metric_property_provider
         self.checkpoint_writer = checkpoint_writer
 
+    @property
+    def checkpoint_key(self) -> str:
+        """Key used to identify this callback's state in checkpoints.
+
+        Returns the callback's ``id`` if set, otherwise falls back to the class name.
+        """
+        return self.name if self.name is not None else type(self).__name__
+
+    @staticmethod
+    def validate_checkpoint_keys(callbacks: list[CallbackBase]) -> None:
+        """Validate that all stateful callbacks have unique checkpoint keys.
+
+        Should be called early (e.g. when callbacks are first assembled) so that
+        duplicate-key errors surface immediately rather than hours into training
+        when the first checkpoint is saved.
+
+        Args:
+            callbacks: list of callbacks to validate.
+
+        Raises:
+            ValueError: If two stateful callbacks produce the same checkpoint key.
+        """
+        seen: dict[str, CallbackBase] = {}
+        for cb in callbacks:
+            if cb.state_dict() is None:
+                continue
+            key = cb.checkpoint_key
+            if key in seen:
+                raise ValueError(
+                    f"Two stateful callbacks share checkpoint key '{key}': {seen[key]} and {cb}. "
+                    "Set a unique 'id' in each callback config to disambiguate."
+                )
+            seen[key] = cb
+
+    @staticmethod
+    def build_callback_state_dict(callbacks: list[CallbackBase]) -> dict[str, Any]:
+        """Build a keyed dict of state dicts for all stateful callbacks.
+
+        Args:
+            callbacks: list of callbacks to save state for.
+
+        Returns:
+            Dict mapping checkpoint keys to state dicts (only stateful callbacks included).
+
+        Raises:
+            ValueError: If two stateful callbacks produce the same checkpoint key.
+        """
+        CallbackBase.validate_checkpoint_keys(callbacks)
+        result: dict[str, Any] = {}
+        for cb in callbacks:
+            sd = cb.state_dict()
+            if sd is None:
+                continue
+            result[cb.checkpoint_key] = sd
+        return result
+
+    @staticmethod
+    def load_callback_state_dicts(
+        callbacks: list[CallbackBase],
+        checkpoint_data: dict[str, Any] | list[Any],
+        logger: logging.Logger,
+    ) -> None:
+        """Load state dicts into callbacks, matching by key (dict) or position (legacy list).
+
+        Modifies callbacks in-place via their ``load_state_dict`` method (analogous to
+        ``torch.nn.Module.load_state_dict``).
+
+        Args:
+            callbacks: current callbacks to load state into (mutated in-place).
+            checkpoint_data: either a dict keyed by checkpoint_key (new format) or a list (legacy format).
+            logger: logger for warnings.
+        """
+        if isinstance(checkpoint_data, list):
+            # Legacy format: positional matching of stateful callbacks
+            stateful_from_checkpoint = [sd for sd in checkpoint_data if sd is not None]
+            stateful_current = [cb for cb in callbacks if cb.state_dict() is not None]
+            if len(stateful_from_checkpoint) != len(stateful_current):
+                raise ValueError(
+                    f"Number of stateful callbacks in checkpoint ({len(stateful_from_checkpoint)}) doesn't match "
+                    f"number of stateful callbacks in current trainer ({len(stateful_current)})."
+                )
+            for cb, sd in zip(stateful_current, stateful_from_checkpoint, strict=True):
+                # Mutates cb in-place
+                cb.load_state_dict(sd)
+            return
+
+        # New format: match by key
+        CallbackBase.validate_checkpoint_keys(callbacks)
+        current_by_key = {cb.checkpoint_key: cb for cb in callbacks if cb.state_dict() is not None}
+
+        matched_keys = set(checkpoint_data.keys()) & set(current_by_key.keys())
+        unmatched_in_checkpoint = set(checkpoint_data.keys()) - matched_keys
+        unmatched_in_current = set(current_by_key.keys()) - matched_keys
+
+        if unmatched_in_checkpoint:
+            logger.warning(
+                f"Stateful callbacks in checkpoint not found in current trainer (skipped): {unmatched_in_checkpoint}"
+            )
+        if unmatched_in_current:
+            logger.warning(
+                f"Stateful callbacks in current trainer not found in checkpoint (not loaded): {unmatched_in_current}"
+            )
+
+        # Mutates each matched callback in-place
+        for key in matched_keys:
+            current_by_key[key].load_state_dict(checkpoint_data[key])
+
     def __repr__(self):
         return str(self)
 

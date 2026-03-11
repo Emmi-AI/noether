@@ -161,7 +161,14 @@ class PeriodicCallback(CallbackBase):
             name: Name of the callback.
         """
         super().__init__(
-            trainer, model, data_container, tracker, log_writer, checkpoint_writer, metric_property_provider, name
+            trainer,
+            model,
+            data_container,
+            tracker,
+            log_writer,
+            checkpoint_writer,
+            metric_property_provider,
+            name=getattr(callback_config, "id", None) or name,
         )
 
         self.every_n_epochs = callback_config.every_n_epochs
