@@ -37,11 +37,6 @@ def _generate(tmp_path: Path, **overrides):
     return proj
 
 
-# ---------------------------------------------------------------------------
-# Parametrized end-to-end generation
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(("model", "dataset"), COMBOS, ids=[f"{m.value}-{d.value}" for m, d in COMBOS])
 def test_generate_project(tmp_path: Path, model: ModelChoice, dataset: DatasetChoice) -> None:
     proj = _generate(tmp_path, model=model, dataset=dataset)
