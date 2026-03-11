@@ -258,3 +258,89 @@ class TestMixedAttention:
 
         with patch("noether.modeling.modules.attention.anchor_attention.mixed.rope") as mock_rope:
             mock_rope.side_effect = lambda t, freqs: t  # Identity mock
+
+    def test_attn_mask_validation_errors(self, module):
+        x = torch.randn(1, 10, 64)
+        token_specs = [TokenSpec(name="surface_anchors", size=10)]
+        patterns = [AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"])]
+
+        with pytest.raises(ValueError, match="bool tensor"):
+            module(x, token_specs, patterns, key_padding_mask=torch.ones(1, 10))  # float, not bool
+
+        with pytest.raises(ValueError, match="2D"):
+            module(x, token_specs, patterns, key_padding_mask=torch.ones(1, 10, 1, dtype=torch.bool))
+
+        with pytest.raises(ValueError, match="n_tokens dim"):
+            module(x, token_specs, patterns, key_padding_mask=torch.ones(1, 5, dtype=torch.bool))
+
+    def test_attn_mask_matches_unpadded_run(self, module):
+        """Masked batched run must match individual unpadded runs for each batch element.
+
+        Three items with different numbers of real anchors are padded to size 3 and run
+        together with a mask. Outputs at real positions must equal running each item alone
+        without any mask or padding.
+        """
+        torch.manual_seed(42)
+        dim = 64
+
+        anchors_0 = torch.randn(1, 3, dim)  # 3 real anchors (no padding)
+        queries_0 = torch.randn(1, 4, dim)
+        anchors_1 = torch.randn(1, 2, dim)  # 2 real anchors, 1 padding
+        queries_1 = torch.randn(1, 4, dim)
+        anchors_2 = torch.randn(1, 1, dim)  # 1 real anchor, 2 padding
+        queries_2 = torch.randn(1, 4, dim)
+
+        token_specs_padded = [
+            TokenSpec(name="surface_anchors", size=3),
+            TokenSpec(name="surface_queries", size=4),
+        ]
+        patterns = [
+            AttentionPattern(
+                query_tokens=["surface_anchors", "surface_queries"],
+                key_value_tokens=["surface_anchors"],
+            )
+        ]
+
+        pad1 = torch.zeros(1, 1, dim)
+        pad2 = torch.zeros(1, 2, dim)
+        x_batched = torch.cat(
+            [
+                torch.cat([anchors_0, queries_0], dim=1),  # item 0: a0 a1 a2 q0..q3
+                torch.cat([anchors_1, pad1, queries_1], dim=1),  # item 1: a0 a1 PAD q0..q3
+                torch.cat([anchors_2, pad2, queries_2], dim=1),  # item 2: a0 PAD PAD q0..q3
+            ],
+            dim=0,
+        )
+        attn_mask = torch.tensor(
+            [
+                [True, True, True, True, True, True, True],  # item 0: all real
+                [True, True, False, True, True, True, True],  # item 1: anchor 2 padding
+                [True, False, False, True, True, True, True],  # item 2: anchors 1-2 padding
+            ]
+        )
+
+        out_batched = module(x_batched, token_specs_padded, patterns, key_padding_mask=attn_mask)
+
+        # Reference: run each item individually without mask or padding
+        out_item0 = module(torch.cat([anchors_0, queries_0], dim=1), token_specs_padded, patterns)
+
+        token_specs_2anchors = [TokenSpec(name="surface_anchors", size=2), TokenSpec(name="surface_queries", size=4)]
+        out_item1 = module(torch.cat([anchors_1, queries_1], dim=1), token_specs_2anchors, patterns)
+
+        token_specs_1anchor = [TokenSpec(name="surface_anchors", size=1), TokenSpec(name="surface_queries", size=4)]
+        out_item2 = module(torch.cat([anchors_2, queries_2], dim=1), token_specs_1anchor, patterns)
+
+        # Item 0: all positions must match (no padding)
+        assert torch.allclose(out_batched[0], out_item0[0], atol=1e-5)
+
+        # Item 1: compare real positions only
+        # Batched layout:  a0(0) a1(1) PAD(2) q0(3) q1(4) q2(5) q3(6)
+        # Unpadded layout: a0(0) a1(1)        q0(2) q1(3) q2(4) q3(5)
+        assert torch.allclose(out_batched[1, [0, 1]], out_item1[0, [0, 1]], atol=1e-5)
+        assert torch.allclose(out_batched[1, [3, 4, 5, 6]], out_item1[0, [2, 3, 4, 5]], atol=1e-5)
+
+        # Item 2: compare real positions only
+        # Batched layout:  a0(0) PAD(1) PAD(2) q0(3) q1(4) q2(5) q3(6)
+        # Unpadded layout: a0(0)               q0(1) q1(2) q2(3) q3(4)
+        assert torch.allclose(out_batched[2, [0]], out_item2[0, [0]], atol=1e-5)
+        assert torch.allclose(out_batched[2, [3, 4, 5, 6]], out_item2[0, [1, 2, 3, 4]], atol=1e-5)
