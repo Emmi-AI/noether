@@ -10,8 +10,6 @@ from noether.core.schemas.dataset import AeroDataSpecs
 class BaseModelConfig(BaseModel):
     name: str = Field(...)
     """Name of the model, also used as identifier when saving/loading checkpoints and finding the correct model schema."""
-    hidden_dim: int = Field(...)
-    """Hidden dimension of the model."""
     kind: str = Field(...)
     """Kind of model to use, i.e. class path (tutorials.models.<model_class>)."""
     position_projection: Literal["linear", "sincos"] = "sincos"
