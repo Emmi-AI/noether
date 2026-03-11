@@ -87,8 +87,7 @@ def _print_summary(config: ScaffoldConfig) -> None:
     # Suggest run command
     typer.echo(
         "To train, run:\n"
-        f"  uv run noether-train --config-dir {config.project_dir}/configs \\ \n"
-        f"    --config-name train +experiment={config.model.value}\n\n"
+        f"  uv run noether-train --config-dir {config.project_dir}/configs --config-name train +experiment={config.model.value}\n\n"
         "Experiment configs for all models are in configs/experiment/."
     )
 
