@@ -116,6 +116,32 @@ class CallbackBase:
         return self.name if self.name is not None else type(self).__name__
 
     @staticmethod
+    def validate_checkpoint_keys(callbacks: list[CallbackBase]) -> None:
+        """Validate that all stateful callbacks have unique checkpoint keys.
+
+        Should be called early (e.g. when callbacks are first assembled) so that
+        duplicate-key errors surface immediately rather than hours into training
+        when the first checkpoint is saved.
+
+        Args:
+            callbacks: list of callbacks to validate.
+
+        Raises:
+            ValueError: If two stateful callbacks produce the same checkpoint key.
+        """
+        seen: dict[str, CallbackBase] = {}
+        for cb in callbacks:
+            if cb.state_dict() is None:
+                continue
+            key = cb.checkpoint_key
+            if key in seen:
+                raise ValueError(
+                    f"Two stateful callbacks share checkpoint key '{key}': {seen[key]} and {cb}. "
+                    "Set a unique 'id' in each callback config to disambiguate."
+                )
+            seen[key] = cb
+
+    @staticmethod
     def build_callback_state_dict(callbacks: list[CallbackBase]) -> dict[str, Any]:
         """Build a keyed dict of state dicts for all stateful callbacks.
 
@@ -128,18 +154,13 @@ class CallbackBase:
         Raises:
             ValueError: If two stateful callbacks produce the same checkpoint key.
         """
+        CallbackBase.validate_checkpoint_keys(callbacks)
         result: dict[str, Any] = {}
         for cb in callbacks:
             sd = cb.state_dict()
             if sd is None:
                 continue
-            key = cb.checkpoint_key
-            if key in result:
-                raise ValueError(
-                    f"Duplicate checkpoint key '{key}' for stateful callbacks. "
-                    "Set a unique 'id' in the callback config to disambiguate."
-                )
-            result[key] = sd
+            result[cb.checkpoint_key] = sd
         return result
 
     @staticmethod
@@ -173,15 +194,8 @@ class CallbackBase:
             return
 
         # New format: match by key
+        CallbackBase.validate_checkpoint_keys(callbacks)
         current_by_key = {cb.checkpoint_key: cb for cb in callbacks if cb.state_dict() is not None}
-
-        # Check for duplicate keys among current stateful callbacks
-        num_stateful = sum(1 for cb in callbacks if cb.state_dict() is not None)
-        if num_stateful != len(current_by_key):
-            raise ValueError(
-                "Duplicate checkpoint keys among current stateful callbacks. "
-                "Set unique 'id' values in callback configs to disambiguate."
-            )
 
         matched_keys = set(checkpoint_data.keys()) & set(current_by_key.keys())
         unmatched_in_checkpoint = set(checkpoint_data.keys()) - matched_keys

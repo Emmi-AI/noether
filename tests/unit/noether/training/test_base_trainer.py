@@ -767,6 +767,45 @@ class TestStateDict:
         trainer.load_state_dict(state_dict)
         assert cb._loaded_state is None
 
+    def test_validate_checkpoint_keys_passes_for_unique_keys(self):
+        """No error when stateful callbacks have distinct checkpoint keys."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "Alpha"
+        cb1.state_dict.return_value = {"x": 1}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "Beta"
+        cb2.state_dict.return_value = {"x": 2}
+        # Should not raise
+        CallbackBase.validate_checkpoint_keys([cb1, cb2])
+
+    def test_validate_checkpoint_keys_ignores_non_stateful(self):
+        """Non-stateful callbacks (state_dict returns None) are ignored."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "Same"
+        cb1.state_dict.return_value = {"x": 1}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "Same"
+        cb2.state_dict.return_value = None  # non-stateful
+        # Should not raise — only one is stateful
+        CallbackBase.validate_checkpoint_keys([cb1, cb2])
+
+    def test_validate_checkpoint_keys_raises_on_duplicate(self):
+        """Two stateful callbacks with the same key raise immediately."""
+        from noether.core.callbacks.base import CallbackBase
+
+        cb1 = MagicMock()
+        cb1.checkpoint_key = "BestCheckpointCallback"
+        cb1.state_dict.return_value = {"best": 0.5}
+        cb2 = MagicMock()
+        cb2.checkpoint_key = "BestCheckpointCallback"
+        cb2.state_dict.return_value = {"best": 0.3}
+        with pytest.raises(ValueError, match="Two stateful callbacks share checkpoint key"):
+            CallbackBase.validate_checkpoint_keys([cb1, cb2])
+
 
 class TestWrapCompile:
     def test_no_compile_returns_model_unchanged(self):

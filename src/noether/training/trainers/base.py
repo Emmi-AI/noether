@@ -240,6 +240,11 @@ class BaseTrainer:
             callbacks += self.get_default_callbacks(callback_default_args)
         if self.config.add_trainer_callbacks:
             callbacks += self.get_trainer_callbacks(callback_default_args)
+
+        # Fail fast if two stateful callbacks share a checkpoint key, rather than discovering the conflict hours later
+        # when the first checkpoint is saved.
+        CallbackBase.validate_checkpoint_keys(callbacks)
+
         return callbacks
 
     def get_trainer_callbacks(self, callback_default_args: dict[str, Any]) -> list[CallbackBase]:
