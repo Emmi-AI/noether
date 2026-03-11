@@ -123,7 +123,30 @@ You might be in a situation when your venv won't be configured as intended anymo
 ---
 # Quickstart
 
-You can run a training job immediately using the [tutorial](./tutorial/README.MD) configuration. For local development (Mac/CPU), use:
+> [!IMPORTANT]
+> Before training, you need a prepared dataset. To get started with the ShapeNet-Car dataset,
+> follow the download and preprocessing steps in the
+> [ShapeNet-Car dataset README](./src/noether/data/datasets/cfd/shapenet_car/README.MD).
+
+## Scaffold a New Project
+
+Use `noether-init` to generate a complete training project:
+
+```console
+noether-init my_project --model upt --dataset shapenet_car --dataset-path /path/to/shapenet_car
+```
+
+Then train with:
+
+```console
+uv run noether-train --config-dir my_project/configs --config-name train +experiment=upt
+```
+
+See the [scaffolding tutorial](https://noether-docs.emmi.ai/tutorials/scaffolding_a_new_project.html) for all options and the generated project structure.
+
+## Run the Tutorial Example
+
+You can also run a training job immediately using the [tutorial](./tutorial/README.MD) configuration. For local development (Mac/CPU), use:
 
 ```console
 uv run noether-train --hp tutorial/configs/train_shapenet.yaml \

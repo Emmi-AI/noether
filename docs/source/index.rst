@@ -37,8 +37,9 @@ Welcome to the Noether Framework documentation. Here you will find available API
    tutorials/training_first_model_with_code
    tutorials/full_code_tutorial
    tutorials/how_to_initialize
-   
+
    Walkthrough <https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD>
+   tutorials/scaffolding_a_new_project
 
 
 .. toctree::

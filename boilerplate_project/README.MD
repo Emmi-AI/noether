@@ -1,5 +1,8 @@
 ## `Noether` Starter Kit Project
 ----
+
+> You can use `noether-init` to automatically scaffold a complete project with your choice of model, dataset, and configuration. See the [scaffolding tutorial](https://noether-docs.emmi.ai/tutorials/scaffolding_a_new_project.html) for details.
+
 This folder contains skeleton/boilerplate code for a minimal working `Noether` training pipeline, including all required components.
 
 1.  A dataset that loads (and generates) dummy data.
