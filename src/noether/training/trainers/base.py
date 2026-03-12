@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import sys
 import warnings
 from collections import defaultdict
@@ -196,11 +197,34 @@ class BaseTrainer:
 
         self._has_logged_unused_params = False
         self._skip_nan_step = False
+        self._signal_received = False
+        self._original_sigterm: signal.Handlers | None = None
+        self._original_sigint: signal.Handlers | None = None
+        self._save_on_sigint = config.save_on_sigint
 
         self.forward_properties = config.forward_properties if config.forward_properties is not None else []
         self.target_properties = config.target_properties if config.target_properties is not None else []
 
         self.batch_keys = set(self.forward_properties).union(set(self.target_properties))
+
+    def _signal_handler(self, signum: int, frame: Any) -> None:
+        sig_name = signal.Signals(signum).name
+        self.logger.warning(f"Received {sig_name} — will save checkpoint and exit after current update")
+        self._signal_received = True
+
+    def _install_signal_handlers(self) -> None:
+        self._signal_received = False
+        self._original_sigterm = signal.signal(signal.SIGTERM, self._signal_handler)  # type:ignore [assignment]
+        if self._save_on_sigint:
+            self._original_sigint = signal.signal(signal.SIGINT, self._signal_handler)  # type:ignore [assignment]
+
+    def _restore_signal_handlers(self) -> None:
+        if self._original_sigterm is not None:
+            signal.signal(signal.SIGTERM, self._original_sigterm)
+            self._original_sigterm = None
+        if self._original_sigint is not None:
+            signal.signal(signal.SIGINT, self._original_sigint)
+            self._original_sigint = None
 
     def get_user_callbacks(self, model: ModelBase, evaluation=False) -> list[CallbackBase]:
         callback_default_args = self._get_default_callback_kwargs(model)
@@ -216,6 +240,11 @@ class BaseTrainer:
             callbacks += self.get_default_callbacks(callback_default_args)
         if self.config.add_trainer_callbacks:
             callbacks += self.get_trainer_callbacks(callback_default_args)
+
+        # Fail fast if two stateful callbacks share a checkpoint key, rather than discovering the conflict hours later
+        # when the first checkpoint is saved.
+        CallbackBase.validate_checkpoint_keys(callbacks)
+
         return callbacks
 
     def get_trainer_callbacks(self, callback_default_args: dict[str, Any]) -> list[CallbackBase]:
@@ -367,7 +396,7 @@ class BaseTrainer:
 
     def state_dict(self) -> dict[str, Any]:
         """Get the state dict of the trainer."""
-        callback_state_dicts = [callback.state_dict() for callback in self.callbacks]
+        callback_state_dicts = CallbackBase.build_callback_state_dict(self.callbacks)
         state_dict: dict[str, Any] = {
             CheckpointKeys.CALLBACK_STATE_DICT: callback_state_dicts,
             CheckpointKeys.TRAINING_ITERATION: dict(self.update_counter.cur_iteration),
@@ -384,12 +413,7 @@ class BaseTrainer:
         # load callback state_dicts
         callback_state_dicts = state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 
-        if len(callback_state_dicts) != len(self.callbacks):
-            raise ValueError(
-                f"Number of callbacks in checkpoint ({len(callback_state_dicts)}) does not match number of current callbacks ({len(self.callbacks)})"
-            )
-        for callback, sd in zip(self.callbacks, callback_state_dicts, strict=True):
-            callback.load_state_dict(sd)
+        CallbackBase.load_callback_state_dicts(self.callbacks, callback_state_dicts, self.logger)
 
         # load grad_scaler
         grad_scaler_state_dict = state_dict.pop(CheckpointKeys.GRAD_SCALER, None)
@@ -630,6 +654,7 @@ class BaseTrainer:
         for handler in logging.getLogger().handlers:
             handler.addFilter(context_filter)
 
+        self._install_signal_handlers()
         try:
             self.logger.debug("initializing dataloader workers")
             data_iter = iter(data_loader)
@@ -648,6 +673,7 @@ class BaseTrainer:
                 if should_stop:
                     break
         finally:
+            self._restore_signal_handlers()
             for handler in logging.getLogger().handlers:
                 handler.removeFilter(context_filter)
 
@@ -815,6 +841,16 @@ class BaseTrainer:
                 batch_size=batch_size,
             )
             if early_exit:
+                return True
+
+            # Check for signal interrupt
+            if self._signal_received:
+                self.logger.info(f"Saving signal interrupt checkpoint at {self.update_counter.cur_iteration}")
+                self.checkpoint_writer.save(
+                    model=model,
+                    checkpoint_tag=f"{self.update_counter.cur_iteration}.signal_interrupt",
+                    trainer=self,
+                )
                 return True
 
             # Check end of training
