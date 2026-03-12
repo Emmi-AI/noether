@@ -62,16 +62,6 @@ class FileManager:
         # --- Infrastructure files (with __PROJECT__ substitution) ---
         _copy(tpl / "pipeline" / "__init__.py", project_dir / "pipeline" / "__init__.py", config)
         _copy(
-            tpl / "pipeline" / "collators" / "__init__.py",
-            project_dir / "pipeline" / "collators" / "__init__.py",
-            config,
-        )
-        _copy(
-            tpl / "pipeline" / "collators" / "sparse_tensor_offset.py",
-            project_dir / "pipeline" / "collators" / "sparse_tensor_offset.py",
-            config,
-        )
-        _copy(
             tpl / "pipeline" / "multistage_pipelines" / "__init__.py",
             project_dir / "pipeline" / "multistage_pipelines" / "__init__.py",
             config,
