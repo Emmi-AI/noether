@@ -66,24 +66,31 @@ def with_normalizers(_func_or_key: str | Any | None = None):
         @functools.wraps(fn)
         def wrapper(self, *args, **kwargs):
             normalizer_key = resolve_normalizer_key(fn)
+            cache_attr = f"_normalizer_cache_{normalizer_key}"
             data = fn(self, *args, **kwargs)
+
             if self.compute_statistics:
                 return data
-            try:
-                registry_attribute = "normalizers"
-                normalizers = getattr(self, registry_attribute)
-            except AttributeError as exc:
-                raise AttributeError(
-                    f"{self.__class__.__name__}.{registry_attribute} not found; "
-                    f"required for with_normalizers('{normalizer_key}') method to have the normalizers attribute"
-                ) from exc
-            try:
-                normalizer = normalizers[normalizer_key]
-            except KeyError:
-                available_keys = list(normalizers.keys())
-                raise KeyError(
-                    f"Normalizer key '{normalizer_key}' not found. Normalizers are available for the following getitem_ methods: {available_keys}"
-                ) from None
+
+            normalizer = getattr(self, cache_attr, None)
+
+            if normalizer is None:
+                try:
+                    normalizers = self.normalizers
+                except AttributeError as exc:
+                    raise AttributeError(
+                        f"{self.__class__.__name__}.normalizers not found; "
+                        f"required for with_normalizers('{normalizer_key}') method"
+                    ) from exc
+
+                try:
+                    normalizer = normalizers[normalizer_key]
+                except KeyError:
+                    raise KeyError(
+                        f"Normalizer key '{normalizer_key}' not found. Available: {list(normalizers.keys())}"
+                    ) from None
+                object.__setattr__(self, cache_attr, normalizer)  # bypass any __setattr__ overrides
+
             data = normalizer(data)
             return data
 

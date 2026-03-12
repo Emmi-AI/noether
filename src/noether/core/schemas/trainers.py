@@ -86,6 +86,9 @@ class BaseTrainerConfig(BaseModel):
 
     model_config = {"extra": "forbid"}
 
+    dataloader_prefetch_factor: int | None = Field(None, ge=1)
+    """The `prefetch_factor` to use for the training dataloader. This controls how many batches are prefetched by each worker process in the dataloader. Increasing this can speed up training if data loading is a bottleneck, but also increases memory usage."""
+
     @model_validator(mode="after")
     def validate_callback_frequency(self) -> BaseTrainerConfig:
         """

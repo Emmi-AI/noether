@@ -63,7 +63,8 @@ class RopeFrequency(nn.Module):
             out = einops.rearrange(out, "... input_dim hidden_dim -> ... (input_dim hidden_dim)")
             # add padding
             assert self.padding % 2 == 0
-            out = torch.concat([out, torch.zeros(*out.shape[:-1], self.padding // 2, device=coords.device)], dim=-1)
+            if self.padding > 0:
+                out = torch.concat([out, torch.zeros(*out.shape[:-1], self.padding // 2, device=coords.device)], dim=-1)
             return torch.polar(torch.ones_like(out), out)
         # LEGACY: only kept for backward compatibility
         assert self.implementation == "real"
