@@ -133,7 +133,7 @@ You might be in a situation when your venv won't be configured as intended anymo
 Use `noether-init` to generate a complete training project:
 
 ```console
-noether-init my_project --model upt --dataset shapenet_car --dataset-path /path/to/shapenet_car
+uv run noether-init my_project --model upt --dataset shapenet_car --dataset-path /path/to/shapenet_car
 ```
 
 Then train with:

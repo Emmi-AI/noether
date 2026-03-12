@@ -73,7 +73,7 @@ The ``noether-init`` command generates a complete Noether training project with 
 
 .. code-block:: bash
 
-   noether-init my_project \
+   uv run noether-init my_project \
        --model upt \
        --dataset shapenet_car \
        --dataset-path /path/to/shapenet_car
