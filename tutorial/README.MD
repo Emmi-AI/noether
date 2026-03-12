@@ -1045,7 +1045,7 @@ Each collator defines how to merge certain keys from each sample into a batch.
 In most cases, the [**`DefaultCollator`**](../src/noether/data/pipeline/collators/default.py), where tensors are simply concatenated along the batch dimension, will suffice.
 However, when creating [sparse tensors](../src/noether/data/pipeline/sample_processors/sparse_tensor_offset.py), for example, a more sophisticated collation approach is required.
 We define the collator pipeline in the [**`_build_collator_pipeline`**](./pipeline/multistage_pipelines/aero_multistage.py#94) method.
-Only when dealing with supernodes do we require additional collator classes such as the custom-implemented `SparseTensorOffsetCollator` (e.g., for AB-UPT and UPT).
+Only when dealing with supernodes do we require additional collator classes such as `SparseTensorOffsetCollator` (e.g., for AB-UPT and UPT).
 
 ### Batch processors
 
