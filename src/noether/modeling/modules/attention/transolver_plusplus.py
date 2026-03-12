@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from einops import rearrange
 
 from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverPlusPlusAttentionConfig
+from noether.modeling.functional.rms_norm import norm
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.layers import LinearProjection
 
@@ -135,7 +136,7 @@ class TransolverPlusPlusAttention(nn.Module):
 
         q_slice_token, k_slice_token, v_slice_token = self.qkv(slice_token).chunk(3, dim=-1)
         out_slice_token = F.scaled_dot_product_attention(
-            q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
+            norm(q_slice_token), norm(k_slice_token), v_slice_token, dropout_p=self.dropout if self.training else 0.0
         )
 
         out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)

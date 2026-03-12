@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverAttentionConfig
+from noether.modeling.functional.rms_norm import norm
 from noether.modeling.modules.layers import LinearProjection
 
 
@@ -133,8 +134,8 @@ class TransolverAttention(nn.Module):
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.qkv(slice_token).chunk(3, dim=-1)
         out_slice_token = F.scaled_dot_product_attention(
-            q_slice_token,
-            k_slice_token,
+            norm(q_slice_token),
+            norm(k_slice_token),
             v_slice_token,
             dropout_p=self.dropout if self.training else 0.0,
         )

@@ -8,6 +8,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
+from noether.modeling.functional.rms_norm import norm
 from noether.modeling.modules.attention import ATTENTION_REGISTRY
 from noether.modeling.modules.layers import LayerScale, LinearProjection, UnquantizedDropPath
 from noether.modeling.modules.mlp import UpActDownMlp
@@ -40,9 +41,9 @@ class TransformerBlock(nn.Module):
             self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
             elementwise_affine = False
 
-        self.norm1 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        # self.norm1 = torch.nn.LayerNorm(
+        #    config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        # )
 
         try:
             if callable(config.attention_constructor):
@@ -66,9 +67,9 @@ class TransformerBlock(nn.Module):
             config=config.drop_path_config  # type: ignore[arg-type]
         )
 
-        self.norm2 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        # self.norm2 = torch.nn.LayerNorm(
+        #    config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        # )
         self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
         self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
         self.drop_path2 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
@@ -95,8 +96,8 @@ class TransformerBlock(nn.Module):
                 raise ValueError(
                     "Conditioning vector provided, but the transformer block is not configured for conditioning."
                 )
-            x = x + self.drop_path1(self.ls1(self.attention_block(self.norm1(x), **(attn_kwargs or {}))))
-            x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+            x = x + self.drop_path1(self.ls1(self.attention_block(norm(x), **(attn_kwargs or {}))))
+            x = x + self.drop_path2(self.ls2(self.mlp(norm(x))))
         else:
             if condition is None:
                 raise ValueError(
@@ -109,7 +110,7 @@ class TransformerBlock(nn.Module):
                 modulate_gate(
                     self.ls1(
                         self.attention_block(
-                            modulate_scale_shift(self.norm1(x), scale=attn_scale, shift=attn_shift),
+                            modulate_scale_shift(norm(x), scale=attn_scale, shift=attn_shift),
                             **(attn_kwargs or {}),
                         ),
                     ),
@@ -118,7 +119,7 @@ class TransformerBlock(nn.Module):
             )
             x = x + self.drop_path2(
                 modulate_gate(
-                    self.ls2(self.mlp(modulate_scale_shift(self.norm2(x), scale=mlp_scale, shift=mlp_shift))),
+                    self.ls2(self.mlp(modulate_scale_shift(norm(x), scale=mlp_scale, shift=mlp_shift))),
                     gate=mlp_gate,
                 ),
             )

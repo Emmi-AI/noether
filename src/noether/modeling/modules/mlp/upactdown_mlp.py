@@ -28,7 +28,7 @@ class UpActDownMlp(nn.Module):
         self.init_weights = config.init_weights
 
         self.fc1 = nn.Linear(config.input_dim, config.hidden_dim, bias=config.bias)
-        self.act = Activation.GELU.build()
+        self.act = Activation.RELU.build()
         self.fc2 = nn.Linear(config.hidden_dim, config.input_dim, bias=config.bias)
 
         self.reset_parameters()
@@ -65,6 +65,6 @@ class UpActDownMlp(nn.Module):
         """
 
         x = self.fc1(x)
-        x = self.act(x)
+        x = self.act(x) ** 2
         x = self.fc2(x)
         return x
