@@ -1,0 +1,17 @@
+kind: __PROJECT__.model.Transolver
+name: transolver
+hidden_dim: 192
+depth: 12
+transformer_block_config:
+  mlp_expansion_factor: 4
+  num_heads: 3
+attention_arguments:
+  num_slices: 512
+use_output_projection: true
+optimizer_config: ${optimizer}
+data_specs: ${data_specs}
+forward_properties:
+  - surface_position
+  - volume_position
+  - surface_features
+  - volume_features

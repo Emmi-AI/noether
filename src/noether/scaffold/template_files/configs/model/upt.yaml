@@ -1,0 +1,30 @@
+kind: __PROJECT__.model.UPT
+name: upt
+hidden_dim: 192
+approximator_depth: 12
+num_heads: 3
+mlp_expansion_factor: 4
+use_rope: true
+use_bias_layers: true
+data_specs: ${data_specs}
+supernode_pooling_config:
+  input_dim: ${data_specs.position_dim}
+  radius: 9
+approximator_config:
+  use_rope: ${model.use_rope}
+decoder_config:
+  depth: 12
+  input_dim: ${data_specs.position_dim}
+  perceiver_block_config:
+     use_rope: ${model.use_rope}
+optimizer_config: ${optimizer}
+forward_properties:
+  - surface_mask_query
+  - surface_position_batch_idx
+  - surface_position_supernode_idx
+  - surface_position
+  - surface_features
+  - surface_query_position
+  - surface_query_features
+  - volume_query_position
+  - volume_query_features

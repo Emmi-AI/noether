@@ -1,0 +1,25 @@
+train:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: train
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+test:
+  root:  ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+test_repeat:
+  root:  ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  dataset_wrappers:
+    - kind: noether.data.base.wrappers.RepeatWrapper
+      repetitions: 10
+    

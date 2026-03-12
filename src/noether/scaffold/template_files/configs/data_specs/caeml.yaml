@@ -1,0 +1,10 @@
+
+# caeml data specifications are for both AhmedML and DrivAerML datasets
+position_dim: 3
+surface_output_dims:
+  pressure: 1
+  friction: 3
+volume_output_dims:
+  pressure: 1
+  velocity: 3
+  vorticity: 3

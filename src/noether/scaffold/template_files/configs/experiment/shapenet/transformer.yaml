@@ -1,0 +1,6 @@
+# @package _global_
+defaults:
+  - override /model: transformer
+  - override /tracker: __TRACKER__
+
+name: __PROJECT__-transformer

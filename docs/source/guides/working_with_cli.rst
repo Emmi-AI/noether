@@ -65,3 +65,32 @@ Verify your setup by running the ``estimate`` command, which fetches metadata an
     noether-data aws estimate noaa-goes16 ABI-L1b-RadC/2023/001/00/
 
 If you see no errors — congratulations, your setup works!
+
+Scaffolding a New Project
+-------------------------
+
+The ``noether-init`` command generates a complete Noether training project with all required modules and configurations.
+
+.. code-block:: bash
+
+   uv run noether-init my_project \
+       --model upt \
+       --dataset shapenet_car \
+       --dataset-path /path/to/shapenet_car
+
+**Required arguments:**
+
+- ``project_name`` (positional) — project name, e.g. ``my_project``
+- ``--model, -m`` — model architecture, e.g. ``ab_upt``
+- ``--dataset, -d`` — dataset, e.g. ``shapenet_car``
+- ``--dataset-path`` — path to dataset on disk
+
+**Optional arguments:**
+
+- ``--optimizer, -o`` — optimizer, e.g. ``adamw`` (default)
+- ``--tracker, -t`` — experiment tracker, e.g. ``wandb``
+- ``--hardware`` — hardware target, e.g. ``gpu`` (default)
+- ``--project-dir, -l`` — parent directory for the project folder
+- ``--wandb-entity`` — W&B entity name (only used with ``--tracker wandb``)
+
+For all available options, see :doc:`/tutorials/scaffolding_a_new_project`.
