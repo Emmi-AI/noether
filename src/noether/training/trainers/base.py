@@ -449,6 +449,7 @@ class BaseTrainer:
             samples=self.end_checkpoint.sample,
             callback_samplers=configs,
             evaluation=evaluation,
+            prefetch_factor=self.config.dataloader_prefetch_factor,
             **kwargs,
         )
 
