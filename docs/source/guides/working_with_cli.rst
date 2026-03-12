@@ -80,17 +80,17 @@ The ``noether-init`` command generates a complete Noether training project with 
 
 **Required arguments:**
 
-- ``project_name`` (positional) — project name, must be a valid Python identifier (no hyphens)
-- ``--model, -m`` — model architecture (``transformer``, ``upt``, ``ab_upt``, ``transolver``)
-- ``--dataset, -d`` — dataset (``shapenet_car``, ``drivaernet``, ``drivaerml``, ``ahmedml``, ``emmi_wing``)
+- ``project_name`` (positional) — project name, e.g. ``my_project``
+- ``--model, -m`` — model architecture, e.g. ``ab_upt``
+- ``--dataset, -d`` — dataset, e.g. ``shapenet_car``
 - ``--dataset-path`` — path to dataset on disk
 
 **Optional arguments:**
 
-- ``--optimizer, -o`` — optimizer, default: ``adamw`` (also: ``lion``)
-- ``--tracker, -t`` — experiment tracker, default: ``disabled`` (also: ``wandb``, ``trackio``, ``tensorboard``)
-- ``--hardware`` — hardware target, default: ``gpu`` (also: ``mps``, ``cpu``)
-- ``--project-dir, -l`` — parent directory for the project folder, default: current directory
+- ``--optimizer, -o`` — optimizer, e.g. ``adamw`` (default)
+- ``--tracker, -t`` — experiment tracker, e.g. ``wandb``
+- ``--hardware`` — hardware target, e.g. ``gpu`` (default)
+- ``--project-dir, -l`` — parent directory for the project folder
 - ``--wandb-entity`` — W&B entity name (only used with ``--tracker wandb``)
 
-For a detailed walkthrough and the generated project structure, see :doc:`/tutorials/scaffolding_a_new_project`.
+For all available options, see :doc:`/tutorials/scaffolding_a_new_project`.
