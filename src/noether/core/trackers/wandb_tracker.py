@@ -19,6 +19,7 @@ class WandBTracker(BaseTracker):
     Example config:
 
     .. code-block:: yaml
+
         - kind: noether.core.trackers.WandBTracker
           mode: online
           entity: my_entity

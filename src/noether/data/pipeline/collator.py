@@ -17,11 +17,20 @@ class Collator:
     torch.utils.data.DataLoader via the collate_fn argument (DataLoader(dataset, batch_size=2, collate_fn=Collator()).
 
     Example:
-        >>> collator = Collator()
-        >>> num_samples = 2
-        >>> samples = [{"data": torch.randn(3, 256, 256)} for _ in range(num_samples)]
-        >>> batch = collator(samples)
-        >>> batch["data"].shape  # torch.Size([2, 3, 256, 256])
+
+        .. testcode::
+
+            from noether.data.pipeline.collator import Collator
+
+            collator = Collator()
+            num_samples = 2
+            samples = [{"data": torch.randn(3, 256, 256)} for _ in range(num_samples)]
+            batch = collator(samples)
+            print(batch["data"].shape)
+
+        .. testoutput::
+
+            torch.Size([2, 3, 256, 256])
 
     """
 
