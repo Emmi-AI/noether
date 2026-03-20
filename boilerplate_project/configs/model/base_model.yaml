@@ -1,6 +1,0 @@
-kind: boilerplate_project.models.BaseModel
-hidden_dim: 128
-dropout: 0.1
-optimizer_config: ${optim}
-input_dim: ${input_dim}
-output_dim: 10

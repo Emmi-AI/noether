@@ -2,7 +2,7 @@
 
 from noether.core.schemas import ConfigSchema, ModelBaseConfig
 from noether.core.schemas.dataset import DatasetBaseConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
+from noether.training.trainers.simple import SimpleLossTrainerConfig
 
 
 class BaseDatasetConfig(DatasetBaseConfig):
@@ -37,5 +37,5 @@ class BoilerplateConfigSchema(ConfigSchema):
 
     input_dim: int = 2
     model: BaseModelConfig
-    trainer: BaseTrainerConfig
+    trainer: SimpleLossTrainerConfig
     datasets: dict[str, BaseDatasetConfig]

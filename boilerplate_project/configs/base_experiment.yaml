@@ -1,18 +1,64 @@
 # @package _global_
+#
+# Single-file experiment config. All settings live here; override any value
+# from the CLI with Hydra syntax, e.g.:
+#   noether-train --hp configs/base_experiment.yaml trainer.max_epochs=100
+#   noether-train --hp configs/base_experiment.yaml +tracker.kind=noether.core.trackers.WandBTracker
 
-dataset_kind: boilerplate_project.datasets.BaseDataset
 config_schema_kind: boilerplate_project.schemas.BoilerplateConfigSchema
 
-# Shared dimension value — referenced via ${input_dim} in model and trainer configs.
-input_dim: 2
-
-defaults:
-  - model: base_model
-  - datasets: base_dataset
-  - tracker: base_tracker
-  - callbacks: base_callback
-  - trainer: base_trainer
-  - optim: adamw
-  - _self_
-
+input_dim: 2          # shared across model and trainer via ${input_dim}
 output_path: ./outputs
+
+# ── Datasets ──────────────────────────────────────────────────────────────────
+datasets:
+  train:
+    kind: boilerplate_project.datasets.BaseDataset
+    num_samples: 10000
+  test:
+    kind: boilerplate_project.datasets.BaseDataset
+    num_samples: 1000
+
+# ── Model ─────────────────────────────────────────────────────────────────────
+model:
+  kind: boilerplate_project.models.BaseModel
+  input_dim: ${input_dim}
+  output_dim: 10
+  hidden_dim: 128
+  dropout: 0.1
+  optimizer_config:
+    kind: torch.optim.AdamW
+    lr: 1.0e-3
+    weight_decay: 0.05
+    clip_grad_norm: 1.0
+    schedule_config:
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+      warmup_percent: 0.10
+      end_value: 1.0e-6
+
+# ── Trainer ───────────────────────────────────────────────────────────────────
+trainer:
+  kind: noether.training.trainers.SimpleLossTrainer
+  loss_fn: torch.nn.functional.cross_entropy
+  forward_properties: [x]
+  target_properties: [y]
+  max_epochs: 50
+  effective_batch_size: 8
+  log_every_n_epochs: 1
+  precision: float32
+  callbacks:
+    - kind: noether.training.callbacks.OfflineLossCallback
+      dataset_key: test
+      every_n_epochs: 1
+      batch_size: 1
+      name: OfflineLossCallback
+    - kind: noether.core.callbacks.CheckpointCallback
+      every_n_epochs: 1
+      save_weights: false
+      save_latest_weights: true
+      save_latest_optim: true
+      name: CheckpointCallback
+    - kind: boilerplate_project.callbacks.BoilerplateCallback
+      dataset_key: test
+      every_n_epochs: 1
+      batch_size: 1
