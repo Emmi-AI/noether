@@ -10,10 +10,11 @@ class LinearDecreasingSchedule(DecreasingProgressSchedule):
     Example:
 
         .. code-block:: yaml
+
             schedule_config:
-            kind: noether.core.schedules.LinearDecreasingSchedule
-            max_value: ${model.optim.lr}
-            end_value: 0.0
+                kind: noether.core.schedules.LinearDecreasingSchedule
+                max_value: ${model.optim.lr}
+                end_value: 0.0
     """
 
     def _get_progress(self, step: int, total_steps: int) -> float:
@@ -24,10 +25,13 @@ class LinearIncreasingSchedule(IncreasingProgressSchedule):
     """A scheduler that increases linearly from the minimum to maximum value over the total number of steps.
 
     Example:
-        >>> schedule_config:
-        >>>   kind: noether.core.schedules.LinearIncreasingSchedule
-        >>>   max_value: ${model.optim.lr}
-        >>>   start_value: 0.0
+
+        .. code-block:: yaml
+
+            schedule_config:
+                kind: noether.core.schedules.LinearIncreasingSchedule
+                max_value: ${model.optim.lr}
+                start_value: 0.0
     """
 
     def _get_progress(self, step: int, total_steps: int) -> float:

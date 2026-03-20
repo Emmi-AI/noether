@@ -10,18 +10,32 @@ class BatchProcessor:
     def __call__(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
         """Processes data on a batch-level. The first dimension of each tensor in the batch is the batch dimension.
         Example:
-            >>> class MyBatchProcessor(BatchProcessor):
-            >>>     def __init__(self):
-            >>>         self.mean = torch.tensor([0.0, 0.0])
-            >>>         self.std = torch.tensor([1.0, 1.0])
-            >>>     def normalize(self, x):
-            >>>         return (x - self.mean) / self.std
-            >>>     def __call__(self, batch):
-            >>>         batch['x'] = self.normalize(batch['x'])
-            >>>         return batch
-            >>> postprocessor = MyBatchProcessor()
-            >>> batch = {"x": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}
-            >>> processed_batch = postprocessor(batch)
+
+            .. testcode::
+
+                from noether.data.pipeline.batch_processor import BatchProcessor
+
+                class MyBatchProcessor(BatchProcessor):
+                    def __init__(self):
+                        self.mean = torch.tensor([0.0, 0.0])
+                        self.std = torch.tensor([1.0, 1.0])
+                    def normalize(self, x):
+                        return (x - self.mean) / self.std
+                    def __call__(self, batch):
+                        batch['x'] = self.normalize(batch['x'])
+                        return batch
+                    def denormalize(self, key, value):
+                        return key, value
+
+                postprocessor = MyBatchProcessor()
+                batch = {"x": torch.tensor([[1.0, 2.0], [3.0, 4.0]])}
+                processed_batch = postprocessor(batch)
+                print(processed_batch['x'])
+
+            .. testoutput::
+
+                tensor([[1., 2.],
+                        [3., 4.]])
         Args:
             batch: Collated batch.
 
