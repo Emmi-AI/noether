@@ -27,6 +27,7 @@ class ProgressCallback(PeriodicCallback):
     # noinspection PyMethodOverriding
     def periodic_callback(self, *, interval_type, update_counter: UpdateCounter, **_) -> None:
         total_updates = self.trainer.total_training_updates
+
         done_str = ""
         if total_updates is not None and update_counter.cur_iteration.update is not None:
             done_str = f"{(update_counter.cur_iteration.update / total_updates):.0%} done."
@@ -45,6 +46,10 @@ class ProgressCallback(PeriodicCallback):
                 f"({update_counter.cur_iteration})"
             )
 
+        if total_updates == 0 or update_counter.cur_iteration.update == 0:
+            # can't compute progress or ETA from 0 updates.
+            return
+
         assert self._last_log_time is not None
         assert self._start_time is not None
         assert update_counter.cur_iteration.sample is not None
@@ -54,6 +59,11 @@ class ProgressCallback(PeriodicCallback):
         seconds_since_last_log = (now - self._last_log_time).total_seconds()
         samples_since_last_log = update_counter.cur_iteration.sample - self._last_log_samples
         updates_since_last_log = samples_since_last_log // update_counter.effective_batch_size
+        time_per_update = ""
+        if updates_since_last_log > 0:
+            time_per_update = (
+                f"time_per_update: {seconds_to_duration_str(seconds_since_last_log / updates_since_last_log)} "
+            )
         if self._last_log_samples == 0:
             progress = update_counter.cur_iteration.update / total_updates
         else:
@@ -67,7 +77,7 @@ class ProgressCallback(PeriodicCallback):
             f"Estimated end time (UTC): {eta_utc} "
             f"estimated_duration: {seconds_to_duration_str(estimated_duration.total_seconds())} "
             f"time_since_last_log: {seconds_to_duration_str(seconds_since_last_log)} "
-            f"time_per_update: {seconds_to_duration_str(seconds_since_last_log / updates_since_last_log)} "
+            f"{time_per_update}"
         )
         # reset after first log because first few updates take longer which skew the ETA
         if self._last_log_samples == 0:

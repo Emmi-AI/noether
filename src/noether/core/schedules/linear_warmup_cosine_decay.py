@@ -22,11 +22,12 @@ class LinearWarmupCosineDecaySchedule(ScheduleBase):
     Example:
 
         .. code-block:: yaml
+
             schedule_config:
-            kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
-            warmup_percent: 0.05
-            end_value: 1.0e-6
-            max_value: ${model.optim.lr} # or just manually set the max value
+                kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+                warmup_percent: 0.05
+                end_value: 1.0e-6
+                max_value: ${model.optim.lr} # or just manually set the max value
     """
 
     schedule: ScheduleBase

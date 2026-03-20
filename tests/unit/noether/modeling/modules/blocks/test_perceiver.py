@@ -135,6 +135,30 @@ def test_perceiver_block_conditioned():
     assert torch.allclose(DIT_PERCEIVER_BLOCK, dit_output, atol=1e-4)
 
 
+def test_perceiver_block_conditioned_with_kv_dim():
+    """Test that conditioning works when kv_dim != hidden_dim."""
+    hidden_dim = 8
+    kv_dim = 4
+    condition_dim = 32
+    torch.manual_seed(0)
+    config = PerceiverBlockConfig(
+        hidden_dim=hidden_dim,
+        num_heads=2,
+        kv_dim=kv_dim,
+        condition_dim=condition_dim,
+        mlp_expansion_factor=4,
+    )
+    block = PerceiverBlock(config=config)
+    batch_size = 2
+    seq_len = 5
+    q = torch.randn(batch_size, seq_len, hidden_dim)
+    kv = torch.randn(batch_size, seq_len, kv_dim)
+    condition = torch.randn(batch_size, condition_dim)
+    output = block(q=q, kv=kv, condition=condition)
+    assert output.shape == q.shape, "Output shape mismatch"
+    assert not torch.isnan(output).any(), "Output contains NaN"
+
+
 def test_no_bias():
     config = PerceiverBlockConfig(hidden_dim=8, num_heads=2, bias=False, mlp_expansion_factor=4)
     block = PerceiverBlock(config=config)
