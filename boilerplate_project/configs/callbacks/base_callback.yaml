@@ -13,4 +13,3 @@
   dataset_key: test
   every_n_epochs: 1
   batch_size: 1
-  name: BoilerplateCallback

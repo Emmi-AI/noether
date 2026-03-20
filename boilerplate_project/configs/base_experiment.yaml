@@ -1,8 +1,10 @@
 # @package _global_
 
-collator_kind: boilerplate_project.pipelines.BaseMultiStagePipeline
 dataset_kind: boilerplate_project.datasets.BaseDataset
-config_schema_kind : boilerplate_project.schemas.config_schema.BoilerplateConfigSchema
+config_schema_kind: boilerplate_project.schemas.BoilerplateConfigSchema
+
+# Shared dimension value — referenced via ${input_dim} in model and trainer configs.
+input_dim: 2
 
 defaults:
   - model: base_model
@@ -10,7 +12,7 @@ defaults:
   - tracker: base_tracker
   - callbacks: base_callback
   - trainer: base_trainer
-  - optim: adamw 
+  - optim: adamw
   - _self_
 
 output_path: ./outputs

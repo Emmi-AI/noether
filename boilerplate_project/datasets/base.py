@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import torch
 
-from boilerplate_project.schemas.datasets.base_dataset_config import BaseDatasetConfig
+from boilerplate_project.schemas import BaseDatasetConfig
 from noether.data import Dataset
 
 

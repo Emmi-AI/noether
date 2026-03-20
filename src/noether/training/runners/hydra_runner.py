@@ -55,8 +55,9 @@ class HydraRunner:
 
         """
 
-        # get config schema
-        config_schema = class_constructor_from_class_path(hydra_config["config_schema_kind"])
+        # get config schema — fall back to the base ConfigSchema if not specified
+        config_schema_kind = hydra_config.get("config_schema_kind", "noether.core.schemas.schema.ConfigSchema")
+        config_schema = class_constructor_from_class_path(config_schema_kind)
         config: ConfigSchema = config_schema(**hydra_config)
 
         # initialize loggers for setup

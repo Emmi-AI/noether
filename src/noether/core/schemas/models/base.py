@@ -3,7 +3,7 @@
 
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from noether.core.schemas.initializers import AnyInitializer
 from noether.core.schemas.optimizers import OptimizerConfig
@@ -12,8 +12,14 @@ from noether.core.schemas.optimizers import OptimizerConfig
 class ModelBaseConfig(BaseModel):
     kind: str
     """Kind of model to use, i.e. class path"""
-    name: str
-    """Name of the model. Needs to be unique"""
+    name: str | None = None
+    """Name of the model. Needs to be unique. If not provided, defaults to the last component of `kind`."""
+
+    @model_validator(mode="after")
+    def set_default_name(self) -> "ModelBaseConfig":
+        if self.name is None:
+            self.name = self.kind.split(".")[-1]
+        return self
     optimizer_config: OptimizerConfig | None = None
     """The optimizer configuration to use for training the model. When a model is used for inference only, this can be left as None."""
     initializers: list[Annotated[AnyInitializer, Field(discriminator="kind")]] | None = None
