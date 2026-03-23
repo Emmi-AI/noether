@@ -3,12 +3,53 @@
 dataset_kind: boilerplate_project.datasets.BaseDataset
 
 defaults:
-  - model: base_model
-  - datasets: base_dataset
-  - tracker: base_tracker
-  - callbacks: base_callback
-  - trainer: base_trainer
-  - optim: adamw 
+  - tracker: disabled
   - _self_
 
 output_path: ./outputs
+
+model:
+  kind: boilerplate_project.models.BaseModel
+  name: base_model_boilerplate
+  hidden_dim: 128
+  dropout: 0.1
+  optimizer_config:
+    kind: torch.optim.AdamW
+    lr: 1.0e-3
+    weight_decay: 0.05
+    clip_grad_norm: 1.0
+    schedule_config:
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+      warmup_percent: 0.10
+      end_value: 1.0e-6 
+  input_dim: 2
+  output_dim: 10
+
+trainer:
+  kind: boilerplate_project.trainer.BoilerplateTrainer
+  precision: float32
+  max_epochs: 50
+  effective_batch_size: 8
+  log_every_n_epochs: 1
+  callbacks:
+  - kind: noether.training.callbacks.OfflineLossCallback
+    batch_size: 1
+    every_n_epochs: 1
+    dataset_key: test
+  - kind: noether.core.callbacks.CheckpointCallback
+    every_n_epochs: 1
+    save_weights: false
+    save_latest_weights: true
+    save_latest_optim: true
+  - kind: boilerplate_project.callbacks.BoilerplateCallback
+    dataset_key: test
+    every_n_epochs: 1
+    batch_size: 1
+
+datasets:
+  train:
+    kind: ${dataset_kind}
+    num_samples: 10000
+  test:
+    kind: ${dataset_kind}
+    num_samples: 1000
