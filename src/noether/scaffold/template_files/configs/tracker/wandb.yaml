@@ -1,3 +1,3 @@
 kind: noether.core.trackers.WandBTracker
-entity: null
+entity: __WANDB_ENTITY__
 project: __PROJECT__

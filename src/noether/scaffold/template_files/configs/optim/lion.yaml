@@ -1,0 +1,9 @@
+kind: noether.core.optimizer.Lion
+lr: 5.0e-5
+weight_decay: 0.05
+clip_grad_norm: 0.25
+schedule_config:
+  kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+  warmup_percent: 0.05
+  end_value: 1.0e-6
+  max_value: ${model.optimizer_config.lr} # Set max_value to match the learning rate defined above

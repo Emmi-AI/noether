@@ -2,28 +2,20 @@
 
 from __future__ import annotations
 
-import itertools
 from pathlib import Path
 
 import pytest
 import yaml
 
-from noether.scaffold.choices import DatasetChoice, HardwareChoice, ModelChoice, OptimizerChoice, TrackerChoice
+from noether.scaffold.choices import HardwareChoice, OptimizerChoice, TrackerChoice
 from noether.scaffold.config import resolve_config
-from noether.scaffold.generator import generate_project
-
-MODELS = list(ModelChoice)
-DATASETS = list(DatasetChoice)
-COMBOS = list(itertools.product(MODELS, DATASETS))
+from noether.scaffold.file_manager import FileManager
 
 
 def _generate(tmp_path: Path, **overrides):
     """Helper to generate a project with sensible defaults, accepting overrides."""
     defaults = dict(
         project_name="test_proj",
-        model=ModelChoice.UPT,
-        dataset=DatasetChoice.SHAPENET_CAR,
-        dataset_path="/tmp/fake_data",
         optimizer=OptimizerChoice.ADAMW,
         tracker=TrackerChoice.DISABLED,
         hardware=HardwareChoice.GPU,
@@ -33,33 +25,76 @@ def _generate(tmp_path: Path, **overrides):
     name = defaults["project_name"]
     proj = tmp_path / name
     config = resolve_config(**defaults, project_dir=proj)
-    generate_project(config)
+    FileManager.copy_template_tree(config)
     return proj
 
 
-@pytest.mark.parametrize(("model", "dataset"), COMBOS, ids=[f"{m.value}-{d.value}" for m, d in COMBOS])
-def test_generate_project(tmp_path: Path, model: ModelChoice, dataset: DatasetChoice) -> None:
-    proj = _generate(tmp_path, model=model, dataset=dataset)
+def test_generate_project(tmp_path: Path) -> None:
+    proj = _generate(tmp_path)
+    pkg = proj / proj.name
 
-    # Expected directories exist
-    assert (proj / "callbacks").is_dir()
-    assert (proj / "configs").is_dir()
-    assert (proj / "model").is_dir()
-    assert (proj / "pipeline").is_dir()
-    assert (proj / "schemas").is_dir()
-    assert (proj / "trainers").is_dir()
+    # pyproject.toml at project root with substituted project name
+    assert (proj / "pyproject.toml").is_file()
+    pyproject = (proj / "pyproject.toml").read_text()
+    assert "test_proj" in pyproject
+    assert "__PROJECT__" not in pyproject  # all placeholders should be substituted
+
+    # Expected directories exist inside the package
+    assert (pkg / "callbacks").is_dir()
+    assert (pkg / "configs").is_dir()
+    assert (pkg / "models").is_dir()
+    assert (pkg / "pipelines").is_dir()
+    assert (pkg / "schemas").is_dir()
+    assert (pkg / "trainer").is_dir()
+    assert (pkg / "datasets").is_dir()
 
     # All YAML files parse without error
-    for yf in proj.rglob("*.yaml"):
+    for yf in pkg.rglob("*.yaml"):
         content = yf.read_text()
         lines = [
             line for line in content.splitlines() if not line.startswith("# @package")
         ]  # remove Hydra directives to avoid YAML parsing issues
         yaml.safe_load("\n".join(lines))
 
-    # No unresolved placeholders
-    for ext in ("*.py", "*.yaml"):
-        for f in proj.rglob(ext):
-            content = f.read_text()
-            for placeholder in ("__PROJECT__", "__CLASS__", "__DATASET_PATH__", "__OPTIMIZER__", "__TRACKER__"):
-                assert placeholder not in content, f"Unresolved {placeholder} in {f.relative_to(proj)}"
+    # Check all placeholders are substituted in all files
+    for f in proj.rglob("*"):
+        if not f.is_file():
+            continue
+        content = f.read_text()
+        for placeholder in ("__PROJECT__", "__OPTIMIZER__", "__TRACKER__", "__WANDB_ENTITY__"):
+            assert placeholder not in content, f"Unresolved {placeholder} in {f.relative_to(proj)}"
+
+
+@pytest.mark.parametrize("optimizer", list(OptimizerChoice), ids=[o.value for o in OptimizerChoice])
+def test_optimizer_choice(tmp_path: Path, optimizer: OptimizerChoice) -> None:
+    proj = _generate(tmp_path, optimizer=optimizer)
+    experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
+    assert f"- optim: {optimizer.value}" in experiment
+
+
+@pytest.mark.parametrize("tracker", list(TrackerChoice), ids=[t.value for t in TrackerChoice])
+def test_tracker_choice(tmp_path: Path, tracker: TrackerChoice) -> None:
+    proj = _generate(tmp_path, tracker=tracker)
+    experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
+    assert f"- tracker: {tracker.value}" in experiment
+
+
+def test_gpu_hardware_no_accelerator(tmp_path: Path) -> None:  #
+    proj = _generate(tmp_path, hardware=HardwareChoice.GPU)
+    experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
+    assert "accelerator:" not in experiment
+
+
+# Only CPU and MPS are appended with accelerator directive, GPU is default
+@pytest.mark.parametrize("hardware", [HardwareChoice.MPS, HardwareChoice.CPU], ids=["mps", "cpu"])
+def test_hardware_accelerator_appended(tmp_path: Path, hardware: HardwareChoice) -> None:
+    proj = _generate(tmp_path, hardware=hardware)
+    experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
+    assert f"accelerator: {hardware.value}" in experiment
+
+
+def test_wandb_entity_substituted(tmp_path: Path) -> None:
+    proj = _generate(tmp_path, tracker=TrackerChoice.WANDB, wandb_entity="my-team")
+    wandb_config = (proj / proj.name / "configs" / "tracker" / "wandb.yaml").read_text()
+    assert "entity: my-team" in wandb_config
+    assert "__WANDB_ENTITY__" not in wandb_config

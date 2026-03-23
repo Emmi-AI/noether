@@ -5,9 +5,9 @@ from typing import Annotated
 
 import typer
 
-from .choices import DatasetChoice, HardwareChoice, ModelChoice, OptimizerChoice, TrackerChoice
+from .choices import HardwareChoice, OptimizerChoice, TrackerChoice
 from .config import ScaffoldConfig, resolve_config
-from .generator import generate_project
+from .file_manager import FileManager
 
 app = typer.Typer(
     name="noether-init",
@@ -24,9 +24,6 @@ def main(
             help="Project name (valid Python identifier). Examples: 'my_project', 'MyProject1'). No hyphens allowed."
         ),
     ],
-    model: Annotated[ModelChoice, typer.Option("--model", "-m", help="Model architecture")] = ...,  # type: ignore[assignment]
-    dataset: Annotated[DatasetChoice, typer.Option("--dataset", "-d", help="Dataset")] = ...,  # type: ignore[assignment]
-    dataset_path: Annotated[str, typer.Option("--dataset-path", help="Path to dataset")] = ...,  # type: ignore[assignment]
     optimizer: Annotated[OptimizerChoice, typer.Option("--optimizer", "-o", help="Optimizer")] = OptimizerChoice.ADAMW,
     tracker: Annotated[
         TrackerChoice, typer.Option("--tracker", "-t", help="Experiment tracker")
@@ -54,9 +51,6 @@ def main(
     # Build config
     config = resolve_config(
         project_name=project_name,
-        model=model,
-        dataset=dataset,
-        dataset_path=dataset_path,
         optimizer=optimizer,
         tracker=tracker,
         hardware=hardware,
@@ -66,7 +60,7 @@ def main(
 
     # Generate
     typer.echo(f"Creating project '{project_name}' at {project_dir}")
-    generate_project(config)
+    FileManager.copy_template_tree(config)
 
     # Print summary
     _print_summary(config)
@@ -77,8 +71,6 @@ def _print_summary(config: ScaffoldConfig) -> None:
         "\nProject created successfully!\n"
         "Configuration:\n"
         f"  Project:   {config.project_name}\n"
-        f"  Model:     {config.model.value}\n"
-        f"  Dataset:   {config.dataset.value}\n"
         f"  Optimizer: {config.optimizer.value}\n"
         f"  Tracker:   {config.tracker.value}\n"
         f"  Hardware:  {config.hardware.value}\n"
@@ -87,8 +79,8 @@ def _print_summary(config: ScaffoldConfig) -> None:
     # Suggest run command
     typer.echo(
         "To train, run:\n"
-        f"  uv run noether-train --config-dir {config.project_dir}/configs --config-name train +experiment={config.model.value}\n\n"
-        "Experiment configs for all models are in configs/experiment/."
+        f"  cd {config.project_dir}\n"
+        f"  uv run noether-train --hp {config.project_name}/configs/base_experiment.yaml\n"
     )
 
 

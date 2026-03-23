@@ -32,6 +32,7 @@ dependencies = [
     "huggingface-hub>=0.34.3",
     "typer>=0.16.0",
     "fsspec>=2025.5.1",
+    "psutil>=5.9.0",
     # ---
 ]
 
@@ -44,7 +45,7 @@ Docs = "https://noether-docs.emmi.ai/"
 write_to = "src/noether/_version.py"
 
 [tool.setuptools.package-data]
-"noether.scaffold" = ["references/*.yaml", "template_files/**/*"]
+"noether.scaffold" = ["template_files/**/*.py", "template_files/**/*.yaml", "template_files/**/*.toml"]
 
 [project.scripts]
 noether-train = "noether.training.cli.main_train:main"
@@ -146,7 +147,7 @@ strict = false
 warn_return_any = true
 warn_unused_ignores = false
 show_error_codes = true
-exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/"]
+exclude = ["^_build/|^build/|^dist/|^docs/|^\\.venv/|template_files/"]
 
 [[tool.mypy.overrides]]
 module = [
@@ -159,9 +160,7 @@ module = [
     #    "rtree.*"
 ]
 
-[[tool.mypy.overrides]]
-module = ["noether.scaffold.template_files.*"]
-ignore_errors = true
+
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

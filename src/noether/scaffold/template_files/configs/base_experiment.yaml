@@ -1,0 +1,14 @@
+# @package _global_
+
+dataset_kind: __PROJECT__.datasets.BaseDataset
+
+defaults:
+  - model: base_model
+  - datasets: base_dataset
+  - tracker: __TRACKER__
+  - callbacks: base_callback
+  - trainer: base_trainer
+  - optim: __OPTIMIZER__
+  - _self_
+
+output_path: ./outputs

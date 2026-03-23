@@ -18,12 +18,6 @@ def test_invalid_project_name_rejected(tmp_path: Path, bad_name: str) -> None:
         app,
         [
             bad_name,
-            "--model",
-            "upt",
-            "--dataset",
-            "shapenet_car",
-            "--dataset-path",
-            "/tmp/x",
             "--project-dir",
             str(tmp_path),
         ],
@@ -39,12 +33,6 @@ def test_existing_directory_rejected(tmp_path: Path) -> None:
         app,
         [
             "existing_proj",
-            "--model",
-            "upt",
-            "--dataset",
-            "shapenet_car",
-            "--dataset-path",
-            "/tmp/x",
             "--project-dir",
             str(tmp_path),
         ],
@@ -58,21 +46,19 @@ def test_valid_invocation_succeeds(tmp_path: Path) -> None:
         app,
         [
             "my_project",
-            "--model",
-            "upt",
-            "--dataset",
-            "shapenet_car",
-            "--dataset-path",
-            "/tmp/fake_data",
             "--project-dir",
             str(tmp_path),
         ],
     )
     assert result.exit_code == 0, result.output
-    assert (tmp_path / "my_project").is_dir()
-    assert (tmp_path / "my_project" / "callbacks").is_dir()
-    assert (tmp_path / "my_project" / "configs").is_dir()
-    assert (tmp_path / "my_project" / "model").is_dir()
-    assert (tmp_path / "my_project" / "pipeline").is_dir()
-    assert (tmp_path / "my_project" / "schemas").is_dir()
-    assert (tmp_path / "my_project" / "trainers").is_dir()
+    proj = tmp_path / "my_project"
+    pkg = proj / "my_project"  # nested package folder with same name as project
+    assert proj.is_dir()
+    assert (proj / "pyproject.toml").is_file()
+    assert (pkg / "callbacks").is_dir()
+    assert (pkg / "configs").is_dir()
+    assert (pkg / "models").is_dir()
+    assert (pkg / "pipelines").is_dir()
+    assert (pkg / "schemas").is_dir()
+    assert (pkg / "trainer").is_dir()
+    assert (pkg / "datasets").is_dir()
