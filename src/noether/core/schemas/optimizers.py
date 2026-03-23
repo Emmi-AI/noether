@@ -38,8 +38,8 @@ class ParamGroupModifierConfig(BaseModel):
 
 
 class OptimizerConfig(BaseModel):
-    model_config = {"extra": "forbid"}
-
+    # model_config = {"extra": "forbid"}
+    model_config = {"extra": "allow"}
     kind: str | None = None
     """The class path of the torch optimizer to use. E.g., 'torch.optim.AdamW'."""
     lr: float | None = Field(None, gt=0.0)
@@ -59,7 +59,13 @@ class OptimizerConfig(BaseModel):
     exclude_normalization_params_from_weight_decay: bool = True
     """If true, excludes the weights of normalization layers from the weight decay. This is implemented by excluding all 1D tensors from the weight decay. Default true."""
     weight_decay_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
+
     schedule_config: AnyScheduleConfig | None = Field(None, discriminator="kind")
+
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for optimizers like SGD and Muon."""
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
 
     _optim_wrapper_kwargs: set[str] = {
         "clip_grad_value",

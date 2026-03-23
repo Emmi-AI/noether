@@ -34,8 +34,10 @@ class PerceiverAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
 
-        self.kv = nn.Linear(config.kv_dim, config.hidden_dim * 2, bias=config.bias)  # type: ignore[arg-type]
+        self.k = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.v = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.q = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
@@ -63,7 +65,8 @@ class PerceiverAttention(nn.Module):
             Returns the output of the perceiver attention module.
         """
         # project to attention space
-        kv = self.kv(kv)
+        k = self.k(kv)
+        v = self.v(kv)
         q = self.q(q)
 
         # split per head
@@ -73,13 +76,18 @@ class PerceiverAttention(nn.Module):
             num_heads=self.num_heads,
             head_dim=self.head_dim,
         )
-        k, v = einops.rearrange(
-            kv,
-            "bs seqlen_kv (two num_heads head_dim) -> two bs num_heads seqlen_kv head_dim",
-            two=2,
+        k = einops.rearrange(
+            k,
+            "bs seqlen_kv (num_heads head_dim) -> bs num_heads seqlen_kv head_dim",
             num_heads=self.num_heads,
             head_dim=self.head_dim,
-        ).unbind(0)
+        )
+        v = einops.rearrange(
+            v,
+            "bs seqlen_kv (num_heads head_dim) -> bs num_heads seqlen_kv head_dim",
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+        )
 
         if self.use_rope:
             assert q_freqs is not None

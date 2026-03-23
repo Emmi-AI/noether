@@ -58,7 +58,7 @@ class BaseTrainerConfig(BaseModel):
 
     max_batch_size: int | None = Field(None, ge=1)
     """The maximum batch size to use for model forward pass in training. If the effective_batch_size is larger than max_batch_size, gradient accumulation will be used to simulate the larger batch size. For example, if effective_batch_size=8 and max_batch_size=2, 4 gradient accumulation steps will be taken before each optimizer step."""
-    skip_nan_loss: bool = Field(False)
+    skip_nan_loss: bool = Field(True)
     """Whether to skip NaN losses. These can sometimes occur due to unlucky coincidences. If true, NaN losses will be skipped without terminating the training up until 100 NaN losses occurred in a row."""
     skip_nan_loss_max_count: int = Field(100, ge=1)
 

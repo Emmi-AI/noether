@@ -2,7 +2,7 @@
 defaults:
   - override /model: upt  
   - override /tracker: development_tracker 
-  - override /optimizer: lion
+  - override /optimizer: adamw_muon
 
 name: shapenet-car-upt-no-query-sampling 
 

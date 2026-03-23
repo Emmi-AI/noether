@@ -76,9 +76,9 @@ class MixedAttention(DotProductAttention):
         self._validate_inputs(x, token_specs, attention_patterns, attention_mask, freqs)
 
         # Initial Projection
-        q, k, v = einops.rearrange(
-            self.qkv(x), "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
-        ).unbind(0)
+        q = einops.rearrange(self.q(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+        k = einops.rearrange(self.k(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+        v = einops.rearrange(self.v(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
 
         if self.use_rope and freqs is not None:
             q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)

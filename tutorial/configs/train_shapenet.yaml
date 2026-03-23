@@ -18,7 +18,7 @@ defaults:
   - tracker: ?? # trackers are undefined and will be defined depending on either development, training or evaluation
   - callbacks: training_callbacks_shapenet
   - pipeline: shapenet_pipeline
-  - optimizer: adamw
+  - optimizer: adamw_muon
   - slurm: slurm_config 
   - _self_
 

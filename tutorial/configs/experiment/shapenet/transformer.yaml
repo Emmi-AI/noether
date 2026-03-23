@@ -2,7 +2,7 @@
 defaults:
   - override /model: transformer  
   - override /tracker: development_tracker
-  - override /optimizer: lion
+  - override /optimizer: adamw_muon
   
 name: shapenet-car-transformer-float16
 
