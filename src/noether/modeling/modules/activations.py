@@ -6,6 +6,8 @@ import torch.nn as nn
 
 
 class Activation(Enum):
+    """Supported activation functions."""
+
     GELU = nn.GELU
     TANH = nn.Tanh
     SIGMOID = nn.Sigmoid

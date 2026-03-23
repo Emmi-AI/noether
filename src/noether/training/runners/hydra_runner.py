@@ -56,7 +56,11 @@ class HydraRunner:
         """
 
         # get config schema
-        config_schema = class_constructor_from_class_path(hydra_config["config_schema_kind"])
+        config_schema = (
+            class_constructor_from_class_path(hydra_config["config_schema_kind"])
+            if "config_schema_kind" in hydra_config
+            else ConfigSchema
+        )
         config: ConfigSchema = config_schema(**hydra_config)
 
         # initialize loggers for setup

@@ -15,16 +15,25 @@ class SampleProcessor:
         """Pre-collate data on a sample-level. Each sample is a dictionary containing various data items per data point.
         Operations are performed on sample level, and are the same for every sample in the batch.
         Example:
-            >>> sample_processor = MySampleProcessor()
-            >>> sample = {"data": torch.tensor([1, 2, 3]), "label": 0}
-            >>> pre_collated_sample = sample_processor(sample)
-            >>> pre_collated_sample[
-            ...     "data"
-            ... ]  # Processed data, e.g., torch.tensor([2, 4, 6]) if the sample_processor doubles the data
-            >>> class MySampleProcessor(SampleProcessor):
-            >>>     def __call__(self, sample):
-            >>>         sample = self.save_copy(sample) # Avoid modifying the original sample
-            >>>         sample["data"] = sample["data"] * 2
+
+            .. testcode::
+
+                from noether.data.pipeline.sample_processor import SampleProcessor
+
+                class MySampleProcessor(SampleProcessor):
+                    def __call__(self, sample):
+                        sample = self.save_copy(sample)  # Avoid modifying the original sample
+                        sample["data"] = sample["data"] * 2
+                        return sample
+
+                sample_processor = MySampleProcessor()
+                sample = {"data": torch.tensor([1, 2, 3]), "label": 0}
+                pre_collated_sample = sample_processor(sample)
+                print(pre_collated_sample["data"])
+
+            .. testoutput::
+
+                tensor([2, 4, 6])
 
         Args:
             sample: A samples of a batch.

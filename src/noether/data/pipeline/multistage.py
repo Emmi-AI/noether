@@ -22,15 +22,19 @@ class MultiStagePipeline(Collator):
         - batch_processors: Processing after collation on a batch-level.
     Most of the work is usually done by the sample_processors. One or two collators, and batch processors are often not needed. However this depends on the use case.
     Example:
-        >>> sample_processors = [MySampleProcessor1(), MySampleProcessor2()]
-        >>> collators = [MyCollator1(), MyCollator2()]
-        >>> batch_processors = [MyBatchProcessor1(), MyBatchProcessor2()]
-        >>> multistage_pipeline = MultiStagePipeline(
-        >>>     sample_processors=sample_processors,
-        >>>     collators=collators,
-        >>>     batch_processors=batch_processors
-        >>> )
-        >>> batch = multistage_pipeline(samples)
+
+        .. testcode::
+
+            from noether.data.pipeline.multistage import MultiStagePipeline
+
+            pipeline = MultiStagePipeline()
+            samples = [{"data": torch.tensor([1.0, 2.0])}, {"data": torch.tensor([3.0, 4.0])}]
+            batch = pipeline(samples)
+            print(batch["data"].shape)
+
+        .. testoutput::
+
+            torch.Size([2, 2])
     """
 
     def __init__(

@@ -22,5 +22,4 @@ __all__ = [
     "SupernodeSamplingSampleProcessor",
     "ConcatTensorSampleProcessor",
     "DefaultTensorSampleProcessor",
-    "SparseTensorOffsetCollator",
 ]

@@ -1,6 +1,5 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from unittest.mock import MagicMock
 
 import pytest
 from pydantic import ValidationError
@@ -43,13 +42,7 @@ def test_dataset_config_forbids_extra_fields() -> None:
     assert "Extra inputs are not permitted" in str(exc_info.value)
 
 
-@pytest.fixture
-def mock_pipeline():
-    """Creates a dummy pipeline object to pass into the config."""
-    return MagicMock()
-
-
-def test_ahmedml_dataset_initialization(mock_pipeline, tmp_path) -> None:
+def test_ahmedml_dataset_initialization(tmp_path) -> None:
     """
     Test that the AhmedMLDataset class initializes correctly.
     Uses 'tmp_path' fixture to provide a real, existing directory.
@@ -59,7 +52,7 @@ def test_ahmedml_dataset_initialization(mock_pipeline, tmp_path) -> None:
         kind="ahmed_ml",
         root=str(tmp_path),
         split="train",
-        pipeline=mock_pipeline,
+        pipeline=None,
     )
 
     dataset = AhmedMLDataset(dataset_config=config)

@@ -17,9 +17,7 @@ from torch import Tensor
 from torch.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel
 
-from noether.core.callbacks import CallbackBase, PeriodicCallback
-from noether.core.callbacks.early_stoppers import EarlyStopIteration
-from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
+from noether.core.callbacks import CallbackBase, PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
     all_gather_nograd,
@@ -29,7 +27,6 @@ from noether.core.distributed import (
     is_rank0,
 )
 from noether.core.factory import Factory
-from noether.core.initializers import InitializerBase
 from noether.core.providers import (
     MetricPropertyProvider,
     PathProvider,
@@ -42,11 +39,11 @@ from noether.core.utils.common.stopwatch import Stopwatch
 from noether.core.utils.torch import get_grad_scaler_and_autocast_context, get_supported_precision, move_items_to_device
 from noether.core.utils.training import TrainingIteration, UpdateCounter
 from noether.core.writers import CheckpointWriter, LogWriter
+from noether.data.container import DataContainer
 from noether.training.trainers.types import LossResult, TrainerResult
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from noether.core.models import ModelBase
-    from noether.data.container import DataContainer
 
 
 class TrainingContextFilter(logging.Filter):
@@ -133,6 +130,8 @@ class BaseTrainer:
 
         self.updates_per_epoch = int(eff_len / config.effective_batch_size)
         self.skip_nan_loss_counter = 0
+
+        from noether.core.initializers import InitializerBase
 
         self.initializer: InitializerBase | None = Factory().create(
             config.initializer,
@@ -691,6 +690,8 @@ class BaseTrainer:
             data_iter=map(BaseTrainer.drop_metadata, data_iter),
             batch_size=batch_size,
         )
+        from noether.core.callbacks.early_stoppers import EarlyStopIteration
+
         early_exit = False
         first_error = None
         for callback in periodic_callbacks:

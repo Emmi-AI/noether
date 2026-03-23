@@ -100,6 +100,31 @@ torch = [
     { index = "torch-cpu", marker = "sys_platform == 'darwin'" },
 ]
 
+[tool.coverage.run]
+source = ["noether"]
+
+[tool.coverage.report]
+omit = [
+    "src/noether/data/datasets/*",
+    "src/noether/data/cli/*",
+    "src/noether/training/cli/*",
+    "src/noether/inference/cli/*",
+    "src/noether/io/cli/*",
+    "src/noether/scaffold/*",
+    "src/noether/__init__.py",
+    "src/noether/_version.py",
+    "src/noether/core/scripts/*",
+]
+exclude_lines = [
+    "pragma: no cover",
+    "if TYPE_CHECKING:",
+    "if __name__ == \\'__main__\\':",
+    "if __name__ == \"__main__\":",
+    "@overload",
+    "raise NotImplementedError",
+    "\\.\\.\\.", # abstract method bodies
+]
+
 # mypy and ruff ran in the child packages will fall back to this configuration
 [tool.mypy]
 python_version = "3.12"

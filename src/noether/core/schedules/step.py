@@ -52,7 +52,9 @@ class StepFixedSchedule(ScheduleBase):
             config: Configuration for the step fixed schedule.
 
         Example:
+
         .. code-block:: yaml
+
             schedule_config:
                 kind: noether.core.schedules.StepFixedSchedule
                 factor: 0.1
@@ -61,6 +63,7 @@ class StepFixedSchedule(ScheduleBase):
                     - 0.01
                     - 0.02
                     - 0.03
+
         Lower LR by factor 0.1 at 1%, 2%, and 3% of total training steps.
         """
         super().__init__(overhang_percent=config.overhang_percent, overhang_steps=config.overhang_steps)
@@ -94,6 +97,7 @@ class StepIntervalSchedule(ScheduleBase):
         Example:
 
         .. code-block:: yaml
+
             schedule_config:
                 kind: noether.core.schedules.StepIntervalSchedule
                 start_value: 1.0
