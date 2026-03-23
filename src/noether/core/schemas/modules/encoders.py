@@ -24,8 +24,10 @@ class SupernodePoolingConfig(BaseModel):
     """ Weight initialization of linear layers. Defaults to "truncnormal002"."""
     readd_supernode_pos: bool = Field(True)
     """If true, the absolute positional encoding of the supernode is concatenated to the supernode vector after message passing and linearly projected back to hidden_dim. Defaults to True."""
-    aggregation: Literal["mean", "sum"] = Field("mean")
-    """Aggregation for message passing ("mean" or "sum")."""
+    aggregation: Literal["mean", "sum", "attention"] = Field("mean")
+    """Aggregation for message passing ("mean" or "sum" or "attention")."""
+    num_heads: int = Field(1, ge=1)
+    """Number of attention heads for attention pooling. Defaults to 1. Only used if aggregation="attention"."""
     message_mode: Literal["mlp", "linear", "identity"] = Field("mlp")
     """How messages are created. "mlp" (2 layer MLP), "linear" (nn.Linear), "identity" (nn.Identity). Defaults to "mlp"."""
     input_features_dim: int | None = Field(None, ge=0)

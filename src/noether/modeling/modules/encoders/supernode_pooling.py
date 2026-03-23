@@ -39,6 +39,22 @@ class SupernodePooling(nn.Module):
         self.aggregation = config.aggregation
         self.input_features_dim = config.input_features_dim
 
+        if self.aggregation == "attention":
+            self.num_heads = config.num_heads
+            if config.hidden_dim % self.num_heads != 0:
+                raise ValueError(
+                    f"hidden_dim {config.hidden_dim} must be divisible by num_heads {self.num_heads} "
+                    "when using attention aggregation."
+                )
+            self.attn_weights: LinearProjection | None = LinearProjection(
+                config=LinearProjectionConfig(
+                    input_dim=config.hidden_dim, output_dim=self.num_heads, init_weights=config.init_weights
+                )  # type: ignore[call-arg]
+            )
+        else:
+            self.num_heads = 1
+            self.attn_weights = None
+
         self.pos_embed = ContinuousSincosEmbed(
             config=ContinuousSincosEmbeddingConfig(
                 hidden_dim=config.hidden_dim,
@@ -262,12 +278,48 @@ class SupernodePooling(nn.Module):
             Tensor with the aggregated messages for each supernode.
         """
         num_supernodes = supernode_idx.shape[0]
+
+        if self.aggregation == "attention" and self.attn_weights is not None:
+            # Calculate attention scores
+            attn_logits = self.attn_weights(x)  # (num_edges, num_heads)
+
+            # Softmax over neighbors, subtract max for numerical stability
+            max_val = torch.full((num_supernodes, self.num_heads), float("-inf"), device=x.device, dtype=x.dtype)
+            # Expand index to match attn_logits for scatter operations
+            expanded_idx = local_dst_idx.unsqueeze(-1).expand_as(attn_logits)
+
+            max_val.scatter_reduce_(0, expanded_idx, attn_logits, reduce="amax", include_self=False)
+
+            # Substract max (only for valid entries - if no neighbors, stays -inf but irrelevant)
+            # We must be careful not to subtract -inf from something.
+            # However, if there are neighbors, max_val is finite.
+            # Expand max_val back to edges
+            max_per_edge = max_val[local_dst_idx]
+            attn_centered = attn_logits - max_per_edge
+            attn_exp = attn_centered.exp()
+
+            # Sum exp
+            sum_exp = torch.zeros((num_supernodes, self.num_heads), device=x.device, dtype=x.dtype)
+            sum_exp.scatter_reduce_(0, expanded_idx, attn_exp, reduce="sum", include_self=False)
+
+            # Normalize
+            attn_scores = attn_exp / (sum_exp[local_dst_idx] + 1e-16)  # (num_edges, num_heads)
+
+            # Apply attention weights
+            # Reshape x to (num_edges, num_heads, head_dim)
+            head_dim = self.output_dim // self.num_heads
+            x_reshaped = x.view(-1, self.num_heads, head_dim)
+
+            # Weighted sum
+            x = x_reshaped * attn_scores.unsqueeze(-1)  # (num_edges, num_heads, head_dim)
+            x = x.view(-1, self.output_dim)  # (num_edges, hidden_dim) use view to flatten
+
         out = x.new_zeros(num_supernodes, x.shape[1])
         out.scatter_reduce_(
             0,
             local_dst_idx.unsqueeze(1).expand_as(x),
             x,
-            reduce=self.aggregation,
+            reduce="sum" if self.aggregation == "attention" and self.attn_weights is not None else self.aggregation,
             include_self=False,
         )
 
