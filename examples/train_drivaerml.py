@@ -3,8 +3,8 @@
 from examples.presets import DrivAerMLPreset
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/Users/pk/shared_data/data/drivaerml_processed/subsampled_10x"
-OUTPUT_PATH = "/Users/pk/shared_data/outputs/drivaerml_processed"
+DATASET_ROOT = "/path/to/drivaerml"
+OUTPUT_PATH = "/path/to/outputs/drivaerml"
 TRAINER_KIND = "noether.training.trainers.WeightedMSETrainer"
 FIELD_WEIGHTS = {
     "surface_pressure": 1.0,

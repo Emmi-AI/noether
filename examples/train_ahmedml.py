@@ -3,8 +3,8 @@
 from examples.presets import AhmedMLPreset
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/Users/pk/shared_data/data/ahmedml_processed/subsampled_10x"
-OUTPUT_PATH = "/Users/pk/shared_data/outputs/ahmedml_processed"
+DATASET_ROOT = "/path/to/ahmedml"
+OUTPUT_PATH = "/path/to/outputs/ahmedml"
 TRAINER_KIND = "noether.training.trainers.WeightedMSETrainer"
 FIELD_WEIGHTS = {
     "surface_pressure": 1.0,
