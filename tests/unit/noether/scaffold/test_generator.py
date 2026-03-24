@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from noether.scaffold.choices import HardwareChoice, OptimizerChoice, TrackerChoice
+from noether.scaffold.choices import HardwareChoice, TrackerChoice
 from noether.scaffold.config import resolve_config
 from noether.scaffold.file_manager import FileManager
 
@@ -16,7 +16,6 @@ def _generate(tmp_path: Path, **overrides):
     """Helper to generate a project with sensible defaults, accepting overrides."""
     defaults = dict(
         project_name="test_proj",
-        optimizer=OptimizerChoice.ADAMW,
         tracker=TrackerChoice.DISABLED,
         hardware=HardwareChoice.GPU,
         wandb_entity=None,
@@ -37,7 +36,7 @@ def test_generate_project(tmp_path: Path) -> None:
     assert (proj / "pyproject.toml").is_file()
     pyproject = (proj / "pyproject.toml").read_text()
     assert "test_proj" in pyproject
-    assert "__PROJECT__" not in pyproject  # all placeholders should be substituted
+    assert "__PROJECT__" not in pyproject
 
     # Expected directories exist inside the package
     assert (pkg / "callbacks").is_dir()
@@ -61,15 +60,8 @@ def test_generate_project(tmp_path: Path) -> None:
         if not f.is_file():
             continue
         content = f.read_text()
-        for placeholder in ("__PROJECT__", "__OPTIMIZER__", "__TRACKER__", "__WANDB_ENTITY__"):
+        for placeholder in ("__PROJECT__", "__TRACKER__", "__WANDB_ENTITY__"):
             assert placeholder not in content, f"Unresolved {placeholder} in {f.relative_to(proj)}"
-
-
-@pytest.mark.parametrize("optimizer", list(OptimizerChoice), ids=[o.value for o in OptimizerChoice])
-def test_optimizer_choice(tmp_path: Path, optimizer: OptimizerChoice) -> None:
-    proj = _generate(tmp_path, optimizer=optimizer)
-    experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
-    assert f"- optim: {optimizer.value}" in experiment
 
 
 @pytest.mark.parametrize("tracker", list(TrackerChoice), ids=[t.value for t in TrackerChoice])
@@ -79,13 +71,12 @@ def test_tracker_choice(tmp_path: Path, tracker: TrackerChoice) -> None:
     assert f"- tracker: {tracker.value}" in experiment
 
 
-def test_gpu_hardware_no_accelerator(tmp_path: Path) -> None:  #
+def test_gpu_hardware_no_accelerator(tmp_path: Path) -> None:
     proj = _generate(tmp_path, hardware=HardwareChoice.GPU)
     experiment = (proj / proj.name / "configs" / "base_experiment.yaml").read_text()
     assert "accelerator:" not in experiment
 
 
-# Only CPU and MPS are appended with accelerator directive, GPU is default
 @pytest.mark.parametrize("hardware", [HardwareChoice.MPS, HardwareChoice.CPU], ids=["mps", "cpu"])
 def test_hardware_accelerator_appended(tmp_path: Path, hardware: HardwareChoice) -> None:
     proj = _generate(tmp_path, hardware=hardware)

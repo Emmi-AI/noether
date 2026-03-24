@@ -5,7 +5,7 @@ from typing import Annotated
 
 import typer
 
-from .choices import HardwareChoice, OptimizerChoice, TrackerChoice
+from .choices import HardwareChoice, TrackerChoice
 from .config import ScaffoldConfig, resolve_config
 from .file_manager import FileManager
 
@@ -24,7 +24,6 @@ def main(
             help="Project name (valid Python identifier). Examples: 'my_project', 'MyProject1'). No hyphens allowed."
         ),
     ],
-    optimizer: Annotated[OptimizerChoice, typer.Option("--optimizer", "-o", help="Optimizer")] = OptimizerChoice.ADAMW,
     tracker: Annotated[
         TrackerChoice, typer.Option("--tracker", "-t", help="Experiment tracker")
     ] = TrackerChoice.DISABLED,
@@ -51,7 +50,6 @@ def main(
     # Build config
     config = resolve_config(
         project_name=project_name,
-        optimizer=optimizer,
         tracker=tracker,
         hardware=hardware,
         project_dir=project_dir,
@@ -71,7 +69,6 @@ def _print_summary(config: ScaffoldConfig) -> None:
         "\nProject created successfully!\n"
         "Configuration:\n"
         f"  Project:   {config.project_name}\n"
-        f"  Optimizer: {config.optimizer.value}\n"
         f"  Tracker:   {config.tracker.value}\n"
         f"  Hardware:  {config.hardware.value}\n"
         f"  Path:      {config.project_dir}\n"

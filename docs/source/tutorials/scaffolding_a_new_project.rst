@@ -28,9 +28,6 @@ Arguments
    * - ``project_name`` *(required)*
      - Positional argument. Must be a valid Python identifier (no hyphens).
      -
-   * - ``--optimizer, -o``
-     - ``adamw``, ``lion``
-     - ``adamw``
    * - ``--tracker, -t``
      - ``wandb``, ``trackio``, ``tensorboard``, ``disabled``
      - ``disabled``
@@ -57,12 +54,7 @@ The generated project contains:
        ├── __init__.py
        ├── callbacks/             # Training callbacks
        ├── configs/
-       │   ├── callbacks/         # Callback configs
-       │   ├── datasets/          # Dataset configs
-       │   ├── model/             # Model config
-       │   ├── optim/             # Optimizer configs
-       │   ├── tracker/           # Tracker configs
-       │   ├── trainer/           # Trainer config
+       │   ├── tracker/           # Tracker configs (wandb, disabled, etc.)
        │   └── base_experiment.yaml  # Main training config
        ├── datasets/              # Dataset implementation
        ├── models/                # Model implementation

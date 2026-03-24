@@ -5,11 +5,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 
-class OptimizerChoice(StrEnum):
-    ADAMW = "adamw"
-    LION = "lion"
-
-
 class TrackerChoice(StrEnum):
     WANDB = "wandb"
     TRACKIO = "trackio"

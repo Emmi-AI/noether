@@ -81,7 +81,6 @@ The ``noether-init`` command scaffolds a minimal Noether training project, inclu
 
 **Optional:**
 
-- ``--optimizer, -o`` — optimizer: ``adamw`` (default), ``lion``
 - ``--tracker, -t`` — experiment tracker: ``disabled`` (default), ``wandb``, ``trackio``, ``tensorboard``
 - ``--hardware`` — hardware target: ``gpu`` (default), ``mps``, ``cpu``
 - ``--project-dir, -l`` — parent directory for the project folder
