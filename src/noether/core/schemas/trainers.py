@@ -138,3 +138,24 @@ class BaseTrainerConfig[TCallbackConfig: CallBackBaseConfig](_RegistryBase):
             raise ValueError("'effective_batch_size' must be specified when using 'track_every_n_samples'.")
 
         return self
+
+
+class WeightedMSETrainerConfig(BaseTrainerConfig):
+    """Config for a generic trainer that computes weighted MSE loss per output field.
+
+    ``field_weights`` maps output field names to their loss weights. Keys must match model output dict keys.
+    Target keys in the batch are expected to follow the ``<field_name>_target`` convention.
+
+    Example::
+
+        WeightedMSETrainerConfig(
+            kind="noether.training.trainers.WeightedMSETrainer",
+            field_weights={"surface_pressure": 1.0, "volume_velocity": 1.0},
+            ...
+        )
+    """
+
+    field_weights: dict[str, float] = Field(
+        ...,
+        description="Mapping from output field name to its loss weight.",
+    )
