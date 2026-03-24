@@ -69,27 +69,21 @@ If you see no errors — congratulations, your setup works!
 Scaffolding a New Project
 -------------------------
 
-The ``noether-init`` command generates a complete Noether training project with all required modules and configurations.
+The ``noether-init`` command scaffolds a minimal Noether training project, including all required modules and configurations.
 
 .. code-block:: bash
 
-   uv run noether-init my_project \
-       --model upt \
-       --dataset shapenet_car \
-       --dataset-path /path/to/shapenet_car
+   uv run noether-init my_project
 
-**Required arguments:**
+**Required:**
 
-- ``project_name`` (positional) — project name, e.g. ``my_project``
-- ``--model, -m`` — model architecture, e.g. ``ab_upt``
-- ``--dataset, -d`` — dataset, e.g. ``shapenet_car``
-- ``--dataset-path`` — path to dataset on disk
+- ``project_name`` (positional) — project name, must be a valid Python identifier
 
-**Optional arguments:**
+**Optional:**
 
-- ``--optimizer, -o`` — optimizer, e.g. ``adamw`` (default)
-- ``--tracker, -t`` — experiment tracker, e.g. ``wandb``
-- ``--hardware`` — hardware target, e.g. ``gpu`` (default)
+- ``--optimizer, -o`` — optimizer: ``adamw`` (default), ``lion``
+- ``--tracker, -t`` — experiment tracker: ``disabled`` (default), ``wandb``, ``trackio``, ``tensorboard``
+- ``--hardware`` — hardware target: ``gpu`` (default), ``mps``, ``cpu``
 - ``--project-dir, -l`` — parent directory for the project folder
 - ``--wandb-entity`` — W&B entity name (only used with ``--tracker wandb``)
 

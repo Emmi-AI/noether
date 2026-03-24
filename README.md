@@ -123,23 +123,22 @@ You might be in a situation when your venv won't be configured as intended anymo
 ---
 # Quickstart
 
-> [!IMPORTANT]
-> Before training, you need a prepared dataset. To get started with the ShapeNet-Car dataset,
-> follow the download and preprocessing steps in the
-> [ShapeNet-Car dataset README](./src/noether/data/datasets/cfd/shapenet_car/README.MD).
-
 ## Scaffold a New Project
 
-Use `noether-init` to generate a complete training project:
+No installation required — scaffold a project directly with `uvx`:
 
 ```console
-uv run noether-init my_project --model upt --dataset shapenet_car --dataset-path /path/to/shapenet_car
+uvx --from emmiai-noether noether-init my_project
+cd my_project
+uv run noether-train --hp my_project/configs/base_experiment.yaml
 ```
 
-Then train with:
+Or if you have `emmiai-noether` already installed:
 
 ```console
-uv run noether-train --config-dir my_project/configs --config-name train +experiment=upt
+uv run noether-init my_project
+cd my_project
+uv run noether-train --hp my_project/configs/base_experiment.yaml
 ```
 
 See the [scaffolding tutorial](https://noether-docs.emmi.ai/tutorials/scaffolding_a_new_project.html) for all options and the generated project structure.

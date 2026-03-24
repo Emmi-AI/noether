@@ -1,32 +1,19 @@
 Scaffolding a New Project
 =========================
 
-The ``noether-init`` command generates a complete, ready-to-train Noether project for
-models and datasets supported out of the box by the framework. It creates all required Python modules, Hydra configuration
-files, schemas, data pipelines, trainers, and callbacks, giving you a working starting point that you
-can adapt to your own use case.
+The ``noether-init`` command scaffolds a minimal, ready-to-train Noether project. It creates all required Python modules, Hydra configuration files, schemas, trainers,
+and callbacks, giving you a working starting point that you can adapt to your own use case.
 
-Prerequisites
--------------
-
-Before scaffolding, download and preprocess the dataset you want to use. Each dataset has its own
-fetching and preprocessing instructions — see the
-`Dataset Zoo README <https://github.com/Emmi-AI/noether/blob/main/src/noether/data/datasets/README.md>`_
-for an overview and links to dataset-specific guides.
 
 Example Usage
 -------------
 
 .. code-block:: bash
 
-   uv run noether-init my_project \
-       --model upt \
-       --dataset shapenet_car \
-       --dataset-path /path/to/shapenet_car
+   uv run noether-init my_project
 
-This creates a ``my_project/`` directory in the current working directory with a UPT model and the ``shapenet_car`` dataset.
-After completion, ``noether-init`` prints a summary of the configuration and the corresponding
-``noether-train`` command to start training.
+This creates a ``my_project/`` directory. After completion,
+``noether-init`` prints a summary of the configuration and the ``noether-train`` command to start training.
 
 Arguments
 ---------
@@ -40,15 +27,6 @@ Arguments
      - Default
    * - ``project_name`` *(required)*
      - Positional argument. Must be a valid Python identifier (no hyphens).
-     -
-   * - ``--model, -m`` *(required)*
-     - ``transformer``, ``upt``, ``ab_upt``, ``transolver``
-     -
-   * - ``--dataset, -d`` *(required)*
-     - ``shapenet_car``, ``drivaernet``, ``drivaerml``, ``ahmedml``, ``emmi_wing``
-     -
-   * - ``--dataset-path`` *(required)*
-     - Path to the dataset on disk
      -
    * - ``--optimizer, -o``
      - ``adamw``, ``lion``
@@ -74,27 +52,23 @@ The generated project contains:
 .. code-block:: text
 
    my_project/
-   ├── configs/
-   │   ├── callbacks/          # Training callback configs
-   │   ├── data_specs/         # Data specification configs
-   │   ├── dataset_normalizers/
-   │   ├── dataset_statistics/
-   │   ├── datasets/           # Dataset configs
-   │   ├── experiment/         # Experiment configs (one per model)
-   │   ├── model/              # Model architecture config
-   │   ├── optimizer/          # Optimizer config
-   │   ├── pipeline/           # Data pipeline config
-   │   ├── tracker/            # Experiment tracker config
-   │   ├── trainer/            # Trainer config
-   │   └── train.yaml          # Main training config
-   ├── model/                  # Model implementation
-   ├── schemas/                # Configuration dataclasses
-   ├── pipeline/               # Data processing (collators, sample processors)
-   ├── trainers/               # Training loop implementation
-   └── callbacks/              # Training callbacks
-
-All Python files are wired up with correct imports for your chosen model, and all Hydra configs reference
-your dataset path, optimizer, and tracker selections.
+   ├── pyproject.toml            # Project config with emmiai-noether dependency
+   └── my_project/               # Python package
+       ├── __init__.py
+       ├── callbacks/             # Training callbacks
+       ├── configs/
+       │   ├── callbacks/         # Callback configs
+       │   ├── datasets/          # Dataset configs
+       │   ├── model/             # Model config
+       │   ├── optim/             # Optimizer configs
+       │   ├── tracker/           # Tracker configs
+       │   ├── trainer/           # Trainer config
+       │   └── base_experiment.yaml  # Main training config
+       ├── datasets/              # Dataset implementation
+       ├── models/                # Model implementation
+       ├── pipelines/             # Data pipeline
+       ├── schemas/               # Configuration dataclasses
+       └── trainer/               # Training loop implementation
 
 Running Training
 ----------------
@@ -103,7 +77,5 @@ After scaffolding, start training with:
 
 .. code-block:: bash
 
-   uv run noether-train \
-       --config-dir my_project/configs \
-       --config-name train \
-       +experiment=upt
+   cd my_project
+   uv run noether-train --hp my_project/configs/base_experiment.yaml
