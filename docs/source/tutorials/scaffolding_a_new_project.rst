@@ -34,7 +34,7 @@ Arguments
    * - ``--hardware``
      - ``gpu``, ``mps``, ``cpu``
      - ``gpu``
-   * - ``--project-dir, -l``
+   * - ``--project-dir, -d``
      - Parent directory for the project folder
      - current directory
    * - ``--wandb-entity``

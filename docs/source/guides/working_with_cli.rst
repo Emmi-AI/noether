@@ -83,7 +83,7 @@ The ``noether-init`` command scaffolds a minimal Noether training project, inclu
 
 - ``--tracker, -t`` — experiment tracker: ``disabled`` (default), ``wandb``, ``trackio``, ``tensorboard``
 - ``--hardware`` — hardware target: ``gpu`` (default), ``mps``, ``cpu``
-- ``--project-dir, -l`` — parent directory for the project folder
+- ``--project-dir, -d`` — parent directory for the project folder
 - ``--wandb-entity`` — W&B entity name (only used with ``--tracker wandb``)
 
 For all available options, see :doc:`/tutorials/scaffolding_a_new_project`.

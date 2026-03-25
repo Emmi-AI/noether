@@ -28,7 +28,7 @@ def main(
         TrackerChoice, typer.Option("--tracker", "-t", help="Experiment tracker")
     ] = TrackerChoice.DISABLED,
     hardware: Annotated[HardwareChoice, typer.Option("--hardware", help="Hardware target")] = HardwareChoice.GPU,
-    project_dir: Annotated[Path, typer.Option("--project-dir", "-l", help="Where to create project dir")] = Path("."),
+    project_dir: Annotated[Path, typer.Option("--project-dir", "-d", help="Where to create project dir")] = Path("."),
     wandb_entity: Annotated[
         str | None, typer.Option("--wandb-entity", help="W&B entity, e.g. 'my-team' (defaults to your W&B username)")
     ] = None,
