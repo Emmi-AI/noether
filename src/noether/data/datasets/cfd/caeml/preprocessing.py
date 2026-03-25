@@ -218,7 +218,8 @@ def process_run(
     vtu_cell_position = vtu.cell_centers().points
     vtu_cell_pressure = vtu.cell_data[data_field_keymap.vtu_pressure]
     vtu_cell_velocity = vtu.cell_data[data_field_keymap.vtu_velocity]
-    vtu_cell_pressure = vtu.cell_data[data_field_keymap.vtu_totalp]
+    vtu_cell_pressure_total = vtu.cell_data[data_field_keymap.vtu_totalp]
+
     # For vorticity, either compute it or load directly.
     if data_field_keymap.vtu_vorticity is not None:
         print(f"({run_folder}) Loading vorticity from vtu file")
@@ -267,7 +268,7 @@ def process_run(
     torch.save(torch.Tensor(vtu_cell_pressure)[vtu_perm], run_dst_path / "volume_cell_pressure.pt")
     torch.save(torch.Tensor(vtu_cell_velocity)[vtu_perm], run_dst_path / "volume_cell_velocity.pt")
     torch.save(torch.Tensor(vtu_cell_vorticity)[vtu_perm], run_dst_path / "volume_cell_vorticity.pt")
-    torch.save(torch.Tensor(vtu_cell_pressure)[vtu_perm], run_dst_path / "volume_cell_totalpcoeff.pt")
+    torch.save(torch.Tensor(vtu_cell_pressure_total)[vtu_perm], run_dst_path / "volume_cell_totalpcoeff.pt")
     filename = f"volume_cell_surface_distance_{'trimesh' if compute_surface_distance_via_trimesh else 'cKDtree'}.pt"
     torch.save(torch.Tensor(position_dist_to_surface), run_dst_path / filename)  # is already subsampled
 

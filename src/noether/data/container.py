@@ -143,6 +143,7 @@ class DataContainer:
         callback_samplers: list[SamplerIntervalConfig],
         start_epoch: int | None = None,
         evaluation: bool = False,
+        prefetch_factor: int | None = None,
     ) -> torch.utils.data.DataLoader:
         """Creates a `torch.utils.data.DataLoader` that can be used for efficient data loading by utilizing an
         `InterleavedSampler` based on the `main_sampler`, `configs` and other arguments that are passed to this method.
@@ -185,6 +186,7 @@ class DataContainer:
             collate_fn=functools.partial(_timing_collate_fn, sampler.collator),
             num_workers=num_workers,
             pin_memory=self.pin_memory,
+            prefetch_factor=prefetch_factor,
         )
 
         self.logger.info(
