@@ -13,8 +13,8 @@ from noether.data import Dataset
 class BaseDatasetStats:
     """Not used at the moment but can be used to store normalization stats for the dataset."""
 
-    mean: float = (0.0,)
-    variance: float = (1.0,)
+    mean: tuple[float] = (0.0,)
+    variance: tuple[float] = (1.0,)
 
 
 class BaseDataset(Dataset):
@@ -35,7 +35,7 @@ class BaseDataset(Dataset):
 
         self._generate_data()
 
-    def _generate_data(self) -> torch.Tensor:
+    def _generate_data(self):
         """
         Generates distinct clusters of data for multi-class classification using PyTorch.
 

@@ -34,8 +34,8 @@ class PerceiverBlock(nn.Module):
             self.modulation = None
             elementwise_affine = True
         else:
-            assert config.kv_dim is None
             assert config.bias
+            self._kv_dim = config.kv_dim or config.hidden_dim
             if config.modulation_linear_projection_config is not None:
                 self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
                 elementwise_affine = False
@@ -93,7 +93,11 @@ class PerceiverBlock(nn.Module):
             if condition is None:
                 raise ValueError("No conditioning vector provided, but modulation is configured.")
             mod = self.modulation(condition)
-            q_scale, q_shift, kv_scale, kv_shift, attn_gate, mlp_scale, mlp_shift, mlp_gate = mod.chunk(8, dim=-1)
+            hd = self.norm1q.normalized_shape[0]
+            kd = self._kv_dim
+            q_scale, q_shift, kv_scale, kv_shift, attn_gate, mlp_scale, mlp_shift, mlp_gate = mod.split(
+                [hd, hd, kd, kd, hd, hd, hd, hd], dim=-1
+            )
             q = q + self.drop_path1(
                 modulate_gate(
                     self.ls1(

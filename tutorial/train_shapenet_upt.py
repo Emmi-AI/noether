@@ -297,7 +297,6 @@ def main() -> None:
             accelerator="mps",  # can be "cpu", "gpu", "mps"
             stage_name="train",
             dataset_kind="noether.data.datasets.cfd.ShapeNetCarDataset",
-            dataset_root=dataset_root.as_posix(),
             resume_run_id=None,
             resume_stage_name=None,
             resume_checkpoint=None,

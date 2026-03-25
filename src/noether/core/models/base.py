@@ -10,6 +10,7 @@ import torch
 from torch import nn
 
 from noether.core.factory import Factory
+from noether.data.container import DataContainer
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from torch.amp.grad_scaler import GradScaler
@@ -20,7 +21,6 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from noether.core.schemas.initializers import InitializerConfig
     from noether.core.schemas.models import ModelBaseConfig
     from noether.core.utils.training.counter import UpdateCounter
-    from noether.data.container import DataContainer
 
 
 class ModelBase(nn.Module):

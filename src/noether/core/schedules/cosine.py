@@ -10,10 +10,11 @@ class CosineDecreasingSchedule(DecreasingProgressSchedule):
     Example:
 
         .. code-block:: yaml
+
             schedule_config:
-            kind: noether.core.schedules.CosineDecreasingSchedule
-            max_value: ${model.optim.lr} # or just manually set the starting value
-            end_value: 0.0
+                kind: noether.core.schedules.CosineDecreasingSchedule
+                max_value: ${model.optim.lr} # or just manually set the starting value
+                end_value: 0.0
     """
 
     def _get_progress(self, step: int, total_steps: int) -> float:
@@ -24,11 +25,13 @@ class CosineIncreasingSchedule(IncreasingProgressSchedule):
     """Cosine annealing scheduler with increasing values.
 
     Example:
+
         .. code-block:: yaml
+
             schedule_config:
-            kind: noether.core.schedules.CosineIncreasingSchedule
-            max_value: ${model.optim.lr}
-            start_value: 0.0
+                kind: noether.core.schedules.CosineIncreasingSchedule
+                max_value: ${model.optim.lr}
+                start_value: 0.0
     """
 
     def _get_progress(self, step: int, total_steps: int) -> float:

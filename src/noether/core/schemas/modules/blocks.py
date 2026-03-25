@@ -118,7 +118,7 @@ class PerceiverBlockConfig(TransformerBlockConfig):
     @model_validator(mode="after")
     def set_kv_dim(self) -> "PerceiverBlockConfig":
         """Set kv_dim to hidden_dim if not provided."""
-        if self.kv_dim is None and self.condition_dim is None:
+        if self.kv_dim is None:
             self.kv_dim = self.hidden_dim
         return self
 
@@ -138,7 +138,7 @@ class PerceiverBlockConfig(TransformerBlockConfig):
         if self.condition_dim is not None:
             return LinearProjectionConfig(
                 input_dim=self.condition_dim,
-                output_dim=self.hidden_dim * 8,
+                output_dim=self.hidden_dim * 6 + (self.kv_dim or self.hidden_dim) * 2,
                 init_weights="zeros",
             )
         return None

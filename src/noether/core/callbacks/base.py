@@ -11,11 +11,11 @@ from noether.core.providers.metric_property import MetricPropertyProvider
 from noether.core.providers.path import PathProvider
 from noether.core.trackers import BaseTracker
 from noether.core.writers import CheckpointWriter, LogWriter
+from noether.data.container import DataContainer
 
 if TYPE_CHECKING:
     from noether.core.models import ModelBase
     from noether.core.utils.training.counter import UpdateCounter
-    from noether.data.container import DataContainer
     from noether.training.trainers import BaseTrainer
 
 

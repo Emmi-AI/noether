@@ -6,7 +6,7 @@ import math
 import sys
 from abc import ABCMeta, abstractmethod
 from collections.abc import Iterator
-from typing import TYPE_CHECKING, Any, Literal
+from typing import Any, Literal
 
 import torch
 from torch.utils.data import DistributedSampler, SequentialSampler
@@ -27,12 +27,8 @@ from noether.core.utils.training.counter import UpdateCounter
 from noether.core.utils.training.training_iteration import TrainingIteration
 from noether.core.writers import CheckpointWriter, LogWriter
 from noether.data.base.dataset import Dataset
+from noether.data.container import DataContainer
 from noether.data.samplers import SamplerIntervalConfig
-
-if TYPE_CHECKING:
-    from noether.data.container import DataContainer
-    from noether.training.trainers import BaseTrainer
-
 
 IntervalType = Literal["epoch", "update", "sample", "eval"]
 """Type alias for periodic callback interval types.
@@ -136,7 +132,7 @@ class PeriodicCallback(CallbackBase):
     def __init__(
         self,
         callback_config: CallBackBaseConfig,
-        trainer: BaseTrainer,
+        trainer,
         model: ModelBase,
         data_container: DataContainer,
         tracker: BaseTracker,
@@ -546,7 +542,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
     def __init__(
         self,
         callback_config: PeriodicDataIteratorCallbackConfig,
-        trainer: BaseTrainer,
+        trainer,
         model: ModelBase,
         data_container: DataContainer,
         tracker: BaseTracker,
