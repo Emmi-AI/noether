@@ -179,6 +179,9 @@ def _collect_hydra_overrides() -> list[str]:
     return overrides
 
 
+setup_hydra()
+
+
 @hydra.main(
     config_path=None,
     config_name=None,
@@ -245,5 +248,4 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
-    setup_hydra()
     main()
