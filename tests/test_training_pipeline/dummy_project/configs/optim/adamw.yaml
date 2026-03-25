@@ -4,5 +4,6 @@ weight_decay: 0.05
 clip_grad_norm: 1.0
 schedule_config:
   kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+  max_value: ${optim.lr}
   warmup_percent: 0.10
   end_value: 1.0e-6
