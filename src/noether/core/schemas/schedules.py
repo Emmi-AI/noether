@@ -186,7 +186,6 @@ class StepDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
     """The factor by which the value decreases."""
     decreases_interval: float = Field(..., gt=0.0, lt=1.0)
     """The interval in range [0, 1] at which the value decreases."""
-    # max_value: float = Field(None)
 
     @model_validator(mode="after")
     def check_interval(self) -> "StepDecreasingScheduleConfig":
