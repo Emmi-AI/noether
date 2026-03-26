@@ -6,7 +6,7 @@ import importlib
 import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, get_type_hints
+from typing import Any
 
 import yaml
 
@@ -18,6 +18,7 @@ from noether.core.schemas.callbacks import (
     OfflineLossCallbackConfig,
 )
 from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
+from noether.core.schemas.lib import resolve_config_class
 from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
 from noether.core.schemas.optimizers import OptimizerConfig
 from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
@@ -509,44 +510,13 @@ class DomainPreset(ABC):
     ) -> type:
         """Resolve a runtime class from its kind string, then find its config class.
 
-        Uses the same resolution logic as the ``Discriminated`` validator:
-        1. If the imported class is already a config subclass, return it directly.
-        2. Check for a ``_config_class`` attribute (set by ``@ConfiguredBy``).
-        3. Inspect ``__init__`` type hints for the config parameter.
+        Delegates to :func:`noether.core.schemas.lib.resolve_config_class`.
 
         Args:
-            kind: fully qualified class path (e.g., ``"tutorial.trainers.MyTrainer"``).
+            kind: fully qualified class path (e.g., ``"noether.training.trainers.WeightedLossTrainer"``).
             base_module: module containing the base config class to check against.
             base_class_name: name of the base config class.
         """
-        module_name, class_name = kind.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        cls = getattr(module, class_name)
-
-        # Import the base config class:
         base_mod = importlib.import_module(base_module)
-        base_config_cls = getattr(base_mod, base_class_name)
-
-        # If it's already a config class, return it:
-        if isinstance(cls, type) and issubclass(cls, base_config_cls):
-            return cls
-
-        # Check for _config_class attribute:
-        if hasattr(cls, "_config_class"):
-            return cls._config_class  # type: ignore[no-any-return]
-
-        # Inspect __init__ type hints:
-        try:
-            hints = get_type_hints(cls.__init__)
-        except Exception:
-            hints = {}
-        if hints:
-            first_hint = next(iter(hints.values()))
-            if isinstance(first_hint, type) and issubclass(first_hint, base_config_cls):
-                return first_hint
-
-        raise ValueError(
-            f"Cannot resolve config class for '{kind}'. "
-            f"Expected a subclass of {base_class_name} or a class decorated with @ConfiguredBy. "
-            "You can also pass a pre-built config object via 'model_config' instead."
-        )
+        base_cls = getattr(base_mod, base_class_name)
+        return resolve_config_class(kind, base_cls)
