@@ -55,12 +55,13 @@ def test_transformer_block_forward():
     attn_kwargs = {"attn_mask": attn_mask}
 
     # Perform forward pass
-    output = transformer_block(x, attn_kwargs=attn_kwargs)
+    output, kv_cache = transformer_block(x, attn_kwargs=attn_kwargs)
 
     # Assertions
     assert output.shape == x.shape, "Output shape mismatch"
     assert not torch.isnan(output).any(), "Output contains NaN values"
     assert torch.allclose(output, TRANSFORMER_BLOCK, 1e-2), "Output value mismatch"
+    assert kv_cache is None, "DotProductAttention should not return a KV cache"
 
 
 def test_transformer_block_no_attn_mask():
@@ -83,7 +84,7 @@ def test_transformer_block_no_attn_mask():
     x = torch.randn(batch_size, seq_len, dim)
 
     # Perform forward pass without attention mask
-    output = transformer_block(x)
+    output, _ = transformer_block(x)
 
     # Assertions
     assert output.shape == x.shape, "Output shape mismatch"
@@ -109,7 +110,7 @@ def test_transformer_block_default_mlp_hidden_dim():
     x = torch.randn(batch_size, seq_len, dim)
 
     # Perform forward pass
-    output = transformer_block(x)
+    output, _ = transformer_block(x)
 
     # Assertions
     assert output.shape == x.shape, "Output shape mismatch"
@@ -131,7 +132,7 @@ def test_transformer_block_conditioned():
     seq_len = 5
     x = torch.randn(batch_size, seq_len, dim)
     condition = torch.randn(batch_size, condition_dim)
-    dit_output = dit_block(x, condition=condition)
+    dit_output, _ = dit_block(x, condition=condition)
     assert dit_output.shape == x.shape, "Output shape mismatch"
     assert torch.allclose(DIT_BLOCK, dit_output, atol=1e-4)
 
@@ -186,7 +187,7 @@ def test_transformer_block_gradient_flow():
     seq_len = 10
     x = torch.randn(batch_size, seq_len, dim, requires_grad=True)
 
-    output = transformer_block(x)
+    output, _ = transformer_block(x)
     loss = output.sum()
     loss.backward()
 

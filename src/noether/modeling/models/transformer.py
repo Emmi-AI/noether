@@ -45,6 +45,6 @@ class Transformer(nn.Module):
         """
 
         for block in self.blocks:
-            x = block(x, attn_kwargs=attn_kwargs)
+            x, _ = block(x, attn_kwargs=attn_kwargs)
 
         return x

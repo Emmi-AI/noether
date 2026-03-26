@@ -3,7 +3,7 @@
 from typing import Any
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
@@ -78,7 +78,7 @@ class TransformerBlock(nn.Module):
         x: torch.Tensor,
         condition: torch.Tensor | None = None,
         attn_kwargs: dict[str, Any] | None = None,
-    ) -> torch.Tensor:
+    ) -> tuple[Tensor, dict[str, dict[str, Tensor]] | None]:
         """Forward pass of the transformer block.
 
         Args:
@@ -88,14 +88,19 @@ class TransformerBlock(nn.Module):
             attn_kwargs: Dict with arguments for the attention (such as the attention mask or rope frequencies). Defaults to None.
 
         Returns:
-            Tensor after the forward pass of the transformer block.
+            Tuple of (output_tensor, kv_cache). ``kv_cache`` is ``None`` when the attention module
+            does not return a cache (e.g. standard ``DotProductAttention``).
         """
         if self.modulation is None:
             if condition is not None:
                 raise ValueError(
                     "Conditioning vector provided, but the transformer block is not configured for conditioning."
                 )
-            x = x + self.drop_path1(self.ls1(self.attention_block(self.norm1(x), **(attn_kwargs or {}))))
+            attn_out = self.attention_block(self.norm1(x), **(attn_kwargs or {}))
+            kv_cache = None
+            if isinstance(attn_out, tuple):
+                attn_out, kv_cache = attn_out
+            x = x + self.drop_path1(self.ls1(attn_out))
             x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         else:
             if condition is None:
@@ -105,14 +110,16 @@ class TransformerBlock(nn.Module):
 
             mod = self.modulation(condition)
             attn_scale, attn_shift, attn_gate, mlp_scale, mlp_shift, mlp_gate = mod.chunk(6, dim=-1)
+            attn_out = self.attention_block(
+                modulate_scale_shift(self.norm1(x), scale=attn_scale, shift=attn_shift),
+                **(attn_kwargs or {}),
+            )
+            kv_cache = None
+            if isinstance(attn_out, tuple):
+                attn_out, kv_cache = attn_out
             x = x + self.drop_path1(
                 modulate_gate(
-                    self.ls1(
-                        self.attention_block(
-                            modulate_scale_shift(self.norm1(x), scale=attn_scale, shift=attn_shift),
-                            **(attn_kwargs or {}),
-                        ),
-                    ),
+                    self.ls1(attn_out),
                     gate=attn_gate,
                 ),
             )
@@ -122,4 +129,4 @@ class TransformerBlock(nn.Module):
                     gate=mlp_gate,
                 ),
             )
-        return x
+        return x, kv_cache
