@@ -151,7 +151,7 @@ def test_model_factory_creates_ab_upt_and_runs_forward(
     assert sum(param.requires_grad for param in model.parameters()) > 0
 
     # Check that all parameters receive gradients
-    loss = sum(tensor.sum() for tensor in predictions.values())
+    loss = sum(v.sum() for v in predictions.values() if isinstance(v, torch.Tensor))
     loss.backward()
     no_grad_params = [name for name, param in model.named_parameters() if param.requires_grad and param.grad is None]
     assert not no_grad_params, f"Parameters with no gradient: {no_grad_params}"
