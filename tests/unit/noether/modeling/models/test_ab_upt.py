@@ -168,7 +168,7 @@ class TestAnchoredBranchedUPT:
         model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
         model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
 
-        predictions = model(
+        predictions, kv_cache = model(
             geometry_position=geometry_pos,
             geometry_supernode_idx=geometry_idx,
             geometry_batch_idx=geometry_batch,
@@ -194,7 +194,7 @@ class TestAnchoredBranchedUPT:
         model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
         model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
 
-        predictions = model(
+        predictions, _ = model(
             geometry_position=torch.randn(10, 3),
             geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
             geometry_batch_idx=torch.zeros(10, dtype=torch.long),

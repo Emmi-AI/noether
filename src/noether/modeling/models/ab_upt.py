@@ -440,7 +440,7 @@ class AnchoredBranchedUPT(nn.Module):
         query_volume_position: torch.Tensor | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
-    ) -> dict[str, Tensor | ModelKVCache]:
+    ) -> tuple[dict[str, Tensor], ModelKVCache]:
         """Forward pass of the AB-UPT model.
 
         Args:
@@ -457,7 +457,7 @@ class AnchoredBranchedUPT(nn.Module):
                 from the cache and geometry/anchor inputs are not required.
 
         Returns:
-            dict[str, torch.Tensor]: A dictionary containing the predictions for surface and volume fields, sliced according to the data specifications. Also contains ``kv_cache`` for subsequent cached inference.
+            Tuple of (predictions, kv_cache). Predictions is a dictionary containing the predictions for surface and volume fields, sliced according to the data specifications.
         """
         if (surface_anchor_position is None) == (kv_cache is None):
             raise ValueError(
@@ -588,4 +588,4 @@ class AnchoredBranchedUPT(nn.Module):
         else:
             new_kv_cache = kv_cache
 
-        return {**predictions, "kv_cache": new_kv_cache}
+        return predictions, new_kv_cache

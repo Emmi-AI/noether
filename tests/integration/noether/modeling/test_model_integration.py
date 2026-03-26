@@ -119,7 +119,7 @@ def test_model_factory_creates_ab_upt_and_runs_forward(
 
     # Generate inputs from pytest fixture
     inputs = ab_upt_input_generator(seed=42)
-    predictions = model(**inputs)
+    predictions, _ = model(**inputs)
 
     batch_size = 2
     surface_anchor_tokens = 4
