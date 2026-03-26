@@ -145,18 +145,20 @@ def development(hydra_config: DictConfig):
 
     raw_config = yaml.safe_load(OmegaConf.to_yaml(hydra_config, resolve=True))
     # get config schema
-    config_schema = (
-        class_constructor_from_class_path(hydra_config["config_schema_kind"])
-        if "config_schema_kind" in hydra_config
-        else ConfigSchema
-    )
+    config_schema = class_constructor_from_class_path(hydra_config["config_schema_kind"])
+
     config: ConfigSchema = config_schema(**raw_config)
 
-    dataset_config = config.datasets["train"]  # TODO: make this not hardcoded to train
+    assert len(config.datasets) == 1, "Only able to handle one dataset for development"
+    dataset_key = next(iter(config.datasets.keys()))
+    dataset_config = config.datasets[dataset_key]
     dataset = DatasetFactory().create(dataset_config)
+
     assert dataset is not None
 
-    i = random.randint(0, len(dataset) - 1)
+    i = random.randint(
+        0, len(dataset) - 1
+    )  # if not configured, make this random. Also make option to load multiple batches and/or loop over entire dataset.
     batch = dataset[i]
     log_batch(batch)
 
@@ -165,11 +167,12 @@ def development(hydra_config: DictConfig):
         assert p is not None
         collated_batch = p([batch])
 
-    else:
-        collated_batch = batch
+        log_batch(collated_batch, title="COLLATED BATCH CONTENTS")
+        log_batch_diff(batch, collated_batch)
 
-    log_batch(collated_batch, title="COLLATED BATCH CONTENTS")
-    log_batch_diff(batch, collated_batch)
+    else:
+        print("\nNo pipeline defined for dataset, skipping collation step.")
+        collated_batch = batch
 
     if config.model is not None:
         model = Factory().instantiate(
@@ -183,7 +186,7 @@ def development(hydra_config: DictConfig):
         out = model(**forward_batch)
         log_batch(out, title="MODEL OUTPUT CONTENTS")
 
-        datasets = {"test_repeat": dataset}  # TODO: make this not hardcoded to train
+        datasets = {dataset_key: dataset}  # TODO: make this not hardcoded to train
         data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
 
         if config.trainer is not None:
@@ -228,22 +231,35 @@ def development(hydra_config: DictConfig):
             trainer = None
 
         # if callbacks
-        callback = Factory().instantiate(
-            config.trainer.callbacks[
-                -2
-            ],  # this needs to be configurable, but for now we just want to run the development callback
-            model=model,
-            trainer=trainer,
-            data_container=data_container,
-            tracker=None,
-            log_writer=None,
-            checkpoint_writer=None,
-            metric_property_provider=None,
-            development=True,
+        assert len(config.trainer.callbacks) == 1, (
+            "Need at least 2 callbacks configured to run the development callback (which is currently hardcoded to be the second to last callback in the list)"
         )
+        if len(config.trainer.callbacks) == 1:
+            callback = Factory().instantiate(
+                config.trainer.callbacks[
+                    0
+                ],  # this needs to be configurable, but for now we just want to run the development callback
+                model=model,
+                trainer=trainer,
+                data_container=data_container,
+                tracker=None,
+                log_writer=None,
+                checkpoint_writer=None,
+                metric_property_provider=None,
+                development=True,
+            )
 
-        out_callback = callback.process_data(collated_batch)
-        log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+            out_callback = callback.process_data(collated_batch)
+            log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+        else:
+            if len(config.trainer.callbacks) == 0:
+                print("\nNo callbacks defined in trainer, skipping callback step.")
+            else:
+                print(
+                    "\nMultiple callbacks defined in trainer, skipping callback step for now since the development callback can only done by one."
+                )
+    else:
+        print("\nNo model defined in config, skipping model instantiation and forward pass.")
 
 
 if __name__ == "__main__":

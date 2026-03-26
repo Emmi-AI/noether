@@ -5,5 +5,5 @@ from tutorial.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfi
 
 
 class AeroDatasetConfig(StandardDatasetConfig):
-    pipeline: AeroCFDPipelineConfig
+    pipeline: AeroCFDPipelineConfig | None = None  # TODO: fix this
     filter_categories: tuple[str] | None = None
