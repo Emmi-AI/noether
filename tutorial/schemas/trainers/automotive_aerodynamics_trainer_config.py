@@ -4,12 +4,12 @@ from typing import Annotated, Union
 
 from pydantic import Field
 
+from noether.core.schemas.aero import SurfaceVolumeEvaluationMetricsCallbackConfig
 from noether.core.schemas.callbacks import CallbacksConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
-from tutorial.schemas.callbacks import TutorialCallbacksConfig
 
 AllCallbacks = Union[
-    TutorialCallbacksConfig, CallbacksConfig
+    SurfaceVolumeEvaluationMetricsCallbackConfig, CallbacksConfig
 ]  # custom callbacks need to be added here to one union type with the base noether CallbacksConfig
 
 

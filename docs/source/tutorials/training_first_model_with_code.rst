@@ -82,6 +82,7 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         PerceiverBlockConfig,
         TransformerBlockConfig,
     )
+    from noether.core.schemas.aero import AeroCFDPipelineConfig
     from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
     from noether.core.schemas.optimizers import OptimizerConfig
     from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
@@ -91,7 +92,6 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         SurfaceVolumeEvaluationMetricsCallbackConfig,
     )
     from tutorial.schemas.models.upt_config import UPTConfig
-    from tutorial.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfig
     from tutorial.schemas.trainers.automotive_aerodynamics_trainer_config import AutomotiveAerodynamicsCfdTrainerConfig
 
 Let's go over each group to better understand the outline:
