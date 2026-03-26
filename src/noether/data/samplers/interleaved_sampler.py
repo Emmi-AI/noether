@@ -262,16 +262,12 @@ class InterleavedSampler:
             start_epoch = config.start_epoch
         elif config.start_update is not None:
             start_update = config.start_update
-            start_epoch = int(start_update / updates_per_epoch)
+            start_epoch = start_update // updates_per_epoch
             start_sample = start_update * config.batch_size
-            if start_update % updates_per_epoch != 0 or not config.drop_last:
-                raise NotImplementedError("defining start_update would require to skip forward in the sampler")
         elif config.start_sample is not None:
             start_sample = config.start_sample
             start_update = start_sample // config.batch_size
-            start_epoch = int(start_update / updates_per_epoch)
-            if start_update % updates_per_epoch != 0 or not config.drop_last:
-                raise NotImplementedError("defining start_update would require to skip forward in the sampler")
+            start_epoch = start_update // updates_per_epoch
         else:
             start_epoch = start_update = start_sample = 0
 
@@ -369,12 +365,27 @@ class InterleavedSampler:
     def _training_loop(self) -> Iterator[SamplerOutput]:
         state = _TrainingIterationState(epoch=self.start_epoch, update=self.start_update, sample=self.start_sample)
 
+        # Calculate how many samples to skip in the first epoch for mid-epoch resume:
+        samples_into_epoch = self.start_sample - self.start_epoch * self.samples_per_epoch
+        skip_first_epoch = samples_into_epoch > 0
+
         while True:
             if hasattr(self.main_sampler, "set_epoch") and callable(self.main_sampler.set_epoch):  # pyright: ignore[reportAttributeAccessIssue]
                 self.main_sampler.set_epoch(state.epoch)  # pyright: ignore[reportAttributeAccessIssue]
 
             state.start_new_epoch()
-            for main_idx in self.main_sampler:
+
+            main_iter = iter(self.main_sampler)
+
+            # Resume: skip the sampler iterator past already-processed samples (indices only, no data
+            # loading). This is only needed for the first epoch after resume:
+            if skip_first_epoch:
+                _logger.info(f"Resuming from non-epoch-aligned update: skipping {samples_into_epoch} sampler indices")
+                for _ in range(samples_into_epoch):
+                    next(main_iter)
+                skip_first_epoch = False
+
+            for main_idx in main_iter:
                 last_sample_in_update = state.next_sample(self.batch_size, self.samples_per_epoch)
                 yield SamplerOutput(is_full_batch=last_sample_in_update, idx=main_idx)
 
