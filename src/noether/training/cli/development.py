@@ -1,0 +1,250 @@
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
+
+import os
+import random
+import sys
+
+import hydra
+import yaml
+from omegaconf import DictConfig, OmegaConf
+
+from noether.core.factory import DatasetFactory, Factory, class_constructor_from_class_path
+from noether.core.schemas.schema import ConfigSchema
+from noether.data.container import DataContainer
+from noether.training.cli import setup_hydra
+
+setup_hydra()
+
+
+def _describe_value(value):
+    try:
+        import torch
+
+        if isinstance(value, torch.Tensor):
+            return {
+                "type": "Tensor",
+                "shape": tuple(value.shape),
+                "dtype": str(value.dtype),
+                "device": str(value.device),
+            }
+    except ImportError:
+        pass
+    try:
+        import numpy as np
+
+        if isinstance(value, np.ndarray):
+            return {"type": "ndarray", "shape": value.shape, "dtype": str(value.dtype)}
+    except ImportError:
+        pass
+    if isinstance(value, (list, tuple)):
+        return {"type": type(value).__name__, "len": len(value)}
+    return {"type": type(value).__name__}
+
+
+def log_batch(batch, title="BATCH CONTENTS"):
+    print("\n" + "=" * 60)
+    print(title)
+    print("=" * 60)
+    print(f"Batch type: {type(batch)}")
+    if isinstance(batch, dict):
+        print(f"Batch keys ({len(batch)}): {list(batch.keys())}")
+        for key, value in batch.items():
+            print(f"\n  [{key}]")
+            print(f"    type: {type(value).__name__}")
+            try:
+                import torch
+
+                if isinstance(value, torch.Tensor):
+                    print(f"    shape:  {tuple(value.shape)}")
+                    print(f"    dtype:  {value.dtype}")
+                    print(f"    device: {value.device}")
+
+                    if value.numel() <= 20:
+                        print(f"    values: {value}")
+                    else:
+                        print(f"    first 10 values: {value.flatten()[:10].tolist()}")
+                    continue
+            except ImportError:
+                pass
+            try:
+                import numpy as np
+
+                if isinstance(value, np.ndarray):
+                    print(f"    shape:  {value.shape}")
+                    print(f"    dtype:  {value.dtype}")
+                    if np.issubdtype(value.dtype, np.floating):
+                        print(f"    min/max/mean: {value.min():.4f} / {value.max():.4f} / {value.mean():.4f}")
+                    else:
+                        print(f"    min/max: {value.min()} / {value.max()}")
+                    if value.size <= 20:
+                        print(f"    values: {value}")
+                    else:
+                        print(f"    first 10 values: {value.flatten()[:10].tolist()}")
+                    continue
+            except ImportError:
+                pass
+            if isinstance(value, (list, tuple)):
+                print(f"    len:    {len(value)}")
+                print(f"    first 5 items: {value[:5]}")
+            elif isinstance(value, str):
+                print(f"    value:  {value!r}")
+            else:
+                print(f"    value:  {value}")
+    else:
+        print(f"Batch value: {batch}")
+    print("=" * 60 + "\n")
+
+
+def log_batch_diff(batch, collated_batch):
+    print("\n" + "=" * 60)
+    print("BATCH vs COLLATED BATCH DIFF")
+    print("=" * 60)
+    if not isinstance(batch, dict) or not isinstance(collated_batch, dict):
+        print("  (cannot diff non-dict batches)")
+        print("=" * 60 + "\n")
+        return
+
+    raw_keys = set(batch.keys())
+    col_keys = set(collated_batch.keys())
+
+    only_in_raw = raw_keys - col_keys
+    only_in_col = col_keys - raw_keys
+    common = raw_keys & col_keys
+
+    if only_in_raw:
+        print(f"\n  Keys only in raw batch: {sorted(only_in_raw)}")
+    if only_in_col:
+        print(f"\n  Keys only in collated batch: {sorted(only_in_col)}")
+
+    print(f"\n  Common keys ({len(common)}):")
+    for key in sorted(common):
+        raw_desc = _describe_value(batch[key])
+        col_desc = _describe_value(collated_batch[key])
+        changed = raw_desc != col_desc
+        marker = "  *" if changed else "   "
+        print(f"{marker} [{key}]")
+        if changed:
+            print(f"      raw:      {raw_desc}")
+            print(f"      collated: {col_desc}")
+        else:
+            print(f"      {col_desc}  (unchanged)")
+
+    print("=" * 60 + "\n")
+
+
+@hydra.main(
+    config_path=None,
+    config_name=None,
+    version_base="1.3",
+)
+def development(hydra_config: DictConfig):
+    os.chdir(hydra.utils.get_original_cwd())
+
+    # add working directory to PYTHONPATH
+    sys.path.insert(0, hydra.utils.get_original_cwd())  # store this
+
+    raw_config = yaml.safe_load(OmegaConf.to_yaml(hydra_config, resolve=True))
+    # get config schema
+    config_schema = (
+        class_constructor_from_class_path(hydra_config["config_schema_kind"])
+        if "config_schema_kind" in hydra_config
+        else ConfigSchema
+    )
+    config: ConfigSchema = config_schema(**raw_config)
+
+    dataset_config = config.datasets["train"]  # TODO: make this not hardcoded to train
+    dataset = DatasetFactory().create(dataset_config)
+    assert dataset is not None
+
+    i = random.randint(0, len(dataset) - 1)
+    batch = dataset[i]
+    log_batch(batch)
+
+    if dataset_config.pipeline is not None:
+        p = Factory().create(dataset_config.pipeline)
+        assert p is not None
+        collated_batch = p([batch])
+
+    else:
+        collated_batch = batch
+
+    log_batch(collated_batch, title="COLLATED BATCH CONTENTS")
+    log_batch_diff(batch, collated_batch)
+
+    if config.model is not None:
+        model = Factory().instantiate(
+            config.model,
+            data_container=None,
+            update_counter=None,
+            path_provider=None,
+        )
+
+        forward_batch = {key: collated_batch[key] for key in config.model.forward_properties if key in collated_batch}
+        out = model(**forward_batch)
+        log_batch(out, title="MODEL OUTPUT CONTENTS")
+
+        datasets = {"test_repeat": dataset}  # TODO: make this not hardcoded to train
+        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
+
+        if config.trainer is not None:
+            trainer = Factory().create(
+                config.trainer,
+                data_container=data_container,
+                device="cpu",
+                tracker=None,
+                path_provider=None,
+                metric_property_provider=None,
+            )
+            assert trainer is not None
+            trainer_output = trainer.train_step(model=model, batch=collated_batch)
+
+            try:
+                trainer_output.total_loss.backward()  # just to check that the loss is properly connected to the model outputs and that backward works without error
+                print("\nBackward pass completed successfully.")
+            except Exception as e:
+                print(f"\nError during backward pass: {e}")
+
+            if all(p.grad is not None for p in model.parameters()):
+                print("\nAll model parameters received gradients successfully.")
+            else:
+                no_grad_params = [name for name, param in model.named_parameters() if param.grad is None]
+                print(f"\nWarning: The following parameters did not receive gradients: {no_grad_params}")
+
+            print("\n" + "=" * 60)
+            print("TRAINER OUTPUT")
+            print("=" * 60)
+            print(f"  total_loss: {trainer_output.total_loss.item():.6f}")
+            if trainer_output.losses_to_log:
+                print(f"\n  losses_to_log ({len(trainer_output.losses_to_log)}):")
+                for k, v in trainer_output.losses_to_log.items():
+                    print(f"    [{k}]: {v.item():.6f}")
+            if trainer_output.additional_outputs:
+                print("\n  additional_outputs:")
+                log_batch(trainer_output.additional_outputs, title="TRAINER ADDITIONAL OUTPUTS")
+            else:
+                print("\n  additional_outputs: None")
+            print("=" * 60 + "\n")
+        else:
+            trainer = None
+
+        # if callbacks
+        callback = Factory().instantiate(
+            config.trainer.callbacks[
+                -2
+            ],  # this needs to be configurable, but for now we just want to run the development callback
+            model=model,
+            trainer=trainer,
+            data_container=data_container,
+            tracker=None,
+            log_writer=None,
+            checkpoint_writer=None,
+            metric_property_provider=None,
+            development=True,
+        )
+
+        out_callback = callback.process_data(collated_batch)
+        log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+
+
+if __name__ == "__main__":
+    development()
