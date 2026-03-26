@@ -3,8 +3,8 @@
 from examples.aero_cfd import EmmiWingPreset
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/Users/pk/shared_data/data/emmi_wings_small"
-OUTPUT_PATH = "/Users/pk/shared_data/outputs/emmi_wing"
+DATASET_ROOT = "/path/to/data/emmi_wing"
+OUTPUT_PATH = "/path/to/outputs/emmi_wing"
 TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
 FIELD_WEIGHTS = {
     "surface_pressure": 1.0,
