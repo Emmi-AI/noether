@@ -4,31 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from examples.presets.aero_cfd import AeroCFDPreset
+from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
 from noether.core.schemas.dataset import AeroDataSpecs, DatasetBaseConfig, DatasetWrappers
 
 
 class DrivAerNetPreset(AeroCFDPreset):
     """Preset for the DrivAerNet++ CFD dataset."""
 
-    _dataset_kind = "noether.data.datasets.cfd.DrivAerNetDataset"
+    dataset_kind = "noether.data.datasets.cfd.DrivAerNetDataset"
 
-    _stats: dict[str, list[float]] = {
-        "raw_pos_min": [-12.01],
-        "raw_pos_max": [6.41],
-        "surface_pressure_mean": [-9.34098e01],
-        "surface_pressure_std": [1.20787e02],
-        "surface_friction_mean": [-6.71649e-01, 3.63487e-02, -8.46379e-02],
-        "surface_friction_std": [8.19941e-01, 4.51045e-01, 7.81055e-01],
-        "volume_velocity_mean": [2.18719e01, -2.37778e-01, 6.73902e-01],
-        "volume_velocity_std": [1.21079e01, 3.97768e00, 3.90113e00],
-        "volume_pressure_mean": [-6.24053e01],
-        "volume_pressure_std": [9.42394e01],
-        "volume_vorticity_logscale_mean": [2.57623e-02, 2.58335e-01, 4.29835e-01],
-        "volume_vorticity_logscale_std": [3.00179e00, 3.65020e00, 3.33356e00],
-    }
-
-    _pipeline_defaults: dict[str, Any] = {
+    pipeline_defaults: AeroPipelineParams = {
         "num_surface_points": 16384,
         "num_volume_points": 16384,
         "num_surface_queries": 0,
@@ -36,7 +21,7 @@ class DrivAerNetPreset(AeroCFDPreset):
         "use_physics_features": False,
     }
 
-    _pipeline_model_overrides: dict[str, dict[str, Any]] = {
+    pipeline_model_overrides: dict[str, AeroPipelineParams] = {
         "noether.modeling.models.wrappers.UPTWrapper": {
             "num_supernodes": 16384,
             "sample_query_points": False,
@@ -100,10 +85,10 @@ class DrivAerNetPreset(AeroCFDPreset):
             filter_categories: optional tuple of DrivAerNet design categories to include
                 (e.g., ``("F_S_WWS_WM", "N_S_WWS_WM")``). None loads all categories.
         """
-        from tutorial.schemas.datasets import AeroDatasetConfig
+        from noether.core.schemas.aero import AeroDatasetConfig
 
         return AeroDatasetConfig(
-            kind=self._dataset_kind,
+            kind=self.dataset_kind,
             root=root,
             split=split,
             pipeline=self.build_pipeline(model_kind, **overrides),

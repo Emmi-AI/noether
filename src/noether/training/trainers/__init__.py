@@ -2,10 +2,10 @@
 
 from .base import BaseTrainer
 from .types import TrainerResult
-from .weighted_mse import WeightedMSETrainer
+from .weighted_loss import WeightedLossTrainer
 
 __all__ = [
     "BaseTrainer",
     "TrainerResult",
-    "WeightedMSETrainer",
+    "WeightedLossTrainer",
 ]

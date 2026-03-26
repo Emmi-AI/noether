@@ -1,11 +1,11 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from examples.presets import DrivAerMLPreset
+from examples.aero_cfd import AhmedMLPreset
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/path/to/drivaerml"
-OUTPUT_PATH = "/path/to/outputs/drivaerml"
-TRAINER_KIND = "noether.training.trainers.WeightedMSETrainer"
+DATASET_ROOT = "/Users/pk/shared_data/data/ahmedml_processed/subsampled_10x"
+OUTPUT_PATH = "/Users/pk/shared_data/outputs/ahmedml_processed"
+TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
 FIELD_WEIGHTS = {
     "surface_pressure": 1.0,
     "surface_friction": 1.0,
@@ -22,8 +22,8 @@ def train_abupt(
     accelerator: str = "mps",
     device: str = "mps",
 ) -> None:
-    """Train AB-UPT model using DrivAerML dataset."""
-    preset = DrivAerMLPreset()
+    """Trains AB-UPT model using AhmedML dataset."""
+    preset = AhmedMLPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.wrappers.ABUPTWrapper",
         model_params=dict(hidden_dim=192, geometry_depth=6, physics_blocks=["perceiver"] + ["shared", "cross"] * 5),
@@ -45,8 +45,8 @@ def train_upt(
     accelerator: str = "mps",
     device: str = "mps",
 ) -> None:
-    """Train UPT model using DrivAerML dataset."""
-    preset = DrivAerMLPreset()
+    """Trains UPT model using AhmedML dataset."""
+    preset = AhmedMLPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.wrappers.UPTWrapper",
         model_params=dict(hidden_dim=192, num_heads=3, approximator_depth=12),
@@ -68,8 +68,8 @@ def train_transformer(
     accelerator: str = "mps",
     device: str = "mps",
 ) -> None:
-    """Train Transformer model using DrivAerML dataset."""
-    preset = DrivAerMLPreset()
+    """Trains Transformer model using AhmedML dataset."""
+    preset = AhmedMLPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.wrappers.TransformerWrapper",
         model_params=dict(hidden_dim=192, depth=12),
@@ -91,8 +91,8 @@ def train_transolver(
     accelerator: str = "mps",
     device: str = "mps",
 ) -> None:
-    """Train Transolver model using DrivAerML dataset."""
-    preset = DrivAerMLPreset()
+    """Trains Transolver model using AhmedML dataset."""
+    preset = AhmedMLPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.wrappers.TransolverWrapper",
         model_params=dict(hidden_dim=192, depth=12, num_slices=512),

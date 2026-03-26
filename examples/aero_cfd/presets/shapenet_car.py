@@ -4,31 +4,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from examples.presets.aero_cfd import AeroCFDPreset
+from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
+from noether.core.schemas.aero import SurfaceVolumeEvaluationMetricsCallbackConfig
 from noether.core.schemas.dataset import AeroDataSpecs, RepeatWrapperConfig
 from noether.core.schemas.schema import ConfigSchema
-from tutorial.callbacks.surface_volume_evaluation_metrics import (
-    SurfaceVolumeEvaluationMetricsCallbackConfig,
-)
 
 
 class ShapeNetCarPreset(AeroCFDPreset):
     """Preset for the ShapeNet Car CFD dataset."""
 
-    _dataset_kind = "noether.data.datasets.cfd.ShapeNetCarDataset"
+    dataset_kind = "noether.data.datasets.cfd.ShapeNetCarDataset"
 
-    _stats: dict[str, list[float]] = {
-        "raw_pos_min": [-4.5],
-        "raw_pos_max": [6.0],
-        "surface_pressure_mean": [-36.4098],
-        "surface_pressure_std": [48.6757],
-        "volume_velocity_mean": [0.00293915, -0.0230546, 17.546032],
-        "volume_velocity_std": [1.361689, 1.267649, 5.850353],
-        "volume_sdf_mean": [3.74222e-01],
-        "volume_sdf_std": [1.78948e-01],
-    }
-
-    _pipeline_defaults: dict[str, Any] = {
+    pipeline_defaults: AeroPipelineParams = {
         "num_surface_points": 3586,
         "num_volume_points": 4096,
         "num_surface_queries": 3586,
@@ -37,7 +24,7 @@ class ShapeNetCarPreset(AeroCFDPreset):
         "use_physics_features": False,
     }
 
-    _pipeline_model_overrides: dict[str, dict[str, Any]] = {
+    pipeline_model_overrides: dict[str, AeroPipelineParams] = {
         "noether.modeling.models.wrappers.UPTWrapper": {
             "num_supernodes": 3586,
         },

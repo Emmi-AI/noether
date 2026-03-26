@@ -1,11 +1,11 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from examples.presets import ShapeNetCarPreset
+from examples.aero_cfd import ShapeNetCarPreset
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/path/to/shapenet_car"
-OUTPUT_PATH = "/path/to/outputs/shapenet_car"
-TRAINER_KIND = "noether.training.trainers.WeightedMSETrainer"
+DATASET_ROOT = "/Users/pk/shared_data/data/shapenet_car"
+OUTPUT_PATH = "/Users/pk/shared_data/outputs/shapenet_car"
+TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
 FIELD_WEIGHTS = {"surface_pressure": 1.0, "volume_velocity": 1.0}
 
 

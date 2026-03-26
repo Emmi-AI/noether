@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import logging
+from pathlib import Path
 
 from noether.core.schemas.dataset import DatasetBaseConfig, DatasetSplitIDs
 from noether.data.datasets.cfd.caeml.ahmedml.split import AhmedMLDefaultSplitIDs
@@ -16,6 +17,8 @@ class AhmedMLDataset(CAEMLDataset):
     Args:
         dataset_config: Configuration for the dataset.
     """
+
+    STATS_FILE: str = str(Path(__file__).parent / "stats.yaml")
 
     def __init__(
         self,

@@ -4,31 +4,16 @@ from __future__ import annotations
 
 from typing import Any
 
-from examples.presets.aero_cfd import AeroCFDPreset
+from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
 from noether.core.schemas.dataset import AeroDataSpecs
 
 
-class DrivAerMLPreset(AeroCFDPreset):
-    """Preset for the DrivAerML CFD dataset (CAEML benchmark)."""
+class EmmiWingPreset(AeroCFDPreset):
+    """Preset for the EMMI Wing CFD dataset."""
 
-    _dataset_kind = "noether.data.datasets.cfd.DrivAerMLDataset"
+    dataset_kind = "noether.data.datasets.cfd.EmmiWingDataset"
 
-    _stats: dict[str, list[float]] = {
-        "raw_pos_min": [-40.0],
-        "raw_pos_max": [80.0],
-        "surface_pressure_mean": [-2.29772e02],
-        "surface_pressure_std": [2.69345e02],
-        "surface_friction_mean": [-1.20054e00, 1.49358e-03, -7.20107e-02],
-        "surface_friction_std": [2.07670e00, 1.35628e00, 1.11426e00],
-        "volume_velocity_mean": [1.67909e01, -3.82238e-02, 4.07968e-01],
-        "volume_velocity_std": [1.64115e01, 8.63614e00, 6.64996e00],
-        "volume_pressure_mean": [1.71387e-01],
-        "volume_pressure_std": [5.00826e-01],
-        "volume_vorticity_logscale_mean": [-1.47814e-02, 7.87642e-01, 2.81023e-03],
-        "volume_vorticity_logscale_std": [5.45681e00, 5.77081e00, 5.46175e00],
-    }
-
-    _pipeline_defaults: dict[str, Any] = {
+    pipeline_defaults: AeroPipelineParams = {
         "num_surface_points": 16384,
         "num_volume_points": 16384,
         "num_surface_queries": 0,
@@ -36,7 +21,7 @@ class DrivAerMLPreset(AeroCFDPreset):
         "use_physics_features": False,
     }
 
-    _pipeline_model_overrides: dict[str, dict[str, Any]] = {
+    pipeline_model_overrides: dict[str, AeroPipelineParams] = {
         "noether.modeling.models.wrappers.UPTWrapper": {
             "num_supernodes": 16384,
             "sample_query_points": False,
@@ -53,12 +38,41 @@ class DrivAerMLPreset(AeroCFDPreset):
         },
     }
 
+    forward_properties_map: dict[str, list[str]] = {
+        "noether.modeling.models.wrappers.UPTWrapper": [
+            "surface_position_batch_idx",
+            "surface_position_supernode_idx",
+            "surface_position",
+            "surface_query_position",
+            "volume_query_position",
+        ],
+        "noether.modeling.models.wrappers.ABUPTWrapper": [
+            "geometry_position",
+            "geometry_supernode_idx",
+            "geometry_batch_idx",
+            "surface_anchor_position",
+            "volume_anchor_position",
+            "geometry_design_parameters",
+            "inflow_design_parameters",
+        ],
+        "_default": [
+            "surface_position",
+            "volume_position",
+            "surface_features",
+            "volume_features",
+        ],
+    }
+
     @property
     def data_specs(self) -> AeroDataSpecs:
         return AeroDataSpecs(
             position_dim=3,
             surface_output_dims={"pressure": 1, "friction": 3},
             volume_output_dims={"pressure": 1, "velocity": 3, "vorticity": 3},
+            conditioning_dims={
+                "geometry_design_parameters": 5,
+                "inflow_design_parameters": 2,
+            },
         )
 
     @property
@@ -68,14 +82,16 @@ class DrivAerMLPreset(AeroCFDPreset):
             "surface_friction": "mean_std",
             "volume_pressure": "mean_std",
             "volume_velocity": "mean_std",
+            # Wing uses magnitude-based normalization for vorticity (mean=0, std=magnitude_mean)
             "volume_vorticity": (
                 "mean_std",
                 {
-                    "mean_key": "volume_vorticity_logscale_mean",
-                    "std_key": "volume_vorticity_logscale_std",
-                    "logscale": True,
+                    "mean_key": "_zero",
+                    "std_key": "volume_vorticity_magnitude_mean",
                 },
             ),
+            "geometry_design_parameters": "mean_std",
+            "inflow_design_parameters": "mean_std",
             "surface_position": ("position", {"scale": 1000}),
             "volume_position": ("position", {"scale": 1000}),
         }

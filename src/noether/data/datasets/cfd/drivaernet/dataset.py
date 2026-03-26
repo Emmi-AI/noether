@@ -1,5 +1,7 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
+from pathlib import Path
+
 import torch
 
 from noether.core.schemas.dataset import StandardDatasetConfig
@@ -21,6 +23,8 @@ VALID_CATEGORIES = {
 
 class DrivAerNetDataset(AeroDataset):
     """Dataset implementation for DrivAerNet and DrivAerNet++ dataset."""
+
+    STATS_FILE: str = str(Path(__file__).parent / "stats.yaml")
 
     FILEMAP = FileMap(
         surface_position="surface_position.pt",

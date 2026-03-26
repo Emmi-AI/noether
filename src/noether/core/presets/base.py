@@ -51,24 +51,24 @@ class DomainPreset(ABC):
         - ``target_properties``: list of target property names for this domain
 
     Subclasses should also set class attributes:
-        - ``_dataset_kind``: fully qualified dataset class path
-        - ``_stats``: raw statistics dict
-        - ``_pipeline_defaults``: default pipeline parameters
-        - ``_pipeline_model_overrides``: per-model pipeline parameter overrides
-        - ``_forward_properties``: per-model forward property lists (with ``"_default"`` fallback)
+        - ``dataset_kind``: fully qualified dataset class path
+        - ``stats``: raw statistics dict
+        - ``pipeline_defaults``: default pipeline parameters
+        - ``pipeline_model_overrides``: per-model pipeline parameter overrides
+        - ``forward_properties_map``: per-model forward property lists (with ``"_default"`` fallback)
 
-    The ``build_normalizers``, ``build_pipeline``, ``build_dataset``, ``build_model``,
-    ``forward_properties``, ``standard_callbacks``, and ``build_config`` methods have
-    default implementations that can be overridden when needed.
+    The ``build_normalizers``, ``build_pipeline``, ``build_dataset``, ``build_model``, ``forward_properties``,
+    ``standard_callbacks``, and ``build_config`` methods have default implementations that can be overridden when
+    needed.
     """
 
     # --- Class attributes (set by subclasses):
-    _dataset_kind: str = ""
-    _stats: dict[str, list[float]] = {}
-    _stats_file: str | None = None
-    _pipeline_defaults: dict[str, Any] = {}
-    _pipeline_model_overrides: dict[str, dict[str, Any]] = {}
-    _forward_properties: dict[str, list[str]] = {}
+    dataset_kind: str = ""
+    stats: dict[str, list[float]] = {}
+    stats_file: str | None = None
+    pipeline_defaults: dict[str, Any] = {}
+    pipeline_model_overrides: dict[str, dict[str, Any]] = {}
+    forward_properties_map: dict[str, list[str]] = {}
 
     @property
     @abstractmethod
@@ -76,20 +76,34 @@ class DomainPreset(ABC):
         """Return the domain's data specification (e.g., AeroDataSpecs)."""
 
     @property
-    def dataset_statistics(self) -> dict[str, list[float]]:
+    def dataset_statistics(self) -> dict[str, list[float] | float]:
         """Return pre-computed dataset statistics as a flat dict.
 
         Resolution order:
-        1. If ``_stats_file`` is set, loads from that YAML file.
-        2. Otherwise, returns a copy of the ``_stats`` class attribute.
+        1. If ``stats_file`` is set on the preset, loads from that YAML file.
+        2. If ``stats`` dict is set on the preset, returns a copy.
+        3. If ``dataset_kind`` points to a class with a ``STATS_FILE`` attribute, loads from that.
 
         Subclasses can override this property for custom logic.
         """
-        if self._stats_file is not None:
-            return self._load_yaml(self._stats_file)
-        if not self._stats:
-            raise ValueError(f"{type(self).__name__} must set either '_stats' or '_stats_file'.")
-        return dict(self._stats)
+        if self.stats_file is not None:
+            return self._load_yaml(self.stats_file)
+        if self.stats:
+            return dict(self.stats)
+
+        # Fall back to STATS_FILE on the dataset class:
+        if self.dataset_kind:
+            module_name, class_name = self.dataset_kind.rsplit(".", 1)
+            module = importlib.import_module(module_name)
+            dataset_cls = getattr(module, class_name)
+            stats_path = getattr(dataset_cls, "STATS_FILE", None)
+            if stats_path is not None:
+                return self._load_yaml(stats_path)
+
+        raise ValueError(
+            f"{type(self).__name__}: no stats available. Set 'stats', 'stats_file', "
+            "or ensure the dataset class has a STATS_FILE attribute."
+        )
 
     @property
     @abstractmethod
@@ -117,23 +131,23 @@ class DomainPreset(ABC):
     def forward_properties(self, model_kind: str) -> list[str]:
         """Return the list of forward properties for the given model architecture.
 
-        Looks up ``_forward_properties`` by model kind, falling back to ``"_default"``.
+        Looks up ``forward_properties_map`` by model kind, falling back to ``"_default"``.
         """
-        if model_kind in self._forward_properties:
-            return list(self._forward_properties[model_kind])
-        return list(self._forward_properties.get("_default", []))
+        if model_kind in self.forward_properties_map:
+            return list(self.forward_properties_map[model_kind])
+        return list(self.forward_properties_map.get("_default", []))
 
     def build_pipeline(self, model_kind: str, **overrides: Any) -> Any:
         """Build a pipeline config by merging defaults, model overrides, and user overrides.
 
         Subclasses must override this to construct the appropriate pipeline config.
-        The default implementation merges ``_pipeline_defaults``, model-specific overrides from
-        ``_pipeline_model_overrides``, and any caller-provided overrides into a single dict and returns it.
+        The default implementation merges ``pipeline_defaults``, model-specific overrides from
+        ``pipeline_model_overrides``, and any caller-provided overrides into a single dict and returns it.
         Subclasses should call ``super()`` to get the merged params.
         """
-        params = {**self._pipeline_defaults}
-        if model_kind in self._pipeline_model_overrides:
-            params.update(self._pipeline_model_overrides[model_kind])
+        params = {**self.pipeline_defaults}
+        if model_kind in self.pipeline_model_overrides:
+            params.update(self.pipeline_model_overrides[model_kind])
         params.update(overrides)
         return params
 
@@ -173,11 +187,18 @@ class DomainPreset(ABC):
                 mean_key = norm_kwargs.get("mean_key", f"{key}_mean")
                 std_key = norm_kwargs.get("std_key", f"{key}_std")
                 logscale = norm_kwargs.get("logscale", False)
+                mean_val = stats[mean_key]
+                std_val = stats[std_key]
+                # Wrap scalars in lists so tensors are always 1-dim:
+                if isinstance(mean_val, (int, float)):
+                    mean_val = [mean_val]
+                if isinstance(std_val, (int, float)):
+                    std_val = [std_val]
                 result[key] = [
                     MeanStdNormalizerConfig(
                         kind=MEAN_STD_NORMALIZER,
-                        mean=stats[mean_key],
-                        std=stats[std_key],
+                        mean=mean_val,
+                        std=std_val,
                         logscale=logscale,
                     )
                 ]
@@ -340,14 +361,14 @@ class DomainPreset(ABC):
         model_kind: str,
         model_params: dict[str, Any] | None = None,
         model_config: Any | None = None,
-        optimizer: OptimizerConfig | dict[str, Any] | None = None,
+        optimizer: OptimizerConfig | None = None,
         trainer_kind: str,
         trainer_params: dict[str, Any] | None = None,
         dataset_root: str,
         output_path: str | None = None,
         datasets: dict[str, str] | list[str] | None = None,
         extra_datasets: dict[str, DatasetBaseConfig] | None = None,
-        callbacks: list | None = None,
+        callbacks_override: list | None = None,
         extra_callbacks: list | None = None,
         accelerator: str | None = None,
         max_epochs: int = 500,
@@ -364,7 +385,7 @@ class DomainPreset(ABC):
             model_kind: fully qualified class path of the model.
             model_params: model architecture parameters (used with ``build_model``).
             model_config: pre-built model config object. Mutually exclusive with ``model_params``.
-            optimizer: optimizer config or dict of optimizer kwargs. Defaults to Lion with cosine decay.
+            optimizer: optimizer config. Defaults to Lion with cosine decay via ``build_optimizer()``.
             trainer_kind: fully qualified class path of the trainer.
             trainer_params: additional trainer-specific parameters (e.g., loss weights).
             dataset_root: root directory of the dataset.
@@ -373,8 +394,8 @@ class DomainPreset(ABC):
                 where keys equal splits, or a dict mapping keys to splits for custom naming
                 (e.g., ``{"my_train": "train"}``). Defaults to ``["train", "test"]``.
             extra_datasets: additional pre-built dataset configs to merge in (e.g., repeated test sets).
-            callbacks: custom callback list. Defaults to ``standard_callbacks()``.
-            extra_callbacks: additional callbacks appended to the callback list.
+            callbacks_override: replace the default callback list entirely. Defaults to ``standard_callbacks()``.
+            extra_callbacks: additional callbacks appended to the default (or overridden) list.
             accelerator: "cpu", "gpu", or "mps". Auto-detected if None.
             max_epochs: maximum training epochs.
             batch_size: effective batch size.
@@ -395,17 +416,11 @@ class DomainPreset(ABC):
         if isinstance(datasets, list):
             datasets = {s: s for s in datasets}
 
-        if callbacks is None:
-            callbacks = self.standard_callbacks(batch_size=batch_size)
+        callbacks = callbacks_override or self.standard_callbacks(batch_size=batch_size)
         if extra_callbacks:
             callbacks = callbacks + extra_callbacks
 
-        # Build optimizer if provided as dict:
-        optimizer_config = None
-        if isinstance(optimizer, dict):
-            optimizer_config = self.build_optimizer(**optimizer)
-        elif isinstance(optimizer, OptimizerConfig):
-            optimizer_config = optimizer
+        optimizer_config = optimizer
 
         # Build model config if not provided directly:
         if model_config is None:
@@ -441,7 +456,11 @@ class DomainPreset(ABC):
             **(trainer_params or {}),
         }
 
-        trainer_config_cls = self._resolve_config_class(trainer_kind)
+        trainer_config_cls = self._resolve_config_class(
+            trainer_kind,
+            base_module="noether.core.schemas.trainers",
+            base_class_name="BaseTrainerConfig",
+        )
         trainer_config = trainer_config_cls(**trainer_kwargs)
 
         # Build ConfigSchema:
@@ -451,7 +470,9 @@ class DomainPreset(ABC):
             "trainer": trainer_config,
             "output_path": output_path,
             "seed": seed,
-            "dataset_statistics": self.dataset_statistics,
+            "dataset_statistics": {
+                k: [v] if isinstance(v, (int, float)) else v for k, v in self.dataset_statistics.items()
+            },
             **config_overrides,
         }
         if accelerator is not None:
@@ -460,25 +481,31 @@ class DomainPreset(ABC):
         return ConfigSchema(**schema_kwargs)
 
     @staticmethod
-    def _load_yaml(path: str) -> dict[str, list[float]]:
+    def _load_yaml(path: str) -> dict[str, list[float] | float]:
         """Load dataset statistics from a YAML file.
 
         Args:
             path: path to the YAML file (absolute or relative to cwd).
 
         Returns:
-            Dict mapping stat names to lists of floats.
+            Dict mapping stat names to lists of floats (or scalar floats).
         """
         resolved = Path(path).expanduser()
         with open(resolved) as f:
             data = yaml.safe_load(f)
-        return {k: [float(v) for v in vals] for k, vals in data.items()}
+        result: dict[str, list[float] | float] = {}
+        for k, v in data.items():
+            if isinstance(v, list):
+                result[k] = [float(x) for x in v]
+            else:
+                result[k] = float(v)
+        return result
 
     @staticmethod
     def _resolve_config_class(
         kind: str,
-        base_module: str = "noether.core.schemas.trainers",
-        base_class_name: str = "BaseTrainerConfig",
+        base_module: str,
+        base_class_name: str,
     ) -> type:
         """Resolve a runtime class from its kind string, then find its config class.
 

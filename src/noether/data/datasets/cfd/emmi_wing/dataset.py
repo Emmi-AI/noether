@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import logging
+from pathlib import Path
 
 import torch
 
@@ -26,6 +27,8 @@ WING_FILE_MAP = FileMap(
 
 
 class EmmiWingDataset(AeroDataset):
+    STATS_FILE: str = str(Path(__file__).parent / "stats.yaml")
+
     def __init__(self, dataset_config: StandardDatasetConfig):
         super().__init__(dataset_config=dataset_config, filemap=WING_FILE_MAP)
 
