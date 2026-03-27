@@ -158,22 +158,25 @@ class BaseTrainer:
                 )
             self.start_checkpoint = self.initializer.start_checkpoint()
 
-            if not (
-                self.start_checkpoint.epoch is not None
-                and self.start_checkpoint.epoch * self.updates_per_epoch == self.start_checkpoint.update
-            ):
-                raise ValueError(
-                    "resuming from non-epoch based checkpoint is not supported (DataLoading is tricky in this setting)"
-                )
-
         self.tracker = tracker
         self.path_provider = path_provider
 
         self.metric_property_provider = metric_property_provider
 
+        # When resuming from a non-epoch-aligned update with an epoch-based end, convert to update-based end
+        # so that UpdateCounter computes the correct total steps:
+        end_iteration = self.end_checkpoint
+        if (
+            self.start_checkpoint.update is not None
+            and self.start_checkpoint.update % self.updates_per_epoch != 0
+            and end_iteration.epoch is not None
+            and end_iteration.update is None
+        ):
+            end_iteration = TrainingIteration(update=end_iteration.epoch * self.updates_per_epoch)
+
         self.update_counter = UpdateCounter(
             start_iteration=self.start_checkpoint,
-            end_iteration=self.end_checkpoint,
+            end_iteration=end_iteration,
             updates_per_epoch=self.updates_per_epoch,
             effective_batch_size=config.effective_batch_size,
         )
@@ -448,7 +451,9 @@ class BaseTrainer:
             cur_config = c.sampler_config
             configs.append(cur_config)
         kwargs = {}
-        if self.start_checkpoint.epoch != 0:
+        if self.start_checkpoint.update is not None and self.start_checkpoint.update != 0:
+            kwargs["start_update"] = self.start_checkpoint.update
+        elif self.start_checkpoint.epoch is not None and self.start_checkpoint.epoch != 0:
             kwargs["start_epoch"] = self.start_checkpoint.epoch
         train_collator = None
         if not evaluation:
@@ -658,6 +663,13 @@ class BaseTrainer:
             self.logger.debug("initializing dataloader workers")
             data_iter = iter(data_loader)
             self.logger.debug("initialized dataloader workers")
+
+            # Resume: the first epoch has fewer batches because the sampler already skipped past the processed indices:
+            updates_into_epoch = (
+                self.start_checkpoint.update % self.updates_per_epoch if self.start_checkpoint.update else 0
+            )
+            current_train_batches = train_batches_per_epoch - updates_into_epoch * accumulation_steps_total
+
             while True:
                 should_stop = self._run_epoch(
                     model=model,
@@ -665,9 +677,10 @@ class BaseTrainer:
                     batch_size=batch_size,
                     accumulation_steps_total=accumulation_steps_total,
                     data_iter=data_iter,
-                    train_batches_per_epoch=train_batches_per_epoch,
+                    train_batches_per_epoch=current_train_batches,
                     periodic_callbacks=periodic_callbacks,
                 )
+                current_train_batches = train_batches_per_epoch  # full epochs after the first
 
                 if should_stop:
                     break
@@ -844,14 +857,10 @@ class BaseTrainer:
             if early_exit:
                 return True
 
-            # Check for signal interrupt
+            # Check for signal interrupt - return True to exit the training loop gracefully.
+            # after_training callbacks (CheckpointCallback, EmaCallback, etc.) will save checkpoints.
             if self._signal_received:
-                self.logger.info(f"Saving signal interrupt checkpoint at {self.update_counter.cur_iteration}")
-                self.checkpoint_writer.save(
-                    model=model,
-                    checkpoint_tag=f"{self.update_counter.cur_iteration}.signal_interrupt",
-                    trainer=self,
-                )
+                self.logger.info(f"Signal interrupt at {self.update_counter.cur_iteration}, exiting gracefully")
                 return True
 
             # Check end of training
