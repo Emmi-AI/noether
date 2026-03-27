@@ -116,38 +116,30 @@ class AnchoredBranchedUPT(nn.Module):
 
     def _slice_predictions(
         self,
-        surface_predictions: Tensor | None,
-        volume_predictions: Tensor | None,
-        num_surface_anchors: int,
-        num_volume_anchors: int,
+        preds: Tensor,
+        domain_name: str,
+        num_anchors: int,
         use_cached_kv: bool = False,
     ) -> dict[str, Tensor]:
-        """Slice the predictions from the surface and volume decoders into the appropriate fields according to the data specifications. If queries are used, slice the predictions for anchors and queries separately."""
+        """Slice a single domain's raw decoder output into named field predictions.
 
-        def split_anchor_query(preds: Tensor | None, num_anchors: int, domain: str) -> dict[str, Tensor]:
-            if preds is None:
-                return {}
-            if use_cached_kv:  # when using cached KV, all predictions are queries, anchors are not recomputed
-                return {f"query_{domain}": preds}
-            if preds.size(1) == num_anchors:  # all predictions are anchors, no queries
-                return {f"{domain}": preds}
-            return {f"{domain}": preds[:, :num_anchors], f"query_{domain}": preds[:, num_anchors:]}
+        Splits into anchor and query predictions when both are present.
+        Output keys follow the pattern ``{domain}_{field}`` and ``query_{domain}_{field}``.
+        """
+        field_slices = self.data_specs.domains[domain_name].output_dims.field_slices
+        results: dict[str, Tensor] = {}
 
-        # split into anchors and queries
-        surface_chunks = split_anchor_query(surface_predictions, num_surface_anchors, "surface")
-        volume_chunks = split_anchor_query(volume_predictions, num_volume_anchors, "volume")
-
-        predictions: dict[str, Tensor] = {}
-        # surface predictions
-        for prefix, tensor in surface_chunks.items():
-            for name, slc in self.data_specs.domains["surface"].output_dims.field_slices.items():
-                predictions[f"{prefix}_{name}"] = tensor[..., slc]
-
-        # volume predictions
-        for prefix, tensor in volume_chunks.items():
-            for name, slc in self.data_specs.domains["volume"].output_dims.field_slices.items():
-                predictions[f"{prefix}_{name}"] = tensor[..., slc]
-        return predictions
+        if use_cached_kv:
+            for field, slc in field_slices.items():
+                results[f"query_{domain_name}_{field}"] = preds[..., slc]
+        elif preds.size(1) == num_anchors:
+            for field, slc in field_slices.items():
+                results[f"{domain_name}_{field}"] = preds[..., slc]
+        else:
+            for field, slc in field_slices.items():
+                results[f"{domain_name}_{field}"] = preds[:, :num_anchors, slc]
+                results[f"query_{domain_name}_{field}"] = preds[:, num_anchors:, slc]
+        return results
 
     def _prepare_condition(
         self,
@@ -180,6 +172,20 @@ class AnchoredBranchedUPT(nn.Module):
 
         return torch.cat(conditions, dim=-1) if len(conditions) > 1 else conditions[0]
 
+    def _create_token_specs(
+        self,
+        domain_name: str,
+        anchor_position: torch.Tensor | None,
+        query_position: torch.Tensor | None = None,
+        use_cached_kv: bool = False,
+    ) -> list[TokenSpec]:
+        """Create token specifications for a single domain."""
+        anchor_size = None if use_cached_kv else (anchor_position.size(1) if anchor_position is not None else 0)
+        specs = [TokenSpec(name=f"{domain_name}_anchors", size=anchor_size)]
+        if query_position is not None:
+            specs.append(TokenSpec(name=f"{domain_name}_queries", size=query_position.size(1)))
+        return specs
+
     def _create_physics_token_specs(
         self,
         surface_position: torch.Tensor | None,
@@ -189,15 +195,15 @@ class AnchoredBranchedUPT(nn.Module):
         use_cached_kv: bool = False,
     ) -> tuple[list[TokenSpec], list[TokenSpec], list[TokenSpec]]:
         """Create token specifications for the physics model from input tensors."""
-        surface_anchor_size = None if use_cached_kv else surface_position.size(1)  # type: ignore[union-attr]
-        volume_anchor_size = None if use_cached_kv else volume_position.size(1)  # type: ignore[union-attr]
-
-        surface_token_specs = [TokenSpec(name="surface_anchors", size=surface_anchor_size)]
-        if query_surface_position is not None:
-            surface_token_specs.append(TokenSpec(name="surface_queries", size=query_surface_position.size(1)))
-        volume_token_specs = [TokenSpec(name="volume_anchors", size=volume_anchor_size)]
-        if query_volume_position is not None:
-            volume_token_specs.append(TokenSpec(name="volume_queries", size=query_volume_position.size(1)))
+        surface_token_specs = self._create_token_specs(
+            "surface",
+            anchor_position=surface_position,
+            query_position=query_surface_position,
+            use_cached_kv=use_cached_kv,
+        )
+        volume_token_specs = self._create_token_specs(
+            "volume", anchor_position=volume_position, query_position=query_volume_position, use_cached_kv=use_cached_kv
+        )
 
         token_specs: list[TokenSpec] = []
         token_specs.extend(surface_token_specs)
@@ -308,6 +314,42 @@ class AnchoredBranchedUPT(nn.Module):
 
         return x_physics, new_physics_cache
 
+    def _decode_domain(
+        self,
+        x: torch.Tensor,
+        domain_name: str,
+        token_specs: list[TokenSpec],
+        decoder_attn_kwargs: dict[str, Any],
+        condition: torch.Tensor | None,
+        cache: list[LayerCache] | None = None,
+    ) -> tuple[Tensor | None, list[LayerCache]]:
+        """Run decoder blocks + output projection for a single domain.
+
+        Returns:
+            Tuple of (predictions, new_cache). Predictions is None if x has no tokens.
+        """
+        decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks[domain_name])
+        if cache is not None:
+            assert len(cache) in (0, len(decoder_blocks)), (
+                f"{domain_name} cache length ({len(cache)}) must match number of decoder blocks ({len(decoder_blocks)})"
+            )
+
+        new_cache: list[LayerCache] = []
+        if x.size(1) == 0:
+            return None, new_cache
+
+        for i, block in enumerate(decoder_blocks):
+            x, block_cache = block(
+                x,
+                attn_kwargs=dict(token_specs=token_specs, kv_cache=cache[i] if cache else None, **decoder_attn_kwargs),
+                condition=condition,
+            )
+            if block_cache is not None:
+                new_cache.append(block_cache)
+
+        predictions = self.domain_decoder_projections[domain_name](x)
+        return predictions, new_cache
+
     def decoder_blocks_forward(
         self,
         x_physics: torch.Tensor,
@@ -327,17 +369,6 @@ class AnchoredBranchedUPT(nn.Module):
         Returns:
             Tuple of (surface_predictions, volume_predictions, new_surface_cache, new_volume_cache).
         """
-        surface_cache = kv_cache.get("surface", []) if kv_cache else []
-        volume_cache = kv_cache.get("volume", []) if kv_cache else []
-        surface_decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks["surface"])
-        volume_decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks["volume"])
-        assert len(surface_cache) in (0, len(surface_decoder_blocks)), (
-            f"surface_cache length ({len(surface_cache)}) must match number of surface blocks ({len(surface_decoder_blocks)})"
-        )
-        assert len(volume_cache) in (0, len(volume_decoder_blocks)), (
-            f"volume_cache length ({len(volume_cache)}) must match number of volume blocks ({len(volume_decoder_blocks)})"
-        )
-
         x_surface, x_volume = self._split_surface_volume_tensors(x_physics, physics_token_specs)
 
         # Validate sizes
@@ -350,42 +381,22 @@ class AnchoredBranchedUPT(nn.Module):
                 "Volume tensor size does not match volume position size."
             )
 
-        new_surface_cache: list[LayerCache] = []
-        new_volume_cache: list[LayerCache] = []
-
-        # Surface decoder blocks — only process if we have surface tokens
-        surface_predictions: Tensor | None = None
-        if x_surface.size(1) > 0:
-            for i, block in enumerate(surface_decoder_blocks):
-                x_surface, block_cache = block(
-                    x_surface,
-                    attn_kwargs=dict(
-                        token_specs=surface_token_specs,
-                        kv_cache=surface_cache[i] if surface_cache else None,
-                        **surface_decoder_attn_kwargs,
-                    ),
-                    condition=condition,
-                )
-                if block_cache is not None:
-                    new_surface_cache.append(block_cache)
-            surface_predictions = self.domain_decoder_projections["surface"](x_surface)
-
-        # Volume decoder blocks — only process if we have volume tokens
-        volume_predictions: Tensor | None = None
-        if x_volume.size(1) > 0:
-            for i, block in enumerate(volume_decoder_blocks):
-                x_volume, block_cache = block(
-                    x_volume,
-                    attn_kwargs=dict(
-                        token_specs=volume_token_specs,
-                        kv_cache=volume_cache[i] if volume_cache else None,
-                        **volume_decoder_attn_kwargs,
-                    ),
-                    condition=condition,
-                )
-                if block_cache is not None:
-                    new_volume_cache.append(block_cache)
-            volume_predictions = self.domain_decoder_projections["volume"](x_volume)
+        surface_predictions, new_surface_cache = self._decode_domain(
+            x_surface,
+            "surface",
+            surface_token_specs,
+            surface_decoder_attn_kwargs,
+            condition,
+            cache=kv_cache.get("surface", []) if kv_cache else None,
+        )
+        volume_predictions, new_volume_cache = self._decode_domain(
+            x_volume,
+            "volume",
+            volume_token_specs,
+            volume_decoder_attn_kwargs,
+            condition,
+            cache=kv_cache.get("volume", []) if kv_cache else None,
+        )
 
         return surface_predictions, volume_predictions, new_surface_cache, new_volume_cache
 
@@ -581,13 +592,14 @@ class AnchoredBranchedUPT(nn.Module):
             volume_position_all=volume_position_all,
         )
 
-        predictions = self._slice_predictions(
-            surface_predictions=surface_predictions,
-            volume_predictions=volume_predictions,
-            num_surface_anchors=surface_anchor_position.size(1) if surface_anchor_position is not None else 0,
-            num_volume_anchors=volume_anchor_position.size(1) if volume_anchor_position is not None else 0,
-            use_cached_kv=use_cached_kv,
-        )
+        predictions: dict[str, Tensor] = {}
+        for preds, domain_name, anchor_pos in [
+            (surface_predictions, "surface", surface_anchor_position),
+            (volume_predictions, "volume", volume_anchor_position),
+        ]:
+            if preds is not None:
+                num_anchors = anchor_pos.size(1) if anchor_pos is not None else 0
+                predictions.update(self._slice_predictions(preds, domain_name, num_anchors, use_cached_kv))
 
         # Return KV cache: pass through the provided cache, or assemble a new one
         if kv_cache is None:
