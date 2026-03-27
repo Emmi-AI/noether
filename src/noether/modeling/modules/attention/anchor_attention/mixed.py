@@ -96,6 +96,10 @@ class MixedAttention(DotProductAttention):
 
         input_sizes = [spec.size for spec in input_specs]
 
+        def to_token_dict(x: torch.Tensor, split_dim: int = 2) -> dict[str, torch.Tensor]:
+            splits = x.split(input_sizes, dim=split_dim)
+            return {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
+
         if cached_token_names:
             # Cached path: only compute Q (K/V come from cache)
             if not kv_cache:
@@ -106,10 +110,7 @@ class MixedAttention(DotProductAttention):
             if self.use_rope and freqs is not None:
                 q = rope(q, freqs=freqs)
 
-            q_splits = q.split(input_sizes, dim=2)
-            q_dict: dict[str, torch.Tensor] = {
-                spec.name: split for spec, split in zip(input_specs, q_splits, strict=True)
-            }
+            q_dict: dict[str, torch.Tensor] = to_token_dict(q)
             k_dict: dict[str, torch.Tensor] = {}
             v_dict: dict[str, torch.Tensor] = {}
 
@@ -128,11 +129,7 @@ class MixedAttention(DotProductAttention):
             if self.use_rope and freqs is not None:
                 q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
 
-            def to_token_dict(x, split_dim=2):
-                splits = x.split(input_sizes, dim=split_dim)
-                return {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
-
-            q_dict, k_dict, v_dict = [to_token_dict(x) for [q,k,v]]
+            q_dict, k_dict, v_dict = [to_token_dict(x) for x in [q, k, v]]
 
             # Save anchor K/V for future cached inference
             new_cache = {}
@@ -145,8 +142,7 @@ class MixedAttention(DotProductAttention):
         if key_padding_mask is not None:
             if cached_token_names:
                 raise ValueError("key_padding_mask is not supported when using KV cache.")
-            mask_splits = key_padding_mask.split(input_sizes, dim=1)
-            mask_dict = {spec.name: split for spec, split in zip(input_specs, mask_splits, strict=True)}
+            mask_dict = to_token_dict(key_padding_mask, split_dim=1)
 
         # Filter cached tokens out of pattern query lists (they have no Q, only cached K/V)
         if cached_token_names:
