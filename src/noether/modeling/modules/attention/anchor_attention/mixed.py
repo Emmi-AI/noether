@@ -128,13 +128,11 @@ class MixedAttention(DotProductAttention):
             if self.use_rope and freqs is not None:
                 q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
 
-            q_splits = q.split(input_sizes, dim=2)
-            k_splits = k.split(input_sizes, dim=2)
-            v_splits = v.split(input_sizes, dim=2)
+            def to_token_dict(x, split_dim=2):
+                splits = x.split(input_sizes, dim=split_dim)
+                return {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
 
-            q_dict = {spec.name: split for spec, split in zip(input_specs, q_splits, strict=True)}
-            k_dict = {spec.name: split for spec, split in zip(input_specs, k_splits, strict=True)}
-            v_dict = {spec.name: split for spec, split in zip(input_specs, v_splits, strict=True)}
+            q_dict, k_dict, v_dict = [to_token_dict(x) for [q,k,v]]
 
             # Save anchor K/V for future cached inference
             new_cache = {}
