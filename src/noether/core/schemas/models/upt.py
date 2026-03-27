@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import ConfigDict, Field, computed_field, model_validator
 
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
@@ -45,7 +45,7 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
 
     bias_layers: bool = Field(False)
 
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
 
     @computed_field
     def linear_output_projection_config(self) -> "LinearProjectionConfig":
@@ -77,7 +77,11 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     def update_supernode_pooling_config(self) -> "UPTConfig":
         """Inject shared fields into supernode_pooling_config."""
         if self.data_specs.use_physics_features:
-            self.supernode_pooling_config.input_features_dim = self.data_specs.surface_feature_dim_total
+            # TODO: This assumes the encoder only receives surface points. In general, the feature dim should match
+            #  whatever points are fed into supernode pooling, which may be arbitrary named or even multiple domains.
+            surface_spec = self.data_specs.domains.get("surface")
+            if surface_spec and surface_spec.feature_dim:
+                self.supernode_pooling_config.input_features_dim = surface_spec.feature_dim.total_dim
         return self
 
     @computed_field

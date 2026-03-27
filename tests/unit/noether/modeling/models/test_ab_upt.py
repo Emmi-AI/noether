@@ -6,7 +6,7 @@ import pytest
 import torch
 from torch import nn
 
-from noether.core.schemas.dataset import AeroDataSpecs, FieldDimSpec
+from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 from noether.core.schemas.modules.attention import TokenSpec
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
@@ -45,13 +45,19 @@ class FakeGenericModule(nn.Module):
 
 @pytest.fixture
 def real_config():
-    data_specs = AeroDataSpecs(
+    data_specs = ModelDataSpecs(
         position_dim=3,
-        surface_output_dims=FieldDimSpec({"pressure": 1, "shear_stress": 3}),
-        volume_output_dims=FieldDimSpec({"velocity": 3, "pressure": 1}),
         conditioning_dims=FieldDimSpec({"mach_number": 1, "alpha": 1}),
-        surface_feature_dim=FieldDimSpec({"area": 1}),
-        volume_feature_dim=FieldDimSpec({"sdf": 1}),
+        domains={
+            "surface": DomainDataSpec(
+                output_dims=FieldDimSpec({"pressure": 1, "shear_stress": 3}),
+                feature_dim=FieldDimSpec({"area": 1}),
+            ),
+            "volume": DomainDataSpec(
+                output_dims=FieldDimSpec({"velocity": 3, "pressure": 1}),
+                feature_dim=FieldDimSpec({"sdf": 1}),
+            ),
+        },
     )
 
     tf_config = TransformerBlockConfig(
@@ -76,8 +82,7 @@ def real_config():
         hidden_dim=64,
         geometry_depth=2,
         physics_blocks=["perceiver", "self"],
-        num_surface_blocks=2,
-        num_volume_blocks=2,
+        num_domain_decoder_blocks={"surface": 2, "volume": 2},
         transformer_block_config=tf_config,
         supernode_pooling_config=pool_config,
         init_weights="truncnormal002",
@@ -104,8 +109,8 @@ def model(real_config):
         model = AnchoredBranchedUPT(config=real_config)
 
         # Manually set decoders to real Linear layers for correct output shapes:
-        model.surface_decoder = nn.Linear(64, real_config.data_specs.surface_output_dims.total_dim)
-        model.volume_decoder = nn.Linear(64, real_config.data_specs.volume_output_dims.total_dim)
+        model.surface_decoder = nn.Linear(64, real_config.data_specs.domains["surface"].output_dims.total_dim)
+        model.volume_decoder = nn.Linear(64, real_config.data_specs.domains["volume"].output_dims.total_dim)
 
         yield model
 
@@ -176,8 +181,8 @@ class TestAnchoredBranchedUPT:
             volume_anchor_position=volume_anchors,
         )
 
-        expected_surf_keys = {f"surface_{k}" for k in real_config.data_specs.surface_output_dims.keys()}
-        expected_vol_keys = {f"volume_{k}" for k in real_config.data_specs.volume_output_dims.keys()}
+        expected_surf_keys = {f"surface_{k}" for k in real_config.data_specs.domains["surface"].output_dims.keys()}
+        expected_vol_keys = {f"volume_{k}" for k in real_config.data_specs.domains["volume"].output_dims.keys()}
 
         for k in expected_surf_keys:
             assert k in predictions

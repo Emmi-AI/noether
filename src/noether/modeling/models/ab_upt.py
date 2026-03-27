@@ -96,7 +96,10 @@ class AnchoredBranchedUPT(nn.Module):
         surface_blocks_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
         surface_blocks_config.attention_arguments = {"branches": ("surface",)}
         self.surface_decoder_blocks = nn.ModuleList(
-            [TransformerBlock(config=surface_blocks_config) for _ in range(config.num_surface_blocks)],
+            [
+                TransformerBlock(config=surface_blocks_config)
+                for _ in range(config.num_domain_decoder_blocks["surface"])
+            ],
         )
 
         # volume decoder blocks
@@ -104,7 +107,7 @@ class AnchoredBranchedUPT(nn.Module):
         volume_blocks_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
         volume_blocks_config.attention_arguments = {"branches": ("volume",)}
         self.volume_decoder_blocks = nn.ModuleList(
-            [TransformerBlock(config=volume_blocks_config) for _ in range(config.num_volume_blocks)],
+            [TransformerBlock(config=volume_blocks_config) for _ in range(config.num_domain_decoder_blocks["volume"])],
         )
 
         # output projection
@@ -137,12 +140,12 @@ class AnchoredBranchedUPT(nn.Module):
         predictions: dict[str, Tensor] = {}
         # surface predictions
         for prefix, tensor in surface_chunks.items():
-            for name, slc in self.data_specs.surface_output_dims.field_slices.items():
+            for name, slc in self.data_specs.domains["surface"].output_dims.field_slices.items():
                 predictions[f"{prefix}_{name}"] = tensor[..., slc]
 
         # volume predictions
         for prefix, tensor in volume_chunks.items():
-            for name, slc in self.data_specs.volume_output_dims.field_slices.items():  # type: ignore[union-attr]
+            for name, slc in self.data_specs.domains["volume"].output_dims.field_slices.items():
                 predictions[f"{prefix}_{name}"] = tensor[..., slc]
         return predictions
 

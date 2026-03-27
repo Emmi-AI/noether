@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 
 
 class TutorialBaseModelConfig(BaseModel):
@@ -18,5 +18,5 @@ class TutorialBaseModelConfig(BaseModel):
     """Boolean to indicate to use the output projection. Defaults to False."""
     use_bias_layers: bool = Field(True)
     """Boolean to indicate to use bias layers. Defaults to True."""
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     """Data specifications for the model. If None, default data specifications will be used."""

@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 import torch
 
-from noether.core.schemas.dataset import AeroDataSpecs, FieldDimSpec
+from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, UPTConfig
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
@@ -27,16 +27,18 @@ def transformer_config() -> TransformerConfig:
 
 
 @pytest.fixture
-def upt_data_specs() -> AeroDataSpecs:
-    return AeroDataSpecs(
+def upt_data_specs() -> ModelDataSpecs:
+    return ModelDataSpecs(
         position_dim=3,
-        surface_output_dims=FieldDimSpec({"pressure": 1}),
-        volume_output_dims=FieldDimSpec({"density": 1}),
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"pressure": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"density": 1})),
+        },
     )
 
 
 @pytest.fixture
-def upt_config(upt_data_specs: AeroDataSpecs) -> UPTConfig:
+def upt_config(upt_data_specs: ModelDataSpecs) -> UPTConfig:
     return UPTConfig(
         kind="noether.modeling.models.upt.UPT",
         name="test_upt",
@@ -70,24 +72,25 @@ def upt_config(upt_data_specs: AeroDataSpecs) -> UPTConfig:
 
 
 @pytest.fixture
-def ab_upt_data_specs() -> AeroDataSpecs:
-    return AeroDataSpecs(
+def ab_upt_data_specs() -> ModelDataSpecs:
+    return ModelDataSpecs(
         position_dim=3,
-        surface_output_dims=FieldDimSpec({"cp": 1}),
-        volume_output_dims=FieldDimSpec({"temperature": 1}),
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"cp": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"temperature": 1})),
+        },
     )
 
 
 @pytest.fixture
-def ab_upt_config(ab_upt_data_specs: AeroDataSpecs) -> AnchorBranchedUPTConfig:
+def ab_upt_config(ab_upt_data_specs: ModelDataSpecs) -> AnchorBranchedUPTConfig:
     return AnchorBranchedUPTConfig(
         kind="noether.modeling.models.ab_upt.AnchoredBranchedUPT",
         name="test_ab_upt",
         geometry_depth=1,
         hidden_dim=12,
         physics_blocks=["perceiver", "self"],
-        num_surface_blocks=1,
-        num_volume_blocks=1,
+        num_domain_decoder_blocks={"surface": 1, "volume": 1},
         data_specs=ab_upt_data_specs,
         supernode_pooling_config=SupernodePoolingConfig(
             hidden_dim=12,
@@ -105,7 +108,7 @@ def ab_upt_config(ab_upt_data_specs: AeroDataSpecs) -> AnchorBranchedUPTConfig:
 
 @pytest.fixture
 def upt_input_generator(
-    upt_data_specs: AeroDataSpecs,
+    upt_data_specs: ModelDataSpecs,
 ) -> Callable[[int | None], dict[str, Any]]:
     def _generate(seed: int | None = None) -> dict[str, Any]:
         if seed is not None:
@@ -144,7 +147,7 @@ def upt_input_generator(
 
 @pytest.fixture
 def ab_upt_input_generator(
-    ab_upt_data_specs: AeroDataSpecs,
+    ab_upt_data_specs: ModelDataSpecs,
 ) -> Callable[[int | None], dict[str, Any]]:
     def _generate(seed: int | None = None) -> dict[str, Any]:
         if seed is not None:

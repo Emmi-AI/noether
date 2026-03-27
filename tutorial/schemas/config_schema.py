@@ -4,7 +4,7 @@ from pydantic import Field
 
 from noether.core.schemas import ConfigSchema
 from noether.core.schemas.aero import AeroDatasetConfig
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.statistics import AeroStatsSchema
 
 from .models.any_model_config import AnyModelConfig
@@ -12,7 +12,7 @@ from .trainers.automotive_aerodynamics_trainer_config import AutomotiveAerodynam
 
 
 class TutorialConfigSchema(ConfigSchema):
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     model: AnyModelConfig = Field(..., discriminator="name")
     trainer: AutomotiveAerodynamicsCfdTrainerConfig
     datasets: dict[str, AeroDatasetConfig]
