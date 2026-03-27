@@ -136,12 +136,15 @@ class TestAnchoredBranchedUPT:
         res = model._prepare_condition(geometry_cond, inflow_cond)
         assert res.shape == (2, 7)
 
-    def test_create_physics_token_specs(self, model):
+    def test_create_all_token_specs(self, model):
         batch_size = 1
         surface_pos = torch.randn(batch_size, 10, 3)
         volume_pos = torch.randn(batch_size, 20, 3)
 
-        specs, _, _ = model._create_physics_token_specs(surface_pos, volume_pos)
+        specs, per_domain = model._create_all_token_specs(
+            domain_anchor_positions={"surface": surface_pos, "volume": volume_pos},
+            domain_query_positions={},
+        )
 
         names = [s.name for s in specs]
         assert "surface_anchors" in names
@@ -151,7 +154,10 @@ class TestAnchoredBranchedUPT:
         q_surface = torch.randn(batch_size, 5, 3)
         q_volume = torch.randn(batch_size, 5, 3)
 
-        specs, _, _ = model._create_physics_token_specs(surface_pos, volume_pos, q_surface, q_volume)
+        specs, per_domain = model._create_all_token_specs(
+            domain_anchor_positions={"surface": surface_pos, "volume": volume_pos},
+            domain_query_positions={"surface": q_surface, "volume": q_volume},
+        )
 
         names = [s.name for s in specs]
         assert "surface_queries" in names
@@ -215,7 +221,7 @@ class TestAnchoredBranchedUPT:
         assert "query_surface_pressure" in predictions
         assert predictions["query_surface_pressure"].shape == (batch_size, 5, 1)
 
-    def test_split_surface_volume_tensors(self, model):
+    def test_split_domain_tensors(self, model):
         batch_size = 1
         hidden_dim = 10
         x = torch.randn(batch_size, 8, hidden_dim)
@@ -226,12 +232,12 @@ class TestAnchoredBranchedUPT:
             TokenSpec(name="volume_queries", size=2),
         ]
 
-        surface, volume = model._split_surface_volume_tensors(x, specs)
+        result = model._split_domain_tensors(x, specs)
 
-        assert surface.shape == (batch_size, 4, hidden_dim)
-        assert volume.shape == (batch_size, 4, hidden_dim)
-        assert torch.allclose(surface, x[:, 0:4])
-        assert torch.allclose(volume, x[:, 4:8])
+        assert result["surface"].shape == (batch_size, 4, hidden_dim)
+        assert result["volume"].shape == (batch_size, 4, hidden_dim)
+        assert torch.allclose(result["surface"], x[:, 0:4])
+        assert torch.allclose(result["volume"], x[:, 4:8])
 
     def test_forward_xor_anchors_and_cache(self, model):
         """Providing both anchors and kv_cache, or neither, must raise ValueError."""
