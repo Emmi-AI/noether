@@ -857,20 +857,10 @@ class BaseTrainer:
             if early_exit:
                 return True
 
-            # Check for signal interrupt
+            # Check for signal interrupt - return True to exit the training loop gracefully.
+            # after_training callbacks (CheckpointCallback, EmaCallback, etc.) will save checkpoints.
             if self._signal_received:
-                cur = self.update_counter.cur_iteration
-                self.logger.info(f"Saving signal interrupt checkpoint at {cur}")
-                self.checkpoint_writer.save(
-                    model=model,
-                    checkpoint_tag=f"{cur}.signal_interrupt",
-                    trainer=self,
-                )
-                self.checkpoint_writer.save(
-                    model=model,
-                    checkpoint_tag=str(cur),
-                    trainer=self,
-                )
+                self.logger.info(f"Signal interrupt at {self.update_counter.cur_iteration}, exiting gracefully")
                 return True
 
             # Check end of training
