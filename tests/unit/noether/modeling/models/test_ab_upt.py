@@ -109,8 +109,12 @@ def model(real_config):
         model = AnchoredBranchedUPT(config=real_config)
 
         # Manually set decoders to real Linear layers for correct output shapes:
-        model.surface_decoder = nn.Linear(64, real_config.data_specs.domains["surface"].output_dims.total_dim)
-        model.volume_decoder = nn.Linear(64, real_config.data_specs.domains["volume"].output_dims.total_dim)
+        model.domain_decoder_projections["surface"] = nn.Linear(
+            64, real_config.data_specs.domains["surface"].output_dims.total_dim
+        )
+        model.domain_decoder_projections["volume"] = nn.Linear(
+            64, real_config.data_specs.domains["volume"].output_dims.total_dim
+        )
 
         yield model
 

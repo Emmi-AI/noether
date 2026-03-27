@@ -1,7 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import copy
-from typing import Any
+from typing import Any, cast
 
 import torch
 from torch import Tensor, nn
@@ -60,11 +60,15 @@ class AnchoredBranchedUPT(nn.Module):
             [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
         )
 
-        # position bias
-        self.surface_bias = MLP(config=config.bias_mlp_config)  # type: ignore[arg-type]
-        self.volume_bias = MLP(config=config.bias_mlp_config)  # type: ignore[arg-type]
+        # domain names (ordered, determines concatenation order)
+        self.domain_names: list[str] = list(config.data_specs.domains.keys())
 
-        # physics blocks
+        # per-domain position bias
+        self.domain_biases = nn.ModuleDict(
+            {name: MLP(config=config.bias_mlp_config) for name in self.domain_names}  # type: ignore[arg-type]
+        )
+
+        # physics blocks (shared weights, parameterized with N branches)
         self.num_perceivers = 0
         self.physics_blocks = nn.ModuleList()
         self.use_geometry_branch = False
@@ -87,32 +91,28 @@ class AnchoredBranchedUPT(nn.Module):
 
                 block_config = copy.deepcopy(config.transformer_block_config)
                 block_config.attention_constructor = attention_constructor  # type: ignore[assignment]
-                block_config.attention_arguments = {"branches": ("surface", "volume")}
+                block_config.attention_arguments = {"branches": tuple(self.domain_names)}
                 block = TransformerBlock(config=block_config)  # type: ignore[assignment]
                 self.physics_blocks.append(block)  # type: ignore[arg-type]
 
-        # surface decoder blocks
-        surface_blocks_config = copy.deepcopy(config.transformer_block_config)  # check if this work
-        surface_blocks_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
-        surface_blocks_config.attention_arguments = {"branches": ("surface",)}
-        self.surface_decoder_blocks = nn.ModuleList(
-            [
-                TransformerBlock(config=surface_blocks_config)
-                for _ in range(config.num_domain_decoder_blocks["surface"])
-            ],
-        )
+        # per-domain decoder blocks (separate weights per domain)
+        self.domain_decoder_blocks = nn.ModuleDict()
+        for name in self.domain_names:
+            num_blocks = config.num_domain_decoder_blocks[name]
+            decoder_block_config = copy.deepcopy(config.transformer_block_config)
+            decoder_block_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
+            decoder_block_config.attention_arguments = {"branches": (name,)}
+            self.domain_decoder_blocks[name] = nn.ModuleList(
+                [TransformerBlock(config=decoder_block_config) for _ in range(num_blocks)],
+            )
 
-        # volume decoder blocks
-        volume_blocks_config = copy.deepcopy(config.transformer_block_config)  # check if this work
-        volume_blocks_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
-        volume_blocks_config.attention_arguments = {"branches": ("volume",)}
-        self.volume_decoder_blocks = nn.ModuleList(
-            [TransformerBlock(config=volume_blocks_config) for _ in range(config.num_domain_decoder_blocks["volume"])],
+        # per-domain output projection
+        self.domain_decoder_projections = nn.ModuleDict(
+            {
+                name: LinearProjection(config=decoder_config)  # type: ignore[arg-type]
+                for name, decoder_config in config.domain_decoder_configs.items()  # type: ignore[attr-defined]
+            }
         )
-
-        # output projection
-        self.surface_decoder = LinearProjection(config=config.surface_decoder_config)  # type: ignore[arg-type]
-        self.volume_decoder = LinearProjection(config=config.volume_decoder_config)  # type: ignore[arg-type]
 
     def _slice_predictions(
         self,
@@ -273,8 +273,8 @@ class AnchoredBranchedUPT(nn.Module):
         if not (surface_position_all.ndim == 3 and volume_position_all.ndim == 3):
             raise ValueError("surface_position_all and volume_position_all must be 3-dimensional tensors.")
 
-        surface_all_pos_embed = self.surface_bias(self.pos_embed(surface_position_all))
-        volume_all_pos_embed = self.volume_bias(self.pos_embed(volume_position_all))
+        surface_all_pos_embed = self.domain_biases["surface"](self.pos_embed(surface_position_all))
+        volume_all_pos_embed = self.domain_biases["volume"](self.pos_embed(volume_position_all))
         x_physics = torch.concat([surface_all_pos_embed, volume_all_pos_embed], dim=1)
 
         new_physics_cache: list[LayerCache] = []
@@ -329,11 +329,13 @@ class AnchoredBranchedUPT(nn.Module):
         """
         surface_cache = kv_cache.get("surface", []) if kv_cache else []
         volume_cache = kv_cache.get("volume", []) if kv_cache else []
-        assert len(surface_cache) in (0, len(self.surface_decoder_blocks)), (
-            f"surface_cache length ({len(surface_cache)}) must match number of surface blocks ({len(self.surface_decoder_blocks)})"
+        surface_decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks["surface"])
+        volume_decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks["volume"])
+        assert len(surface_cache) in (0, len(surface_decoder_blocks)), (
+            f"surface_cache length ({len(surface_cache)}) must match number of surface blocks ({len(surface_decoder_blocks)})"
         )
-        assert len(volume_cache) in (0, len(self.volume_decoder_blocks)), (
-            f"volume_cache length ({len(volume_cache)}) must match number of volume blocks ({len(self.volume_decoder_blocks)})"
+        assert len(volume_cache) in (0, len(volume_decoder_blocks)), (
+            f"volume_cache length ({len(volume_cache)}) must match number of volume blocks ({len(volume_decoder_blocks)})"
         )
 
         x_surface, x_volume = self._split_surface_volume_tensors(x_physics, physics_token_specs)
@@ -354,7 +356,7 @@ class AnchoredBranchedUPT(nn.Module):
         # Surface decoder blocks — only process if we have surface tokens
         surface_predictions: Tensor | None = None
         if x_surface.size(1) > 0:
-            for i, block in enumerate(self.surface_decoder_blocks):
+            for i, block in enumerate(surface_decoder_blocks):
                 x_surface, block_cache = block(
                     x_surface,
                     attn_kwargs=dict(
@@ -366,12 +368,12 @@ class AnchoredBranchedUPT(nn.Module):
                 )
                 if block_cache is not None:
                     new_surface_cache.append(block_cache)
-            surface_predictions = self.surface_decoder(x_surface)
+            surface_predictions = self.domain_decoder_projections["surface"](x_surface)
 
         # Volume decoder blocks — only process if we have volume tokens
         volume_predictions: Tensor | None = None
         if x_volume.size(1) > 0:
-            for i, block in enumerate(self.volume_decoder_blocks):
+            for i, block in enumerate(volume_decoder_blocks):
                 x_volume, block_cache = block(
                     x_volume,
                     attn_kwargs=dict(
@@ -383,7 +385,7 @@ class AnchoredBranchedUPT(nn.Module):
                 )
                 if block_cache is not None:
                     new_volume_cache.append(block_cache)
-            volume_predictions = self.volume_decoder(x_volume)
+            volume_predictions = self.domain_decoder_projections["volume"](x_volume)
 
         return surface_predictions, volume_predictions, new_surface_cache, new_volume_cache
 
