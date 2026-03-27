@@ -45,14 +45,14 @@ class AeroCFDPreset(DomainPreset):
     pipeline_model_overrides: dict[str, AeroPipelineParams] = {}  # type: ignore[assignment]
 
     forward_properties_map: dict[str, list[str]] = {
-        "noether.modeling.models.wrappers.UPTWrapper": [
+        "noether.modeling.models.aerodynamics.AeroUPT": [
             "surface_position_batch_idx",
             "surface_position_supernode_idx",
             "surface_position",
             "surface_query_position",
             "volume_query_position",
         ],
-        "noether.modeling.models.wrappers.ABUPTWrapper": [
+        "noether.modeling.models.aerodynamics.AeroABUPT": [
             "geometry_position",
             "geometry_supernode_idx",
             "geometry_batch_idx",

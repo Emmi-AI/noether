@@ -22,13 +22,13 @@ class AhmedMLPreset(AeroCFDPreset):
     }
 
     pipeline_model_overrides: dict[str, AeroPipelineParams] = {
-        "noether.modeling.models.wrappers.UPTWrapper": {
+        "noether.modeling.models.aerodynamics.AeroUPT": {
             "num_supernodes": 16384,
             "sample_query_points": False,
             "num_surface_queries": 16384,
             "num_volume_queries": 16384,
         },
-        "noether.modeling.models.wrappers.ABUPTWrapper": {
+        "noether.modeling.models.aerodynamics.AeroABUPT": {
             "num_geometry_supernodes": 1024,
             "num_geometry_points": 16384,
             "num_surface_anchor_points": 512,

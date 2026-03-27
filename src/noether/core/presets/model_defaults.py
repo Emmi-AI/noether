@@ -146,8 +146,8 @@ def _apply_transolver_defaults(_data_specs: Any, model_params: dict[str, Any]) -
 # Registry of model-kind -> callable that applies smart defaults to model_params.
 # Each callable has signature (data_specs, model_params) -> None (mutates model_params in place).
 MODEL_DEFAULTS: dict[str, Any] = {
-    "noether.modeling.models.wrappers.ABUPTWrapper": _apply_abupt_defaults,
-    "noether.modeling.models.wrappers.UPTWrapper": _apply_upt_defaults,
-    "noether.modeling.models.wrappers.TransformerWrapper": _apply_transformer_defaults,
-    "noether.modeling.models.wrappers.TransolverWrapper": _apply_transolver_defaults,
+    "noether.modeling.models.aerodynamics.AeroABUPT": _apply_abupt_defaults,
+    "noether.modeling.models.aerodynamics.AeroUPT": _apply_upt_defaults,
+    "noether.modeling.models.aerodynamics.AeroTransformer": _apply_transformer_defaults,
+    "noether.modeling.models.aerodynamics.AeroTransolver": _apply_transolver_defaults,
 }

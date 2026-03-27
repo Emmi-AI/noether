@@ -25,7 +25,7 @@ def train_abupt(
     """Train AB-UPT using DrivAerNet dataset."""
     preset = DrivAerNetPreset()
     config = preset.build_config(
-        model_kind="noether.modeling.models.wrappers.ABUPTWrapper",
+        model_kind="noether.modeling.models.aerodynamics.AeroABUPT",
         model_params=dict(hidden_dim=192, geometry_depth=6, physics_blocks=["perceiver"] + ["shared", "cross"] * 5),
         trainer_kind=TRAINER_KIND,
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
@@ -48,7 +48,7 @@ def train_upt(
     """Train UPT using DrivAerNet dataset."""
     preset = DrivAerNetPreset()
     config = preset.build_config(
-        model_kind="noether.modeling.models.wrappers.UPTWrapper",
+        model_kind="noether.modeling.models.aerodynamics.AeroUPT",
         model_params=dict(hidden_dim=192, num_heads=3, approximator_depth=12),
         trainer_kind=TRAINER_KIND,
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
@@ -71,7 +71,7 @@ def train_transformer(
     """Train Transformer using DrivAerNet dataset."""
     preset = DrivAerNetPreset()
     config = preset.build_config(
-        model_kind="noether.modeling.models.wrappers.TransformerWrapper",
+        model_kind="noether.modeling.models.aerodynamics.AeroTransformer",
         model_params=dict(hidden_dim=192, depth=12),
         trainer_kind=TRAINER_KIND,
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
@@ -94,7 +94,7 @@ def train_transolver(
     """Train Transolver using DrivAerNet dataset."""
     preset = DrivAerNetPreset()
     config = preset.build_config(
-        model_kind="noether.modeling.models.wrappers.TransolverWrapper",
+        model_kind="noether.modeling.models.aerodynamics.AeroTransolver",
         model_params=dict(hidden_dim=192, depth=12, num_slices=512),
         trainer_kind=TRAINER_KIND,
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
