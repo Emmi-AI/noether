@@ -56,15 +56,12 @@ class AnchoredBranchedUPT(nn.Module):
 
         # geometry
         self.encoder = SupernodePooling(config=config.supernode_pooling_config)  # type: ignore[arg-type]
-
         self.geometry_blocks = nn.ModuleList(
             [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
         )
 
-        # domain names (ordered, determines concatenation order)
+        # domains (e.g. surface, volume)
         self.domain_names: list[str] = list(config.data_specs.domains.keys())
-
-        # per-domain position bias
         self.domain_biases = nn.ModuleDict(
             {name: MLP(config=config.bias_mlp_config) for name in self.domain_names}  # type: ignore[arg-type]
         )
