@@ -119,6 +119,60 @@ def model(real_config):
         yield model
 
 
+@pytest.fixture
+def three_domain_config():
+    """Config with 3 domains: surface, volume, wake."""
+    data_specs = ModelDataSpecs(
+        position_dim=3,
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"pressure": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"velocity": 3})),
+            "wake": DomainDataSpec(output_dims=FieldDimSpec({"turbulence": 2})),
+        },
+    )
+    tf_config = TransformerBlockConfig(
+        hidden_dim=64,
+        num_heads=4,
+        mlp_expansion_factor=4.0,
+        use_bias=True,
+        use_rope=True,
+        dropout=0.0,
+    )
+    pool_config = SupernodePoolingConfig(hidden_dim=64, input_dim=3, radius=0.1, k=None)
+
+    return AnchorBranchedUPTConfig(
+        kind="AnchoredBranchedUPT",
+        name="ab_upt_3domain",
+        hidden_dim=64,
+        geometry_depth=1,
+        physics_blocks=["perceiver", "shared", "cross"],
+        num_domain_decoder_blocks={"surface": 1, "volume": 1, "wake": 1},
+        transformer_block_config=tf_config,
+        supernode_pooling_config=pool_config,
+        init_weights="truncnormal002",
+        data_specs=data_specs,
+    )
+
+
+@pytest.fixture
+def three_domain_model(three_domain_config):
+    with (
+        patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".TransformerBlock", new=FakeTransformerBlock),
+        patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+        patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+    ):
+        model = AnchoredBranchedUPT(config=three_domain_config)
+        for name in model.domain_names:
+            model.domain_decoder_projections[name] = nn.Linear(
+                64, three_domain_config.data_specs.domains[name].output_dims.total_dim
+            )
+        yield model
+
+
 class TestAnchoredBranchedUPT:
     def test_init(self, model, real_config):
         assert isinstance(model, AnchoredBranchedUPT)
@@ -261,3 +315,88 @@ class TestAnchoredBranchedUPT:
         # Neither anchors nor cache → error
         with pytest.raises(ValueError, match="not both"):
             model(query_surface_position=torch.randn(batch_size, 5, 3))
+
+
+class TestThreeDomainABUPT:
+    """Tests for 3+ domain generalization (surface, volume, wake)."""
+
+    def test_init_three_domains(self, three_domain_model):
+        assert three_domain_model.domain_names == ["surface", "volume", "wake"]
+        assert len(three_domain_model.domain_biases) == 3
+        assert len(three_domain_model.domain_decoder_blocks) == 3
+        assert len(three_domain_model.domain_decoder_projections) == 3
+
+    def test_forward_three_domains(self, three_domain_model, three_domain_config):
+        batch_size = 2
+        num_surface, num_volume, num_wake = 40, 30, 20
+
+        three_domain_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        three_domain_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        three_domain_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, kv_cache = three_domain_model(
+            geometry_position=torch.randn(batch_size * 100, 3),
+            geometry_supernode_idx=torch.zeros(batch_size * 100, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(batch_size * 100, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, num_surface, 3),
+                "volume": torch.randn(batch_size, num_volume, 3),
+                "wake": torch.randn(batch_size, num_wake, 3),
+            },
+        )
+
+        # Check all domain prediction keys are present with correct shapes
+        assert predictions["surface_pressure"].shape == (batch_size, num_surface, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, num_volume, 3)
+        assert predictions["wake_turbulence"].shape == (batch_size, num_wake, 2)
+
+    def test_forward_three_domains_with_queries(self, three_domain_model):
+        batch_size = 1
+
+        three_domain_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        three_domain_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        three_domain_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = three_domain_model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 8, 3),
+                "wake": torch.randn(batch_size, 6, 3),
+            },
+            domain_query_positions={
+                "wake": torch.randn(batch_size, 5, 3),
+            },
+        )
+
+        # Anchor predictions
+        assert predictions["surface_pressure"].shape == (batch_size, 10, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, 8, 3)
+        assert predictions["wake_turbulence"].shape == (batch_size, 6, 2)
+        # Query predictions only for wake
+        assert "query_wake_turbulence" in predictions
+        assert predictions["query_wake_turbulence"].shape == (batch_size, 5, 2)
+        assert "query_surface_pressure" not in predictions
+
+    def test_forward_three_domains_flat_kwargs(self, three_domain_model):
+        """Test that flat kwargs parsing works for 3 domains."""
+        batch_size = 1
+
+        three_domain_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        three_domain_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        three_domain_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = three_domain_model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            surface_anchor_position=torch.randn(batch_size, 10, 3),
+            volume_anchor_position=torch.randn(batch_size, 8, 3),
+            wake_anchor_position=torch.randn(batch_size, 6, 3),
+        )
+
+        assert "surface_pressure" in predictions
+        assert "volume_velocity" in predictions
+        assert "wake_turbulence" in predictions
