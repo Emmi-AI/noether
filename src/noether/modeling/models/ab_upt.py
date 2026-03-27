@@ -480,8 +480,12 @@ class AnchoredBranchedUPT(nn.Module):
         else:
             assert surface_anchor_position is not None, "surface_anchor_position is required without KV cache"
             assert volume_anchor_position is not None, "volume_anchor_position is required without KV cache"
-            assert geometry_position is not None, "geometry_position is required without KV cache"
-            assert geometry_supernode_idx is not None, "geometry_supernode_idx is required without KV cache"
+            if self.use_geometry_branch:
+                assert geometry_position is not None, "geometry_position is required when using geometry branch"
+                assert geometry_supernode_idx is not None, (
+                    "geometry_supernode_idx is required when using geometry branch"
+                )
+                assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
 
         condition = self._prepare_condition(geometry_design_parameters, inflow_design_parameters)
 
@@ -534,9 +538,9 @@ class AnchoredBranchedUPT(nn.Module):
         # Geometry branch (skipped in cached mode)
         geometry_encoding = None
         if not use_cached_kv and self.use_geometry_branch:
-            assert geometry_batch_idx is not None, "geometry_batch_idx must be provided when using the geometry branch."
-            assert geometry_position is not None
-            assert geometry_supernode_idx is not None
+            assert geometry_position is not None  # validated above
+            assert geometry_supernode_idx is not None  # validated above
+            assert geometry_batch_idx is not None  # validated above
             geometry_encoding = self.geometry_branch_forward(
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
