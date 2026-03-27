@@ -31,7 +31,7 @@ class CallbackBase:
       it will also store the `state_dict` of all callbacks within the trainer `state_dict`. Once a run is resumed, a
       callback can load its state from the previously stored `state_dict` by overwriting the `load_state_dict`.
 
-    * `resume_from_checkpoint`: If a callback is storing large files onto the disk, it would be redudant to also
+    * `resume_from_checkpoint`: If a callback is storing large files onto the disk, it would be redundant to also
       store them within its `state_dict`. Therefore, this method is called on resume to allow callbacks to load their
       state from files on the disk.
 

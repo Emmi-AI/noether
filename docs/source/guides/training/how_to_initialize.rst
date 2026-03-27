@@ -25,7 +25,7 @@ This naming scheme consists of three main components:
   
   - ``ema_factor=0.9999`` — Exponential Moving Average (EMA) weights
   - If omitted, the filename becomes: ``{model_name}_cp={checkpoint}_model.th``
-  - Model info is defined by the user (for example in a custom callback) and can be anything. Make sure the model info is informative and conistent. 
+  - Model info is defined by the user (for example in a custom callback) and can be anything. Make sure the model info is informative and consistent. 
 
 
 Checkpoint Storage Location

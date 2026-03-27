@@ -38,7 +38,7 @@ def test_point_sampling_precollator(sample_data):
             )
 
 
-def test_point_sampling_preprocesso_one_item(sample_data):
+def test_point_sampling_preprocessor_one_item(sample_data):
     torch.manual_seed(42)
     items = {"input_position"}
     num_points = 2

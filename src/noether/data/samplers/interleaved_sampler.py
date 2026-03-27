@@ -185,7 +185,7 @@ class _TrainingIterationState:
 
 class InterleavedSampler:
     """Sampler to allow efficient dataloading by using a single large dataset containing train/test/... datasets all at
-    once. The sampler will sample from different regionis in the dataset according to its specification. For example,
+    once. The sampler will sample from different regions in the dataset according to its specification. For example,
     consider a training dataset of length 100 and a test dataset of length 10. If the sampler is configured with a
     RandomSampler of the training dataset indices as main_sampler, it will repeatedly iterate over the training
     dataset. If the test dataset is configured with a sequential sampler that should be invoked after every epoch, the
