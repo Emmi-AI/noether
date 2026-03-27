@@ -471,6 +471,9 @@ class AnchoredBranchedUPT(nn.Module):
         if use_cached_kv:
             assert surface_anchor_position is None, "surface_anchor_position must be None when using KV cache"
             assert volume_anchor_position is None, "volume_anchor_position must be None when using KV cache"
+            assert geometry_position is None, "geometry_position must be None when using KV cache"
+            assert geometry_supernode_idx is None, "geometry_supernode_idx must be None when using KV cache"
+            assert geometry_batch_idx is None, "geometry_batch_idx must be None when using KV cache"
             assert query_surface_position is not None or query_volume_position is not None, (
                 "At least one of query_surface_position or query_volume_position must be provided when using KV cache"
             )
