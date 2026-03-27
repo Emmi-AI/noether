@@ -538,9 +538,10 @@ class AnchoredBranchedUPT(nn.Module):
         # Geometry branch (skipped in cached mode)
         geometry_encoding = None
         if not use_cached_kv and self.use_geometry_branch:
-            assert geometry_position is not None  # validated above
-            assert geometry_supernode_idx is not None  # validated above
-            assert geometry_batch_idx is not None  # validated above
+            # has been validated earlier but to exclude None type option for type checker
+            assert geometry_position is not None
+            assert geometry_supernode_idx is not None
+            assert geometry_batch_idx is not None
             geometry_encoding = self.geometry_branch_forward(
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
