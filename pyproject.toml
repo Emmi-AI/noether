@@ -119,6 +119,8 @@ omit = [
     "src/noether/__init__.py",
     "src/noether/_version.py",
     "src/noether/core/scripts/*",
+    "tests/*",
+    "examples/*",
 ]
 exclude_lines = [
     "pragma: no cover",
