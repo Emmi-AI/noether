@@ -144,34 +144,21 @@ class AnchoredBranchedUPT(nn.Module):
 
     def _prepare_condition(
         self,
-        geometry_design_parameters: torch.Tensor | None,
-        inflow_design_parameters: torch.Tensor | None,
+        conditioning_inputs: dict[str, torch.Tensor] | None,
     ) -> torch.Tensor | None:
-        """Prepare the condition tensor by concatenating the appropriate design parameters."""
-        # Ensure design parameters have correct dimensions
-        if (
-            geometry_design_parameters is not None
-            and geometry_design_parameters.ndim == 3
-            and geometry_design_parameters.shape[1] == 1
-        ):
-            geometry_design_parameters = geometry_design_parameters.squeeze(1)
-        if (
-            inflow_design_parameters is not None
-            and inflow_design_parameters.ndim == 3
-            and inflow_design_parameters.shape[1] == 1
-        ):
-            inflow_design_parameters = inflow_design_parameters.squeeze(1)
-
-        conditions = []
-        if geometry_design_parameters is not None:
-            conditions.append(geometry_design_parameters)
-        if inflow_design_parameters is not None:
-            conditions.append(inflow_design_parameters)
-
-        if not conditions:
+        """Prepare the condition tensor by concatenating all conditioning inputs."""
+        if not conditioning_inputs:
             return None
 
-        return torch.cat(conditions, dim=-1) if len(conditions) > 1 else conditions[0]
+        parts = []
+        for v in conditioning_inputs.values():
+            if v.ndim == 3 and v.shape[1] == 1:
+                v = v.squeeze(1)
+            parts.append(v)
+
+        if not parts:
+            return None
+        return torch.cat(parts, dim=-1) if len(parts) > 1 else parts[0]
 
     def _create_token_specs(
         self,
@@ -423,53 +410,89 @@ class AnchoredBranchedUPT(nn.Module):
 
         return geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs
 
+    def _parse_forward_inputs(
+        self,
+        kwargs: dict[str, Any],
+    ) -> tuple[dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
+        """Parse flat kwargs into domain anchor positions, query positions, and conditioning inputs.
+
+        Recognizes ``{domain}_anchor_position`` and ``query_{domain}_position`` patterns
+        for all configured domains. Remaining tensor kwargs are treated as conditioning inputs.
+        """
+        geometry_keys = {"geometry_position", "geometry_supernode_idx", "geometry_batch_idx"}
+        consumed = set(geometry_keys) | {
+            "kv_cache",
+            "domain_anchor_positions",
+            "domain_query_positions",
+            "conditioning_inputs",
+        }
+
+        anchors: dict[str, Tensor] = {}
+        queries: dict[str, Tensor] = {}
+        for name in self.domain_names:
+            anchor_key = f"{name}_anchor_position"
+            if anchor_key in kwargs:
+                anchors[name] = kwargs[anchor_key]
+                consumed.add(anchor_key)
+            query_key = f"query_{name}_position"
+            if query_key in kwargs:
+                queries[name] = kwargs[query_key]
+                consumed.add(query_key)
+
+        conditioning: dict[str, Tensor] = {
+            k: v for k, v in kwargs.items() if k not in consumed and isinstance(v, Tensor)
+        }
+        return anchors, queries, conditioning
+
     def forward(
         self,
         # geometry
         geometry_position: torch.Tensor | None = None,
         geometry_supernode_idx: torch.Tensor | None = None,
         geometry_batch_idx: torch.Tensor | None = None,
-        # anchors
-        surface_anchor_position: torch.Tensor | None = None,
-        volume_anchor_position: torch.Tensor | None = None,
-        # design parameters
-        geometry_design_parameters: torch.Tensor | None = None,
-        inflow_design_parameters: torch.Tensor | None = None,
-        # queries
-        query_surface_position: torch.Tensor | None = None,
-        query_volume_position: torch.Tensor | None = None,
+        # domain positions (new dict API)
+        domain_anchor_positions: dict[str, Tensor] | None = None,
+        domain_query_positions: dict[str, Tensor] | None = None,
+        conditioning_inputs: dict[str, Tensor] | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
+        # flat kwargs (legacy explicit args or pipeline kwargs)
+        **kwargs: Any,
     ) -> tuple[dict[str, Tensor], ModelKVCache]:
         """Forward pass of the AB-UPT model.
 
+        Supports three calling conventions:
+
+        1. **Dict API** (preferred for N domains)::
+
+            model(geometry_position=..., domain_anchor_positions={"surface": ..., "volume": ...})
+
+        2. **Legacy explicit args** (backward compat for surface/volume)::
+
+            model(geometry_position=..., surface_anchor_position=..., volume_anchor_position=...)
+
+        3. **Flat kwargs** (pipeline convention, any ``{domain}_anchor_position`` pattern)::
+
+            model(**batch)  # where batch has keys like "surface_anchor_position", "query_surface_position"
+
         Args:
-            geometry_position: Coordinates of the geometry mesh. Tensor of shape (B * N_geometry, D_pos), sparse tensor
-            geometry_supernode_idx: Indices of the supernodes for the geometry points. Tensor of shape (B * number of super nodes,)
-            geometry_batch_idx: Batch indices for the geometry points. Tensor of shape (B * N_geometry,). If None, assumes all points belong to the same batch.
-            surface_anchor_position: Coordinates of the surface anchor points. Tensor of shape (B, N_surface_anchor, D_pos)
-            volume_anchor_position: Coordinates of the volume anchor points. Tensor of shape (B, N_volume_anchor, D_pos)
-            geometry_design_parameters: Design parameters related to the geometry to condition on. Tensor of shape (B, D_geom)
-            inflow_design_parameters: Design parameters related to the inflow to condition on. Tensor of shape (B, D_inflow).
-            query_surface_position: Coordinates of the query surface points.
-            query_volume_position: Coordinates of the query volume points.
-            kv_cache: KV cache from a previous forward call. When provided, anchor K/V are loaded
-                from the cache and geometry/anchor inputs are not required.
+            geometry_position: Coordinates of the geometry mesh. Tensor of shape (B * N_geometry, D_pos).
+            geometry_supernode_idx: Supernode indices for the geometry points.
+            geometry_batch_idx: Batch indices for the geometry points.
+            domain_anchor_positions: Per-domain anchor positions, e.g. ``{"surface": (B, N, D), "volume": (B, M, D)}``.
+            domain_query_positions: Per-domain query positions (optional).
+            conditioning_inputs: Conditioning tensors, e.g. ``{"geometry_design_parameters": (B, D)}``.
+            kv_cache: KV cache from a previous forward call.
 
         Returns:
-            Tuple of (predictions, kv_cache). Predictions is a dictionary containing the predictions for surface and volume fields, sliced according to the data specifications.
+            Tuple of (predictions, kv_cache).
         """
-        # --- Bridge legacy surface/volume args to domain dicts ---
-        domain_anchor_positions: dict[str, Tensor] = {}
-        domain_query_positions: dict[str, Tensor] = {}
-        if surface_anchor_position is not None:
-            domain_anchor_positions["surface"] = surface_anchor_position
-        if volume_anchor_position is not None:
-            domain_anchor_positions["volume"] = volume_anchor_position
-        if query_surface_position is not None:
-            domain_query_positions["surface"] = query_surface_position
-        if query_volume_position is not None:
-            domain_query_positions["volume"] = query_volume_position
+        # --- Normalize inputs to dict API ---
+        if domain_anchor_positions is not None:
+            domain_query_positions = domain_query_positions or {}
+            conditioning_inputs = conditioning_inputs or {}
+        else:
+            domain_anchor_positions, domain_query_positions, conditioning_inputs = self._parse_forward_inputs(kwargs)
 
         use_cached_kv = kv_cache is not None
         has_anchors = bool(domain_anchor_positions)
@@ -493,7 +516,7 @@ class AnchoredBranchedUPT(nn.Module):
                 )
                 assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
 
-        condition = self._prepare_condition(geometry_design_parameters, inflow_design_parameters)
+        condition = self._prepare_condition(conditioning_inputs)
 
         # Create token specifications
         physics_token_specs, per_domain_token_specs = self._create_all_token_specs(

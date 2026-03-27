@@ -126,14 +126,13 @@ class TestAnchoredBranchedUPT:
         assert len(model.physics_blocks) == 2
 
     def test_prepare_condition(self, model):
-        assert model._prepare_condition(None, None) is None
+        assert model._prepare_condition(None) is None
+        assert model._prepare_condition({}) is None
 
-        geometry_cond = torch.randn(2, 1, 2)
-        res = model._prepare_condition(geometry_cond, None)
+        res = model._prepare_condition({"geometry": torch.randn(2, 1, 2)})
         assert res.shape == (2, 2)
 
-        inflow_cond = torch.randn(2, 5)
-        res = model._prepare_condition(geometry_cond, inflow_cond)
+        res = model._prepare_condition({"geometry": torch.randn(2, 1, 2), "inflow": torch.randn(2, 5)})
         assert res.shape == (2, 7)
 
     def test_create_all_token_specs(self, model):
