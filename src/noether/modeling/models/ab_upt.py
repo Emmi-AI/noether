@@ -39,14 +39,7 @@ class AnchoredBranchedUPT(nn.Module):
             config: Configuration for the AB-UPT model. See :class:`~noether.core.schemas.models.AnchorBranchedUPTConfig` for details."""
         super().__init__()
 
-        # move this to schema?
         self.data_specs = config.data_specs
-        if config.data_specs.conditioning_dims is not None and config.data_specs.conditioning_dims.total_dim > 0:
-            condition_dim = config.data_specs.conditioning_dims.total_dim
-        else:
-            condition_dim = None
-
-        config.transformer_block_config.condition_dim = condition_dim
 
         if not config.transformer_block_config.use_rope:
             raise ValueError("AB-UPT requires RoPE to be enabled in the transformer block config.")
@@ -67,31 +60,26 @@ class AnchoredBranchedUPT(nn.Module):
         )
 
         # physics blocks (shared weights, parameterized with N branches)
-        self.num_perceivers = 0
         self.physics_blocks = nn.ModuleList()
         self.use_geometry_branch = False
+        attention_constructors = {
+            "self": SelfAnchorAttention,
+            "cross": CrossAnchorAttention,
+            "joint": JointAnchorAttention,
+        }
         for block in config.physics_blocks:
             if block == "perceiver":
                 self.use_geometry_branch = True
-                perceiver_block = PerceiverBlock(config=config.perceiver_block_config)  # type: ignore[arg-type]
-                self.physics_blocks.append(perceiver_block)  # type: ignore[arg-type]
-            else:
-                if block == "self":
-                    attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
-                elif block == "cross":
-                    attention_constructor = CrossAnchorAttention  # type: ignore[assignment]
-                elif block == "joint":
-                    attention_constructor = JointAnchorAttention  # type: ignore[assignment]
-                else:
-                    raise NotImplementedError(
-                        f"Unknown physics block type: {block}. Supported: self, cross, joint, perceiver."
-                    )
-
+                self.physics_blocks.append(PerceiverBlock(config=config.perceiver_block_config))  # type: ignore[arg-type]
+            elif block in attention_constructors:
                 block_config = copy.deepcopy(config.transformer_block_config)
-                block_config.attention_constructor = attention_constructor  # type: ignore[assignment]
+                block_config.attention_constructor = attention_constructors[block]  # type: ignore[assignment]
                 block_config.attention_arguments = {"branches": tuple(self.domain_names)}
-                block = TransformerBlock(config=block_config)  # type: ignore[assignment]
-                self.physics_blocks.append(block)  # type: ignore[arg-type]
+                self.physics_blocks.append(TransformerBlock(config=block_config))  # type: ignore[arg-type]
+            else:
+                raise NotImplementedError(
+                    f"Unknown physics block type: {block}. Supported: self, cross, joint, perceiver."
+                )
 
         # per-domain decoder blocks (separate weights per domain)
         self.domain_decoder_blocks = nn.ModuleDict()
@@ -147,14 +135,7 @@ class AnchoredBranchedUPT(nn.Module):
         if not conditioning_inputs:
             return None
 
-        parts = []
-        for v in conditioning_inputs.values():
-            if v.ndim == 3 and v.shape[1] == 1:
-                v = v.squeeze(1)
-            parts.append(v)
-
-        if not parts:
-            return None
+        parts = [v.squeeze(1) if v.ndim == 3 and v.shape[1] == 1 else v for v in conditioning_inputs.values()]
         return torch.cat(parts, dim=-1) if len(parts) > 1 else parts[0]
 
     def _create_token_specs(
@@ -225,14 +206,12 @@ class AnchoredBranchedUPT(nn.Module):
             supernode_idx=geometry_supernode_idx,
             batch_idx=geometry_batch_idx,
         )
-        if len(self.geometry_blocks) > 0:
-            # feed supernodes through some transformer blocks
-            for block in self.geometry_blocks:
-                geometry_encoding, _ = block(
-                    geometry_encoding,
-                    attn_kwargs=geometry_attn_kwargs,
-                    condition=condition,
-                )
+        for block in self.geometry_blocks:
+            geometry_encoding, _ = block(
+                geometry_encoding,
+                attn_kwargs=geometry_attn_kwargs,
+                condition=condition,
+            )
         return geometry_encoding
 
     def physics_blocks_forward(

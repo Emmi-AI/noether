@@ -145,7 +145,7 @@ def three_domain_config():
         name="ab_upt_3domain",
         hidden_dim=64,
         geometry_depth=1,
-        physics_blocks=["perceiver", "shared", "cross"],
+        physics_blocks=["perceiver", "self", "cross"],
         num_domain_decoder_blocks={"surface": 1, "volume": 1, "wake": 1},
         transformer_block_config=tf_config,
         supernode_pooling_config=pool_config,
