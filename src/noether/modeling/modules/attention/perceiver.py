@@ -11,7 +11,12 @@ from noether.modeling.functional.rope import rope
 
 
 class PerceiverAttention(nn.Module):
-    """Perceiver style attention module. This module is similar to a cross-attention modules."""
+    """Perceiver style attention module. This module is similar to a cross-attention module.
+
+    Supports KV caching: when ``kv_cache`` is provided, the projected K/V tensors
+    (with RoPE already applied) are loaded from the cache instead of being recomputed
+    from ``kv``.
+    """
 
     def __init__(
         self,
@@ -44,53 +49,69 @@ class PerceiverAttention(nn.Module):
     def forward(
         self,
         q: torch.Tensor,
-        kv: torch.Tensor,
+        kv: torch.Tensor | None = None,
         attn_mask: torch.Tensor | None = None,
         q_freqs: torch.Tensor | None = None,
         k_freqs: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+        kv_cache: dict[str, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         """Forward function of the PerceiverAttention module.
 
         Args:
             q: Query tensor, shape (batch size, number of points/tokens, hidden_dim).
-            kv: Key/value tensor, shape (batch size, number of latent tokens, hidden_dim).
+            kv: Key/value tensor, shape (batch size, number of latent tokens, kv_dim).
+                Can be ``None`` when ``kv_cache`` is provided.
             attn_mask: When applying causal attention, an attention mask is required. Defaults to None.
             q_freqs: Frequencies for Rotary Positional Embedding (RoPE) of queries. None if use_rope=False.
             k_freqs: Frequencies for Rotary Positional Embedding (RoPE) of keys. None if use_rope=False.
+                Not needed when loading from ``kv_cache`` (RoPE was already applied).
+            kv_cache: Cached K/V tensors from a previous forward pass. Structure:
+                ``{"k": tensor, "v": tensor}``.
+                When provided, ``kv`` and ``k_freqs`` are ignored.
 
         Returns:
-            Returns the output of the perceiver attention module.
+            Tuple of (output, new_kv_cache).
         """
-        # project to attention space
-        kv = self.kv(kv)
+        # Project query
         q = self.q(q)
-
-        # split per head
         q = einops.rearrange(
             q,
             "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
             num_heads=self.num_heads,
             head_dim=self.head_dim,
         )
-        k, v = einops.rearrange(
-            kv,
-            "bs seqlen_kv (two num_heads head_dim) -> two bs num_heads seqlen_kv head_dim",
-            two=2,
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
-        ).unbind(0)
 
+        if kv_cache is not None:
+            # Load K/V from cache (already projected and RoPE-applied)
+            k = kv_cache["k"]
+            v = kv_cache["v"]
+            new_cache = None
+        else:
+            # Project K/V from input
+            if kv is None:
+                raise ValueError("Either kv or kv_cache must be provided.")
+            kv_proj = self.kv(kv)
+            k, v = einops.rearrange(
+                kv_proj,
+                "bs seqlen_kv (two num_heads head_dim) -> two bs num_heads seqlen_kv head_dim",
+                two=2,
+                num_heads=self.num_heads,
+                head_dim=self.head_dim,
+            ).unbind(0)
+
+            if self.use_rope:
+                assert k_freqs is not None
+                k = rope(k, freqs=k_freqs)
+
+            new_cache = {"k": k, "v": v}
+
+        # Apply RoPE to query
         if self.use_rope:
             assert q_freqs is not None
-            assert k_freqs is not None
             q = rope(q, freqs=q_freqs)
-            k = rope(k, freqs=k_freqs)
-        else:
-            assert q_freqs is None
-            assert k_freqs is None
 
         x = F.scaled_dot_product_attention(
             q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
-        return self.proj_dropout(self.proj(x))  # type: ignore[no-any-return]
+        return self.proj_dropout(self.proj(x)), new_cache

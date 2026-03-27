@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import logging
 from collections import defaultdict
 
 import torch
@@ -54,13 +55,33 @@ class EmaCallback(PeriodicCallback):
         self.buffers: dict[str | None, dict[str, torch.Tensor]] = defaultdict(dict)
         self._was_resumed = False
 
+    def _load_ema_checkpoint(self, ema_path, cur_model, model_path, target_factor):
+        """Load EMA state from a checkpoint file."""
+        sd = torch.load(ema_path, weights_only=True)[CheckpointKeys.STATE_DICT]
+        for name, _ in cur_model.named_parameters():
+            self.parameters[(model_path, target_factor)][name] = sd[name]
+        for name, _ in cur_model.named_buffers():
+            self.buffers[model_path][name] = sd[name]
+
+    def _init_ema_from_model(self, cur_model, model_path, target_factor):
+        """Initialize EMA state from the current model weights."""
+        for name, param in cur_model.named_parameters():
+            self.parameters[(model_path, target_factor)][name] = param.clone()
+        for name, buffer in cur_model.named_buffers():
+            self.buffers[model_path][name] = buffer.clone()
+
     def resume_from_checkpoint(self, resumption_paths: PathProvider, model) -> None:
         """Resume EMA state from a checkpoint.
+
+        Tries ``cp=latest`` first (written by periodic saves), then ``cp=last`` (written by
+        ``after_training``, e.g. on graceful signal interrupt). If neither exists, falls back to
+        initializing EMA from the current model weights.
 
         Args:
             resumption_paths: :class:`~noether.core.providers.path.PathProvider` with paths to checkpoint files.
             model: Model to resume EMA state for.
         """
+        logger = logging.getLogger(type(self).__name__)
         for model_path in self.model_paths:
             cur_model = select_with_path(obj=model, path=model_path)
             if not isinstance(cur_model, torch.nn.Module):
@@ -70,14 +91,24 @@ class EmaCallback(PeriodicCallback):
             else:
                 model_name_with_path = f"{model.name}.{model_path}"
             for target_factor in self.target_factors:
-                sd = torch.load(
-                    resumption_paths.checkpoint_path / f"{model_name_with_path}_ema={target_factor}_cp=latest_model.th",
-                    weights_only=True,
-                )[CheckpointKeys.STATE_DICT]
-                for name, _ in cur_model.named_parameters():
-                    self.parameters[(model_path, target_factor)][name] = sd[name]
-                for name, _ in cur_model.named_buffers():
-                    self.buffers[model_path][name] = sd[name]
+                cp_dir = resumption_paths.checkpoint_path
+                candidates = [
+                    cp_dir / f"{model_name_with_path}_ema={target_factor}_cp=latest_model.th",
+                    cp_dir / f"{model_name_with_path}_ema={target_factor}_cp=last_model.th",
+                ]
+                loaded = False
+                for ema_path in candidates:
+                    if ema_path.exists():
+                        logger.info(f"Loading EMA checkpoint from {ema_path.name}")
+                        self._load_ema_checkpoint(ema_path, cur_model, model_path, target_factor)
+                        loaded = True
+                        break
+                if not loaded:
+                    logger.warning(
+                        f"No EMA checkpoint found (tried {[p.name for p in candidates]}), "
+                        "initializing EMA from current model weights"
+                    )
+                    self._init_ema_from_model(cur_model, model_path, target_factor)
         self._was_resumed = True
 
     def before_training(self, **_) -> None:
@@ -90,10 +121,7 @@ class EmaCallback(PeriodicCallback):
             if not isinstance(cur_model, torch.nn.Module):
                 raise ValueError(f"Path {model_path} on model {self.model} did not resolve to a torch.nn.Module")
             for target_factor in self.target_factors:
-                for name, param in cur_model.named_parameters():
-                    self.parameters[(model_path, target_factor)][name] = param.clone()
-            for name, buffer in cur_model.named_buffers():
-                self.buffers[model_path][name] = buffer.clone()
+                self._init_ema_from_model(cur_model, model_path, target_factor)
 
     def apply_ema(self, cur_model, model_path, target_factor):
         """fused in-place implementation"""

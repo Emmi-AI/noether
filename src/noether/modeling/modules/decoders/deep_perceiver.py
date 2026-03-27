@@ -56,6 +56,6 @@ class DeepPerceiverDecoder(nn.Module):
 
         # perceiver
         for block in self.blocks:
-            queries = block(q=queries, kv=kv, attn_kwargs=attn_kwargs, condition=condition)
+            queries, _ = block(q=queries, kv=kv, attn_kwargs=attn_kwargs, condition=condition)
 
         return queries

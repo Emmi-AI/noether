@@ -142,6 +142,7 @@ class DataContainer:
         samples: int | None,
         callback_samplers: list[SamplerIntervalConfig],
         start_epoch: int | None = None,
+        start_update: int | None = None,
         evaluation: bool = False,
         prefetch_factor: int | None = None,
     ) -> torch.utils.data.DataLoader:
@@ -156,8 +157,8 @@ class DataContainer:
             updates: For how many updates does the training last.
             samples: For how many samples does the training last.
             callback_samplers: List of SamplerIntervalConfigs to use for callback sampling.
-            start_epoch: At which epoch to start (used for resuming training). Mutually exclusive with `start_update`
-                and `start_sample`.
+            start_epoch: At which epoch to start (epoch-aligned resume).
+            start_update: At which update to start (supports mid-epoch resume).
 
         Returns:
             DataLoader: Object from which data can be loaded according to the specified configuration.
@@ -171,6 +172,7 @@ class DataContainer:
                 max_updates=updates,
                 max_samples=samples,
                 start_epoch=start_epoch,
+                start_update=start_update,
                 batch_size=batch_size,
                 evaluation=evaluation,
             ),

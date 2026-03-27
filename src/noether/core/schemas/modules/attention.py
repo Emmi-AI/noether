@@ -2,7 +2,7 @@
 
 import abc
 from collections.abc import Sequence
-from typing import Literal, cast
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -133,23 +133,24 @@ class JointAnchorAttentionConfig(MultiBranchAnchorAttentionConfig):
 
 
 class TokenSpec(BaseModel):
-    """Specification for a token type in the attention mechanism."""
+    """Specification for a token type in the attention mechanism.
 
-    name: Literal[
-        "surface_anchors", "volume_anchors", "surface_queries", "volume_queries"
-    ]  # Semantic identifier (e.g., "surface_anchors")
-    size: int = Field(..., ge=0)  # Number of tokens of this type (i.e. the sequence length)
+    When ``size`` is ``None``, the token group is not present in the input tensor and its
+    key/value representations will be loaded from a KV cache instead.
+    """
+
+    name: str  # Semantic identifier (e.g., "surface_anchors")
+    size: int | None = Field(..., ge=0)  # Number of tokens, or None when loaded from KV cache
 
     @classmethod
-    def from_dict(cls, token_dict: dict[str, int]) -> "TokenSpec":
+    def from_dict(cls, token_dict: dict[str, int | None]) -> "TokenSpec":
         """Create TokenSpec from dictionary with single key-value pair."""
         if len(token_dict) != 1:
             raise ValueError("Dictionary must contain exactly one key-value pair")
         name, size = next(iter(token_dict.items()))
-        valid_name = cast("Literal['surface_anchors', 'volume_anchors', 'surface_queries', 'volume_queries']", name)
-        return cls(name=valid_name, size=size)
+        return cls(name=name, size=size)
 
-    def to_dict(self) -> dict[str, int]:
+    def to_dict(self) -> dict[str, int | None]:
         """Convert TokenSpec to dictionary."""
         return {self.name: self.size}
 

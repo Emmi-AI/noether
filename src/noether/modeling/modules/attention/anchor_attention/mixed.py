@@ -2,7 +2,6 @@
 
 from collections import defaultdict
 from collections.abc import Sequence
-from itertools import accumulate
 
 import einops
 import torch
@@ -23,6 +22,10 @@ class MixedAttention(DotProductAttention):
 
     This is achieved by splitting the main Q, K, V tensors based on the token specs
     and then performing separate attention computations for each pattern.
+
+    Supports KV caching for efficient inference. When a ``TokenSpec`` has ``size=None``,
+    its key/value representations are loaded from the provided ``kv_cache`` instead of
+    being computed from the input tensor.
 
     Example input structure (forward pass signature) for implementing Anchor Attention:
 
@@ -59,96 +62,157 @@ class MixedAttention(DotProductAttention):
         attention_patterns: Sequence[AttentionPattern],
         key_padding_mask: torch.Tensor | None = None,
         freqs: torch.Tensor | None = None,
-    ) -> torch.Tensor:
+        kv_cache: dict[str, dict[str, torch.Tensor]] | None = None,
+    ) -> tuple[torch.Tensor, dict[str, dict[str, torch.Tensor]] | None]:
         """Apply mixed attention with flexible token-name-based patterns.
 
         Args:
-            x: Input tensor [batch_size, n_tokens, dim]
-            token_specs: Sequence of token specifications defining the input structure: assumes that the input
-                x is a concatenation of tokens in the order of token_specs.
+            x: Input tensor [batch_size, n_tokens, dim]. Only contains tokens with
+                ``size is not None`` in ``token_specs``.
+            token_specs: Sequence of token specifications defining the input structure.
+                Tokens with ``size=None`` are loaded from ``kv_cache``.
             attention_patterns: Sequence of attention patterns to apply. Each pattern defines which
                 token groups (queries) attend to which other token groups (keys/values).
                 The provided patterns must be exhaustive and non-overlapping. This means every
-                token group defined in `token_specs` must be a query in exactly one pattern.
+                input (non-cached) token group must be a query in exactly one pattern.
             key_padding_mask: Optional boolean mask of shape ``(batch_size, n_tokens)``.
                 ``True`` indicates a real token; ``False`` indicates a padding token that should not be attended to.
                 The mask is sliced per attention pattern to cover only the key/value tokens of that pattern.
-            freqs: RoPE frequencies for positional encoding
+                Not supported when using KV cache (cached tokens are assumed to be valid).
+            freqs: RoPE frequencies for positional encoding (only for input tokens).
+            kv_cache: KV cache from a previous forward pass. Structure:
+                ``{token_name: {"k": tensor, "v": tensor}}``.
+
+        Returns:
+            Tuple of (output, new_kv_cache). Output has the same shape as ``x`` (only input tokens).
+            ``new_kv_cache`` contains anchor K/V for future cached inference, or ``None`` when
+            using cached tokens.
         """
-        self._validate_inputs(x, token_specs, attention_patterns, key_padding_mask, freqs)
+        # Separate input tokens (in x) from cached tokens (loaded from kv_cache)
+        input_specs = [s for s in token_specs if s.size is not None]
+        cached_token_names: set[str] = {s.name for s in token_specs if s.size is None}
 
-        # Initial Projection
-        q, k, v = einops.rearrange(
-            self.qkv(x), "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
-        ).unbind(0)
+        self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs, cached_token_names)
 
-        if self.use_rope and freqs is not None:
-            q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
+        input_sizes = [spec.size for spec in input_specs]
 
-        # Prepare token slices and size map helpers for processing the attention patterns
-        sizes = [spec.size for spec in token_specs]
-        start_indices = [0] + list(accumulate(sizes[:-1]))
-        token_slices = {
-            s.name: slice(start, s.size + start) for s, start in zip(token_specs, start_indices, strict=False)
-        }
-        spec_size_map = {spec.name: spec.size for spec in token_specs}
+        def to_token_dict(x: torch.Tensor, split_dim: int = 2) -> dict[str, torch.Tensor]:
+            splits = x.split(input_sizes, dim=split_dim)
+            return {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
+
+        if cached_token_names:
+            # Cached path: only compute Q (K/V come from cache)
+            if not kv_cache:
+                raise ValueError("Cannot use cached tokens: kv_cache is empty.")
+            q_weight = self.qkv.weight[: self.qkv.weight.shape[0] // 3]
+            q_bias = self.qkv.bias[: self.qkv.bias.shape[0] // 3] if self.qkv.bias is not None else None
+            q = einops.rearrange(F.linear(x, q_weight, q_bias), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+            if self.use_rope and freqs is not None:
+                q = rope(q, freqs=freqs)
+
+            q_dict: dict[str, torch.Tensor] = to_token_dict(q)
+            k_dict: dict[str, torch.Tensor] = {}
+            v_dict: dict[str, torch.Tensor] = {}
+
+            for name in cached_token_names:
+                if name not in kv_cache:
+                    raise ValueError(f"Cached token '{name}' not found in kv_cache.")
+                k_dict[name] = kv_cache[name]["k"]
+                v_dict[name] = kv_cache[name]["v"]
+
+            new_cache = None
+        else:
+            # Normal path: compute Q, K, V for all input tokens
+            q, k, v = einops.rearrange(
+                self.qkv(x), "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
+            ).unbind(0)
+            if self.use_rope and freqs is not None:
+                q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
+
+            q_dict, k_dict, v_dict = [to_token_dict(x) for x in [q, k, v]]
+
+            # Save anchor K/V for future cached inference
+            new_cache = {}
+            for spec in input_specs:
+                if "_anchor" in spec.name:
+                    new_cache[spec.name] = {"k": k_dict[spec.name], "v": v_dict[spec.name]}
+
+        # Build key_padding_mask dict (if provided)
+        mask_dict: dict[str, torch.Tensor] | None = None
+        if key_padding_mask is not None:
+            if cached_token_names:
+                raise ValueError("key_padding_mask is not supported when using KV cache.")
+            mask_dict = to_token_dict(key_padding_mask, split_dim=1)
+
+        # Filter cached tokens out of pattern query lists (they have no Q, only cached K/V)
+        if cached_token_names:
+            attention_patterns = [
+                AttentionPattern(
+                    query_tokens=[name for name in p.query_tokens if name not in cached_token_names],
+                    key_value_tokens=p.key_value_tokens,
+                )
+                for p in attention_patterns
+                if any(name not in cached_token_names for name in p.query_tokens)
+            ]
 
         token_outputs = self._process_pattern_batched(
             attention_patterns=attention_patterns,
-            q=q,
-            k=k,
-            v=v,
-            token_slices=token_slices,  # type: ignore[arg-type]
-            spec_size_map=spec_size_map,  # type: ignore[arg-type]
-            key_padding_mask=key_padding_mask,
+            q_dict=q_dict,
+            k_dict=k_dict,
+            v_dict=v_dict,
+            mask_dict=mask_dict,
         )
 
-        # Final assembly and output projection
-        output_parts = [token_outputs[spec.name] for spec in token_specs]
+        # Assemble output (only input tokens, in original order)
+        output_parts = [token_outputs[spec.name] for spec in input_specs]
         output = torch.cat(output_parts, dim=2)
         output = einops.rearrange(output, "bs nh s hd -> bs s (nh hd)")
-        return self.proj(output)  # type: ignore[no-any-return]
+        return self.proj(output), new_cache
 
     def _process_pattern_batched(
         self,
         attention_patterns: Sequence[AttentionPattern],
-        q: torch.Tensor,
-        k: torch.Tensor,
-        v: torch.Tensor,
-        token_slices: dict[str, slice],
-        spec_size_map: dict[str, int],
-        key_padding_mask: torch.Tensor | None = None,
+        q_dict: dict[str, torch.Tensor],
+        k_dict: dict[str, torch.Tensor],
+        v_dict: dict[str, torch.Tensor],
+        mask_dict: dict[str, torch.Tensor] | None = None,
     ) -> dict[str, torch.Tensor]:
-        """Efficient mixed attention implementation that batches compatible (same shape) attention patterns."""
-        # Group compatible patterns
+        """Efficient mixed attention implementation that batches compatible (same shape) attention patterns.
+
+        Args:
+            attention_patterns: Attention patterns to process.
+            q_dict: Per-token-name query tensors ``(bs, nh, seq, hd)`` (only input tokens).
+            k_dict: Per-token-name key tensors ``(bs, nh, seq, hd)`` (input + cached tokens).
+            v_dict: Per-token-name value tensors ``(bs, nh, seq, hd)`` (input + cached tokens).
+            mask_dict: Per-token-name key padding masks, or None.
+        """
+        # Group compatible patterns (same query_len, kv_len)
         pattern_groups: dict[tuple[int, int], list[AttentionPattern]] = defaultdict(list)
         for pattern in attention_patterns:
-            query_len = sum(spec_size_map[name] for name in pattern.query_tokens)
-            kv_len = sum(spec_size_map[name] for name in pattern.key_value_tokens)
+            query_len = sum(q_dict[name].shape[2] for name in pattern.query_tokens)
+            kv_len = sum(k_dict[name].shape[2] for name in pattern.key_value_tokens)
             pattern_groups[(query_len, kv_len)].append(pattern)
 
         token_outputs: dict[str, torch.Tensor] = {}
         for group in pattern_groups.values():
-            # Concatenate sequences for each attention pattern (e.g. multiple queries and multiple keys & values)
-            qs = [torch.cat([q[:, :, token_slices[name]] for name in patt.query_tokens], dim=2) for patt in group]
-            ks = [torch.cat([k[:, :, token_slices[name]] for name in patt.key_value_tokens], dim=2) for patt in group]
-            vs = [torch.cat([v[:, :, token_slices[name]] for name in patt.key_value_tokens], dim=2) for patt in group]
-            # Concatenate independent attentions on batch dimension to process in parallel (e.g. multiple modalities)
+            qs = [torch.cat([q_dict[name] for name in patt.query_tokens], dim=2) for patt in group]
+            ks = [torch.cat([k_dict[name] for name in patt.key_value_tokens], dim=2) for patt in group]
+            vs = [torch.cat([v_dict[name] for name in patt.key_value_tokens], dim=2) for patt in group]
+
+            # Batch independent attentions on the batch dimension
             q_batched = torch.cat(qs, dim=0)
             k_batched = torch.cat(ks, dim=0)
             v_batched = torch.cat(vs, dim=0)
 
             attn_mask_batched: torch.Tensor | None = None
-            if key_padding_mask is not None:
+            if mask_dict is not None:
                 # For each pattern, slice the mask to its KV tokens (mirroring how k/v are assembled).
                 # Shape (batch, 1, 1, kv_len): the 1s let PyTorch broadcast the same key mask
                 # across all heads and all query positions (every query sees the same valid key set).
                 per_pattern_masks = []
                 for patt in group:
-                    kv_bool = torch.cat(
-                        [key_padding_mask[:, token_slices[name]] for name in patt.key_value_tokens], dim=1
-                    )
-                    per_pattern_masks.append(kv_bool[:, None, None, :])  # (batch, 1, 1, kv_len)
+                    kv_bool = torch.cat([mask_dict[name] for name in patt.key_value_tokens], dim=1)
+                    per_pattern_masks.append(kv_bool[:, None, None, :])
                 attn_mask_batched = torch.cat(per_pattern_masks, dim=0)
 
             output_batched = F.scaled_dot_product_attention(
@@ -162,7 +226,7 @@ class MixedAttention(DotProductAttention):
             output_chunks = torch.chunk(output_batched, chunks=len(group), dim=0)
             # Undo the sequence concatenation
             for pattern, pattern_output in zip(group, output_chunks, strict=True):
-                query_sizes = [spec_size_map[name] for name in pattern.query_tokens]
+                query_sizes = [q_dict[name].shape[2] for name in pattern.query_tokens]
                 for name, chunk in zip(pattern.query_tokens, pattern_output.split(query_sizes, dim=2), strict=True):
                     token_outputs[name] = chunk
         return token_outputs
@@ -170,12 +234,15 @@ class MixedAttention(DotProductAttention):
     def _validate_inputs(
         self,
         x: torch.Tensor,
-        token_specs: Sequence[TokenSpec],
+        input_specs: Sequence[TokenSpec],
         attention_patterns: Sequence[AttentionPattern],
         key_padding_mask: torch.Tensor | None,
         freqs: torch.Tensor | None,
+        cached_token_names: set[str] | None = None,
     ) -> None:
         """Validate input consistency."""
+        cached_token_names = cached_token_names or set()
+
         if not self.use_rope == (freqs is not None):
             raise ValueError(f"RoPE usage mismatch: self.use_rope = {self.use_rope}, but freqs is {freqs is not None}")
 
@@ -191,11 +258,13 @@ class MixedAttention(DotProductAttention):
                     f"key_padding_mask n_tokens dim ({key_padding_mask.shape[1]}) must match x sequence length ({x.shape[1]})."
                 )
 
-        expected_size = sum(spec.size for spec in token_specs)
+        # Validate that input specs match the tensor size
+        expected_size = sum(spec.size for spec in input_specs if spec.size is not None)
         if expected_size != x.shape[1]:
             raise ValueError(f"Token specs total size {expected_size} != tensor size {x.shape[1]}")
 
-        spec_names = {spec.name for spec in token_specs}
+        # Validate attention patterns cover all token specs
+        spec_names = {spec.name for spec in input_specs} | cached_token_names
         query_names_from_patterns = [name for pattern in attention_patterns for name in pattern.query_tokens]
         if len(query_names_from_patterns) != len(set(query_names_from_patterns)):
             raise ValueError("A token type cannot be a query in multiple attention patterns.")

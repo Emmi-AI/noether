@@ -1,9 +1,14 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import copy
+from typing import Any
 
 import torch
 from torch import Tensor, nn
+
+KVPair = dict[str, Tensor]  # {"k": tensor, "v": tensor}
+LayerCache = dict[str, KVPair]  # {token_name: KVPair}
+ModelKVCache = dict[str, list[LayerCache]]  # {branch_name: [LayerCache, ...]}
 
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 from noether.core.schemas.modules.attention import TokenSpec
@@ -108,41 +113,37 @@ class AnchoredBranchedUPT(nn.Module):
 
     def _slice_predictions(
         self,
-        surface_predictions: Tensor,
-        volume_predictions: Tensor,
-        surface_position: Tensor,
-        volume_position: Tensor,
-        use_surface_queries: bool,
-        use_volume_queries: bool,
+        surface_predictions: Tensor | None,
+        volume_predictions: Tensor | None,
+        num_surface_anchors: int,
+        num_volume_anchors: int,
+        use_cached_kv: bool = False,
     ) -> dict[str, Tensor]:
         """Slice the predictions from the surface and volume decoders into the appropriate fields according to the data specifications. If queries are used, slice the predictions for anchors and queries separately."""
 
+        def split_anchor_query(preds: Tensor | None, num_anchors: int, domain: str) -> dict[str, Tensor]:
+            if preds is None:
+                return {}
+            if use_cached_kv:  # when using cached KV, all predictions are queries, anchors are not recomputed
+                return {f"query_{domain}": preds}
+            if preds.size(1) == num_anchors:  # all predictions are anchors, no queries
+                return {f"{domain}": preds}
+            return {f"{domain}": preds[:, :num_anchors], f"query_{domain}": preds[:, num_anchors:]}
+
+        # split into anchors and queries
+        surface_chunks = split_anchor_query(surface_predictions, num_surface_anchors, "surface")
+        volume_chunks = split_anchor_query(volume_predictions, num_volume_anchors, "volume")
+
         predictions: dict[str, Tensor] = {}
-        assert surface_predictions.size(-1) == sum(dict(self.data_specs.surface_output_dims).values())
+        # surface predictions
+        for prefix, tensor in surface_chunks.items():
+            for name, slc in self.data_specs.surface_output_dims.field_slices.items():
+                predictions[f"{prefix}_{name}"] = tensor[..., slc]
 
-        surface_field_slices = self.data_specs.surface_output_dims.field_slices  # e.g. {pressure: slice(0, 1), ...}
-        if not use_surface_queries:
-            for k in dict(self.data_specs.surface_output_dims).keys():
-                predictions[f"surface_{k}"] = surface_predictions[..., surface_field_slices[k]]
-        else:
-            x_anchor_surface = surface_predictions[:, : surface_position.size(1)]
-            x_query_surface = surface_predictions[:, surface_position.size(1) :]
-            for k in dict(self.data_specs.surface_output_dims).keys():
-                predictions[f"surface_{k}"] = x_anchor_surface[..., surface_field_slices[k]]
-                predictions[f"query_surface_{k}"] = x_query_surface[..., surface_field_slices[k]]
-
-        assert volume_predictions.size(-1) == self.data_specs.volume_output_dims.total_dim  # type: ignore[union-attr]
-        # e.g. {pressure: slice(0, 1), ...}:
-        volume_field_slices = self.data_specs.volume_output_dims.field_slices  # type: ignore[union-attr]
-        if not use_volume_queries:
-            for k in volume_field_slices:
-                predictions[f"volume_{k}"] = volume_predictions[..., volume_field_slices[k]]
-        else:
-            x_anchor_volume = volume_predictions[:, : volume_position.size(1)]
-            x_query_volume = volume_predictions[:, volume_position.size(1) :]
-            for k in volume_field_slices:
-                predictions[f"volume_{k}"] = x_anchor_volume[..., volume_field_slices[k]]
-                predictions[f"query_volume_{k}"] = x_query_volume[..., volume_field_slices[k]]
+        # volume predictions
+        for prefix, tensor in volume_chunks.items():
+            for name, slc in self.data_specs.volume_output_dims.field_slices.items():  # type: ignore[union-attr]
+                predictions[f"{prefix}_{name}"] = tensor[..., slc]
         return predictions
 
     def _prepare_condition(
@@ -178,41 +179,46 @@ class AnchoredBranchedUPT(nn.Module):
 
     def _create_physics_token_specs(
         self,
-        surface_position: torch.Tensor,
-        volume_position: torch.Tensor,
+        surface_position: torch.Tensor | None,
+        volume_position: torch.Tensor | None,
         query_surface_position: torch.Tensor | None = None,
         query_volume_position: torch.Tensor | None = None,
+        use_cached_kv: bool = False,
     ) -> tuple[list[TokenSpec], list[TokenSpec], list[TokenSpec]]:
         """Create token specifications for the physics model from input tensors."""
-        token_specs: list[TokenSpec] = []
+        surface_anchor_size = None if use_cached_kv else surface_position.size(1)  # type: ignore[union-attr]
+        volume_anchor_size = None if use_cached_kv else volume_position.size(1)  # type: ignore[union-attr]
 
-        surface_token_specs = [TokenSpec(name="surface_anchors", size=surface_position.size(1))]
+        surface_token_specs = [TokenSpec(name="surface_anchors", size=surface_anchor_size)]
         if query_surface_position is not None:
             surface_token_specs.append(TokenSpec(name="surface_queries", size=query_surface_position.size(1)))
-        volume_token_specs = [TokenSpec(name="volume_anchors", size=volume_position.size(1))]
+        volume_token_specs = [TokenSpec(name="volume_anchors", size=volume_anchor_size)]
         if query_volume_position is not None:
             volume_token_specs.append(TokenSpec(name="volume_queries", size=query_volume_position.size(1)))
 
+        token_specs: list[TokenSpec] = []
         token_specs.extend(surface_token_specs)
         token_specs.extend(volume_token_specs)
 
         return token_specs, surface_token_specs, volume_token_specs
 
-    def _split_tensor_by_token_specs(
-        self, tensor: torch.Tensor, token_specs: list[TokenSpec]
-    ) -> dict[str, torch.Tensor]:
-        """Split tensor according to token specifications."""
-        sizes = [spec.size for spec in token_specs]
-        splits = tensor.split(sizes, dim=1)
-        return {spec.name: split for spec, split in zip(token_specs, splits, strict=True)}
-
     def _split_surface_volume_tensors(
         self, tensor: torch.Tensor, token_specs: list[TokenSpec]
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Split tensor into surface and volume parts using slicing (no contiguity assumption)."""
-        token_dict = self._split_tensor_by_token_specs(tensor, token_specs)
-        surface_tensors = [token_dict[spec.name] for spec in token_specs if spec.name.startswith("surface")]
-        volume_tensors = [token_dict[spec.name] for spec in token_specs if spec.name.startswith("volume")]
+        """Split tensor into surface and volume parts. Cached tokens (size=None) are not in the tensor and are skipped."""
+        input_specs = [spec for spec in token_specs if spec.size is not None]
+        splits = tensor.split([spec.size for spec in input_specs], dim=1)
+        token_dict = {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
+
+        surface_tensors = [token_dict[spec.name] for spec in input_specs if spec.name.startswith("surface")]
+        volume_tensors = [token_dict[spec.name] for spec in input_specs if spec.name.startswith("volume")]
+
+        # Handle empty tensors (when using cache, might have no surface or volume queries)
+        if not surface_tensors:
+            surface_tensors = [torch.empty(tensor.size(0), 0, tensor.size(2), device=tensor.device)]
+        if not volume_tensors:
+            volume_tensors = [torch.empty(tensor.size(0), 0, tensor.size(2), device=tensor.device)]
+
         return torch.cat(surface_tensors, dim=1), torch.cat(volume_tensors, dim=1)
 
     def geometry_branch_forward(
@@ -234,7 +240,7 @@ class AnchoredBranchedUPT(nn.Module):
         if len(self.geometry_blocks) > 0:
             # feed supernodes through some transformer blocks
             for block in self.geometry_blocks:
-                geometry_encoding = block(
+                geometry_encoding, _ = block(
                     geometry_encoding,
                     attn_kwargs=geometry_attn_kwargs,
                     condition=condition,
@@ -247,14 +253,19 @@ class AnchoredBranchedUPT(nn.Module):
         volume_position_all: torch.Tensor,
         geometry_encoding: torch.Tensor | None,
         physics_token_specs: list[TokenSpec],
-        physics_attn_kwargs: dict[str, torch.Tensor],
-        physics_perceiver_attn_kwargs: dict[str, torch.Tensor],
+        physics_attn_kwargs: dict[str, Any],
+        physics_perceiver_attn_kwargs: dict[str, Any],
         condition: torch.Tensor | None,
-    ) -> torch.Tensor:
+        kv_cache: ModelKVCache | None = None,
+    ) -> tuple[torch.Tensor, list[LayerCache]]:
         """
         Forward pass through the physics blocks of the model.
-        Allthough in the AB-UPT paper we only have a perceiver block a the first block, it is possible to have more perceiver blocks in the physics blocks that attend to the geometry encoding.
+        Although in the AB-UPT paper we only have a perceiver block as the first block, it is possible to have more perceiver blocks in the physics blocks that attend to the geometry encoding.
         """
+        physics_cache = kv_cache.get("physics", []) if kv_cache else []
+        assert len(physics_cache) in (0, len(self.physics_blocks)), (
+            f"physics_cache length ({len(physics_cache)}) must match number of physics blocks ({len(self.physics_blocks)})"
+        )
 
         if not (surface_position_all.ndim == 3 and volume_position_all.ndim == 3):
             raise ValueError("surface_position_all and volume_position_all must be 3-dimensional tensors.")
@@ -263,24 +274,36 @@ class AnchoredBranchedUPT(nn.Module):
         volume_all_pos_embed = self.volume_bias(self.pos_embed(volume_position_all))
         x_physics = torch.concat([surface_all_pos_embed, volume_all_pos_embed], dim=1)
 
-        for block in self.physics_blocks:
+        new_physics_cache: list[LayerCache] = []
+        for i, block in enumerate(self.physics_blocks):
             if isinstance(block, TransformerBlock):
-                x_physics = block(
+                x_physics, block_cache = block(
                     x_physics,
-                    attn_kwargs=dict(token_specs=physics_token_specs, **physics_attn_kwargs),
+                    attn_kwargs=dict(
+                        token_specs=physics_token_specs,
+                        kv_cache=physics_cache[i] if physics_cache else None,
+                        **physics_attn_kwargs,
+                    ),
                     condition=condition,
                 )
+                if block_cache is not None:
+                    new_physics_cache.append(block_cache)
             elif isinstance(block, PerceiverBlock):
-                x_physics = block(
+                x_physics, block_cache = block(
                     q=x_physics,
                     kv=geometry_encoding,
-                    attn_kwargs=physics_perceiver_attn_kwargs,
+                    attn_kwargs=dict(
+                        kv_cache=physics_cache[i]["geometry_encoding"] if physics_cache else None,
+                        **physics_perceiver_attn_kwargs,
+                    ),
                     condition=condition,
                 )
+                if block_cache is not None:
+                    new_physics_cache.append({"geometry_encoding": block_cache})
             else:
                 raise NotImplementedError(f"Unknown block type: {type(block)}")
 
-        return x_physics
+        return x_physics, new_physics_cache
 
     def decoder_blocks_forward(
         self,
@@ -288,70 +311,107 @@ class AnchoredBranchedUPT(nn.Module):
         physics_token_specs: list[TokenSpec],
         surface_token_specs: list[TokenSpec],
         volume_token_specs: list[TokenSpec],
-        surface_position_all: torch.Tensor,
-        volume_position_all: torch.Tensor,
-        surface_decoder_attn_kwargs: dict[str, torch.Tensor],
-        volume_decoder_attn_kwargs: dict[str, torch.Tensor],
+        surface_decoder_attn_kwargs: dict[str, Any],
+        volume_decoder_attn_kwargs: dict[str, Any],
         condition: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+        kv_cache: ModelKVCache | None = None,
+        surface_position_all: torch.Tensor | None = None,
+        volume_position_all: torch.Tensor | None = None,
+    ) -> tuple[Tensor | None, Tensor | None, list[LayerCache], list[LayerCache]]:
         """
-        Forward pass through the decoder blocks of the model. We have a separate decoder for surface and volume tokens.
+        Forward pass through the decoder blocks of the model.
+
+        Returns:
+            Tuple of (surface_predictions, volume_predictions, new_surface_cache, new_volume_cache).
         """
-        # Split physics output into surface and volume tokens
+        surface_cache = kv_cache.get("surface", []) if kv_cache else []
+        volume_cache = kv_cache.get("volume", []) if kv_cache else []
+        assert len(surface_cache) in (0, len(self.surface_decoder_blocks)), (
+            f"surface_cache length ({len(surface_cache)}) must match number of surface blocks ({len(self.surface_decoder_blocks)})"
+        )
+        assert len(volume_cache) in (0, len(self.volume_decoder_blocks)), (
+            f"volume_cache length ({len(volume_cache)}) must match number of volume blocks ({len(self.volume_decoder_blocks)})"
+        )
 
         x_surface, x_volume = self._split_surface_volume_tensors(x_physics, physics_token_specs)
-        if not (x_surface.size(1) == surface_position_all.size(1)):
-            raise ValueError("Surface tensor size does not match surface position size.")
-        if not (x_volume.size(1) == volume_position_all.size(1)):
-            raise ValueError("Volume tensor size does not match volume position size.")
 
-        # surface decoder blocks
-        for block in self.surface_decoder_blocks:
-            x_surface = block(
-                x_surface,
-                attn_kwargs=dict(token_specs=surface_token_specs, **surface_decoder_attn_kwargs),
-                condition=condition,
+        # Validate sizes
+        if surface_position_all is not None:
+            assert x_surface.size(1) == surface_position_all.size(1), (
+                "Surface tensor size does not match surface position size."
             )
-        surface_predictions = self.surface_decoder(x_surface)
-
-        # volume decoder blocks
-        for block in self.volume_decoder_blocks:
-            x_volume = block(
-                x_volume,
-                attn_kwargs=dict(token_specs=volume_token_specs, **volume_decoder_attn_kwargs),
-                condition=condition,
+        if volume_position_all is not None:
+            assert x_volume.size(1) == volume_position_all.size(1), (
+                "Volume tensor size does not match volume position size."
             )
-        volume_predictions = self.volume_decoder(x_volume)
 
-        return surface_predictions, volume_predictions
+        new_surface_cache: list[LayerCache] = []
+        new_volume_cache: list[LayerCache] = []
+
+        # Surface decoder blocks — only process if we have surface tokens
+        surface_predictions: Tensor | None = None
+        if x_surface.size(1) > 0:
+            for i, block in enumerate(self.surface_decoder_blocks):
+                x_surface, block_cache = block(
+                    x_surface,
+                    attn_kwargs=dict(
+                        token_specs=surface_token_specs,
+                        kv_cache=surface_cache[i] if surface_cache else None,
+                        **surface_decoder_attn_kwargs,
+                    ),
+                    condition=condition,
+                )
+                if block_cache is not None:
+                    new_surface_cache.append(block_cache)
+            surface_predictions = self.surface_decoder(x_surface)
+
+        # Volume decoder blocks — only process if we have volume tokens
+        volume_predictions: Tensor | None = None
+        if x_volume.size(1) > 0:
+            for i, block in enumerate(self.volume_decoder_blocks):
+                x_volume, block_cache = block(
+                    x_volume,
+                    attn_kwargs=dict(
+                        token_specs=volume_token_specs,
+                        kv_cache=volume_cache[i] if volume_cache else None,
+                        **volume_decoder_attn_kwargs,
+                    ),
+                    condition=condition,
+                )
+                if block_cache is not None:
+                    new_volume_cache.append(block_cache)
+            volume_predictions = self.volume_decoder(x_volume)
+
+        return surface_predictions, volume_predictions, new_surface_cache, new_volume_cache
 
     def create_rope_frequencies(
         self,
-        geometry_position: torch.Tensor,
-        geometry_supernode_idx: torch.Tensor,
         surface_position_all: torch.Tensor,
         volume_position_all: torch.Tensor,
-    ):
+        geometry_position: torch.Tensor | None = None,
+        geometry_supernode_idx: torch.Tensor | None = None,
+    ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
         """Create RoPE frequencies for all relevant positions."""
-
-        # kwargs for the rope attention
         batch_size = surface_position_all.size(0)
-        geometry_attn_kwargs = {}
-        surface_decoder_attn_kwargs = {}
-        volume_decoder_attn_kwargs = {}
-        physics_perceiver_attn_kwargs = {}
-        physics_attn_kwargs = {}
+        geometry_attn_kwargs: dict[str, Any] = {}
+        surface_decoder_attn_kwargs: dict[str, Any] = {}
+        volume_decoder_attn_kwargs: dict[str, Any] = {}
+        physics_perceiver_attn_kwargs: dict[str, Any] = {}
+        physics_attn_kwargs: dict[str, Any] = {}
 
-        geometry_rope = self.rope(geometry_position[geometry_supernode_idx].unsqueeze(0))
-        channels = geometry_rope.shape[-1]
-        geometry_rope = geometry_rope.view(batch_size, -1, channels)
-        geometry_attn_kwargs["freqs"] = geometry_rope
+        if geometry_position is not None and geometry_supernode_idx is not None:
+            geometry_rope = self.rope(geometry_position[geometry_supernode_idx].unsqueeze(0))
+            channels = geometry_rope.shape[-1]
+            geometry_rope = geometry_rope.view(batch_size, -1, channels)
+            geometry_attn_kwargs["freqs"] = geometry_rope
+            physics_perceiver_attn_kwargs["k_freqs"] = geometry_rope
+
         rope_surface_all = self.rope(surface_position_all)
         rope_volume_all = self.rope(volume_position_all)
         rope_all = torch.concat([rope_surface_all, rope_volume_all], dim=1)
+
         surface_decoder_attn_kwargs["freqs"] = rope_surface_all
         physics_perceiver_attn_kwargs["q_freqs"] = rope_all
-        physics_perceiver_attn_kwargs["k_freqs"] = geometry_rope
         volume_decoder_attn_kwargs["freqs"] = rope_volume_all
         physics_attn_kwargs["freqs"] = rope_all
 
@@ -366,19 +426,21 @@ class AnchoredBranchedUPT(nn.Module):
     def forward(
         self,
         # geometry
-        geometry_position: torch.Tensor,
-        geometry_supernode_idx: torch.Tensor,
-        geometry_batch_idx: torch.Tensor | None,
+        geometry_position: torch.Tensor | None = None,
+        geometry_supernode_idx: torch.Tensor | None = None,
+        geometry_batch_idx: torch.Tensor | None = None,
         # anchors
-        surface_anchor_position: torch.Tensor,
-        volume_anchor_position: torch.Tensor,
+        surface_anchor_position: torch.Tensor | None = None,
+        volume_anchor_position: torch.Tensor | None = None,
         # design parameters
         geometry_design_parameters: torch.Tensor | None = None,
         inflow_design_parameters: torch.Tensor | None = None,
         # queries
         query_surface_position: torch.Tensor | None = None,
         query_volume_position: torch.Tensor | None = None,
-    ) -> dict[str, torch.Tensor]:
+        # KV cache
+        kv_cache: ModelKVCache | None = None,
+    ) -> tuple[dict[str, Tensor], ModelKVCache]:
         """Forward pass of the AB-UPT model.
 
         Args:
@@ -391,10 +453,40 @@ class AnchoredBranchedUPT(nn.Module):
             inflow_design_parameters: Design parameters related to the inflow to condition on. Tensor of shape (B, D_inflow).
             query_surface_position: Coordinates of the query surface points.
             query_volume_position: Coordinates of the query volume points.
+            kv_cache: KV cache from a previous forward call. When provided, anchor K/V are loaded
+                from the cache and geometry/anchor inputs are not required.
 
         Returns:
-            dict[str, torch.Tensor]: A dictionary containing the predictions for surface and volume fields, sliced according to the data specifications.
+            Tuple of (predictions, kv_cache). Predictions is a dictionary containing the predictions for surface and volume fields, sliced according to the data specifications.
         """
+        if (surface_anchor_position is None) == (kv_cache is None):
+            raise ValueError(
+                "Either surface_anchor_position must be provided (no KV cache) or kv_cache must be provided "
+                "(with KV cache), but not both."
+            )
+
+        use_cached_kv = kv_cache is not None
+
+        # Validate arguments for each mode
+        if use_cached_kv:
+            assert surface_anchor_position is None, "surface_anchor_position must be None when using KV cache"
+            assert volume_anchor_position is None, "volume_anchor_position must be None when using KV cache"
+            assert geometry_position is None, "geometry_position must be None when using KV cache"
+            assert geometry_supernode_idx is None, "geometry_supernode_idx must be None when using KV cache"
+            assert geometry_batch_idx is None, "geometry_batch_idx must be None when using KV cache"
+            assert query_surface_position is not None or query_volume_position is not None, (
+                "At least one of query_surface_position or query_volume_position must be provided when using KV cache"
+            )
+        else:
+            assert surface_anchor_position is not None, "surface_anchor_position is required without KV cache"
+            assert volume_anchor_position is not None, "volume_anchor_position is required without KV cache"
+            if self.use_geometry_branch:
+                assert geometry_position is not None, "geometry_position is required when using geometry branch"
+                assert geometry_supernode_idx is not None, (
+                    "geometry_supernode_idx is required when using geometry branch"
+                )
+                assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
+
         condition = self._prepare_condition(geometry_design_parameters, inflow_design_parameters)
 
         # Create token specifications
@@ -403,20 +495,33 @@ class AnchoredBranchedUPT(nn.Module):
             volume_position=volume_anchor_position,
             query_surface_position=query_surface_position,
             query_volume_position=query_volume_position,
+            use_cached_kv=use_cached_kv,
         )
 
-        # Concatenate positions for surface and volume
-        if query_surface_position is None:
-            surface_position_all = surface_anchor_position
+        # Concatenate anchor + query positions (or just queries when using cached KV)
+        if surface_anchor_position is None or query_surface_position is None:
+            surface_position_all = (
+                surface_anchor_position if surface_anchor_position is not None else query_surface_position
+            )
         else:
             surface_position_all = torch.concat([surface_anchor_position, query_surface_position], dim=1)
 
-        if query_volume_position is None:
-            volume_position_all = volume_anchor_position
+        if volume_anchor_position is None or query_volume_position is None:
+            volume_position_all = (
+                volume_anchor_position if volume_anchor_position is not None else query_volume_position
+            )
         else:
             volume_position_all = torch.concat([volume_anchor_position, query_volume_position], dim=1)
 
-        # rope frequencies
+        # Ensure both are tensors (empty placeholder if a branch has no tokens)
+        if surface_position_all is None:
+            assert volume_position_all is not None
+            surface_position_all = volume_position_all[:, :0]
+        if volume_position_all is None:
+            assert surface_position_all is not None
+            volume_position_all = surface_position_all[:, :0]
+
+        # RoPE frequencies
         (
             geometry_attn_kwargs,
             surface_decoder_attn_kwargs,
@@ -424,12 +529,19 @@ class AnchoredBranchedUPT(nn.Module):
             physics_perceiver_attn_kwargs,
             physics_attn_kwargs,
         ) = self.create_rope_frequencies(
-            geometry_position, geometry_supernode_idx, surface_position_all, volume_position_all
+            surface_position_all=surface_position_all,
+            volume_position_all=volume_position_all,
+            geometry_position=geometry_position,
+            geometry_supernode_idx=geometry_supernode_idx,
         )
-        # geometry branch
+
+        # Geometry branch (skipped in cached mode)
         geometry_encoding = None
-        if self.use_geometry_branch:
-            assert geometry_batch_idx is not None, "geometry_batch_idx must be provided when using the geometry branch."
+        if not use_cached_kv and self.use_geometry_branch:
+            # has been validated earlier but need to exclude None type option for type checker
+            assert geometry_position is not None
+            assert geometry_supernode_idx is not None
+            assert geometry_batch_idx is not None
             geometry_encoding = self.geometry_branch_forward(
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
@@ -438,8 +550,8 @@ class AnchoredBranchedUPT(nn.Module):
                 geometry_attn_kwargs=geometry_attn_kwargs,
             )
 
-        # physics blocks
-        x_physics = self.physics_blocks_forward(
+        # Physics blocks
+        x_physics, new_physics_cache = self.physics_blocks_forward(
             surface_position_all=surface_position_all,
             volume_position_all=volume_position_all,
             geometry_encoding=geometry_encoding,
@@ -447,26 +559,41 @@ class AnchoredBranchedUPT(nn.Module):
             physics_attn_kwargs=physics_attn_kwargs,
             physics_perceiver_attn_kwargs=physics_perceiver_attn_kwargs,
             condition=condition,
+            kv_cache=kv_cache,
         )
-        # decoder blocks
-        surface_predictions, volume_predictions = self.decoder_blocks_forward(
+
+        # Decoder blocks
+        surface_predictions, volume_predictions, new_surface_cache, new_volume_cache = self.decoder_blocks_forward(
             x_physics=x_physics,
             physics_token_specs=physics_token_specs,
             surface_token_specs=surface_token_specs,
             volume_token_specs=volume_token_specs,
-            surface_position_all=surface_position_all,
-            volume_position_all=volume_position_all,
             surface_decoder_attn_kwargs=surface_decoder_attn_kwargs,
             volume_decoder_attn_kwargs=volume_decoder_attn_kwargs,
             condition=condition,
+            kv_cache=kv_cache,
+            surface_position_all=surface_position_all,
+            volume_position_all=volume_position_all,
         )
 
         predictions = self._slice_predictions(
             surface_predictions=surface_predictions,
             volume_predictions=volume_predictions,
-            surface_position=surface_anchor_position,
-            volume_position=volume_anchor_position,
-            use_surface_queries=query_surface_position is not None,
-            use_volume_queries=query_volume_position is not None,
+            num_surface_anchors=surface_anchor_position.size(1) if surface_anchor_position is not None else 0,
+            num_volume_anchors=volume_anchor_position.size(1) if volume_anchor_position is not None else 0,
+            use_cached_kv=use_cached_kv,
         )
-        return predictions
+
+        # Return KV cache: pass through the provided cache, or assemble a new one
+        if kv_cache is None:
+            new_kv_cache: ModelKVCache = {}
+            if new_physics_cache:
+                new_kv_cache["physics"] = new_physics_cache
+            if new_surface_cache:
+                new_kv_cache["surface"] = new_surface_cache
+            if new_volume_cache:
+                new_kv_cache["volume"] = new_volume_cache
+        else:
+            new_kv_cache = kv_cache
+
+        return predictions, new_kv_cache

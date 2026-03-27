@@ -22,7 +22,7 @@ class FakePerceiverBlock(nn.Module):
 
     def forward(self, *args, **kwargs):
         # Return 'q' if provided (Perceiver logic), else first arg
-        return kwargs.get("q", args[0] if args else None)
+        return kwargs.get("q", args[0] if args else None), None
 
 
 class FakeTransformerBlock(nn.Module):
@@ -30,7 +30,7 @@ class FakeTransformerBlock(nn.Module):
         super().__init__()
 
     def forward(self, x, *args, **kwargs):
-        return x
+        return x, None
 
 
 class FakeGenericModule(nn.Module):
@@ -168,7 +168,7 @@ class TestAnchoredBranchedUPT:
         model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
         model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
 
-        predictions = model(
+        predictions, kv_cache = model(
             geometry_position=geometry_pos,
             geometry_supernode_idx=geometry_idx,
             geometry_batch_idx=geometry_batch,
@@ -194,7 +194,7 @@ class TestAnchoredBranchedUPT:
         model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
         model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
 
-        predictions = model(
+        predictions, _ = model(
             geometry_position=torch.randn(10, 3),
             geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
             geometry_batch_idx=torch.zeros(10, dtype=torch.long),
@@ -223,3 +223,27 @@ class TestAnchoredBranchedUPT:
         assert volume.shape == (batch_size, 4, hidden_dim)
         assert torch.allclose(surface, x[:, 0:4])
         assert torch.allclose(volume, x[:, 4:8])
+
+    def test_forward_xor_anchors_and_cache(self, model):
+        """Providing both anchors and kv_cache, or neither, must raise ValueError."""
+        batch_size = 1
+        model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        anchors_kwargs = dict(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            surface_anchor_position=torch.randn(batch_size, 10, 3),
+            volume_anchor_position=torch.randn(batch_size, 10, 3),
+        )
+
+        # Both anchors and cache → error
+        fake_cache = {"physics": [], "surface": [], "volume": []}
+        with pytest.raises(ValueError, match="not both"):
+            model(**anchors_kwargs, kv_cache=fake_cache)
+
+        # Neither anchors nor cache → error
+        with pytest.raises(ValueError, match="not both"):
+            model(query_surface_position=torch.randn(batch_size, 5, 3))
