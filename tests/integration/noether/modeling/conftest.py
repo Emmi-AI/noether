@@ -186,10 +186,14 @@ def ab_upt_input_generator(
             "geometry_position": geometry_position,
             "geometry_supernode_idx": geometry_supernode_idx,
             "geometry_batch_idx": geometry_batch_idx,
-            "surface_anchor_position": surface_anchor_position,
-            "volume_anchor_position": volume_anchor_position,
-            "query_surface_position": surface_anchor_position,  # Explicitly reusing anchor positions as query positions
-            "query_volume_position": volume_anchor_position,  # Explicitly reusing anchor positions as query positions
+            "domain_anchor_positions": {
+                "surface": surface_anchor_position,
+                "volume": volume_anchor_position,
+            },
+            "domain_query_positions": {
+                "surface": surface_anchor_position,  # Explicitly reusing anchor positions as query positions
+                "volume": volume_anchor_position,
+            },
         }
 
     return _generate

@@ -240,8 +240,7 @@ class TestAnchoredBranchedUPT:
             geometry_position=geometry_pos,
             geometry_supernode_idx=geometry_idx,
             geometry_batch_idx=geometry_batch,
-            surface_anchor_position=surface_anchors,
-            volume_anchor_position=volume_anchors,
+            domain_anchor_positions={"surface": surface_anchors, "volume": volume_anchors},
         )
 
         expected_surf_keys = {f"surface_{k}" for k in real_config.data_specs.domains["surface"].output_dims.keys()}
@@ -266,9 +265,11 @@ class TestAnchoredBranchedUPT:
             geometry_position=torch.randn(10, 3),
             geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
             geometry_batch_idx=torch.zeros(10, dtype=torch.long),
-            surface_anchor_position=torch.randn(batch_size, 10, 3),
-            volume_anchor_position=torch.randn(batch_size, 10, 3),
-            query_surface_position=torch.randn(batch_size, 5, 3),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 10, 3),
+            },
+            domain_query_positions={"surface": torch.randn(batch_size, 5, 3)},
         )
 
         assert "query_surface_pressure" in predictions
@@ -303,8 +304,10 @@ class TestAnchoredBranchedUPT:
             geometry_position=torch.randn(10, 3),
             geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
             geometry_batch_idx=torch.zeros(10, dtype=torch.long),
-            surface_anchor_position=torch.randn(batch_size, 10, 3),
-            volume_anchor_position=torch.randn(batch_size, 10, 3),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 10, 3),
+            },
         )
 
         # Both anchors and cache → error
@@ -314,7 +317,7 @@ class TestAnchoredBranchedUPT:
 
         # Neither anchors nor cache → error
         with pytest.raises(ValueError, match="not both"):
-            model(query_surface_position=torch.randn(batch_size, 5, 3))
+            model(domain_query_positions={"surface": torch.randn(batch_size, 5, 3)})
 
 
 class TestThreeDomainABUPT:
@@ -379,24 +382,3 @@ class TestThreeDomainABUPT:
         assert "query_wake_turbulence" in predictions
         assert predictions["query_wake_turbulence"].shape == (batch_size, 5, 2)
         assert "query_surface_pressure" not in predictions
-
-    def test_forward_three_domains_flat_kwargs(self, three_domain_model):
-        """Test that flat kwargs parsing works for 3 domains."""
-        batch_size = 1
-
-        three_domain_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
-        three_domain_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
-        three_domain_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
-
-        predictions, _ = three_domain_model(
-            geometry_position=torch.randn(10, 3),
-            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
-            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
-            surface_anchor_position=torch.randn(batch_size, 10, 3),
-            volume_anchor_position=torch.randn(batch_size, 8, 3),
-            wake_anchor_position=torch.randn(batch_size, 6, 3),
-        )
-
-        assert "surface_pressure" in predictions
-        assert "volume_velocity" in predictions
-        assert "wake_turbulence" in predictions

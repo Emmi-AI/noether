@@ -386,70 +386,31 @@ class AnchoredBranchedUPT(nn.Module):
 
         return geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs
 
-    def _parse_forward_inputs(
-        self,
-        kwargs: dict[str, Any],
-    ) -> tuple[dict[str, Tensor], dict[str, Tensor], dict[str, Tensor]]:
-        """Parse flat kwargs into domain anchor positions, query positions, and conditioning inputs.
-
-        Recognizes ``{domain}_anchor_position`` and ``query_{domain}_position`` patterns
-        for all configured domains. Remaining tensor kwargs are treated as conditioning inputs.
-        """
-        geometry_keys = {"geometry_position", "geometry_supernode_idx", "geometry_batch_idx"}
-        consumed = set(geometry_keys) | {
-            "kv_cache",
-            "domain_anchor_positions",
-            "domain_query_positions",
-            "conditioning_inputs",
-        }
-
-        anchors: dict[str, Tensor] = {}
-        queries: dict[str, Tensor] = {}
-        for name in self.domain_names:
-            anchor_key = f"{name}_anchor_position"
-            if anchor_key in kwargs:
-                anchors[name] = kwargs[anchor_key]
-                consumed.add(anchor_key)
-            query_key = f"query_{name}_position"
-            if query_key in kwargs:
-                queries[name] = kwargs[query_key]
-                consumed.add(query_key)
-
-        conditioning: dict[str, Tensor] = {
-            k: v for k, v in kwargs.items() if k not in consumed and isinstance(v, Tensor)
-        }
-        return anchors, queries, conditioning
-
     def forward(
         self,
         # geometry
         geometry_position: torch.Tensor | None = None,
         geometry_supernode_idx: torch.Tensor | None = None,
         geometry_batch_idx: torch.Tensor | None = None,
-        # domain positions (new dict API)
+        # domain positions
         domain_anchor_positions: dict[str, Tensor] | None = None,
         domain_query_positions: dict[str, Tensor] | None = None,
         conditioning_inputs: dict[str, Tensor] | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
-        # flat kwargs (legacy explicit args or pipeline kwargs)
-        **kwargs: Any,
     ) -> tuple[dict[str, Tensor], ModelKVCache]:
         """Forward pass of the AB-UPT model.
 
-        Supports three calling conventions:
+        Example::
 
-        1. **Dict API** (preferred for N domains)::
-
-            model(geometry_position=..., domain_anchor_positions={"surface": ..., "volume": ...})
-
-        2. **Legacy explicit args** (backward compat for surface/volume)::
-
-            model(geometry_position=..., surface_anchor_position=..., volume_anchor_position=...)
-
-        3. **Flat kwargs** (pipeline convention, any ``{domain}_anchor_position`` pattern)::
-
-            model(**batch)  # where batch has keys like "surface_anchor_position", "query_surface_position"
+            model(
+                geometry_position=...,
+                geometry_supernode_idx=...,
+                geometry_batch_idx=...,
+                domain_anchor_positions={"surface": surface_pos, "volume": volume_pos},
+                domain_query_positions={"surface": query_pos},
+                conditioning_inputs={"geometry_design_parameters": design_params},
+            )
 
         Args:
             geometry_position: Coordinates of the geometry mesh. Tensor of shape (B * N_geometry, D_pos).
@@ -463,12 +424,8 @@ class AnchoredBranchedUPT(nn.Module):
         Returns:
             Tuple of (predictions, kv_cache).
         """
-        # --- Normalize inputs to dict API ---
-        if domain_anchor_positions is not None:
-            domain_query_positions = domain_query_positions or {}
-            conditioning_inputs = conditioning_inputs or {}
-        else:
-            domain_anchor_positions, domain_query_positions, conditioning_inputs = self._parse_forward_inputs(kwargs)
+        domain_anchor_positions = domain_anchor_positions or {}
+        domain_query_positions = domain_query_positions or {}
 
         use_cached_kv = kv_cache is not None
         has_anchors = bool(domain_anchor_positions)

@@ -43,36 +43,31 @@ class ABUPT(BaseModel):
         query_surface_position: torch.Tensor | None = None,
         query_volume_position: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
-        """Forward pass of the AB-UPT model.
+        """Forward pass of the AB-UPT model."""
 
-        Args:
-            geometry_position: Positions of the geometry points.
-            geometry_supernode_idx: Indices of the supernodes for the geometry points.
-            geometry_batch_idx: Batch indices for the geometry points.
-            surface_position: Positions of the surface anchor points.
-            volume_position: Positions of the volume anchor points.
-            geometry_design_parameters: Design parameters for the geometry.
-            inflow_design_parameters: Design parameters for the inflow.
-            query_surface_position: Query positions for the surface points.
-            query_volume_position: Query positions for the volume points.
+        # Build domain dicts from the legacy surface/volume args
+        domain_anchor_positions = {
+            "surface": surface_anchor_position,
+            "volume": volume_anchor_position,
+        }
+        domain_query_positions: dict[str, torch.Tensor] = {}
+        if query_surface_position is not None:
+            domain_query_positions["surface"] = query_surface_position
+        if query_volume_position is not None:
+            domain_query_positions["volume"] = query_volume_position
 
-        Returns:
-            A dictionary containing the model outputs.
-        """
+        conditioning_inputs: dict[str, torch.Tensor] = {}
+        if geometry_design_parameters is not None:
+            conditioning_inputs["geometry_design_parameters"] = geometry_design_parameters
+        if inflow_design_parameters is not None:
+            conditioning_inputs["inflow_design_parameters"] = inflow_design_parameters
 
         out, _ = self.ab_upt(
-            # geometry
             geometry_position=geometry_position,
             geometry_supernode_idx=geometry_supernode_idx,
             geometry_batch_idx=geometry_batch_idx,
-            # anchors
-            surface_anchor_position=surface_anchor_position,
-            volume_anchor_position=volume_anchor_position,
-            # design parameters
-            geometry_design_parameters=geometry_design_parameters,
-            inflow_design_parameters=inflow_design_parameters,
-            # queries
-            query_surface_position=query_surface_position,
-            query_volume_position=query_volume_position,
+            domain_anchor_positions=domain_anchor_positions,
+            domain_query_positions=domain_query_positions or None,
+            conditioning_inputs=conditioning_inputs or None,
         )
         return out
