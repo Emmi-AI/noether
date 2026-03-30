@@ -84,7 +84,7 @@ class UPT(BaseModel):
         )
         # approximator blocks
         for block in self.upt_backbone.approximator_blocks:
-            x = block(x, attn_kwargs=encoder_attn_kwargs)
+            x, _ = block(x, attn_kwargs=encoder_attn_kwargs)
 
         queries = self.upt_backbone.pos_embed(query_position)
 

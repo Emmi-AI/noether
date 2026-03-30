@@ -107,7 +107,7 @@ def test_perceiver_block_forward():
     kv = torch.randn(batch_size, seq_len, kv_dim)
     attn_mask = torch.ones(seq_len, seq_len)
 
-    output = block(q, kv, attn_kwargs=dict(attn_mask=attn_mask))
+    output, _ = block(q, kv, attn_kwargs=dict(attn_mask=attn_mask))
 
     assert output.shape == q.shape
     assert not torch.isnan(output).any()
@@ -130,7 +130,7 @@ def test_perceiver_block_conditioned():
     seq_len = 5
     x = torch.randn(batch_size, seq_len, dim)
     condition = torch.randn(batch_size, condition_dim)
-    dit_output = block(q=x, kv=x, condition=condition)
+    dit_output, _ = block(q=x, kv=x, condition=condition)
     assert dit_output.shape == x.shape, "Output shape mismatch"
     assert torch.allclose(DIT_PERCEIVER_BLOCK, dit_output, atol=1e-4)
 
@@ -154,7 +154,7 @@ def test_perceiver_block_conditioned_with_kv_dim():
     q = torch.randn(batch_size, seq_len, hidden_dim)
     kv = torch.randn(batch_size, seq_len, kv_dim)
     condition = torch.randn(batch_size, condition_dim)
-    output = block(q=q, kv=kv, condition=condition)
+    output, _ = block(q=q, kv=kv, condition=condition)
     assert output.shape == q.shape, "Output shape mismatch"
     assert not torch.isnan(output).any(), "Output contains NaN"
 

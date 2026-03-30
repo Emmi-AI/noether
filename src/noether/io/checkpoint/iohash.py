@@ -20,7 +20,7 @@ def atomic_write_and_hash(
     progress: Any = None,
 ) -> str | None:
     """Write bytes chunks to a temp file in the same directory as destination_path.
-    Additionally, updates SHA-256 while writing , then atomically replaces destination_path.
+    Additionally, updates SHA-256 while writing, then atomically replaces destination_path.
 
     Args:
         destination_path: Destination path.

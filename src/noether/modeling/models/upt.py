@@ -108,7 +108,7 @@ class UPT(nn.Module):
         )
         # approximator blocks
         for block in self.approximator_blocks:
-            x = block(x, attn_kwargs=encoder_attn_kwargs)
+            x, _ = block(x, attn_kwargs=encoder_attn_kwargs)
 
         queries = self.pos_embed(query_position)
 

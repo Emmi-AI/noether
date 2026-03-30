@@ -28,7 +28,7 @@ Create a virtual environment with relevant packages:
 
 .. note::
 
-    If you installing Noether for the first time, the initial build time can take a few minutes. In the follow-up
+    If you are installing Noether for the first time, the initial build time can take a few minutes. In the follow-up
     setups ``uv`` will cache packages and installation will be much faster.
 
 Verifying the Installation

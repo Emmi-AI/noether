@@ -73,9 +73,10 @@ def test_perceiver_attention_forward_shape():
 
     q = torch.randn(2, 10, dim)
     kv = torch.randn(2, 10, kv_dim)
-    output = attention(q, kv)
+    output, new_cache = attention(q, kv)
 
     assert torch.allclose(output, PERCEIVER_ATTENTION, 1e-2)
+    assert new_cache is not None
 
     output.sum().backward()
     assert output.shape == (2, 10, dim)
@@ -88,9 +89,9 @@ def test_perceiver_attention_forward_shape():
     assert attention.proj.bias.grad is not None
 
     kv = torch.randn(2, 10 * 2, kv_dim)
-    output = attention(q, kv)
+    output, _ = attention(q, kv)
     assert output.shape == (2, 10, dim)
 
     q = torch.randn(2, 10 * 2, dim)
-    output = attention(q, kv)
+    output, _ = attention(q, kv)
     assert output.shape == (2, 10 * 2, dim)

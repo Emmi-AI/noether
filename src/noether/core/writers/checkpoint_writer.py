@@ -69,9 +69,9 @@ class CheckpointWriter:
     ) -> None:
         """Save a checkpoint to disk.
 
-        The ouput name of the checkpoint will be constructed as `{model_name}{model_info}_cp={checkpoint}_model.th` (where model_info is an optional string and will be empty if not provided).
+        The output name of the checkpoint will be constructed as `{model_name}{model_info}_cp={checkpoint}_model.th` (where model_info is an optional string and will be empty if not provided).
         For example, if model_name is "autoencoder.encoder" and checkpoint is "E10_U200_S800", the output name will be "autoencoder.encoder_cp=E10_U200_S800_model.th".
-        However, if we store different model that the current one that is trained, for example, the EMA model, we can also provide additional info in the output name.
+        However, if we store a different model than the current one that is trained, for example, the EMA model, we can also provide additional info in the output name.
         For example, if model_name is "autoencoder.encoder" and model_info is "ema", and checkpoint is "E10_U200_S800", the output name will be "autoencoder.encoder_ema_cp=E10_U200_S800_model.th".
 
         Args:

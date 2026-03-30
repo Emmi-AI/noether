@@ -21,8 +21,8 @@ class LogWriter:
 
     Args:
         path_provider: Provides the path to store all logs to the disk after training.
-        update_counter: Provides the current training progress add the current epoch/update/sample to every log entry.
-            This allows, e.g., changing the x-axis to "epoch" in online visiualization tools.
+        update_counter: Provides the current training progress and the current epoch/update/sample to every log entry.
+            This allows, e.g., changing the x-axis to "epoch" in online visualization tools.
         tracker: Provides an interface for logging to an online experiment tracking platform.
     """
 

@@ -60,7 +60,7 @@ class ABUPT(BaseModel):
             A dictionary containing the model outputs.
         """
 
-        return self.ab_upt(
+        out, _ = self.ab_upt(
             # geometry
             geometry_position=geometry_position,
             geometry_supernode_idx=geometry_supernode_idx,
@@ -75,3 +75,4 @@ class ABUPT(BaseModel):
             query_surface_position=query_surface_position,
             query_volume_position=query_volume_position,
         )
+        return out

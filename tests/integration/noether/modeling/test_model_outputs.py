@@ -90,7 +90,7 @@ def test_ab_upt_determinism_regression_check(
     inputs = ab_upt_input_generator(seed=42)
 
     with torch.no_grad():
-        predictions = model(**inputs)
+        predictions, _ = model(**inputs)
 
     actual_sum = sum(tensor.sum().item() for tensor in predictions.values())
     print(f"AnchoredBranchedUPT determinism check: Output Sum = {actual_sum:.6f}")

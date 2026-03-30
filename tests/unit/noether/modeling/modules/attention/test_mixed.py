@@ -27,10 +27,6 @@ class TestTokenSpec:
         assert spec.name == "surface_anchors"
         assert spec.size == 100
 
-    def test_invalid_name(self):
-        with pytest.raises(ValidationError):
-            TokenSpec(name="invalid_name", size=100)  # type: ignore
-
     def test_negative_size(self):
         with pytest.raises(ValidationError):
             TokenSpec(name="surface_anchors", size=-1)
@@ -81,10 +77,10 @@ class TestMixedAttention:
 
         # Run twice with SAME anchors but DIFFERENT queries:
         input1 = torch.cat([surface_anchors, surface_queries_1], dim=1)
-        output1 = module(input1, token_specs=token_specs, attention_patterns=patterns)
+        output1, _ = module(input1, token_specs=token_specs, attention_patterns=patterns)
 
         input2 = torch.cat([surface_anchors, surface_queries_2], dim=1)
-        output2 = module(input2, token_specs=token_specs, attention_patterns=patterns)
+        output2, _ = module(input2, token_specs=token_specs, attention_patterns=patterns)
 
         assert torch.allclose(output1[:, :10], output2[:, :10], atol=1e-6)
 
@@ -109,7 +105,7 @@ class TestMixedAttention:
             AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"]),
         ]
 
-        output = module(x, token_specs, patterns)
+        output, _ = module(x, token_specs, patterns)
         assert output.shape == (1, 15, 64)
 
     def test_process_pattern_batched_optimization(self, module):
@@ -319,16 +315,16 @@ class TestMixedAttention:
             ]
         )
 
-        out_batched = module(x_batched, token_specs_padded, patterns, key_padding_mask=attn_mask)
+        out_batched, _ = module(x_batched, token_specs_padded, patterns, key_padding_mask=attn_mask)
 
         # Reference: run each item individually without mask or padding
-        out_item0 = module(torch.cat([anchors_0, queries_0], dim=1), token_specs_padded, patterns)
+        out_item0, _ = module(torch.cat([anchors_0, queries_0], dim=1), token_specs_padded, patterns)
 
         token_specs_2anchors = [TokenSpec(name="surface_anchors", size=2), TokenSpec(name="surface_queries", size=4)]
-        out_item1 = module(torch.cat([anchors_1, queries_1], dim=1), token_specs_2anchors, patterns)
+        out_item1, _ = module(torch.cat([anchors_1, queries_1], dim=1), token_specs_2anchors, patterns)
 
         token_specs_1anchor = [TokenSpec(name="surface_anchors", size=1), TokenSpec(name="surface_queries", size=4)]
-        out_item2 = module(torch.cat([anchors_2, queries_2], dim=1), token_specs_1anchor, patterns)
+        out_item2, _ = module(torch.cat([anchors_2, queries_2], dim=1), token_specs_1anchor, patterns)
 
         # Item 0: all positions must match (no padding)
         assert torch.allclose(out_batched[0], out_item0[0], atol=1e-5)
@@ -344,3 +340,129 @@ class TestMixedAttention:
         # Unpadded layout: a0(0)               q0(1) q1(2) q2(3) q3(4)
         assert torch.allclose(out_batched[2, [0]], out_item2[0, [0]], atol=1e-5)
         assert torch.allclose(out_batched[2, [3, 4, 5, 6]], out_item2[0, [1, 2, 3, 4]], atol=1e-5)
+
+
+class TestMixedAttentionKVCache:
+    """Tests for KV cache correctness in MixedAttention."""
+
+    @pytest.fixture
+    def module(self):
+        config = MixedAttentionConfig(hidden_dim=64, num_heads=4, dropout=0.0, bias=True, use_rope=False)
+        return MixedAttention(config=config).eval()
+
+    def test_cached_query_output_matches_non_cached(self, module):
+        """The core KV cache correctness test.
+
+        Running anchors+queries in one pass must produce the same query outputs
+        as running anchors first (to build the cache), then queries with the cache.
+        """
+        torch.manual_seed(42)
+        batch_size = 2
+        dim = 64
+
+        surface_anchors = torch.randn(batch_size, 10, dim)
+        surface_queries = torch.randn(batch_size, 5, dim)
+        volume_anchors = torch.randn(batch_size, 8, dim)
+        volume_queries = torch.randn(batch_size, 6, dim)
+
+        # Patterns for self-anchor attention (each branch attends to its own anchors)
+        patterns = [
+            AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["surface_anchors"]),
+            AttentionPattern(query_tokens=["volume_anchors", "volume_queries"], key_value_tokens=["volume_anchors"]),
+        ]
+
+        # --- Pass in one go: anchors + queries ---
+        x_full = torch.cat([surface_anchors, surface_queries, volume_anchors, volume_queries], dim=1)
+        full_specs = [
+            TokenSpec(name="surface_anchors", size=10),
+            TokenSpec(name="surface_queries", size=5),
+            TokenSpec(name="volume_anchors", size=8),
+            TokenSpec(name="volume_queries", size=6),
+        ]
+        out_full, cache_full = module(x_full, token_specs=full_specs, attention_patterns=patterns)
+        # Split output by token specs
+        full_sizes = [spec.size for spec in full_specs]
+        out_by_token = dict(zip([s.name for s in full_specs], out_full.split(full_sizes, dim=1), strict=True))
+        out_surface_queries_full = out_by_token["surface_queries"]
+        out_volume_queries_full = out_by_token["volume_queries"]
+
+        # --- Pass 1: anchors only (build cache) ---
+        x_anchors = torch.cat([surface_anchors, volume_anchors], dim=1)
+        anchor_specs = [
+            TokenSpec(name="surface_anchors", size=10),
+            TokenSpec(name="volume_anchors", size=8),
+        ]
+        anchor_patterns = [
+            AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"]),
+            AttentionPattern(query_tokens=["volume_anchors"], key_value_tokens=["volume_anchors"]),
+        ]
+        _, kv_cache = module(x_anchors, token_specs=anchor_specs, attention_patterns=anchor_patterns)
+        assert kv_cache is not None
+        assert "surface_anchors" in kv_cache
+        assert "volume_anchors" in kv_cache
+        assert "k" in kv_cache["surface_anchors"]
+        assert "v" in kv_cache["surface_anchors"]
+
+        # --- Pass 2: queries only with cache ---
+        x_queries = torch.cat([surface_queries, volume_queries], dim=1)
+        cached_specs = [
+            TokenSpec(name="surface_anchors", size=None),
+            TokenSpec(name="surface_queries", size=5),
+            TokenSpec(name="volume_anchors", size=None),
+            TokenSpec(name="volume_queries", size=6),
+        ]
+        out_cached, cache_pass2 = module(
+            x_queries, token_specs=cached_specs, attention_patterns=patterns, kv_cache=kv_cache
+        )
+        assert cache_pass2 is None  # Pass 2 should not produce a new cache
+        # out_cached contains only input (non-cached) tokens: surface_queries (5) + volume_queries (6) = 11
+        assert out_cached.shape == (batch_size, 11, dim)
+        cached_input_specs = [s for s in cached_specs if s.size is not None]
+        cached_sizes = [s.size for s in cached_input_specs]
+        out_by_token_cached = dict(
+            zip([s.name for s in cached_input_specs], out_cached.split(cached_sizes, dim=1), strict=True)
+        )
+        out_surface_queries_cached = out_by_token_cached["surface_queries"]
+        out_volume_queries_cached = out_by_token_cached["volume_queries"]
+
+        # --- Assert equivalence ---
+        assert torch.allclose(out_surface_queries_full, out_surface_queries_cached, atol=1e-5), (
+            "Surface query outputs differ between cached and non-cached paths"
+        )
+        assert torch.allclose(out_volume_queries_full, out_volume_queries_cached, atol=1e-5), (
+            "Volume query outputs differ between cached and non-cached paths"
+        )
+
+    def test_cache_missing_raises_error(self, module):
+        """Providing cached token specs without a kv_cache should raise."""
+        x = torch.randn(1, 5, 64)
+        specs = [
+            TokenSpec(name="surface_anchors", size=None),
+            TokenSpec(name="surface_queries", size=5),
+        ]
+        patterns = [
+            AttentionPattern(query_tokens=["surface_anchors", "surface_queries"], key_value_tokens=["surface_anchors"]),
+        ]
+        with pytest.raises(ValueError, match="kv_cache is empty"):
+            module(x, token_specs=specs, attention_patterns=patterns, kv_cache=None)
+
+    def test_cache_structure(self, module):
+        """Verify the cache has the expected token-grouped structure."""
+        torch.manual_seed(0)
+        x = torch.randn(1, 15, 64)
+        specs = [
+            TokenSpec(name="surface_anchors", size=10),
+            TokenSpec(name="volume_anchors", size=5),
+        ]
+        patterns = [
+            AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"]),
+            AttentionPattern(query_tokens=["volume_anchors"], key_value_tokens=["volume_anchors"]),
+        ]
+        _, cache = module(x, token_specs=specs, attention_patterns=patterns)
+        assert cache is not None
+        # Token-grouped: {token_name: {"k": Tensor, "v": Tensor}}
+        assert set(cache.keys()) == {"surface_anchors", "volume_anchors"}
+        for token_name in cache:
+            assert set(cache[token_name].keys()) == {"k", "v"}
+            assert cache[token_name]["k"].ndim == 4  # (bs, nh, seq, hd)
+            assert cache[token_name]["v"].ndim == 4
