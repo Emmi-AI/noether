@@ -221,8 +221,6 @@ class DomainDataSpec(BaseModel):
     """Output fields and their dimensions for this domain, e.g. {"pressure": 1, "velocity": 3}."""
     feature_dim: FieldDimSpec | None = None
     """Input feature fields and their dimensions for this domain."""
-    conditioning_features: list[str] | None = None
-    """Which conditioning inputs this domain uses. None means use all available conditioning."""
 
 
 class ModelDataSpecs(BaseModel):
