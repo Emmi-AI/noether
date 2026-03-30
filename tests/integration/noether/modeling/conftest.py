@@ -85,7 +85,7 @@ def ab_upt_config(ab_upt_data_specs: AeroDataSpecs) -> AnchorBranchedUPTConfig:
         name="test_ab_upt",
         geometry_depth=1,
         hidden_dim=12,
-        physics_blocks=["perceiver", "shared"],
+        physics_blocks=["perceiver", "self"],
         num_surface_blocks=1,
         num_volume_blocks=1,
         data_specs=ab_upt_data_specs,

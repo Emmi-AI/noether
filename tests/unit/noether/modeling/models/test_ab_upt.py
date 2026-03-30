@@ -75,7 +75,7 @@ def real_config():
         name="ab_upt_test",
         hidden_dim=64,
         geometry_depth=2,
-        physics_blocks=["perceiver", "shared"],
+        physics_blocks=["perceiver", "self"],
         num_surface_blocks=2,
         num_volume_blocks=2,
         transformer_block_config=tf_config,
