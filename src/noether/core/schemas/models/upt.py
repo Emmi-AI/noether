@@ -73,17 +73,6 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
                 )
         return self
 
-    @model_validator(mode="after")
-    def update_supernode_pooling_config(self) -> "UPTConfig":
-        """Inject shared fields into supernode_pooling_config."""
-        if self.data_specs.use_physics_features:
-            # TODO: This assumes the encoder only receives surface points. In general, the feature dim should match
-            #  whatever points are fed into supernode pooling, which may be arbitrary named or even multiple domains.
-            surface_spec = self.data_specs.domains.get("surface")
-            if surface_spec and surface_spec.feature_dim:
-                self.supernode_pooling_config.input_features_dim = surface_spec.feature_dim.total_dim
-        return self
-
     @computed_field
     def pos_embedding_config(self) -> ContinuousSincosEmbeddingConfig:
         return ContinuousSincosEmbeddingConfig(
