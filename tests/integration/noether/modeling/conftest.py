@@ -121,11 +121,9 @@ def upt_input_generator(
         supernodes_per_sample = 3
         total_surface_points = batch_size * surface_points_per_sample
 
-        surface_position = torch.randn(total_surface_points, upt_data_specs.position_dim, generator=gen)
-        # Create batch indices that repeat for each surface point in a sample
-        surface_position_batch_idx = torch.arange(batch_size).repeat_interleave(surface_points_per_sample)
-        # Arbitrarily choose first `n=supernodes_per_sample` points as supernodes for each sample
-        surface_position_supernode_idx = torch.cat(
+        geometry_position = torch.randn(total_surface_points, upt_data_specs.position_dim, generator=gen)
+        geometry_batch_idx = torch.arange(batch_size).repeat_interleave(surface_points_per_sample)
+        geometry_supernode_idx = torch.cat(
             [
                 torch.arange(supernodes_per_sample) + sample_index * surface_points_per_sample
                 for sample_index in range(batch_size)
@@ -136,9 +134,9 @@ def upt_input_generator(
         query_position = torch.randn(batch_size, query_tokens, upt_data_specs.position_dim, generator=gen)
 
         return {
-            "surface_position": surface_position,
-            "surface_position_batch_idx": surface_position_batch_idx,
-            "surface_position_supernode_idx": surface_position_supernode_idx,
+            "geometry_position": geometry_position,
+            "geometry_batch_idx": geometry_batch_idx,
+            "geometry_supernode_idx": geometry_supernode_idx,
             "query_position": query_position,
         }
 

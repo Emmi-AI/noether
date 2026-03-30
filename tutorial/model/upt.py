@@ -72,10 +72,13 @@ class UPT(BaseModel):
         surface_mask_query[:, : surface_query_position.shape[1]] = 1.0
 
         encoder_attn_kwargs, decoder_attn_kwargs = self.upt_backbone.compute_rope_args(
-            surface_position_batch_idx, surface_position, surface_position_supernode_idx, query_position
+            surface_position_batch_idx,
+            surface_position,
+            surface_position_supernode_idx,
+            query_position,  # geometry args
         )
 
-        # supernode pooling encoder
+        # supernode pooling encoder (surface_position serves as the geometry mesh)
         x = self.upt_backbone.encoder(
             input_pos=surface_position,
             supernode_idx=surface_position_supernode_idx,
