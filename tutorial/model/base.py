@@ -73,18 +73,20 @@ class BaseModel(Model):
         if self.use_physics_features:
             self.project_volume_features = None
             self.project_surface_features = None
-            if model_config.data_specs.volume_feature_dim_total > 0:
+            volume_spec = model_config.data_specs.domains.get("volume")
+            surface_spec = model_config.data_specs.domains.get("surface")
+            if volume_spec and volume_spec.feature_dim and volume_spec.feature_dim.total_dim > 0:
                 self.project_volume_features = LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=model_config.data_specs.volume_feature_dim_total,
+                        input_dim=volume_spec.feature_dim.total_dim,
                         output_dim=model_config.hidden_dim,
                         init_weights="truncnormal002",
                     )
                 )
-            if model_config.data_specs.surface_feature_dim_total > 0:
+            if surface_spec and surface_spec.feature_dim and surface_spec.feature_dim.total_dim > 0:
                 self.project_surface_features = LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=model_config.data_specs.surface_feature_dim_total,
+                        input_dim=surface_spec.feature_dim.total_dim,
                         output_dim=model_config.hidden_dim,
                         init_weights="truncnormal002",
                     )
