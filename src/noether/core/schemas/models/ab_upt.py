@@ -126,16 +126,6 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             for name, spec in self.data_specs.domains.items()
         }
 
-    # --- Legacy computed fields for backward compatibility ---  # TODO: refactor
-
-    @computed_field
-    def surface_decoder_config(self) -> LinearProjectionConfig | None:
-        return self.domain_decoder_configs.get("surface")  # type: ignore[attr-defined, no-any-return]
-
-    @computed_field
-    def volume_decoder_config(self) -> LinearProjectionConfig | None:
-        return self.domain_decoder_configs.get("volume")  # type: ignore[attr-defined, no-any-return]
-
     @model_validator(mode="after")
     def validate_parameters(self) -> "AnchorBranchedUPTConfig":
         """Validate validity of parameters across the model and its submodules.
