@@ -112,7 +112,7 @@ def test_model_factory_creates_ab_upt_and_runs_forward(
     ab_upt_data_specs: AeroDataSpecs,
     ab_upt_input_generator: Callable[[int | None], dict[str, Any]],
 ) -> None:
-    ab_upt_config.physics_blocks = ["perceiver", "shared"]
+    ab_upt_config.physics_blocks = ["perceiver", "self"]
     model = Factory().create(ab_upt_config)
 
     assert isinstance(model, AnchoredBranchedUPT)

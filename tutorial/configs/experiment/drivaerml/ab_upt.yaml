@@ -28,11 +28,11 @@ model:
   num_volume_blocks: 6
   physics_blocks:
     - perceiver
-    - shared
+    - self
     - cross
-    - shared
+    - self
     - cross
-    - shared
+    - self
     
 sample_size_property: surface_anchor_position
 chunk_size: ${pipeline.num_surface_anchor_points}

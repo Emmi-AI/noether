@@ -74,7 +74,7 @@ class AnchoredBranchedUPT(nn.Module):
                 perceiver_block = PerceiverBlock(config=config.perceiver_block_config)  # type: ignore[arg-type]
                 self.physics_blocks.append(perceiver_block)  # type: ignore[arg-type]
             else:
-                if block == "shared":
+                if block == "self":
                     attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
                 elif block == "cross":
                     attention_constructor = CrossAnchorAttention  # type: ignore[assignment]
@@ -82,7 +82,7 @@ class AnchoredBranchedUPT(nn.Module):
                     attention_constructor = JointAnchorAttention  # type: ignore[assignment]
                 else:
                     raise NotImplementedError(
-                        f"Unknown physics block type: {block}. Supported: shared, cross, joint, perceiver."
+                        f"Unknown physics block type: {block}. Supported: self, cross, joint, perceiver."
                     )
 
                 block_config = copy.deepcopy(config.transformer_block_config)
