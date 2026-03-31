@@ -19,3 +19,6 @@ Get started by exploring the core components and principles of the framework:
 
 * :doc:`dataset_zoo`
   A library of dataset classes and utilities for loading, processing, and validating data from various sources
+
+* :doc:`understanding_the_data_pipeline`
+  How data flows from disk to training batches: point subsampling, epoch semantics, shuffling, and performance characteristics.

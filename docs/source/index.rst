@@ -24,6 +24,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    noether/key_concepts
    noether/model_zoo
    noether/dataset_zoo
+   noether/understanding_the_data_pipeline
 
 
 .. toctree::
