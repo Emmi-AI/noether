@@ -1,0 +1,27 @@
+# @package _global_
+
+config_schema_kind: development.development_schema.DevelopmentSchema
+datasets:
+  development_dataset:
+    kind: development.dataset.DevelopmentDataset
+    x_dim: 3
+    y_dim: 2
+    z_dim: 1
+    sample_size: 10
+    num_samples: 1000
+    split: train  
+    dataset_normalizers: # can be commented out to test behavior when normalizers are not defined, dataset only returns unnormalized data
+        x:
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0, 0, 0]
+              std: [1, 1, 1]
+        y:
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0, 0]
+              std: [1, 1]
+        z:  
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0]
+              std: [1]
+    pipeline:
+      kind: development.pipeline.DevelopmentPipeline

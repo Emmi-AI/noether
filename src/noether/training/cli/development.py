@@ -8,6 +8,7 @@ import hydra
 import yaml
 from omegaconf import DictConfig, OmegaConf
 
+from noether.core.callbacks import PeriodicCallback
 from noether.core.factory import DatasetFactory, Factory, class_constructor_from_class_path
 from noether.core.schemas.schema import ConfigSchema
 from noether.data.container import DataContainer
@@ -186,7 +187,7 @@ def development(hydra_config: DictConfig):
         out = model(**forward_batch)
         log_batch(out, title="MODEL OUTPUT CONTENTS")
 
-        datasets = {dataset_key: dataset}  # TODO: make this not hardcoded to train
+        datasets = {dataset_key: dataset}
         data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
 
         if config.trainer is not None:
@@ -236,9 +237,7 @@ def development(hydra_config: DictConfig):
         )
         if len(config.trainer.callbacks) == 1:
             callback = Factory().instantiate(
-                config.trainer.callbacks[
-                    0
-                ],  # this needs to be configurable, but for now we just want to run the development callback
+                config.trainer.callbacks[0],
                 model=model,
                 trainer=trainer,
                 data_container=data_container,
@@ -249,8 +248,13 @@ def development(hydra_config: DictConfig):
                 development=True,
             )
 
-            out_callback = callback.process_data(collated_batch)
-            log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+            if isinstance(callback, PeriodicCallback):
+                out_callback = callback.process_data(collated_batch)  # type: ignore[attr-defined]
+                log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+            else:
+                print(
+                    f"\nCallback is not a PeriodicCallback (but {type(callback).__name__}), so skipping callback step since the development callback is currently only implemented for PeriodicCallbacks."
+                )
         else:
             if len(config.trainer.callbacks) == 0:
                 print("\nNo callbacks defined in trainer, skipping callback step.")
@@ -259,7 +263,9 @@ def development(hydra_config: DictConfig):
                     "\nMultiple callbacks defined in trainer, skipping callback step for now since the development callback can only done by one."
                 )
     else:
-        print("\nNo model defined in config, skipping model instantiation and forward pass.")
+        print(
+            "\nNo model defined in config, skipping model instantiation and forward pass. Also skipping trainer and callback steps since they depend on the model."
+        )
 
 
 if __name__ == "__main__":
