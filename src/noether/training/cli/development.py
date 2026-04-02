@@ -247,7 +247,7 @@ def development(hydra_config: DictConfig):
                         f"\nCallback is not a PeriodicCallback (but {type(callback).__name__}), so skipping callback step since the development callback is currently only implemented for PeriodicCallbacks."
                     )
             else:
-                if len(config.trainer.callbacks) == 0:
+                if not config.trainer.callbacks or len(config.trainer.callbacks) == 0:
                     print("\nNo callbacks defined in trainer, skipping callback step.")
                 else:
                     print(

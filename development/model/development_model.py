@@ -17,8 +17,6 @@ class DevelopmentModelConfig(ModelBaseConfig):
 class DevelopmentModel(Model):
     def __init__(self, model_config: DevelopmentModelConfig):
         super().__init__(model_config=model_config)
-        # Initialize your model here based on the configuration
-        # For example, you could set up a simple feedforward network or any other architecture you want to test.
 
         self.layer1 = torch.nn.Linear(self.model_config.input_dim, self.model_config.hidden_dim)
         self.layer2 = torch.nn.Linear(self.model_config.hidden_dim, self.model_config.output_dim)
@@ -26,4 +24,5 @@ class DevelopmentModel(Model):
     def forward(self, x_z: torch.Tensor) -> torch.Tensor:
         x = torch.relu(self.layer1(x_z))
         x = self.layer2(x)
+
         return {"output": x}
