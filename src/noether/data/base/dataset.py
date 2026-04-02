@@ -5,8 +5,10 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
+import yaml
 from torch.utils.data import Dataset as TorchDataset
 
 from noether.core.factory import Factory
@@ -180,14 +182,48 @@ class Dataset(TorchDataset):
         self.config = dataset_config
         self.normalizers: dict[str, ComposePreProcess] = {}
         self.compute_statistics = False
+        self._statistics: dict[str, list[float] | float] | None = None
         if dataset_config.dataset_normalizers:
             for key, normalizer_configs in dataset_config.dataset_normalizers.items():
                 if not isinstance(normalizer_configs, list):
                     normalizer_configs = [normalizer_configs]
                 preprocessors: list[PreProcessor] = []
                 for normalizer_config in normalizer_configs:
-                    preprocessors.append(Factory().instantiate(normalizer_config, normalization_key=key))
+                    preprocessors.append(Factory().instantiate(normalizer_config, normalization_key=key, statistics=self.statistics))
                 self.normalizers[key] = ComposePreProcess(normalization_key=key, preprocessors=preprocessors)
+
+    @property
+    def statistics(self) -> dict[str, list[float] | float]:
+        """Load and cache dataset statistics from the dataset's STATS_FILE.
+
+        Looks for a ``STATS_FILE`` class attribute on the dataset class (or its ancestors).
+        The file should be a YAML file mapping stat names to scalar or list values.
+
+        Returns:
+            Dict mapping stat names to float values or lists of floats.
+
+        Raises:
+            ValueError: If no ``STATS_FILE`` attribute is found on the dataset class.
+        """
+        if self._statistics is None:
+            stats_path = getattr(self, "STATS_FILE", None)
+            if stats_path is None:
+                raise ValueError(
+                    f"{type(self).__name__} has no STATS_FILE attribute. "
+                    "Set STATS_FILE on the dataset class or use explicit normalizer configs "
+                    "(e.g., MeanStdNormalizerConfig) instead of FieldNormalizerConfig."
+                )
+            resolved = Path(stats_path).expanduser()
+            with open(resolved) as f:
+                data = yaml.safe_load(f)
+            result: dict[str, list[float] | float] = {}
+            for k, v in data.items():
+                if isinstance(v, list):
+                    result[k] = [float(x) for x in v]
+                else:
+                    result[k] = float(v)
+            self._statistics = result
+        return self._statistics
 
     @property
     def pipeline(self) -> Collator | None:

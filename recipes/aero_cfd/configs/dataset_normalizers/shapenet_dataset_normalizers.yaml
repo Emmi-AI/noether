@@ -1,0 +1,23 @@
+surface_pressure:
+  kind: noether.data.preprocessors.normalizers.FieldNormalizer
+  strategy: mean_std
+volume_velocity:
+  kind: noether.data.preprocessors.normalizers.FieldNormalizer
+  strategy: mean_std
+volume_sdf:
+  kind: noether.data.preprocessors.normalizers.FieldNormalizer
+  strategy: mean_std
+surface_position:
+  kind: noether.data.preprocessors.normalizers.FieldNormalizer
+  strategy: position
+  stat_keys:
+    min: raw_pos_min
+    max: raw_pos_max
+  scale: 1000
+volume_position:
+  kind: noether.data.preprocessors.normalizers.FieldNormalizer
+  strategy: position
+  stat_keys:
+    min: raw_pos_min
+    max: raw_pos_max
+  scale: 1000

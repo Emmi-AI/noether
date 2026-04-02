@@ -289,4 +289,5 @@ class AeroABUPT(Model):
         self.backbone = AnchoredBranchedUPT(config=model_config)
 
     def forward(self, **kwargs) -> dict[str, torch.Tensor]:
-        return self.backbone(**kwargs)  # type: ignore[no-any-return]
+        out, _ = self.backbone(**kwargs)
+        return out  # type: ignore[no-any-return]

@@ -19,7 +19,7 @@ from noether.core.schemas.callbacks import (
 )
 from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
 from noether.core.schemas.lib import resolve_config_class
-from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
+from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
 from noether.core.schemas.optimizers import OptimizerConfig
 from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
 from noether.core.schemas.schema import ConfigSchema
@@ -31,8 +31,6 @@ CHECKPOINT_CALLBACK = "noether.core.callbacks.CheckpointCallback"
 BEST_CHECKPOINT_CALLBACK = "noether.core.callbacks.BestCheckpointCallback"
 EMA_CALLBACK = "noether.core.callbacks.EmaCallback"
 OFFLINE_LOSS_CALLBACK = "noether.training.callbacks.OfflineLossCallback"
-MEAN_STD_NORMALIZER = "noether.data.preprocessors.normalizers.MeanStdNormalization"
-POSITION_NORMALIZER = "noether.data.preprocessors.normalizers.PositionNormalizer"
 LR_SCHEDULE_LINEAR_WARMUP_COSINE = "noether.core.schedules.LinearWarmupCosineDecaySchedule"
 OPTIMIZER_LION = "noether.core.optimizer.Lion"
 
@@ -108,16 +106,24 @@ class DomainPreset(ABC):
 
     @property
     @abstractmethod
-    def normalizer_spec(self) -> dict[str, str | tuple[str, dict[str, Any]]]:
+    def normalizer_spec(self) -> dict[str, FieldNormalizerConfig]:
         """Declarative normalizer mapping.
 
         Keys are data source names (e.g., ``"surface_pressure"``).
-        Values are either:
-            - ``"mean_std"`` - auto-builds MeanStdNormalizerConfig from stats
-            - ``("position", {"scale": 1000})`` - auto-builds PositionNormalizerConfig
+        Values are ``FieldNormalizerConfig`` instances that declare the normalization strategy.
+        Statistics are resolved at runtime by the dataset from its ``STATS_FILE``.
 
-        Stats are resolved by convention: for a key ``"surface_pressure"`` with type ``"mean_std"``, the builder
-        looks up ``"surface_pressure_mean"`` and ``"surface_pressure_std"`` in ``dataset_statistics``.
+        Example::
+
+            {
+                "surface_pressure": FieldNormalizerConfig(strategy="mean_std"),
+                "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
+                "volume_vorticity": FieldNormalizerConfig(
+                    strategy="mean_std",
+                    logscale=True,
+                    stat_keys={"mean": "volume_vorticity_logscale_mean", "std": "volume_vorticity_logscale_std"},
+                ),
+            }
         """
 
     @property
@@ -167,55 +173,13 @@ class DomainPreset(ABC):
     def build_normalizers(self) -> dict[str, list[AnyNormalizer]]:
         """Build normalizer configs from the declarative ``normalizer_spec``.
 
-        Uses naming conventions to look up statistics:
-            - ``"mean_std"`` -> looks for ``{key}_mean`` and ``{key}_std``
-            - ``"position"`` -> looks for ``raw_pos_min`` and ``raw_pos_max``
+        Wraps each ``FieldNormalizerConfig`` from the spec into a single-element list,
+        matching the format expected by ``DatasetBaseConfig.dataset_normalizers``.
 
         Returns:
             Dict mapping data source names to lists of normalizer configs.
         """
-        stats = self.dataset_statistics
-        result: dict[str, list[AnyNormalizer]] = {}
-
-        for key, spec in self.normalizer_spec.items():
-            if isinstance(spec, str):
-                norm_type = spec
-                norm_kwargs: dict[str, Any] = {}
-            else:
-                norm_type, norm_kwargs = spec
-
-            if norm_type == "mean_std":
-                mean_key = norm_kwargs.get("mean_key", f"{key}_mean")
-                std_key = norm_kwargs.get("std_key", f"{key}_std")
-                logscale = norm_kwargs.get("logscale", False)
-                mean_val = stats[mean_key]
-                std_val = stats[std_key]
-                # Wrap scalars in lists so tensors are always 1-dim:
-                if isinstance(mean_val, (int, float)):
-                    mean_val = [mean_val]
-                if isinstance(std_val, (int, float)):
-                    std_val = [std_val]
-                result[key] = [
-                    MeanStdNormalizerConfig(
-                        kind=MEAN_STD_NORMALIZER,
-                        mean=mean_val,
-                        std=std_val,
-                        logscale=logscale,
-                    )
-                ]
-            elif norm_type == "position":
-                result[key] = [
-                    PositionNormalizerConfig(
-                        kind=POSITION_NORMALIZER,
-                        raw_pos_min=stats[norm_kwargs.get("min_key", "raw_pos_min")],
-                        raw_pos_max=stats[norm_kwargs.get("max_key", "raw_pos_max")],
-                        scale=norm_kwargs.get("scale", 1000.0),
-                    )
-                ]
-            else:
-                raise ValueError(f"Unknown normalizer type '{norm_type}' for key '{key}'")
-
-        return result
+        return {key: [config] for key, config in self.normalizer_spec.items()}
 
     @staticmethod
     def standard_callbacks(

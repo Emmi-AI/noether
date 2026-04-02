@@ -5,7 +5,7 @@ Prerequisites
 --------------
 
 - you cloned the **Noether Framework**
-- you have a ``tutorial/`` folder in the repo root
+- you have the ``recipes/aero_cfd/`` folder in the repo
 - you prepared the ``ShapeNet-Car`` dataset
 
 The fetching and preprocessing instructions are in the ``README.md`` located in the
@@ -51,8 +51,8 @@ In this tutorial we skip ``yaml`` configs and build the run config in Python.
 Step 1: Create an entry point
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Let's create a new file ``tutorial/train_shapenet_upt.py`` and use it to run our pipeline. Why "tutorial"? Because
-it has necessary components to get us started and here we want to see a difference between "configs vs. code" workflows.
+Let's create a new file ``recipes/aero_cfd/train_shapenet_upt.py`` and use it to run our pipeline. This file will
+live alongside the recipe and let us see the difference between "configs vs. code" workflows.
 
 Step 2: Create necessary imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -89,7 +89,7 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
     from noether.core.schemas.statistics import AeroStatsSchema
     from noether.training.runners import HydraRunner
     from tutorial.callbacks.surface_volume_evaluation_metrics import (
-        SurfaceVolumeEvaluationMetricsCallbackConfig,
+        AeroMetricsCallbackConfig,
     )
     from tutorial.schemas.models.upt_config import UPTConfig
     from tutorial.schemas.trainers.automotive_aerodynamics_trainer_config import AutomotiveAerodynamicsCfdTrainerConfig
@@ -305,15 +305,15 @@ Step 5: Trainer config
                     metric_key="loss/test/total",
                 ),
                 # test loss
-                SurfaceVolumeEvaluationMetricsCallbackConfig(
-                    kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
+                AeroMetricsCallbackConfig(
+                    kind="tutorial.callbacks.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=loss_and_log_every_n_epochs,
                     dataset_key="test",
                     forward_properties=model_forward_properties,
                 ),
-                SurfaceVolumeEvaluationMetricsCallbackConfig(
-                    kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
+                AeroMetricsCallbackConfig(
+                    kind="tutorial.callbacks.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=500,
                     dataset_key="test_repeat",
@@ -421,14 +421,13 @@ from your terminal:
 
 .. code-block:: bash
 
-    uv run python -m tutorial.train_shapenet_upt
+    uv run python -m recipes.aero_cfd.train_shapenet_upt
 
-This makes Python add the repo root to sys.path, so ``from tutorial.*`` works. Alternatively, you can add repo root
-to PYTHONPATH:
+This makes Python add the repo root to sys.path. Alternatively, you can add repo root to PYTHONPATH:
 
 .. code-block:: bash
 
-    PYTHONPATH=. uv run python tutorial/train_shapenet_upt.py
+    PYTHONPATH=. uv run python recipes/aero_cfd/train_shapenet_upt.py
 
 If everything is set up correctly, you should see the logs indicating successful initialization and training
 (use your task manager and/or activity monitor to see if the hardware is properly utilized).

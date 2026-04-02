@@ -32,14 +32,11 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :caption: Tutorials
    :hidden:
 
-   tutorials/prerequisites
    tutorials/getting_started_install_and_verify
    tutorials/training_first_model_with_configs
    tutorials/training_first_model_with_code
-   tutorials/full_code_tutorial
-   tutorials/how_to_initialize
 
-   Walkthrough <https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD>
+   tutorials/walkthrough/index
    tutorials/scaffolding_a_new_project
 
 
@@ -54,6 +51,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :caption: Reference
    :hidden:
 
+   tutorials/prerequisites
    noether/io/caching
    reference/hardware_setup
    reference/config_inheritance

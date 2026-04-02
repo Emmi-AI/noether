@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetSplitIDs
+from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.data.datasets.cfd.caeml.dataset import CAEMLDataset
 from noether.data.datasets.cfd.caeml.drivaerml.split import DrivAerMLDefaultSplitIDs
 
@@ -22,7 +22,7 @@ class DrivAerMLDataset(CAEMLDataset):
 
     def __init__(
         self,
-        dataset_config: DatasetBaseConfig,
+        dataset_config: StandardDatasetConfig,
     ):
         """
         Initialize the DrivaerML dataset.
@@ -31,7 +31,8 @@ class DrivAerMLDataset(CAEMLDataset):
             dataset_config: Configuration for the dataset.
 
         """
-        super().__init__(dataset_config=dataset_config, dataset_name=self.get_dataset_splits.DATASET_NAME)  # type: ignore[arg-type]
+        assert self.get_dataset_splits.DATASET_NAME is not None
+        super().__init__(dataset_config=dataset_config, dataset_name=self.get_dataset_splits.DATASET_NAME)
 
     @property
     def get_dataset_splits(self) -> DatasetSplitIDs:

@@ -1,11 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from collections.abc import Sequence
-from typing import Annotated, Any, ClassVar, Self, Union
+from typing import Annotated, Any, ClassVar, Literal, Self, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel, Field, PlainSerializer, PlainValidator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator, model_validator
 
 from noether.core.schemas.lib import _RegistryBase
 
@@ -45,8 +45,11 @@ class NormalizerConfig(_RegistryBase):
     kind: str | None = None
     """Kind of normalizer to use, i.e. class path"""
 
+    model_config = ConfigDict(extra="forbid")
+
 
 class MeanStdNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.MeanStdNormalization"
     mean: TorchTensor
     """mean to subtract from the input data. Can be a single value or a Sequence if we want to apply a different mean per dimension."""
     std: TorchTensor
@@ -56,6 +59,7 @@ class MeanStdNormalizerConfig(NormalizerConfig):
 
 
 class PositionNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.PositionNormalizer"
     raw_pos_min: TorchTensor
     """Minimum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
     raw_pos_max: TorchTensor
@@ -78,6 +82,7 @@ class PositionNormalizerConfig(NormalizerConfig):
 
 
 class ShiftAndScaleNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.ShiftAndScaleNormalizer"
     shift: TorchTensor
     """Value to subtract from the input data. Can be a single value or a Sequence if we want to apply a different shift per dimension.
     Assumed in log scale if logscale is True.
@@ -103,4 +108,33 @@ class ShiftAndScaleNormalizerConfig(NormalizerConfig):
         return self
 
 
-AnyNormalizer = Union[MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig]
+class FieldNormalizerConfig(NormalizerConfig):
+    """Declarative normalizer config that references dataset statistics by convention.
+
+    Instead of embedding numeric values (mean, std, etc.) directly, this config declares
+    *how* to normalize a field. The actual statistics are resolved at runtime from the
+    dataset's statistics file.
+
+    For ``"mean_std"`` normalization, the builder looks up ``{field}_mean`` and
+    ``{field}_std`` in the dataset statistics (customizable via ``stat_keys``).
+
+    For ``"position"`` normalization, the builder looks up ``raw_pos_min`` and
+    ``raw_pos_max`` (customizable via ``stat_keys``).
+    """
+
+    kind: str | None = "noether.data.preprocessors.normalizers.FieldNormalizer"
+
+    strategy: Literal["mean_std", "position"] = "mean_std"  # type: ignore[assignment]
+    """Normalization strategy. ``"mean_std"`` for mean/std normalization, ``"position"`` for position normalization."""
+    logscale: bool = False
+    """If true, the input data is converted to log scale before normalization. Only used for ``"mean_std"``."""
+    stat_keys: dict[str, str] | None = None
+    """Optional overrides for statistic key lookup. For ``"mean_std"``: ``{"mean": "custom_mean_key", "std": "custom_std_key"}``.
+    For ``"position"``: ``{"min": "custom_min_key", "max": "custom_max_key"}``."""
+    scale: float = Field(default=1000.0, gt=0.0)
+    """Scaling factor for position normalization. Coordinates are scaled to [0, scale]. Only used for ``"position"``."""
+
+
+AnyNormalizer = Union[
+    MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
+]

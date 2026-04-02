@@ -6,6 +6,7 @@ from typing import Any
 
 from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
 from noether.core.schemas.dataset import AeroDataSpecs, DatasetBaseConfig, DatasetWrappers
+from noether.core.schemas.normalizers import FieldNormalizerConfig
 
 
 class DrivAerNetPreset(AeroCFDPreset):
@@ -47,22 +48,19 @@ class DrivAerNetPreset(AeroCFDPreset):
         )
 
     @property
-    def normalizer_spec(self) -> dict[str, str | tuple[str, dict[str, Any]]]:
+    def normalizer_spec(self) -> dict[str, FieldNormalizerConfig]:
         return {
-            "surface_pressure": "mean_std",
-            "surface_friction": "mean_std",
-            "volume_pressure": "mean_std",
-            "volume_velocity": "mean_std",
-            "volume_vorticity": (
-                "mean_std",
-                {
-                    "mean_key": "volume_vorticity_logscale_mean",
-                    "std_key": "volume_vorticity_logscale_std",
-                    "logscale": True,
-                },
+            "surface_pressure": FieldNormalizerConfig(strategy="mean_std"),
+            "surface_friction": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_pressure": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_velocity": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_vorticity": FieldNormalizerConfig(
+                strategy="mean_std",
+                logscale=True,
+                stat_keys={"mean": "volume_vorticity_logscale_mean", "std": "volume_vorticity_logscale_std"},
             ),
-            "surface_position": ("position", {"scale": 1000}),
-            "volume_position": ("position", {"scale": 1000}),
+            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
         }
 
     @property

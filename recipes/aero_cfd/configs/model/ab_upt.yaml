@@ -1,0 +1,32 @@
+kind: noether.modeling.models.AeroABUPT
+name: ab_upt
+geometry_depth: 1
+hidden_dim: 192
+transformer_block_config:
+  num_heads: 3
+  mlp_expansion_factor: 4
+  use_rope: true
+supernode_pooling_config:
+  input_dim: ${data_specs.position_dim}
+  radius: 1
+physics_blocks: 
+  - perceiver
+  - self
+  - cross
+  - self
+  - cross
+  - self
+  - cross
+  - self
+  - cross
+  - self
+num_surface_blocks: 2
+num_volume_blocks: 2
+optimizer_config: ${optimizer}
+forward_properties:
+  - geometry_position
+  - geometry_supernode_idx
+  - geometry_batch_idx
+  - surface_anchor_position
+  - volume_anchor_position
+data_specs: ${data_specs}

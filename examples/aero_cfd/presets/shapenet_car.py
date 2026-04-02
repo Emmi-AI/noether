@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
-from noether.core.schemas.aero import SurfaceVolumeEvaluationMetricsCallbackConfig
 from noether.core.schemas.dataset import AeroDataSpecs, RepeatWrapperConfig
+from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
+from recipes.aero_cfd.callbacks import AeroMetricsCallbackConfig
 
 
 class ShapeNetCarPreset(AeroCFDPreset):
@@ -49,13 +50,13 @@ class ShapeNetCarPreset(AeroCFDPreset):
         )
 
     @property
-    def normalizer_spec(self) -> dict[str, str | tuple[str, dict[str, Any]]]:
+    def normalizer_spec(self) -> dict[str, FieldNormalizerConfig]:
         return {
-            "surface_pressure": "mean_std",
-            "volume_velocity": "mean_std",
-            "volume_sdf": "mean_std",
-            "surface_position": ("position", {"scale": 1000}),
-            "volume_position": ("position", {"scale": 1000}),
+            "surface_pressure": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_velocity": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_sdf": FieldNormalizerConfig(strategy="mean_std"),
+            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
         }
 
     @property
@@ -68,8 +69,7 @@ class ShapeNetCarPreset(AeroCFDPreset):
     def evaluation_callbacks(self, model_kind: str, *, batch_size: int = 1, every_n_epochs: int = 1) -> list:
         """Domain-specific evaluation callbacks for surface/volume metrics."""
         return [
-            SurfaceVolumeEvaluationMetricsCallbackConfig(
-                kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
+            AeroMetricsCallbackConfig(
                 batch_size=batch_size,
                 every_n_epochs=every_n_epochs,
                 dataset_key="test",

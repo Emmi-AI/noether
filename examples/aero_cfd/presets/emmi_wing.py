@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
 from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.normalizers import FieldNormalizerConfig
 
 
 class EmmiWingPreset(AeroCFDPreset):
@@ -76,24 +75,21 @@ class EmmiWingPreset(AeroCFDPreset):
         )
 
     @property
-    def normalizer_spec(self) -> dict[str, str | tuple[str, dict[str, Any]]]:
+    def normalizer_spec(self) -> dict[str, FieldNormalizerConfig]:
         return {
-            "surface_pressure": "mean_std",
-            "surface_friction": "mean_std",
-            "volume_pressure": "mean_std",
-            "volume_velocity": "mean_std",
+            "surface_pressure": FieldNormalizerConfig(strategy="mean_std"),
+            "surface_friction": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_pressure": FieldNormalizerConfig(strategy="mean_std"),
+            "volume_velocity": FieldNormalizerConfig(strategy="mean_std"),
             # Wing uses magnitude-based normalization for vorticity (mean=0, std=magnitude_mean)
-            "volume_vorticity": (
-                "mean_std",
-                {
-                    "mean_key": "_zero",
-                    "std_key": "volume_vorticity_magnitude_mean",
-                },
+            "volume_vorticity": FieldNormalizerConfig(
+                strategy="mean_std",
+                stat_keys={"mean": "_zero", "std": "volume_vorticity_magnitude_mean"},
             ),
-            "geometry_design_parameters": "mean_std",
-            "inflow_design_parameters": "mean_std",
-            "surface_position": ("position", {"scale": 1000}),
-            "volume_position": ("position", {"scale": 1000}),
+            "geometry_design_parameters": FieldNormalizerConfig(strategy="mean_std"),
+            "inflow_design_parameters": FieldNormalizerConfig(strategy="mean_std"),
+            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
         }
 
     @property
