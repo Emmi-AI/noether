@@ -121,8 +121,8 @@ For details on writing custom sample processors, see
 Epochs and Subsampling
 ----------------------
 
-An epoch is one complete pass over the **geometries** (samples) in the training dataset -- not over
-individual points within those geometries.
+An epoch is one complete pass over the **samples** in the training dataset -- not over
+individual points within those samples.
 
 .. code-block:: python
 
@@ -138,19 +138,19 @@ With ``drop_last=True`` (the default), the last incomplete batch is discarded, s
 Point-level coverage
 ~~~~~~~~~~~~~~~~~~~~
 
-Because ``PointSamplingSampleProcessor`` uses ``seed=None`` during training, each geometry receives a
+Because ``PointSamplingSampleProcessor`` uses ``seed=None`` during training, each sample receives a
 different random subset of points every epoch. This has two consequences:
 
 - **Implicit data augmentation**: the model never sees exactly the same point set twice for a given
-  geometry. Across epochs, it learns from many overlapping views.
+  sample. Across epochs, it learns from many overlapping views.
 
 - **No systematic coverage**: there is no mechanism that tracks which points have been visited. For a
-  geometry with 28,504 volume points sampled at 4,096 per epoch, each point has a ~14.4% chance of
+  sample with 28,504 volume points sampled at 4,096 per epoch, each point has a ~14.4% chance of
   being selected per epoch (4096/28504). After *E* epochs the expected coverage is
   ``1 - (1 - 4096/28504)^E``, which gives ~87% after 13 epochs and ~95% after about 19 epochs.
 
-In other words, an epoch guarantees that every **geometry** is visited once, but says nothing about
-which **points** within each geometry are selected.
+In other words, an epoch guarantees that every **sample** is visited once, but says nothing about
+which **points** within each sample are selected.
 
 RepeatWrapper for robust evaluation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -162,9 +162,9 @@ the dataset indices *N* times:
 .. code-block:: python
 
    RepeatWrapper(config=RepeatWrapperConfig(repetitions=10), dataset=test_dataset)
-   # 100 test samples -> 1000 (each geometry visited 10 times)
+   # 100 test samples -> 1000 (each sample visited 10 times)
 
-When the pipeline's ``seed`` is ``None`` (the default), each geometry is evaluated with 10 different
+When the pipeline's ``seed`` is ``None`` (the default), each sample is evaluated with 10 different
 random point subsets, giving a more robust average. This is typically run less frequently (e.g., every
 500 epochs) to amortize the cost.
 
