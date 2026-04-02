@@ -198,6 +198,9 @@ class TestEmaCallback:
 
         cb = EmaCallback(callback_config=SimpleNamespace(**base_config), model=model, **callback_deps)
 
+        # Create the expected checkpoint file so that ema_path.exists() returns True
+        (tmp_path / f"{model.name}_ema=0.9_cp=latest_model.th").touch()
+
         resumption_paths = Mock(checkpoint_path=tmp_path)
         cb.resume_from_checkpoint(resumption_paths, model)
 

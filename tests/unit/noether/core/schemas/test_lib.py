@@ -343,7 +343,7 @@ class TestDiscriminatedValidatorDynamicImport:
             _discriminated_validator({"type": "pydantic.NonExistentClass"}, registry_cls=AnimalConfig)
 
     def test_non_subclass_without_config_raises(self):
-        with pytest.raises(ValueError, match="Unknown type key"):
+        with pytest.raises(ValueError, match="Cannot resolve config class"):
             _discriminated_validator({"type": "pydantic.BaseModel"}, registry_cls=AnimalConfig)
 
     def test_resolve_via_init_type_hint(self):

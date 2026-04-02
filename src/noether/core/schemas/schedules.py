@@ -120,6 +120,9 @@ class CustomScheduleConfig(ScheduleBaseConfig):
 
 
 class LinearWarmupCosineDecayScheduleConfig(ScheduleBaseConfig):
+    max_value: float = Field(..., ge=0.0)
+    """The maximum value of the scheduler from which to start the cosine decay phase. This should be equal to the learning rate defined in the optimizer. I.e., max value is learning rate"""
+
     kind: Literal["noether.core.schedules.LinearWarmupCosineDecaySchedule"] = (
         "noether.core.schedules.LinearWarmupCosineDecaySchedule"
     )
@@ -127,8 +130,6 @@ class LinearWarmupCosineDecayScheduleConfig(ScheduleBaseConfig):
     """The number of steps to linearly increase the value from start to max."""
     warmup_percent: float | None = None
     """The percentage of steps to linearly increase the value from start to max."""
-    max_value: float = Field(1.0)
-    """The maximum value of the scheduler from which to start the cosine decay phase. This should be equal to the learning rate defined in the optimizer. I.e., max value is learning rate"""
 
     @model_validator(mode="after")
     def validate_warmup(self) -> "LinearWarmupCosineDecayScheduleConfig":
@@ -186,7 +187,6 @@ class StepDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
     """The factor by which the value decreases."""
     decreases_interval: float = Field(..., gt=0.0, lt=1.0)
     """The interval in range [0, 1] at which the value decreases."""
-    # max_value: float = Field(None)
 
     @model_validator(mode="after")
     def check_interval(self) -> "StepDecreasingScheduleConfig":

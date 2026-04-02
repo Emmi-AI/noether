@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import warnings
 from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, computed_field, model_validator
@@ -32,13 +33,15 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     hidden_dim: int = Field(..., ge=1)
     """Hidden dimension of the model."""
 
-    physics_blocks: list[Literal["shared", "cross", "joint", "perceiver"]]
+    physics_blocks: list[Literal["self", "shared", "cross", "joint", "perceiver"]]
     """Types of physics blocks to use in the model.
-    Options are "shared", "cross", "joint", and "perceiver".
-    Shared: Self-attention within a branch (surface or volume). Attention blocks share weights between surface and volume.
-    Cross: Cross-attention between surface and volume branches. Weights are shared between surface and volume.
+    Options are "self", "cross", "joint", and "perceiver".
+    Self: Self-attention within a branch (surface or volume). Attention weights are shared between branches.
+    Cross: Cross-attention between surface and volume branches. Weights are shared between branches.
     Joint: Joint attention over surface and volume points. I.e. full self-attention over both surface and volume points.
-    Perceiver: Perceiver-style attention blocks."""
+    Perceiver: Perceiver-style cross-attention to geometry encoding.
+
+    Note: "shared" is a deprecated alias for "self" and will be removed in a future release."""
 
     num_surface_blocks: int = Field(..., ge=1)
     """Number of transformer blocks in the surface decoder. Weights are not shared with the volume decoder."""
@@ -54,6 +57,19 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
 
     data_specs: AeroDataSpecs
     """Data specifications for the model."""
+
+    @model_validator(mode="after")
+    def migrate_shared_to_self(self) -> "AnchorBranchedUPTConfig":
+        """Migrate deprecated 'shared' block type to 'self'."""
+        if "shared" in self.physics_blocks:
+            warnings.warn(
+                'physics_blocks: "shared" is deprecated, use "self" instead. '
+                '"shared" will be removed in a future release.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            self.physics_blocks = ["self" if b == "shared" else b for b in self.physics_blocks]
+        return self
 
     @model_validator(mode="after")
     def set_condition_dim(self) -> "AnchorBranchedUPTConfig":

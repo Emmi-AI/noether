@@ -2,6 +2,6 @@
 
 from typing import Union
 
-from .callback_config import SurfaceVolumeEvaluationMetricsCallbackConfig
+from noether.core.schemas.aero import SurfaceVolumeEvaluationMetricsCallbackConfig
 
 TutorialCallbacksConfig = Union[SurfaceVolumeEvaluationMetricsCallbackConfig]

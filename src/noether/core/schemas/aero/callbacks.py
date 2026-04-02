@@ -1,4 +1,4 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 from typing import Literal
 
@@ -8,20 +8,22 @@ from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 
 
 class SurfaceVolumeEvaluationMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
+    """Configuration for surface/volume evaluation metrics callback."""
+
     name: Literal["SurfaceVolumeEvaluationMetricsCallback"] = "SurfaceVolumeEvaluationMetricsCallback"
 
     forward_properties: list[str] = []
     """List of properties in the dataset to be forwarded during inference."""
     chunked_inference: bool = False
-    "If True, perform inference in chunks over the full simulation geometry"
+    """If True, perform inference in chunks over the full simulation geometry."""
     chunk_properties: list[str] = []
-    """List of properties in the dataset to be chunked use for chunked. Some properties don't need to be chunked."""
+    """List of properties in the dataset to be chunked for chunked inference."""
     batch_size: int = Field(1)
     """Batch size for evaluation. Currently only batch_size=1 is supported."""
     chunk_size: int | None = None
-    """Size of each chunk when performing chunked inference. Usually equal to the number of surface/volume points during training"""
+    """Size of each chunk when performing chunked inference."""
     sample_size_property: str | None = Field(None)
-    """Property in the batch to determine the sample size (i.e., the size of either the surface or volume mesh) to know how many chunks to make"""
+    """Property in the batch to determine the sample size for chunking."""
 
     @model_validator(mode="after")
     def validate_config(self) -> "SurfaceVolumeEvaluationMetricsCallbackConfig":

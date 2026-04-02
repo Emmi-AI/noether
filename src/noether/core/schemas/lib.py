@@ -20,6 +20,48 @@ class _RegistryBase(BaseModel, ABC):
     _type_field: ClassVar[str] = "type"
 
 
+def resolve_config_class(kind: str, base_cls: type[BaseModel]) -> type[BaseModel]:
+    """Resolve a config class from a dotted kind string.
+
+    Resolution order:
+        1. If the imported class is already a ``base_cls`` subclass, return it directly.
+        2. Check for a ``_config_class`` attribute (set by ``@ConfiguredBy``).
+        3. Inspect ``__init__`` type hints for the first parameter that is a ``base_cls`` subclass.
+
+    Args:
+        kind: fully qualified dotted path (e.g., ``"noether.training.trainers.WeightedLossTrainer"``).
+        base_cls: the base config class to resolve against.
+
+    Raises:
+        ValueError: if the config class cannot be determined.
+    """
+    module_name, class_name = kind.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    cls = getattr(module, class_name)
+
+    # Already a config subclass:
+    if isinstance(cls, type) and issubclass(cls, base_cls):
+        return cls
+
+    # Explicit _config_class attribute (@ConfiguredBy):
+    if hasattr(cls, "_config_class") and issubclass(cls._config_class, base_cls):
+        return cls._config_class  # type: ignore[no-any-return]
+
+    # First __init__ type hint that is a base_cls subclass:
+    try:
+        hints = get_type_hints(cls.__init__)
+    except Exception:
+        hints = {}
+    for hint in hints.values():
+        if isinstance(hint, type) and issubclass(hint, base_cls):
+            return hint
+
+    raise ValueError(
+        f"Cannot resolve config class for '{kind}' against {base_cls.__name__}. "
+        "Use the @ConfiguredBy decorator to specify the configuration class."
+    )
+
+
 def Discriminated(registry_cls: type[_RegistryBase]):
     """
     Returns a BeforeValidator that instantiates components based on their registry keys.
@@ -48,37 +90,8 @@ def _discriminated_validator(item, registry_cls: type[_RegistryBase]) -> Any:
 
     # 2. Try dynamic import (for external components)
     if "." in type_key:
-        module_name, class_name = type_key.rsplit(".", 1)
-        module = importlib.import_module(module_name)
-        cls_ = getattr(module, class_name)
-        if issubclass(cls_, registry_cls):
-            return cls_.model_validate(item)
-
-        config_class = None
-        # get class from first __init__ argument
-        try:
-            init_params = get_type_hints(cls_.__init__)
-        except NameError as e:
-            raise ImportError(
-                f"Failed to get type hints for {cls_}: {e}. Ensure all dependencies are installed and imports are correct."
-            ) from e
-        if init_params:
-            config_class = next(iter(init_params.values()))
-
-        # If the class has a _config_class attribute, use that as the config class (if it matches the expected registry_cls)
-        if hasattr(cls_, "_config_class"):
-            config_class = (
-                cls_._config_class  # take the most specific config class if defined
-                if config_class is None or issubclass(cls_._config_class, config_class)
-                else config_class
-            )
-
-        if config_class and issubclass(config_class, registry_cls):
-            return config_class.model_validate(item)
-        else:
-            raise ValueError(
-                f"Unknown type key '{type_key}' for {registry_cls}. Use the @ConfiguredBy({class_name}) decorator to specify the configuration class."
-            )
+        config_class = resolve_config_class(type_key, registry_cls)
+        return config_class.model_validate(item)
 
     return item
 

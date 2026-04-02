@@ -3,7 +3,7 @@
 from typing import Any
 
 import torch
-from torch import nn
+from torch import Tensor, nn
 
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
@@ -68,26 +68,34 @@ class PerceiverBlock(nn.Module):
     def forward(
         self,
         q: torch.Tensor,
-        kv: torch.Tensor,
+        kv: torch.Tensor | None = None,
         condition: torch.Tensor | None = None,
         attn_kwargs: dict[str, Any] | None = None,
-    ) -> torch.Tensor:
+    ) -> tuple[Tensor, dict[str, Tensor] | None]:
         """Forward pass of the PerceiverBlock.
 
         Args:
             q: Input tensor with shape (batch_size, seqlen/num_tokens, hidden_dim) for the query representations.
             kv: Input tensor with shape (batch_size, seqlen/num_tokens, hidden_dim) for the key and value representations.
+                Can be ``None`` when a ``kv_cache`` is provided in ``attn_kwargs``.
             condition: Conditioning vector. If provided, the attention and MLP will be scaled, shifted and gated
                 feature-wise with predicted values from this vector.
-            attn_kwargs: Dict with arguments for the attention (such as the attention mask or rope frequencies). Defaults to None.
+            attn_kwargs: Dict with arguments for the attention (such as the attention mask, rope frequencies,
+                or kv_cache). Defaults to None.
 
         Returns:
-            Tensor after the forward pass of the PerceiverBlock.
+            Tuple of (output_tensor, kv_cache). ``kv_cache`` contains cached K/V from the
+            perceiver attention, or ``None`` when loading from cache.
         """
+        use_cached_kv = attn_kwargs is not None and attn_kwargs.get("kv_cache") is not None
+
         if self.modulation is None:
             if condition is not None:
                 raise ValueError("Conditioning vector provided, but modulation is not configured.")
-            q = q + self.drop_path1(self.ls1(self.attn(q=self.norm1q(q), kv=self.norm1kv(kv), **(attn_kwargs or {}))))
+            attn_out, kv_cache_out = self.attn(
+                q=self.norm1q(q), kv=self.norm1kv(kv) if kv is not None else None, **(attn_kwargs or {})
+            )
+            q = q + self.drop_path1(self.ls1(attn_out))
             q = q + self.drop_path2(self.ls2(self.mlp(self.norm2(q))))
         else:
             if condition is None:
@@ -98,15 +106,21 @@ class PerceiverBlock(nn.Module):
             q_scale, q_shift, kv_scale, kv_shift, attn_gate, mlp_scale, mlp_shift, mlp_gate = mod.split(
                 [hd, hd, kd, kd, hd, hd, hd, hd], dim=-1
             )
+            # In cached mode, kv is None — skip normalization and modulation of kv
+            if use_cached_kv:
+                normed_kv = None
+            else:
+                assert kv is not None, "kv must be provided when not using kv_cache"
+                normed_kv = modulate_scale_shift(self.norm1kv(kv), scale=kv_scale, shift=kv_shift)
+
+            attn_out, kv_cache_out = self.attn(
+                q=modulate_scale_shift(self.norm1q(q), scale=q_scale, shift=q_shift),
+                kv=normed_kv,
+                **(attn_kwargs or {}),
+            )
             q = q + self.drop_path1(
                 modulate_gate(
-                    self.ls1(
-                        self.attn(
-                            q=modulate_scale_shift(self.norm1q(q), scale=q_scale, shift=q_shift),
-                            kv=modulate_scale_shift(self.norm1kv(kv), scale=kv_scale, shift=kv_shift),
-                            **(attn_kwargs or {}),
-                        ),
-                    ),
+                    self.ls1(attn_out),
                     gate=attn_gate,
                 ),
             )
@@ -124,4 +138,4 @@ class PerceiverBlock(nn.Module):
                     gate=mlp_gate,
                 ),
             )
-        return q
+        return q, kv_cache_out

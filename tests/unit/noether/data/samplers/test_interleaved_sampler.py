@@ -692,6 +692,106 @@ def test_sequential_droplast_nofullepoch():
     )
 
 
+def test_sequential_start_update_epoch_aligned():
+    """start_update=2 with updates_per_epoch=2 is equivalent to start_epoch=1."""
+    _run(
+        sampler=InterleavedSampler(
+            train_sampler=SequentialSampler(list(range(8))),
+            config=InterleavedSamplerConfig(
+                batch_size=4,
+                start_update=2,
+                drop_last=False,
+                max_epochs=2,
+            ),
+        ),
+        expected=[
+            # epoch 1 (epoch 0 skipped entirely via start_update=2)
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+        ],
+    )
+
+
+def test_sequential_start_update_mid_epoch():
+    """start_update=1 with batch_size=4 skips the first 4 samples, resuming mid-epoch."""
+    _run(
+        sampler=InterleavedSampler(
+            train_sampler=SequentialSampler(list(range(8))),
+            config=InterleavedSamplerConfig(
+                batch_size=4,
+                start_update=1,
+                drop_last=False,
+                max_updates=3,
+            ),
+        ),
+        expected=[
+            # resumed mid-epoch: first 4 samples skipped
+            4,
+            5,
+            6,
+            7,
+            # continues from start of next epoch iteration
+            0,
+            1,
+            2,
+            3,
+        ],
+    )
+
+
+def test_sequential_start_update_mid_epoch_enu2sequential():
+    """start_update=1 mid-epoch with callback every 2 updates."""
+    _run(
+        sampler=InterleavedSampler(
+            train_sampler=SequentialSampler(list(range(8))),
+            callback_samplers=[
+                SamplerIntervalConfig(
+                    sampler=SequentialSampler(list(range(3))),
+                    every_n_updates=2,
+                    pipeline=None,
+                ),
+            ],
+            config=InterleavedSamplerConfig(
+                batch_size=4,
+                start_update=1,
+                drop_last=False,
+                max_updates=4,
+            ),
+        ),
+        expected=[
+            # resumed mid-epoch: first 4 samples skipped
+            4,
+            5,
+            6,
+            7,
+            # callback fires at update=2 (2 % 2 == 0)
+            8,
+            9,
+            10,
+            # next epoch iteration
+            0,
+            1,
+            2,
+            3,
+            # main (update=3, no callback: 3 % 2 != 0)
+            4,
+            5,
+            6,
+            7,
+            # callback fires at update=4 (4 % 2 == 0)
+            8,
+            9,
+            10,
+        ],
+    )
+
+
 def test_sequential_droplast_nointervalonsampleend():
     _run(
         sampler=InterleavedSampler(

@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from noether.core.schemas.aero import AeroCFDPipelineConfig
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
 from noether.data.pipeline.collators import (
     ConcatSparseTensorCollator,
@@ -18,7 +19,6 @@ from noether.data.pipeline.sample_processors import (
 from tutorial.pipeline.sample_processors import (
     AnchorPointSamplingSampleProcessor,
 )
-from tutorial.schemas.pipelines.aero_pipeline_config import AeroCFDPipelineConfig
 
 
 def _split_by_underscore(item: str) -> list[str]:

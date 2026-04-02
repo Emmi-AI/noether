@@ -138,3 +138,37 @@ class BaseTrainerConfig[TCallbackConfig: CallBackBaseConfig](_RegistryBase):
             raise ValueError("'effective_batch_size' must be specified when using 'track_every_n_samples'.")
 
         return self
+
+
+class WeightedLossTrainerConfig(BaseTrainerConfig):
+    """Config for a generic trainer that computes weighted loss per output field.
+
+    ``field_weights`` maps output field names to their loss weights. Keys must match model output dict keys.
+    Target keys in the batch are expected to follow the ``<field_name>_target`` convention.
+
+    Built-in loss example::
+
+        WeightedLossTrainerConfig(
+            kind="noether.training.trainers.WeightedLossTrainer",
+            field_weights={"surface_pressure": 1.0, "volume_velocity": 1.0},
+            loss_fn="l1",
+        )
+
+    Custom loss function from a downstream project::
+
+        WeightedLossTrainerConfig(
+            kind="noether.training.trainers.WeightedLossTrainer",
+            field_weights={"surface_pressure": 1.0},
+            loss_fn="my_project.losses.weighted_huber",
+        )
+    """
+
+    field_weights: dict[str, float] = Field(
+        ...,
+        description="Mapping from output field name to its loss weight.",
+    )
+    loss_fn: str = Field(
+        "mse",
+        description="Loss function: a built-in name ('mse', 'l1', 'smooth_l1', 'huber') "
+        "or a dotted import path to a custom callable with signature (input, target) -> Tensor.",
+    )

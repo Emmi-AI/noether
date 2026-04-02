@@ -392,7 +392,7 @@ To modify multiple related parameters (e.g., changing Transformer dimensions):
 uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
   +experiment/shapenet=transformer \
   model.hidden_dim=256 \
-  model.num_heads=4 \
+  model.transformer_block_config.num_heads=4 \
 ```
 Note: When changing `hidden_dim`, ensure `num_heads` divides it evenly (i.e., `hidden_dim % num_heads == 0`).
 

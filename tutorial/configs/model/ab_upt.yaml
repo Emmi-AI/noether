@@ -12,15 +12,15 @@ supernode_pooling_config:
   radius: 1
 physics_blocks: 
   - perceiver
-  - shared
+  - self
   - cross
-  - shared
+  - self
   - cross
-  - shared
+  - self
   - cross
-  - shared
+  - self
   - cross
-  - shared
+  - self
 num_surface_blocks: 2
 num_volume_blocks: 2
 optimizer_config: ${optimizer}

@@ -5,7 +5,7 @@ from collections import defaultdict
 import torch
 
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
-from tutorial.schemas.callbacks import SurfaceVolumeEvaluationMetricsCallbackConfig
+from noether.core.schemas.aero import SurfaceVolumeEvaluationMetricsCallbackConfig
 
 # Constants
 DEFAULT_EVALUATION_MODES = [

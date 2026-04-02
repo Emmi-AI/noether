@@ -39,7 +39,7 @@ To implement a custom trainer in **Noether**, you need to create a new class tha
 
 The default ``train_step`` implementation of the BaseTrainer calls the ``loss_compute`` method to calculate the loss.
 Best practice is to return a dictionary of losses from the ``loss_compute`` method, where each key is a loss name and the value is the corresponding loss tensor.
-However, you can also return a single tensor, list or tuple, but then there is no propper naming of the individual losses for logging purposes.
+However, you can also return a single tensor, list or tuple, but then there is no proper naming of the individual losses for logging purposes.
 Example YAML configuration:
 
 .. code-block:: yaml

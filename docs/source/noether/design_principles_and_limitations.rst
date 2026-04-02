@@ -43,7 +43,7 @@ The ``Factory.instantiate`` method uses the ``kind`` field in configurations to 
    # Get kind from the config:
    kind = object_config.kind
 
-   # Factory logic: get the class contructor and pass the config to the class when instantiating 
+   # Factory logic: get the class constructor and pass the config to the class when instantiating 
    class_constructor = class_constructor_from_class_path(kind)
    instance = class_constructor(object_config, **kwargs)
 
@@ -113,5 +113,5 @@ While the architecture ensures robustness, it introduces specific trade-offs tha
     the **Configuration Schema**, and the **Factory** logic. This favors stability over rapid prototyping speed.
 
 - **Nested Configuration Schema complexity:**
-    In our root config schule, we define the modules needed for the `Noether Framework`, each module having their own config schema. 
+    In our root config schema, we define the modules needed for the `Noether Framework`, each module having their own config schema. 
     This can lead to deeply nested configurations that can be hard to navigate and understand in the beginning, especially for new users.

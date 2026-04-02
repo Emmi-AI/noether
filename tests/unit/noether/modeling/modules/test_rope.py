@@ -312,7 +312,7 @@ def test_rope_transformer(implementation):
             implementation=implementation,
         )
     )(pos)
-    y = block(x, attn_kwargs=dict(freqs=freqs))
+    y, _ = block(x, attn_kwargs=dict(freqs=freqs))
     assert torch.allclose(y, EXPECTED_OUTPUT_TRANSFORMER, atol=1e-4)
 
 
@@ -377,5 +377,5 @@ def test_rope_perceiver(implementation):
     )
     q_freqs = rope_freqs(q_pos)
     k_freqs = rope_freqs(kv_pos)
-    y = block(q=q, kv=kv, attn_kwargs=dict(q_freqs=q_freqs, k_freqs=k_freqs))
+    y, _ = block(q=q, kv=kv, attn_kwargs=dict(q_freqs=q_freqs, k_freqs=k_freqs))
     assert torch.allclose(y, EXPECTED_OUTPUT_PERCEIVER, atol=1e-4)

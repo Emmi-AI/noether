@@ -50,7 +50,7 @@ def base_ab_upt_config_dict():
         "name": "test_ab_upt_model",
         "hidden_dim": 128,
         "geometry_depth": 2,
-        "physics_blocks": ["shared", "cross"],
+        "physics_blocks": ["self", "cross"],
         "num_surface_blocks": 2,
         "num_volume_blocks": 2,
         "supernode_pooling_config": {
@@ -117,7 +117,7 @@ def explicit_ab_upt_config_dict():
         "name": "test_ab_upt_model",
         "hidden_dim": 128,
         "geometry_depth": 2,
-        "physics_blocks": ["shared", "cross"],
+        "physics_blocks": ["self", "cross"],
         "num_surface_blocks": 2,
         "num_volume_blocks": 2,
         "supernode_pooling_config": {

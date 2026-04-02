@@ -52,6 +52,8 @@ class ShapeNetCarDataset(AeroDataset):
                 param8/
     """
 
+    STATS_FILE: str = str(Path(__file__).parent / "stats.yaml")
+
     def __init__(
         self,
         dataset_config: StandardDatasetConfig,

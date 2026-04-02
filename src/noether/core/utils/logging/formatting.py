@@ -173,19 +173,19 @@ def tensor_like_to_string(tensor_or_list: torch.Tensor | list[Any]) -> str:
     return np.array2string(tensor_data, precision=2, separator=", ", floatmode="fixed")
 
 
-def dict_to_string(obj: dict[str, Any], item_seperator: str = "-") -> str:
+def dict_to_string(obj: dict[str, Any], item_separator: str = "-") -> str:
     """Convert a dictionary to a string representation.
 
     Example: {epoch: 5, batch_size: 64} -> epoch=5-batchsize=64
 
     Args:
         obj: The dictionary to convert.
-        item_seperator: The separator to use between items.
+        item_separator: The separator to use between items.
 
     Returns:
         The string representation of the dictionary.
     """
-    return item_seperator.join(f"{k}={v}" for k, v in obj.items())
+    return item_separator.join(f"{k}={v}" for k, v in obj.items())
 
 
 def float_to_scientific_notation(value: float, max_precision: int, remove_plus: bool = True) -> str:
