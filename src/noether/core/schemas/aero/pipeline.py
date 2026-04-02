@@ -1,6 +1,6 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.dataset import AeroDataSpecs, PipelineConfig
+from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 
 
@@ -33,5 +33,5 @@ class AeroCFDPipelineConfig(PipelineConfig):
     """Number of surface anchor points to sample for AB-UPT."""
     seed: int | None = None
     """Random seed for sampling processes."""
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     """Data specifications for the pipeline."""

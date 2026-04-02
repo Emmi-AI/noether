@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs
 
 
 class EmmiWingPreset(AeroCFDPreset):
@@ -64,11 +64,13 @@ class EmmiWingPreset(AeroCFDPreset):
     }
 
     @property
-    def data_specs(self) -> AeroDataSpecs:
-        return AeroDataSpecs(
+    def data_specs(self) -> ModelDataSpecs:
+        return ModelDataSpecs(
             position_dim=3,
-            surface_output_dims={"pressure": 1, "friction": 3},
-            volume_output_dims={"pressure": 1, "velocity": 3, "vorticity": 3},
+            domains={
+                "surface": DomainDataSpec(output_dims={"pressure": 1, "friction": 3}),
+                "volume": DomainDataSpec(output_dims={"pressure": 1, "velocity": 3, "vorticity": 3}),
+            },
             conditioning_dims={
                 "geometry_design_parameters": 5,
                 "inflow_design_parameters": 2,

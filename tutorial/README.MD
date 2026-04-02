@@ -571,7 +571,7 @@ For this tutorial, the schema is:
 
 ```python
 class TutorialConfigSchema(ConfigSchema):
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     model: AnyModelConfig = Field(..., discriminator="name")
     trainer: AutomotiveAerodynamicsCfdTrainerConfig
     datasets: dict[str, AeroDatasetConfig]
@@ -978,7 +978,7 @@ Each point in these fields has three coordinates `(x, y, z)`, one or more target
 The target values and features can vary depending on whether the point belongs to the surface or volume and which dataset is used.
 From now on, we'll refer to these additional features as **physics features**.
 We do not consider global features for this project.
-The data structure for our tasks is defined in, for example, [**`configs/data_specs/shapenet_car.yaml`**](./configs/data_specs/shapenet_car.yaml), which corresponds to the [**`AeroDataSpecs`**](../src/noether/core/schemas/dataset.py#186) schema.
+The data structure for our tasks is defined in, for example, [**`configs/data_specs/shapenet_car.yaml`**](./configs/data_specs/shapenet_car.yaml), which corresponds to the [**`ModelDataSpecs`**](../src/noether/core/schemas/dataset.py#226) schema.
 
 The models we use can be roughly **divided** into two classes:
 1. **Point-based models**, where the input points to the model's encoder are also the points used for predicting the output values (e.g., `Transformer`, `Transolver`).
