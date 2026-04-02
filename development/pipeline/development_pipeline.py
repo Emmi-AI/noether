@@ -14,8 +14,6 @@ from noether.data.pipeline.sample_processors import (
 
 
 class DevelopmentPipelineConfig(PipelineConfig):
-    # Define any configuration parameters for the pipeline here
-    # For example, you could specify which sample processors to use and their parameters
     num_points: int = Field(default=56, description="Number of points to sample from the point cloud.")
 
 

@@ -25,18 +25,12 @@ class DevelopmentDataset(Dataset):
 
     @with_normalizers
     def getitem_x(self, idx: int):
-        return torch.randn(
-            (self.dataset_config.sample_size, self.dataset_config.x_dim)
-        )  # Example input feature vector of size x_dim
+        return torch.randn((self.dataset_config.sample_size, self.dataset_config.x_dim))
 
     @with_normalizers
     def getitem_y(self, idx: int):
-        return torch.randn(
-            (self.dataset_config.sample_size, self.dataset_config.y_dim)
-        )  # Example target value (regression)
+        return torch.randn((self.dataset_config.sample_size, self.dataset_config.y_dim))
 
     @with_normalizers
     def getitem_z(self, idx: int):
-        return torch.randn(
-            (self.dataset_config.sample_size, self.dataset_config.z_dim)
-        )  # Example additional feature vector of size z_dim
+        return torch.randn((self.dataset_config.sample_size, self.dataset_config.z_dim))

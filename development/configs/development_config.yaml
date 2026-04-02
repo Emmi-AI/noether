@@ -52,7 +52,7 @@ trainer: # can be commented out to test behavior when no trainer is defined, ski
   forward_properties: ${model.forward_properties}
   target_properties: ["y"]
   #callbacks: null 
-  callbacks:
+  callbacks: # can be commented out to test behavior when no callbacks are defined, skip callback execution
     - kind: development.callbacks.DevelopmentCallback
       batch_size: 1
       every_n_epochs: 1
