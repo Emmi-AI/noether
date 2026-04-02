@@ -1,7 +1,8 @@
 # @package _global_
 
 config_schema_kind: development.development_schema.DevelopmentSchema
-batch_size: 8
+batch_size: 8 # only for the development CLI forward pass - TODO: rename 
+output_path: './development_output'  # can be set to None to test behavior when output path is not defined, skip saving outputs
 datasets:
   development_dataset:
     kind: development.dataset.DevelopmentDataset
@@ -33,11 +34,28 @@ model: # can be commented out to test behavior when no model is defined, skip mo
   output_dim: ${datasets.development_dataset.y_dim}
   forward_properties: ["x_z"]
   # no optimizer config needed to build a model
+  optimizer_config:
+    kind: torch.optim.AdamW
+    lr: 1.0e-3
+    weight_decay: 0.05
+    clip_grad_norm: 1.0
+    schedule_config:
+      kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+      warmup_percent: 0.05
+      end_value: 1.0e-6
+      max_value: ${model.optimizer_config.lr}
 
 trainer: # can be commented out to test behavior when no trainer is defined, skip training loop
   kind: development.trainer.DevelopmentTrainer
   effective_batch_size: ${batch_size}
   max_epochs: 10 # has to to
-  callbacks: null 
   forward_properties: ${model.forward_properties}
   target_properties: ["y"]
+  #callbacks: null 
+  callbacks:
+    - kind: development.callbacks.DevelopmentCallback
+      batch_size: 1
+      every_n_epochs: 1
+      dataset_key: development_dataset
+      name: DevelopmentCallback
+      forward_properties: ${model.forward_properties}

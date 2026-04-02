@@ -9,7 +9,7 @@ from noether.core.schemas import ConfigSchema
 
 
 class DevelopmentSchema(ConfigSchema):
-    batch_size: int = Field(16)
+    batch_size: int
     datasets: dict[str, DevelopmentDatasetConfig] = Field(...)
     output_path: str | None = Field(default=None)  # set to None
     trainer: DevelopmentTrainerConfig | None = Field(default=None)  # Placeholder for trainer configuration

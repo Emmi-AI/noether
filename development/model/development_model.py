@@ -15,8 +15,8 @@ class DevelopmentModelConfig(ModelBaseConfig):
 
 
 class DevelopmentModel(Model):
-    def __init__(self, model_config: DevelopmentModelConfig):
-        super().__init__(model_config=model_config)
+    def __init__(self, model_config: DevelopmentModelConfig, **kwargs):
+        super().__init__(model_config=model_config, **kwargs)
 
         self.layer1 = torch.nn.Linear(self.model_config.input_dim, self.model_config.hidden_dim)
         self.layer2 = torch.nn.Linear(self.model_config.hidden_dim, self.model_config.output_dim)

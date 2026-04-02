@@ -62,3 +62,47 @@ Pipeline needs to be present.
         input_dim: 5
         output_dim: ${datasets.development_dataset.y_dim}
         forward_properties: ["x_z"]
+
+
+.. code-block:: yaml
+
+    ...
+    trainer: # can be commented out to test behavior when no trainer is defined, skip training loop
+        kind: development.trainer.DevelopmentTrainer
+        effective_batch_size: ${batch_size} # has to be set, but needed for developemts
+        max_epochs: 10 # has to to set, but needed for developemt
+        callbacks: null 
+        forward_properties: ${model.forward_properties}
+        target_properties: ["y"]
+
+
+
+.. code-block:: yaml
+
+    ...
+    trainer:
+        ...
+        callbacks:
+            - kind: development.callbacks.DevelopmentCallback
+            batch_size: 1
+            every_n_epochs: 1
+            dataset_key: development_dataset
+            name: DevelopmentCallback
+            forward_properties: ${model.forward_properties}
+
+
+.. code-block:: yaml
+
+    ...
+    model:
+        ...
+        optimizer_config:
+            kind: torch.optim.AdamW
+            lr: 1.0e-3
+            weight_decay: 0.05
+            clip_grad_norm: 1.0
+            schedule_config:
+                kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+                warmup_percent: 0.05
+                end_value: 1.0e-6
+                max_value: ${model.optimizer_config.lr}

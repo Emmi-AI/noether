@@ -1,6 +1,0 @@
-- kind: tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback
-  batch_size: 1
-  every_n_epochs: 1
-  dataset_key: development_dataset
-  name: SurfaceVolumeEvaluationMetricsCallback
-  forward_properties: ${model.forward_properties}

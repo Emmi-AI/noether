@@ -14,6 +14,41 @@ from noether.core.schemas.schema import ConfigSchema
 from noether.data.container import DataContainer
 from noether.training.cli import setup_hydra
 
+_HELP_TEXT = """\
+Noether Development Runner
+--------------------------
+Step-by-step build, test and debug your dataset, pipeline, model forward pass, and
+training step, and callbacks against a single sampled batch — without launching a full
+training run.
+
+What it does, in order:
+  1. Dataset      — instantiates the dataset and samples batch_size items.
+  2. Pipeline     — collates the raw samples through the configured pipeline
+                    (if defined) and shows shapes/dtypes before and after.
+  3. Model        — runs a forward pass and prints the output structure.
+  4. Trainer      — runs a single train_step, executes backward(), and
+                    reports the total loss, per-loss breakdown, and which
+                    parameters received gradients.
+  5. Callback     — if exactly one PeriodicCallback is configured, calls
+                    process_data() and prints its output.
+
+  Each stage is skipped gracefully when not present in the config.
+
+Usage:
+  noether-development <config.yaml> [overrides]
+  noether-development --hp <config.yaml> [overrides]
+
+Arguments:
+  config.yaml   Path to a development YAML config file.
+  --hp          Alternative flag for specifying the config path.
+  overrides     Hydra-style key=value overrides, e.g. batch_size=4.
+
+Examples:
+  noether-development --hp development/configs/development_config.yaml
+"""
+if "--help" in sys.argv or "-h" in sys.argv:
+    print(_HELP_TEXT)
+    sys.exit(0)
 setup_hydra()
 
 
@@ -138,7 +173,7 @@ def log_batch_diff(batch, collated_batch):
     config_name=None,
     version_base="1.3",
 )
-def development(hydra_config: DictConfig):
+def main(hydra_config: DictConfig):
     os.chdir(hydra.utils.get_original_cwd())
 
     # add working directory to PYTHONPATH
@@ -157,27 +192,28 @@ def development(hydra_config: DictConfig):
 
     assert dataset is not None
 
-    perms = random.sample(range(len(dataset)), config.batch_size)  # type: ignore[attr-defined]
+    perm = random.sample(range(len(dataset)), config.batch_size)  # type: ignore[attr-defined]
     batch = []
-    for i in perms:  # if not configured, make this random. Also make option to load multiple batches and/or loop over entire dataset.
+    for i in perm:
         sample = dataset[i]
         batch.append(sample)
     log_batch(batch[0])
 
     if dataset_config.pipeline is not None:
-        p = Factory().create(dataset_config.pipeline)
-        assert p is not None
-        collated_batch = p(batch)
+        pipeline = Factory().create(dataset_config.pipeline)
+        assert pipeline is not None
+        collated_batch = pipeline(batch)
 
         log_batch(collated_batch, title="COLLATED BATCH CONTENTS")
 
     else:
-        print("\nNo pipeline defined for dataset, skipping collation step.")
-        collated_batch = batch
+        print(
+            "\nNo pipeline defined for dataset, skipping collation step. For all additional steps (model forward pass, trainer step, callback step), a pipeline is required."
+        )
+        return
 
     if config.model is not None:
         datasets = {dataset_key: dataset}
-        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
 
         model = Factory().instantiate(
             config.model,
@@ -188,6 +224,8 @@ def development(hydra_config: DictConfig):
         log_batch(out, title="MODEL OUTPUT CONTENTS")
 
         if config.trainer is not None:
+            data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
+
             trainer = Factory().create(
                 config.trainer,
                 data_container=data_container,
@@ -240,6 +278,14 @@ def development(hydra_config: DictConfig):
                 )
 
                 if isinstance(callback, PeriodicCallback):
+                    perm = random.sample(
+                        range(len(data_container.datasets[dataset_key])), config.trainer.callbacks[0].batch_size
+                    )  # type: ignore[attr-defined]
+                    batch = []
+                    for i in perm:
+                        sample = data_container.datasets[dataset_key][i]
+                        batch.append(sample)
+                    collated_batch = pipeline(batch)
                     out_callback = callback.process_data(collated_batch)  # type: ignore[attr-defined]
                     log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
                 else:
@@ -263,4 +309,4 @@ def development(hydra_config: DictConfig):
 
 
 if __name__ == "__main__":
-    development()
+    main()

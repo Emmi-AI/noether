@@ -7,7 +7,7 @@ from noether.training.trainers import BaseTrainer
 
 
 class DevelopmentTrainerConfig(BaseTrainerConfig):
-    """Configuration for the DevelopmentTrainer."""
+    pass
 
 
 class DevelopmentTrainer(BaseTrainer):
