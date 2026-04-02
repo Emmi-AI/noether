@@ -1,12 +1,13 @@
 # @package _global_
 
 config_schema_kind: development.development_schema.DevelopmentSchema
+batch_size: 8
 datasets:
   development_dataset:
     kind: development.dataset.DevelopmentDataset
     x_dim: 3
-    y_dim: 2
-    z_dim: 1
+    y_dim: 1
+    z_dim: 2
     sample_size: 10
     num_samples: 1000
     split: train  
@@ -23,5 +24,12 @@ datasets:
             - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
               mean: [0]
               std: [1]
-    pipeline:
+    pipeline: # can be commented out to test behavior when no pipeline is defined, dataset only returns uncollated data
       kind: development.pipeline.DevelopmentPipeline
+model: # can be commented out to test behavior when no model is defined, skip model instantiation and forward pass
+  kind: development.model.DevelopmentModel
+  input_dim: 5
+  output_dim: ${datasets.development_dataset.y_dim}
+  forward_properties: ["x_z"]
+  # no optimizer config needed to build a model
+    

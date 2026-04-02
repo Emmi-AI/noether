@@ -157,38 +157,35 @@ def development(hydra_config: DictConfig):
 
     assert dataset is not None
 
-    i = random.randint(
-        0, len(dataset) - 1
-    )  # if not configured, make this random. Also make option to load multiple batches and/or loop over entire dataset.
-    batch = dataset[i]
-    log_batch(batch)
+    perms = random.sample(range(len(dataset)), config.batch_size)  # type: ignore[attr-defined]
+    batch = []
+    for i in perms:  # if not configured, make this random. Also make option to load multiple batches and/or loop over entire dataset.
+        sample = dataset[i]
+        batch.append(sample)
+    log_batch(batch[0])
 
     if dataset_config.pipeline is not None:
         p = Factory().create(dataset_config.pipeline)
         assert p is not None
-        collated_batch = p([batch])
+        collated_batch = p(batch)
 
         log_batch(collated_batch, title="COLLATED BATCH CONTENTS")
-        log_batch_diff(batch, collated_batch)
 
     else:
         print("\nNo pipeline defined for dataset, skipping collation step.")
         collated_batch = batch
 
     if config.model is not None:
+        datasets = {dataset_key: dataset}
+        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
+
         model = Factory().instantiate(
             config.model,
-            data_container=None,
-            update_counter=None,
-            path_provider=None,
         )
 
         forward_batch = {key: collated_batch[key] for key in config.model.forward_properties if key in collated_batch}
         out = model(**forward_batch)
         log_batch(out, title="MODEL OUTPUT CONTENTS")
-
-        datasets = {dataset_key: dataset}
-        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
 
         if config.trainer is not None:
             trainer = Factory().create(
@@ -228,40 +225,37 @@ def development(hydra_config: DictConfig):
             else:
                 print("\n  additional_outputs: None")
             print("=" * 60 + "\n")
+
+            if config.trainer.callbacks and len(config.trainer.callbacks) == 1:
+                callback = Factory().instantiate(
+                    config.trainer.callbacks[0],
+                    model=model,
+                    trainer=trainer,
+                    data_container=data_container,
+                    tracker=None,
+                    log_writer=None,
+                    checkpoint_writer=None,
+                    metric_property_provider=None,
+                    development=True,
+                )
+
+                if isinstance(callback, PeriodicCallback):
+                    out_callback = callback.process_data(collated_batch)  # type: ignore[attr-defined]
+                    log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
+                else:
+                    print(
+                        f"\nCallback is not a PeriodicCallback (but {type(callback).__name__}), so skipping callback step since the development callback is currently only implemented for PeriodicCallbacks."
+                    )
+            else:
+                if len(config.trainer.callbacks) == 0:
+                    print("\nNo callbacks defined in trainer, skipping callback step.")
+                else:
+                    print(
+                        "\nMultiple callbacks defined in trainer, skipping callback step for now since the development callback can only done by one."
+                    )
         else:
             trainer = None
 
-        # if callbacks
-        assert len(config.trainer.callbacks) == 1, (
-            "Need at least 2 callbacks configured to run the development callback (which is currently hardcoded to be the second to last callback in the list)"
-        )
-        if len(config.trainer.callbacks) == 1:
-            callback = Factory().instantiate(
-                config.trainer.callbacks[0],
-                model=model,
-                trainer=trainer,
-                data_container=data_container,
-                tracker=None,
-                log_writer=None,
-                checkpoint_writer=None,
-                metric_property_provider=None,
-                development=True,
-            )
-
-            if isinstance(callback, PeriodicCallback):
-                out_callback = callback.process_data(collated_batch)  # type: ignore[attr-defined]
-                log_batch(out_callback, title="CALLBACK OUTPUT CONTENTS")
-            else:
-                print(
-                    f"\nCallback is not a PeriodicCallback (but {type(callback).__name__}), so skipping callback step since the development callback is currently only implemented for PeriodicCallbacks."
-                )
-        else:
-            if len(config.trainer.callbacks) == 0:
-                print("\nNo callbacks defined in trainer, skipping callback step.")
-            else:
-                print(
-                    "\nMultiple callbacks defined in trainer, skipping callback step for now since the development callback can only done by one."
-                )
     else:
         print(
             "\nNo model defined in config, skipping model instantiation and forward pass. Also skipping trainer and callback steps since they depend on the model."

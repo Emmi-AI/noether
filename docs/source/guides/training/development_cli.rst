@@ -51,3 +51,13 @@ Here is how the dependency graph of the main Noether modules looks like:
         ...
         pipeline:
             kind: development.pipeline.DevelopmentPipeline
+
+Pipeline needs to be present. 
+.. code-block:: yaml
+
+    ... 
+    model: # can be commented out to test behavior when no model is defined, skip model instantiation and forward pass
+        kind: development.model.DevelopmentModel
+        input_dim: 5
+        output_dim: ${datasets.development_dataset.y_dim}
+        forward_properties: ["x_z"]
