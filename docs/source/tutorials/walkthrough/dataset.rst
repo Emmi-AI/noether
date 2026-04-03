@@ -152,7 +152,7 @@ Each simulation provides the following fields through corresponding ``getitem_*`
    * - **Volume SDF**
      - ``getitem_volume_sdf``
      - ``(N_vol, 1)``
-     - Signed Distance Function to nearest surface
+     - Signed Distance Field to nearest surface
 
 
 Dataset configuration

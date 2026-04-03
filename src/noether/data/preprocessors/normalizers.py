@@ -166,10 +166,12 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
 class FieldNormalizer(PreProcessor):
     """Preprocessor that normalizes a field based on a specified strategy and dataset statistics."""
 
+    normalizer: PreProcessor
+
     def __init__(
         self,
         normalizer_config: FieldNormalizerConfig,
-        statistics: dict[str, torch.Tensor],
+        statistics: dict[str, list[float | int] | float | int] | None,
         **kwargs,
     ):
         """
@@ -186,6 +188,9 @@ class FieldNormalizer(PreProcessor):
         super().__init__(**kwargs)
 
         stat_keys = normalizer_config.stat_keys or {}
+
+        if statistics is None:
+            raise ValueError("Statistics must be provided for FieldNormalizer.")
 
         if normalizer_config.strategy == "mean_std":
             mean_key = stat_keys.get("mean", f"{self.normalization_key}_mean")

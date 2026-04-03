@@ -4,7 +4,6 @@ from typing import Literal
 
 import torch
 
-from aero_cfd.model.composite_components import CompositeTransformerBlock
 from noether.core.models import CompositeModel, Model
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.models.base import ModelBaseConfig
@@ -12,6 +11,8 @@ from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, RopeFrequency
 from recipes.aero_cfd.model.composite_components.composite_transformer_block import CompositeTransformerBlockConfig
+
+from .composite_components import CompositeTransformerBlock
 
 
 class CompositeTransformerConfig(ModelBaseConfig):

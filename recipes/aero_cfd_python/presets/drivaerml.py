@@ -2,17 +2,16 @@
 
 from __future__ import annotations
 
-from typing import Any
-
-from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
-from noether.core.schemas.dataset import AeroDataSpecs, DatasetBaseConfig, DatasetWrappers
+from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.normalizers import FieldNormalizerConfig
 
+from .base import AeroCFDPreset, AeroPipelineParams
 
-class DrivAerNetPreset(AeroCFDPreset):
-    """Preset for the DrivAerNet++ CFD dataset."""
 
-    dataset_kind = "noether.data.datasets.cfd.DrivAerNetDataset"
+class DrivAerMLPreset(AeroCFDPreset):
+    """Preset for the DrivAerML CFD dataset (CAEML benchmark)."""
+
+    dataset_kind = "noether.data.datasets.cfd.DrivAerMLDataset"
 
     pipeline_defaults: AeroPipelineParams = {
         "num_surface_points": 16384,
@@ -59,42 +58,17 @@ class DrivAerNetPreset(AeroCFDPreset):
                 logscale=True,
                 stat_keys={"mean": "volume_vorticity_logscale_mean", "std": "volume_vorticity_logscale_std"},
             ),
-            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
-            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "surface_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
+            "volume_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
         }
 
     @property
     def excluded_properties(self) -> set[str]:
-        return {"surface_normals", "volume_normals", "volume_sdf"}
-
-    def build_dataset(
-        self,
-        *,
-        split: str,
-        root: str,
-        model_kind: str,
-        wrappers: list[DatasetWrappers] | None = None,
-        filter_categories: tuple[str, ...] | None = None,
-        **overrides: Any,
-    ) -> DatasetBaseConfig:
-        """Build dataset config with optional category filtering.
-
-        Args:
-            filter_categories: optional tuple of DrivAerNet design categories to include
-                (e.g., ``("F_S_WWS_WM", "N_S_WWS_WM")``). None loads all categories.
-        """
-        from noether.core.schemas.aero import AeroDatasetConfig
-
-        return AeroDatasetConfig(
-            kind=self.dataset_kind,
-            root=root,
-            split=split,
-            pipeline=self.build_pipeline(model_kind, **overrides),
-            dataset_normalizers=self.build_normalizers(),
-            dataset_wrappers=wrappers,
-            excluded_properties=self.excluded_properties,
-            filter_categories=filter_categories,
-        )
+        return {"surface_normals", "volume_normals", "volume_sdf", "surface_sdf"}
 
     def target_properties(self) -> list[str]:
         return [

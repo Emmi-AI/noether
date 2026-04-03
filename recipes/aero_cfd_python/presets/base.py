@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, TypedDict
 
 from noether.core.presets import DomainPreset
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
+from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers, StandardDatasetConfig
 
 
 class AeroPipelineParams(TypedDict, total=False):
@@ -67,8 +67,9 @@ class AeroCFDPreset(DomainPreset):
 
     def build_pipeline(self, model_kind: str, **overrides: Any) -> Any:
         """Build an AeroCFDPipelineConfig with merged parameters."""
+        from aero_cfd.pipeline import AeroCFDPipelineConfig
+
         from noether.core.schemas.statistics import AeroStatsSchema
-        from recipes.aero_cfd.pipeline import AeroCFDPipelineConfig
 
         params = super().build_pipeline(model_kind, **overrides)
         return AeroCFDPipelineConfig(
@@ -87,9 +88,8 @@ class AeroCFDPreset(DomainPreset):
         **overrides: Any,
     ) -> DatasetBaseConfig:
         """Build an AeroDatasetConfig for the given split."""
-        from noether.core.schemas.aero import AeroDatasetConfig
 
-        return AeroDatasetConfig(
+        return StandardDatasetConfig(
             kind=self.dataset_kind,
             root=root,
             split=split,

@@ -1,10 +1,12 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from examples.aero_cfd import EmmiWingPreset
+from noether.core.distributed.utils import accelerator_to_device
 from noether.training.runners import HydraRunner
 
-DATASET_ROOT = "/path/to/data/emmi_wing"
-OUTPUT_PATH = "/path/to/outputs/emmi_wing"
+from .presets import DrivAerNetPreset
+
+DATASET_ROOT = "/path/to/drivaernet"
+OUTPUT_PATH = "/path/to/outputs/drivaernet"
 TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
 FIELD_WEIGHTS = {
     "surface_pressure": 1.0,
@@ -20,10 +22,9 @@ def train_abupt(
     dataset_root: str = DATASET_ROOT,
     output_path: str = OUTPUT_PATH,
     accelerator: str = "mps",
-    device: str = "mps",
 ) -> None:
-    """Train AB-UPT using EmmiWing dataset."""
-    preset = EmmiWingPreset()
+    """Train AB-UPT using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroABUPT",
         model_params=dict(hidden_dim=192, geometry_depth=6, physics_blocks=["perceiver"] + ["shared", "cross"] * 5),
@@ -35,7 +36,7 @@ def train_abupt(
         max_epochs=2,
         accelerator=accelerator,
     )
-    HydraRunner().main(device=device, config=config)
+    HydraRunner().main(device=accelerator_to_device(accelerator), config=config)
 
 
 def train_upt(
@@ -43,10 +44,9 @@ def train_upt(
     dataset_root: str = DATASET_ROOT,
     output_path: str = OUTPUT_PATH,
     accelerator: str = "mps",
-    device: str = "mps",
 ) -> None:
-    """Train UPT using EmmiWing dataset."""
-    preset = EmmiWingPreset()
+    """Train UPT using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroUPT",
         model_params=dict(hidden_dim=192, num_heads=3, approximator_depth=12),
@@ -58,7 +58,7 @@ def train_upt(
         max_epochs=2,
         accelerator=accelerator,
     )
-    HydraRunner().main(device=device, config=config)
+    HydraRunner().main(device=accelerator_to_device(accelerator), config=config)
 
 
 def train_transformer(
@@ -66,10 +66,9 @@ def train_transformer(
     dataset_root: str = DATASET_ROOT,
     output_path: str = OUTPUT_PATH,
     accelerator: str = "mps",
-    device: str = "mps",
 ) -> None:
-    """Train Transformer using EmmiWing dataset."""
-    preset = EmmiWingPreset()
+    """Train Transformer using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroTransformer",
         model_params=dict(hidden_dim=192, depth=12),
@@ -81,7 +80,7 @@ def train_transformer(
         max_epochs=2,
         accelerator=accelerator,
     )
-    HydraRunner().main(device=device, config=config)
+    HydraRunner().main(device=accelerator_to_device(accelerator), config=config)
 
 
 def train_transolver(
@@ -89,10 +88,9 @@ def train_transolver(
     dataset_root: str = DATASET_ROOT,
     output_path: str = OUTPUT_PATH,
     accelerator: str = "mps",
-    device: str = "mps",
 ) -> None:
-    """Train Transolver using EmmiWing dataset."""
-    preset = EmmiWingPreset()
+    """Train Transolver using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroTransolver",
         model_params=dict(hidden_dim=192, depth=12, num_slices=512),
@@ -104,11 +102,11 @@ def train_transolver(
         max_epochs=2,
         accelerator=accelerator,
     )
-    HydraRunner().main(device=device, config=config)
+    HydraRunner().main(device=accelerator_to_device(accelerator), config=config)
 
 
 if __name__ == "__main__":
     train_abupt()
     # train_upt()
     # train_transformer()
-    # train_transolver()
+    # train_upt()

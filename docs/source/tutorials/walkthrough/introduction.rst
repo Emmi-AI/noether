@@ -78,8 +78,6 @@ Every Noether project consists of the following core modules (in alphabetical or
 Project setup
 -------------
 
-**Prerequisites**: Python 3.12
-
 Clone the repository and set up the environment:
 
 .. code-block:: bash
@@ -90,11 +88,6 @@ Clone the repository and set up the environment:
    source .venv/bin/activate
    uv pip install emmiai-noether
 
-If the built package is not available, you can build it from source:
-
-.. code-block:: bash
-
-   uv pip install ..
 
 For detailed installation and verification instructions, see
 :doc:`/tutorials/getting_started_install_and_verify`.

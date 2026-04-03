@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
 from noether.core.schemas.dataset import AeroDataSpecs
 from noether.core.schemas.normalizers import FieldNormalizerConfig
+
+from .base import AeroCFDPreset, AeroPipelineParams
 
 
 class AhmedMLPreset(AeroCFDPreset):
@@ -57,13 +58,17 @@ class AhmedMLPreset(AeroCFDPreset):
                 logscale=True,
                 stat_keys={"mean": "volume_vorticity_logscale_mean", "std": "volume_vorticity_logscale_std"},
             ),
-            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
-            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "surface_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
+            "volume_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
         }
 
     @property
     def excluded_properties(self) -> set[str]:
-        return {"surface_normals", "volume_normals", "volume_sdf"}
+        return {"surface_normals", "volume_normals", "volume_sdf", "surface_sdf"}
 
     def target_properties(self) -> list[str]:
         return [

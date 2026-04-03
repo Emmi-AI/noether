@@ -1,9 +1,5 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from pipeline.sample_processors import (
-    AnchorPointSamplingSampleProcessor,
-)
-
 from noether.core.schemas.dataset import AeroDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
@@ -18,6 +14,10 @@ from noether.data.pipeline.sample_processors import (
     PointSamplingSampleProcessor,
     RenameKeysSampleProcessor,
     SupernodeSamplingSampleProcessor,
+)
+
+from ..sample_processors import (
+    AnchorPointSamplingSampleProcessor,
 )
 
 

@@ -21,7 +21,7 @@ For a higher-level overview of how configs and code-driven workflows compare, se
 Configuration architecture
 --------------------------
 
-The Noether Framework uses a **hierarchical configuration pattern** where:
+This tutorial uses a **hierarchical configuration pattern** where:
 
 #. **Base configurations** define default settings for each component (datasets, models, trainers, etc.)
 #. **Experiment configurations** compose and override base configs for specific experiments

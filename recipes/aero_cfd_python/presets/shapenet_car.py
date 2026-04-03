@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from examples.aero_cfd.presets.base import AeroCFDPreset, AeroPipelineParams
+from aero_cfd.callbacks import AeroMetricsCallbackConfig
+
 from noether.core.schemas.dataset import AeroDataSpecs, RepeatWrapperConfig
 from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
-from recipes.aero_cfd.callbacks import AeroMetricsCallbackConfig
+
+from .base import AeroCFDPreset, AeroPipelineParams
 
 
 class ShapeNetCarPreset(AeroCFDPreset):
@@ -55,8 +57,12 @@ class ShapeNetCarPreset(AeroCFDPreset):
             "surface_pressure": FieldNormalizerConfig(strategy="mean_std"),
             "volume_velocity": FieldNormalizerConfig(strategy="mean_std"),
             "volume_sdf": FieldNormalizerConfig(strategy="mean_std"),
-            "surface_position": FieldNormalizerConfig(strategy="position", scale=1000),
-            "volume_position": FieldNormalizerConfig(strategy="position", scale=1000),
+            "surface_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
+            "volume_position": FieldNormalizerConfig(
+                strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
+            ),
         }
 
     @property
