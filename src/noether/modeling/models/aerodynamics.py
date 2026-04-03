@@ -265,12 +265,42 @@ class AeroUPT(Model):
 
     Combines separate surface/volume query positions into the single ``query_position``
     that the core UPT expects, and splits outputs using ``ModelDataSpecs``.
+    Supports optional surface/volume bias layers and physics feature projection on queries.
     """
 
     def __init__(self, model_config: UPTConfig, **kwargs):
         super().__init__(model_config=model_config, **kwargs)
         self.backbone = UPT(config=model_config)
         self.data_specs = model_config.data_specs
+
+        hidden_dim = model_config.hidden_dim
+        self.use_bias_layers = model_config.bias_layers
+        if self.use_bias_layers:
+            self.surface_bias = MLP(
+                config=MLPConfig(input_dim=hidden_dim, hidden_dim=hidden_dim, output_dim=hidden_dim)
+            )
+            self.volume_bias = MLP(config=MLPConfig(input_dim=hidden_dim, hidden_dim=hidden_dim, output_dim=hidden_dim))
+
+        self.use_physics_features = model_config.data_specs.use_physics_features
+        if self.use_physics_features:
+            surface_feat_dim = _domain_feature_dim(model_config.data_specs, "surface")
+            if surface_feat_dim > 0:
+                self.project_surface_features = LinearProjection(
+                    config=LinearProjectionConfig(
+                        input_dim=surface_feat_dim,
+                        output_dim=hidden_dim,
+                        init_weights="truncnormal002",
+                    ),
+                )
+            volume_feat_dim = _domain_feature_dim(model_config.data_specs, "volume")
+            if volume_feat_dim > 0:
+                self.project_volume_features = LinearProjection(
+                    config=LinearProjectionConfig(
+                        input_dim=volume_feat_dim,
+                        output_dim=hidden_dim,
+                        init_weights="truncnormal002",
+                    ),
+                )
 
     def forward(
         self,
@@ -279,17 +309,49 @@ class AeroUPT(Model):
         surface_position: torch.Tensor,
         surface_query_position: torch.Tensor,
         volume_query_position: torch.Tensor,
+        surface_features: torch.Tensor | None = None,
+        volume_features: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
+        num_surface = surface_query_position.shape[1]
         query_position = torch.cat([surface_query_position, volume_query_position], dim=1)
 
-        x = self.backbone(
-            geometry_batch_idx=surface_position_batch_idx,
-            geometry_supernode_idx=surface_position_supernode_idx,
-            geometry_position=surface_position,
-            query_position=query_position,
+        encoder_attn_kwargs, decoder_attn_kwargs = self.backbone.compute_rope_args(
+            surface_position_batch_idx, surface_position, surface_position_supernode_idx, query_position
         )
 
-        num_surface = surface_query_position.shape[1]
+        # Supernode pooling encoder:
+        x = self.backbone.encoder(
+            input_pos=surface_position,
+            supernode_idx=surface_position_supernode_idx,
+            batch_idx=surface_position_batch_idx,
+        )
+        # Approximator blocks:
+        for block in self.backbone.approximator_blocks:
+            x, _ = block(x, attn_kwargs=encoder_attn_kwargs)
+
+        # Query embeddings with optional bias and physics features:
+        queries = self.backbone.pos_embed(query_position)
+
+        if self.use_bias_layers:
+            q_surface = self.surface_bias(queries[:, :num_surface])
+            q_volume = self.volume_bias(queries[:, num_surface:])
+            queries = torch.cat([q_surface, q_volume], dim=1)
+
+        if self.use_physics_features:
+            parts: list[torch.Tensor] = []
+            if surface_features is not None and hasattr(self, "project_surface_features"):
+                parts.append(self.project_surface_features(surface_features))
+            if volume_features is not None and hasattr(self, "project_volume_features"):
+                parts.append(self.project_volume_features(volume_features))
+            if parts:
+                queries = queries + torch.cat(parts, dim=1)
+
+        # Perceiver decoder:
+        x = self.backbone.decoder(kv=x, queries=queries, attn_kwargs=decoder_attn_kwargs, condition=None)
+
+        x = self.backbone.norm(x)
+        x = self.backbone.prediction_layer(x)
+
         return _gather_outputs(x, num_surface, self.data_specs)
 
 
