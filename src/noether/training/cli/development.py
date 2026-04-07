@@ -197,7 +197,7 @@ def main(hydra_config: DictConfig):
     for i in perm:
         sample = dataset[i]
         batch.append(sample)
-    log_batch(batch[0])
+    log_batch(batch[0], title="RAW BATCH SAMPLE CONTENTS (first random sample from the batch)")
 
     if dataset_config.pipeline is not None:
         pipeline = Factory().create(dataset_config.pipeline)
