@@ -59,6 +59,8 @@ class AnchoredBranchedUPT(nn.Module):
             {name: MLP(config=config.bias_mlp_config) for name in self.domain_names}  # type: ignore[arg-type]
         )
 
+        self.hidden_dim = config.hidden_dim
+
         # physics blocks (shared weights, parameterized with N branches)
         self.physics_blocks = nn.ModuleList()
         self.use_geometry_branch = False
@@ -231,14 +233,19 @@ class AnchoredBranchedUPT(nn.Module):
         )
 
         # Per-domain position embedding + bias, then concatenate in domain order
-        domain_embeddings = []
+        # Preallocate tensor for per-domain position embedding + bias, then fill in domain order
+        batch_size = next(iter(domain_positions_all.values())).size(0)
+        total_tokens = sum(domain_positions_all[name].size(1) for name in self.domain_names)
+        x_physics = torch.empty(batch_size, total_tokens, self.hidden_dim, device=next(self.parameters()).device)
+        start = 0
         for name in self.domain_names:
             pos = domain_positions_all[name]
             if pos.ndim != 3:
                 raise ValueError(f"Position tensor for domain '{name}' must be 3-dimensional, got {pos.ndim}.")
-            domain_embeddings.append(self.domain_biases[name](self.pos_embed(pos)))
-        x_physics = torch.cat(domain_embeddings, dim=1)
-
+            emb = self.domain_biases[name](self.pos_embed(pos))
+            end = start + emb.size(1)
+            x_physics[:, start:end, :] = emb
+            start = end
         new_physics_cache: list[LayerCache] = []
         for i, block in enumerate(self.physics_blocks):
             if isinstance(block, TransformerBlock):
@@ -303,8 +310,7 @@ class AnchoredBranchedUPT(nn.Module):
             if block_cache is not None:
                 new_cache.append(block_cache)
 
-        predictions = self.domain_decoder_projections[domain_name](x)
-        return predictions, new_cache
+        return self.domain_decoder_projections[domain_name](x), new_cache
 
     def decoder_blocks_forward(
         self,
@@ -395,6 +401,7 @@ class AnchoredBranchedUPT(nn.Module):
         # domain positions
         domain_anchor_positions: dict[str, Tensor] | None = None,
         domain_query_positions: dict[str, Tensor] | None = None,
+        domain_features: dict[str, Tensor] | None = None,
         conditioning_inputs: dict[str, Tensor] | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
