@@ -224,7 +224,7 @@ def main(config: DictConfig):
     config_path = _find_config_path()
     print(f"Config path: {config_path}")
 
-    train_cmd = f"uv run noether-train --hp {config_path}"
+    train_cmd = f"srun uv run noether-train --hp {config_path}"
     hydra_overrides = _collect_hydra_overrides()
 
     if hydra_overrides:
