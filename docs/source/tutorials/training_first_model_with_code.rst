@@ -82,17 +82,17 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         PerceiverBlockConfig,
         TransformerBlockConfig,
     )
-    from noether.core.schemas.aero import AeroCFDPipelineConfig
     from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
     from noether.core.schemas.optimizers import OptimizerConfig
     from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
     from noether.core.schemas.statistics import AeroStatsSchema
+    from noether.core.schemas.models.upt import UPTConfig
     from noether.training.runners import HydraRunner
-    from tutorial.callbacks.surface_volume_evaluation_metrics import (
+    from recipes.aero_cfd.callbacks import (
         AeroMetricsCallbackConfig,
     )
-    from tutorial.schemas.models.upt_config import UPTConfig
-    from tutorial.schemas.trainers.automotive_aerodynamics_trainer_config import AutomotiveAerodynamicsCfdTrainerConfig
+    from recipes.aero_cfd.pipeline import AeroCFDPipelineConfig
+    from recipes.aero_cfd.trainers import AerodynamicsCfdTrainerConfig
 
 Let's go over each group to better understand the outline:
 
@@ -109,8 +109,8 @@ Training:
 
 - ``noether.core.schemas.callbacks`` - relevant callbacks for our training
 - ``noether.core.schemas.optimizers`` - optimizer config
-- ``tutorial.schemas.trainers.automotive_aerodynamics_trainer_config`` - trainer configuration
-- ``tutorial.schemas.models`` - configs for model initialization
+- ``recipes.aero_cfd.trainers`` - trainer configuration
+- ``recipes.aero_cfd.models`` - configs for model initialization
 - etc.
 
 Execution:
@@ -268,12 +268,12 @@ Step 5: Trainer config
 
 .. testcode:: tutorial
 
-    def build_trainer_config(model_forward_properties: list[str]) -> AutomotiveAerodynamicsCfdTrainerConfig:
+    def build_trainer_config(model_forward_properties: list[str]) -> AerodynamicsCfdTrainerConfig:
         batch_size = 1
         loss_and_log_every_n_epochs = 1
         save_and_ema_every_n_epochs = 10
 
-        return AutomotiveAerodynamicsCfdTrainerConfig(
+        return AerodynamicsCfdTrainerConfig(
             kind="tutorial.trainers.AutomotiveAerodynamicsCFDTrainer",
             surface_weight=1.0,
             volume_weight=1.0,

@@ -40,8 +40,7 @@ from the Noether package.
                    └── ShapeNetCarDataset (ShapeNet-Car implementation)
 
 The ``AeroDataset`` provides a general API for CFD aerodynamics datasets (AhmedML, DrivAerML,
-DrivAerNet++, ShapeNet-Car, etc.), ensuring consistent interfaces across different automotive
-aerodynamics datasets.
+DrivAerNet++, ShapeNet-Car, etc.), ensuring consistent interfaces across different aerodynamics datasets.
 
 For a concise guide on building your own dataset, see
 :doc:`/guides/data/how_to_make_a_custom_dataset`.
@@ -163,7 +162,7 @@ to create dataset instances with appropriate settings.
 
 **Basic dataset configuration structure:**
 
-The ``configs/datasets/shapenet_dataset.yaml`` file defines dataset configurations for
+The :source:`configs/datasets/shapenet_dataset.yaml <../../../../recipes/aero_cfd/configs/datasets/shapenet_dataset.yaml>` file defines dataset configurations for
 different splits:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/datasets/shapenet_dataset.yaml
@@ -243,7 +242,7 @@ Defines the total number of samples for one epoch:
 
    def __len__(self) -> int:
        """Returns the total size of the dataset."""
-       return len(self.uris) * self.num_repeats
+       return len(self.uris)
 
 This calculation accounts for dataset repetitions, useful for oversampling small datasets
 during training.

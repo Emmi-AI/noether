@@ -1,5 +1,5 @@
 #BaseTrainerConfig
-kind: trainers.AutomotiveAerodynamicsCFDTrainer
+kind: trainers.AerodynamicsCFDTrainer
 precision: bfloat16
 max_epochs: 500
 effective_batch_size: 1
@@ -12,7 +12,7 @@ target_properties:
   - volume_pressure_target
   - surface_friction_target
   - volume_vorticity_target
-# AutomotiveAerodynamicsCFDTrainerConfig
+# AerodynamicsCFDTrainerConfig
 surface_weight: 1.0
 volume_weight: 1.0 
 surface_pressure_weight: 1.0 

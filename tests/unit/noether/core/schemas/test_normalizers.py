@@ -6,7 +6,6 @@ import torch
 from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.data.preprocessors.normalizers import FieldNormalizer
 
-
 SAMPLE_STATISTICS = {
     "surface_pressure_mean": [10.0],
     "surface_pressure_std": [2.0],

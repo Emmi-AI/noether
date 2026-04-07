@@ -13,7 +13,7 @@ Running SLURM jobs
 
 The Noether Framework provides the ``noether-train-submit-job`` CLI for submitting SLURM jobs.
 It reads SLURM parameters from a ``slurm`` config group in your experiment configuration.
-This recipe defines its SLURM defaults in ``configs/slurm/slurm_config.yaml``:
+This recipe defines its SLURM defaults in :source:`configs/slurm/slurm_config.yaml <../../../../recipes/aero_cfd/configs/slurm/slurm_config.yaml>`:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/slurm/slurm_config.yaml
    :language: yaml
@@ -28,14 +28,14 @@ ShapeNet-Car:
 
    sbatch jobs/train_shapenet.job
 
-The same applies to ``train_ahmedml.job`` and ``train_drivaerml.job``, which can be found in the
+The same applies to :source:`jobs/train_ahmedml.job <../../../../recipes/aero_cfd/jobs/train_ahmedml.job>` and :source:`jobs/train_drivaerml.job <../../../../recipes/aero_cfd/jobs/train_drivaerml.job>`, which can be found in the
 ``jobs/`` directory.
 
 We also provide the config files to run the experiments for
 `DrivAerNet++ <https://arxiv.org/abs/2406.09624>`_
-(``train_drivaernet.yaml``) and the
+(:source:`train_drivaernet.yaml <../../../../recipes/aero_cfd/configs/train_drivaernet.yaml>`) and the
 `Emmi-Wing <http://arxiv.org/html/2511.21474v1>`_
-(``train_wing.yaml``), however, those experiments are not part of this walkthrough.
+(:source:`train_wing.yaml <../../../../recipes/aero_cfd/configs/train_wing.yaml>`), however, those experiments are not part of this walkthrough.
 
 .. warning::
 

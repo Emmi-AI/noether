@@ -9,7 +9,7 @@ from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.training.trainers import BaseTrainer
 
 
-class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
+class AerodynamicsCfdTrainerConfig(BaseTrainerConfig):
     surface_weight: float = 1.0
     """ Weight of the predicted values on the surface mesh. Defaults to 1.0.."""
     volume_weight: float = 1.0
@@ -27,10 +27,10 @@ class AutomotiveAerodynamicsCfdTrainerConfig(BaseTrainerConfig):
     use_physics_features: bool = False
 
 
-class AutomotiveAerodynamicsCFDTrainer(BaseTrainer):
+class AerodynamicsCFDTrainer(BaseTrainer):
     """Trainer class for to train automative aerodynaimcs CFD for the: AhmedML, DrivaerML and Shapenet-Car Car dataset."""
 
-    def __init__(self, trainer_config: AutomotiveAerodynamicsCfdTrainerConfig, **kwargs):
+    def __init__(self, trainer_config: AerodynamicsCfdTrainerConfig, **kwargs):
         """Trainer class for to train automative aerodynaimcs CFD for the: AhmedML, DrivaerML and Shapenet-Car Car dataset.
 
         Args:

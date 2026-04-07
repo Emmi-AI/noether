@@ -1,8 +1,8 @@
 The Trainer
 ===========
 
-The ``AutomotiveAerodynamicsCFDTrainer`` (in ``trainers/automotive_aerodynamics_cfd.py``)
-is a specialized trainer designed for automotive Computational Fluid Dynamics (CFD) tasks,
+The ``AerodynamicsCFDTrainer`` (in ``trainers/aerodynamics_cfd.py``)
+is a specialized trainer designed for aerodynamics Computational Fluid Dynamics (CFD) tasks,
 specifically for the AhmedML, DrivAerML, DrivAerNet++, ShapeNet-Car, and Emmi-Wing datasets.
 Its primary role is to manage the training step by processing model outputs, computing a flexible
 weighted loss, and returning the results.
@@ -78,14 +78,14 @@ In this walkthrough, the target properties are fixed per dataset, while the
 
 **Full trainer configuration:**
 
-The complete trainer config for ShapeNet-Car is defined in ``configs/trainer/shapenet_trainer.yaml``:
+The complete trainer config for ShapeNet-Car is defined in :source:`configs/trainer/shapenet_trainer.yaml <../../../../recipes/aero_cfd/configs/trainer/shapenet_trainer.yaml>`:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/trainer/shapenet_trainer.yaml
    :language: yaml
 
 
-AutomotiveAerodynamicsCFDTrainer implementation
------------------------------------------------
+AerodynamicsCFDTrainer implementation
+-------------------------------------
 
 The most important variables in the ``__init__`` method are the loss weights, which give you
 fine-grained control over the training objective.
@@ -108,9 +108,9 @@ which of these potential losses should be computed during training.
 
 This method contains the core logic of the trainer for computing the loss:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/trainers/automotive_aerodynamics_cfd.py
+.. literalinclude:: ../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py
    :language: python
-   :pyobject: AutomotiveAerodynamicsCFDTrainer.loss_compute
+   :pyobject: AerodynamicsCFDTrainer.loss_compute
    :dedent:
 
 It iterates through the ``loss_items`` configured during initialization. For each

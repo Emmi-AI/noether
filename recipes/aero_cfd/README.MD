@@ -2,7 +2,7 @@
 
 **Authors**: Maurits Bleeker, Markus Hennerbichler, and Pavel Kuksa
 
-This recipe demonstrates how to use the [Noether Framework](https://github.com/Emmi-AI/noether) for automotive Computational Fluid Dynamics (CFD) tasks, based on the experiments from Section 4.4 of the [AB-UPT paper](https://arxiv.org/pdf/2502.09692).
+This recipe demonstrates how to use the [Noether Framework](https://github.com/Emmi-AI/noether) for aerodynamics Computational Fluid Dynamics (CFD) tasks, based on the experiments from Section 4.4 of the [AB-UPT paper](https://arxiv.org/pdf/2502.09692).
 
 ## Overview
 
@@ -15,7 +15,9 @@ The recipe provides a complete training pipeline for predicting aerodynamic quan
 - **Callbacks**: Evaluation metrics (MSE, MAE, Relative L2) with denormalization and chunked inference
 - **Configs**: Hydra + Pydantic experiment configurations with SLURM job scripts
 
-## Quick start
+There are two ways to run experiments with this recipe: using **YAML configs** (via the CLI) or using **Python run scripts** (via the preset-based interface).
+
+## Option 1: Run with configs
 
 ```bash
 # From the recipe folder (recipes/aero_cfd/)
@@ -25,8 +27,41 @@ uv run noether-train \
 ```
 
 > [!IMPORTANT]
-> All commands in this recipe must be run from the `recipes/aero_cfd/` directory.
+> All CLI commands in this recipe must be run from the `recipes/aero_cfd/` directory.
 > Set `dataset_root` in the config file or via CLI override before running.
+
+## Option 2: Run with Python scripts
+
+The `scripts/` folder contains Python training scripts that define the same experiments using the preset-based interface — no YAML files needed.
+
+| Script | Dataset | Source |
+|---|---|---|
+| `scripts/train_ahmedml.py` | AhmedML (CAEML benchmark) | [CAEML](https://caeml.org/) |
+| `scripts/train_drivaerml.py` | DrivAerML (CAEML benchmark) | [CAEML](https://caeml.org/) |
+| `scripts/train_drivaernet.py` | DrivAerNet++ | [DrivAerNet](https://github.com/Mohamedelrefaie/DrivAerNet) |
+| `scripts/train_emmi_wing.py` | Emmi Wing | Internal |
+| `scripts/train_shapenet_car.py` | ShapeNet Car | [ShapeNet](https://shapenet.org/) |
+
+Each script supports the following model architectures: AB-UPT, UPT, Transformer, and Transolver.
+
+From the `recipes` directory run:
+
+```console
+uv run python -m aero_cfd.scripts.train_shapenet_car \
+  --dataset-root /path/to/shapenet_car \
+  --output-path /path/to/outputs \
+  --accelerator gpu \
+  --model abupt
+```
+
+Available arguments:
+
+| Argument | Description |
+|---|---|
+| `--dataset-root` | **(required)** Path to the dataset. |
+| `--output-path` | **(required)** Path to store training outputs. |
+| `--accelerator` | Accelerator to use: `cpu`, `gpu`, or `mps` (default: `gpu`). |
+| `--model` | Model architecture: `abupt`, `upt`, `transformer`, or `transolver` (default: `abupt`). |
 
 ## Documentation
 
@@ -52,6 +87,9 @@ recipes/aero_cfd/
 ├── model/            # Model architecture wrappers
 ├── pipeline/         # Multi-stage data pipeline
 ├── schemas/          # Pydantic configuration schemas
+├── scripts/          # Python training scripts (preset-based)
+│   ├── presets/      # Dataset presets for Python interface
+│   └── train_*.py    # Per-dataset run scripts
 └── trainers/         # Custom trainer implementation
 ```
 

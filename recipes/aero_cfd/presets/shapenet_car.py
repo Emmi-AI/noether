@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 from aero_cfd.callbacks import AeroMetricsCallbackConfig
-
 from noether.core.schemas.dataset import AeroDataSpecs, RepeatWrapperConfig
 from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema

@@ -28,14 +28,14 @@ This tutorial uses a **hierarchical configuration pattern** where:
 #. **Command-line overrides** allow quick parameter sweeps without file changes
 
 The main entry point for any experiment is a top-level configuration file like
-:download:`configs/train_shapenet.yaml <../../../../recipes/aero_cfd/configs/train_shapenet.yaml>`,
+:source:`configs/train_shapenet.yaml <../../../../recipes/aero_cfd/configs/train_shapenet.yaml>`,
 which serves as the composition root that brings together all required components.
 
 
 Example: ShapeNet-Car configuration
 ------------------------------------
 
-:download:`train_shapenet.yaml <../../../../recipes/aero_cfd/configs/train_shapenet.yaml>` demonstrates the structure of a complete experiment configuration.
+:source:`train_shapenet.yaml <../../../../recipes/aero_cfd/configs/train_shapenet.yaml>` demonstrates the structure of a complete experiment configuration.
 Let's break down its key components:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/train_shapenet.yaml
@@ -43,7 +43,7 @@ Let's break down its key components:
    :lines: 1-25
 
 Each entry like ``dataset_normalizers: shapenet_dataset_normalizers`` tells Hydra to load
-:download:`configs/dataset_normalizers/shapenet_dataset_normalizers.yaml <../../../../recipes/aero_cfd/configs/dataset_normalizers/shapenet_dataset_normalizers.yaml>`
+:source:`configs/dataset_normalizers/shapenet_dataset_normalizers.yaml <../../../../recipes/aero_cfd/configs/dataset_normalizers/shapenet_dataset_normalizers.yaml>`
 and merge it into the final configuration.
 
 The ``???`` marker indicates required fields that must be specified in experiment configs.
@@ -56,8 +56,8 @@ To run an experiment, you need configurations for:
 
 #. **Model**: Architecture and hyperparameters
 #. **Trainer**: Trainer config
-#. **Callbacks**: Evaluation, logging, and monitoring
-#. **Tracker**: Experiment tracking (W&B or disabled)
+#. **Callbacks**: :doc:`Evaluation, logging, and monitoring </guides/training/use_callbacks>`
+#. **Tracker**: :doc:`tracker </guides/training/experiment_tracking>`
 #. **Dataset(s)**: Dataset config
 #. **Pipeline**: Data preprocessing and collation
 #. **Optimizer**: Optimization algorithm
@@ -70,7 +70,7 @@ remain fixed.
 **Example: Dataset configuration**
 
 The base dataset configuration
-:download:`configs/datasets/shapenet_dataset.yaml <../../../../recipes/aero_cfd/configs/datasets/shapenet_dataset.yaml>`
+:source:`configs/datasets/shapenet_dataset.yaml <../../../../recipes/aero_cfd/configs/datasets/shapenet_dataset.yaml>`
 demonstrates config composition:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/datasets/shapenet_dataset.yaml
@@ -112,20 +112,20 @@ Experiment-specific configurations compose base configs and apply targeted overr
 An experiment file should:
 
 #. Select a specific model variant
-#. Choose a tracker (W&B or disabled)
+#. Choose a :doc:`tracker <../../guides/training/experiment_tracking>` (W&B, trackio, Tensorboard or disabled)
 #. Override any experiment-specific hyperparameters
 
 **Example: Transformer experiment**
 
 The Transformer experiment configuration
-:download:`configs/experiment/shapenet/transformer.yaml <../../../../recipes/aero_cfd/configs/experiment/shapenet/transformer.yaml>`:
+:source:`configs/experiment/shapenet/transformer.yaml <../../../../recipes/aero_cfd/configs/experiment/shapenet/transformer.yaml>`:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/experiment/shapenet/transformer.yaml
    :language: yaml
 
 **Breaking down the experiment config:**
 
-- ``override /model: transformer``: Use :download:`configs/model/transformer.yaml <../../../../recipes/aero_cfd/configs/model/transformer.yaml>` instead of the
+- ``override /model: transformer``: Use :source:`configs/model/transformer.yaml <../../../../recipes/aero_cfd/configs/model/transformer.yaml>` instead of the
   placeholder ``???`` in the base config
 - ``override /tracker: development_tracker``: Select the W&B tracker configuration
 - ``override /optimizer: lion``: Override the default AdamW optimizer with Lion
@@ -178,7 +178,7 @@ To enable experiment tracking, simply remove the ``tracker=disabled`` override:
    command line via ``dataset_root="<path to dataset root>"``.
 
 You'll need to configure your W&B API key on first run and update
-:download:`configs/tracker/development_tracker.yaml <../../../../recipes/aero_cfd/configs/tracker/development_tracker.yaml>` with your project details.
+:source:`configs/tracker/development_tracker.yaml <../../../../recipes/aero_cfd/configs/tracker/development_tracker.yaml>` with your project details.
 
 **Single parameter overrides:**
 
@@ -203,7 +203,12 @@ Note: When changing ``hidden_dim``, ensure ``num_heads`` divides it evenly
 (i.e., ``hidden_dim % num_heads == 0``).
 
 For more details on CLI-based training, see
-:doc:`/tutorials/training_first_model_with_configs`.
+:doc:`/tutorials/training_first_model_with_configs`. To run experiments using
+Python code instead of YAML configs, see
+:doc:`/tutorials/training_first_model_with_code`.
+
+For launching training jobs on a SLURM cluster, see
+:doc:`/guides/training/launch_job`.
 
 
 Pydantic schemas for type safety
@@ -242,63 +247,13 @@ Transformer models looks like:
 
 **TransformerBlockConfig** defines individual block parameters:
 
-.. code-block:: python
-
-   class TransformerBlockConfig(BaseModel):
-       """Configuration for a transformer block."""
-
-       hidden_dim: int = Field(..., ge=1)
-       """Hidden dimension of the transformer block."""
-
-       num_heads: int = Field(..., ge=1)
-       """Number of attention heads."""
-
-       mlp_hidden_dim: int | None = Field(None)
-       """Hidden dimension of the MLP layer."""
-
-       mlp_expansion_factor: int | None = Field(None, ge=1)
-       """Expansion factor for MLP hidden dimension."""
-
-       drop_path: float = Field(0.0, ge=0.0, le=1.0)
-       """Stochastic depth probability."""
-
-       attention_constructor: Literal[
-           "dot_product",
-           "perceiver",
-           "transolver",
-           "transolver_plusplus",
-       ] = "dot_product"
-       """Type of attention mechanism to use."""
-
-       use_rope: bool = Field(False)
-       """Whether to use Rotary Positional Embeddings."""
-
-       # ... additional fields omitted for brevity
-
-       @model_validator(mode="after")
-       def set_mlp_hidden_dim(self):
-           if self.mlp_hidden_dim is None:
-               if self.mlp_expansion_factor is None:
-                   raise ValueError(
-                       "Either 'mlp_hidden_dim' or 'mlp_expansion_factor' must be provided."
-                   )
-               self.mlp_hidden_dim = self.hidden_dim * self.mlp_expansion_factor
-           return self
+.. literalinclude:: ../../../../src/noether/core/schemas/modules/blocks.py
+   :pyobject: TransformerBlockConfig
 
 **TransformerConfig** extends the block config:
 
-.. code-block:: python
-
-   class TransformerConfig(TransformerBlockConfig, ModelBaseConfig):
-       """Configuration for a Transformer model."""
-
-       model_config = ConfigDict(extra="forbid")
-
-       depth: int
-       """Number of transformer blocks in the model."""
-
-       mlp_expansion_factor: int = 4
-       """Override default: expansion factor for MLP hidden dimension."""
+.. literalinclude:: ../../../../src/noether/core/schemas/models/transformer.py
+   :pyobject: TransformerConfig
 
 **Multiple inheritance** means ``TransformerConfig`` inherits:
 
@@ -346,11 +301,11 @@ Each component (model, trainer, dataset, etc.) has a corresponding config class 
 from a base schema.
 
 For example, the trainer config schema for this recipe is defined in
-:download:`trainers/automotive_aerodynamics_cfd.py <../../../../recipes/aero_cfd/trainers/automotive_aerodynamics_cfd.py>`:
+:source:`trainers/aerodynamics_cfd.py <../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py>`:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/trainers/automotive_aerodynamics_cfd.py
+.. literalinclude:: ../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py
    :language: python
-   :pyobject: AutomotiveAerodynamicsCfdTrainerConfig
+   :pyobject: AerodynamicsCfdTrainerConfig
    :dedent:
 
 The ``kind`` field in most configs specifies the class path for instantiation. The Factory

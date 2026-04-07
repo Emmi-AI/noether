@@ -1,25 +1,27 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
+from aero_cfd.presets import DrivAerNetPreset
 from noether.core.distributed.utils import accelerator_to_device
 from noether.training.runners import HydraRunner
 
-from .presets import ShapeNetCarPreset
-
-DATASET_ROOT = "/path/to/shapenet_car"
-OUTPUT_PATH = "/path/to/outputs/shapenet_car"
-
 TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
-FIELD_WEIGHTS = {"surface_pressure": 1.0, "volume_velocity": 1.0}
+FIELD_WEIGHTS = {
+    "surface_pressure": 1.0,
+    "surface_friction": 1.0,
+    "volume_pressure": 1.0,
+    "volume_velocity": 1.0,
+    "volume_vorticity": 1.0,
+}
 
 
 def train_abupt(
     *,
-    dataset_root: str = DATASET_ROOT,
-    output_path: str = OUTPUT_PATH,
-    accelerator: str = "mps",
+    dataset_root: str,
+    output_path: str,
+    accelerator: str = "gpu",
 ) -> None:
-    """Trains AB-UPT model using ShapeNetCar dataset."""
-    preset = ShapeNetCarPreset()
+    """Train AB-UPT using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroABUPT",
         model_params=dict(hidden_dim=192, geometry_depth=6, physics_blocks=["perceiver"] + ["shared", "cross"] * 5),
@@ -27,6 +29,7 @@ def train_abupt(
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
         dataset_root=dataset_root,
         output_path=output_path,
+        datasets=["train", "val", "test"],
         max_epochs=2,
         accelerator=accelerator,
     )
@@ -35,12 +38,12 @@ def train_abupt(
 
 def train_upt(
     *,
-    dataset_root: str = DATASET_ROOT,
-    output_path: str = OUTPUT_PATH,
-    accelerator: str = "mps",
+    dataset_root: str,
+    output_path: str,
+    accelerator: str = "gpu",
 ) -> None:
-    """Trains UPT model using ShapeNetCar dataset."""
-    preset = ShapeNetCarPreset()
+    """Train UPT using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroUPT",
         model_params=dict(hidden_dim=192, num_heads=3, approximator_depth=12),
@@ -48,6 +51,7 @@ def train_upt(
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
         dataset_root=dataset_root,
         output_path=output_path,
+        datasets=["train", "val", "test"],
         max_epochs=2,
         accelerator=accelerator,
     )
@@ -56,12 +60,12 @@ def train_upt(
 
 def train_transformer(
     *,
-    dataset_root: str = DATASET_ROOT,
-    output_path: str = OUTPUT_PATH,
-    accelerator: str = "mps",
+    dataset_root: str,
+    output_path: str,
+    accelerator: str = "gpu",
 ) -> None:
-    """Trains Transformer model using ShapeNetCar dataset."""
-    preset = ShapeNetCarPreset()
+    """Train Transformer using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroTransformer",
         model_params=dict(hidden_dim=192, depth=12),
@@ -69,6 +73,7 @@ def train_transformer(
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
         dataset_root=dataset_root,
         output_path=output_path,
+        datasets=["train", "val", "test"],
         max_epochs=2,
         accelerator=accelerator,
     )
@@ -77,12 +82,12 @@ def train_transformer(
 
 def train_transolver(
     *,
-    dataset_root: str = DATASET_ROOT,
-    output_path: str = OUTPUT_PATH,
-    accelerator: str = "mps",
+    dataset_root: str,
+    output_path: str,
+    accelerator: str = "gpu",
 ) -> None:
-    """Trains Transolver model using ShapeNetCar dataset."""
-    preset = ShapeNetCarPreset()
+    """Train Transolver using DrivAerNet dataset."""
+    preset = DrivAerNetPreset()
     config = preset.build_config(
         model_kind="noether.modeling.models.aerodynamics.AeroTransolver",
         model_params=dict(hidden_dim=192, depth=12, num_slices=512),
@@ -90,14 +95,28 @@ def train_transolver(
         trainer_params=dict(field_weights=FIELD_WEIGHTS),
         dataset_root=dataset_root,
         output_path=output_path,
+        datasets=["train", "val", "test"],
         max_epochs=2,
         accelerator=accelerator,
     )
     HydraRunner().main(device=accelerator_to_device(accelerator), config=config)
 
 
+MODELS = {
+    "abupt": train_abupt,
+    "upt": train_upt,
+    "transformer": train_transformer,
+    "transolver": train_transolver,
+}
+
 if __name__ == "__main__":
-    train_abupt(accelerator="gpu")
-    # train_upt()
-    # train_transformer()
-    # train_transolver()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Train aerodynamic models on DrivAerNet dataset.")
+    parser.add_argument("--dataset-root", required=True, help="Path to the DrivAerNet dataset.")
+    parser.add_argument("--output-path", required=True, help="Path to store training outputs.")
+    parser.add_argument("--accelerator", default="gpu", choices=["cpu", "gpu", "mps"], help="Accelerator to use.")
+    parser.add_argument("--model", default="abupt", choices=list(MODELS), help="Model architecture to train.")
+    args = parser.parse_args()
+
+    MODELS[args.model](dataset_root=args.dataset_root, output_path=args.output_path, accelerator=args.accelerator)

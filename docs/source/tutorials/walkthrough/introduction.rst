@@ -17,7 +17,7 @@ The walkthrough project follows this directory structure:
 .. code-block:: text
 
    recipes/aero_cfd/
-   ├── callbacks.py      # Callbacks for evaluation, logging, and monitoring during training
+   ├── callbacks/      # Callbacks for evaluation, logging, and monitoring during training
    ├── configs/          # YAML files for configuring experiments using Hydra
    │   ├── callbacks/
    │   ├── data_specs/

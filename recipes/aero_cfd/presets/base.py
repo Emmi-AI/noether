@@ -68,7 +68,6 @@ class AeroCFDPreset(DomainPreset):
     def build_pipeline(self, model_kind: str, **overrides: Any) -> Any:
         """Build an AeroCFDPipelineConfig with merged parameters."""
         from aero_cfd.pipeline import AeroCFDPipelineConfig
-
         from noether.core.schemas.statistics import AeroStatsSchema
 
         params = super().build_pipeline(model_kind, **overrides)

@@ -85,7 +85,7 @@ A minimal custom model implementation looks as follows:
 
            # Forward pass
            hidden = self.encoder(x)
-           output = self.decoder(hidden)
+           output = self.decoder(torch.nn.functional.relu(hidden))
 
            return {"output": output}
 

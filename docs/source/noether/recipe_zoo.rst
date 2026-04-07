@@ -12,10 +12,7 @@ In the `Noether Recipe Zoo <https://github.com/Emmi-AI/noether/tree/main/recipes
      - Link
    * - **External Aerodynamics**
      - `recipes/aero_cfd/ <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd>`_
-     - :doc:`/tutorials/walkthrough/index`
-   * - **External Aerodynamics (Python)**
-     - `recipes/aero_cfd_python/ <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd_python>`_
-     - :doc:`aero_cfd_python`
+     - :doc:`/tutorials/walkthrough/index` :doc:`aero_cfd_python`
 
 .. toctree::
    :hidden:

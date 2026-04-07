@@ -13,7 +13,7 @@ Overview
 --------
 
 The
-``AeroMetricsCallback`` (in ``callbacks.py``)
+``AeroMetricsCallback`` (in ``callbacks/aero_metrics.py``)
 is a specific callback that runs the current model on a separate validation or test set,
 computes error metrics, and logs them. This class inherits from
 :py:class:`~noether.core.callbacks.periodic.PeriodicDataIteratorCallback`,
@@ -54,20 +54,20 @@ Weights & Biases.
 
 The ``process_data`` method of the ``AeroMetricsCallback`` simply looks like:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks.py
+.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
    :language: python
    :pyobject: AeroMetricsCallback.process_data
    :dedent:
 
 First, it computes the model outputs, and next, it adds the desired metrics to an output
 dictionary. All the substeps are implemented by individual methods in the callback itself.
-See the full implementation in ``callbacks.py`` for details.
+See the full implementation in :source:`callbacks/aero_metrics.py <../../../../recipes/aero_cfd/callbacks/aero_metrics.py>` for details.
 
 
 Configuring callbacks
 ---------------------
 
-In ``configs/trainer/shapenet_trainer.yaml``, we define the list of callbacks to use for the
+In :source:`configs/trainer/shapenet_trainer.yaml <../../../../recipes/aero_cfd/configs/trainer/shapenet_trainer.yaml>`, we define the list of callbacks to use for the
 trainer class (for ShapeNet-Car). Below are three callback configurations:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/callbacks/training_callbacks_shapenet.yaml
@@ -101,7 +101,7 @@ executed by the dataset, we retrieve the data normalizers via the ``DataContaine
 ``__init__`` method of the callback we implement, we use the available ``self.data_container``
 to get the correct dataset used for this callback and retrieve the normalizers:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks.py
+.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
    :language: python
    :lines: 89-95
    :dedent:
@@ -109,7 +109,7 @@ to get the correct dataset used for this callback and retrieve the normalizers:
 To denormalize predictions, the ``_denormalize`` method looks up the normalizer by key and
 calls ``inverse``:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks.py
+.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
    :language: python
    :pyobject: AeroMetricsCallback._denormalize
    :dedent:

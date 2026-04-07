@@ -1,13 +1,11 @@
-External Aerodynamics (Python)
-==============================
+External Aerodynamics (Python Scripts)
+======================================
 
-This recipe is the Python-configuration counterpart of the
-:doc:`/tutorials/walkthrough/index` recipe (``recipes/aero_cfd/``).
-While the original recipe uses YAML configuration files, this version
-defines the same experiments entirely in Python using the preset-based
-interface.
+.. note::
 
-Source code: `recipes/aero_cfd_python/ <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd_python>`_
+   See the :doc:`/tutorials/walkthrough/index` for the full tutorial.
+
+Source code: `recipes/aero_cfd/scripts/ <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd/scripts>`_
 
 Available training scripts
 --------------------------
@@ -45,11 +43,15 @@ From the ``recipes`` directory run:
 
 .. code-block:: console
 
-   uv run python -m aero_cfd_python.train_emmi_wing
+   uv run python -m aero_cfd.scripts.train_shapenet_car \
+     --dataset-root /path/to/shapenet_car \
+     --output-path /path/to/outputs \
+     --accelerator gpu \
+     --model abupt
 
-Before running, update the ``DATASET_ROOT`` and ``OUTPUT_PATH`` variables in the
-script to point to your local data and output directories.
+Available arguments:
 
-To train a different model architecture, edit the ``if __name__ == "__main__"``
-block at the bottom of the script to call the desired function (e.g.,
-``train_upt()`` instead of ``train_abupt()``).
+- ``--dataset-root`` **(required)** — Path to the dataset.
+- ``--output-path`` **(required)** — Path to store training outputs.
+- ``--accelerator`` — Accelerator to use: ``cpu``, ``gpu``, or ``mps`` (default: ``gpu``).
+- ``--model`` — Model architecture: ``abupt``, ``upt``, ``transformer``, or ``transolver`` (default: ``abupt``).
