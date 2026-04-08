@@ -10,6 +10,7 @@ from datetime import datetime
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SRC = os.path.join(ROOT, "src")
 sys.path.insert(0, SRC)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "_ext"))
 
 project = "Noether Framework"
 author = "Emmi AI"
@@ -29,6 +30,7 @@ extensions = [
     # "sphinx_click",
 ]
 extensions += ["sphinx_design"]
+extensions += ["source_view"]
 extensions += ["myst_parser"]  # for Markdown code blocks parsing
 
 # When running the doctest builder, skip AutoAPI to avoid scanning all source files

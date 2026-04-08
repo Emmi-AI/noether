@@ -6,7 +6,7 @@
 
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
 [![License: ENPL](https://img.shields.io/badge/License-ENPL-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
-[![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://github.com/Emmi-AI/noether/blob/main/tutorial/README.MD)
+[![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://noether-docs.emmi.ai/html/tutorials/walkthrough/index.html)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
 
@@ -143,15 +143,29 @@ uv run noether-train --hp my_project/configs/base_experiment.yaml
 
 See the [scaffolding tutorial](https://noether-docs.emmi.ai/tutorials/scaffolding_a_new_project.html) for all options and the generated project structure.
 
-## Run the Tutorial Example
+## Run the Aerodynamics Example
 
-You can also run a training job immediately using the [tutorial](./tutorial/README.MD) configuration:
+The [aero_cfd recipe](./recipes/aero_cfd/README.MD) training can be started in two ways:
+
+**With configs** (from `recipes/aero_cfd/`):
 
 ```console
-uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+cd recipes/aero_cfd
+uv run noether-train --hp configs/train_shapenet.yaml \
     +experiment/shapenet=upt \
     dataset_root=./data \
     +accelerator=mps \
+```
+
+**With Python scripts** (from `recipes/`):
+
+```console
+cd recipes
+uv run python -m aero_cfd.scripts.train_shapenet_car \
+    --dataset-root ./data \
+    --output-path ./outputs \
+    --accelerator mps \
+    --model abupt
 ```
 
 Learn more about different hardware support [here](https://noether-docs.emmi.ai/guides/hardware_setup.html).

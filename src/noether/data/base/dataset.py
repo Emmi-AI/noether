@@ -5,8 +5,10 @@ from __future__ import annotations
 import functools
 import logging
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
+import yaml
 from torch.utils.data import Dataset as TorchDataset
 
 from noether.core.factory import Factory
@@ -180,14 +182,44 @@ class Dataset(TorchDataset):
         self.config = dataset_config
         self.normalizers: dict[str, ComposePreProcess] = {}
         self.compute_statistics = False
+        stats = self.fetch_statistics()
+
         if dataset_config.dataset_normalizers:
             for key, normalizer_configs in dataset_config.dataset_normalizers.items():
                 if not isinstance(normalizer_configs, list):
                     normalizer_configs = [normalizer_configs]
-                preprocessors: list[PreProcessor] = []
-                for normalizer_config in normalizer_configs:
-                    preprocessors.append(Factory().instantiate(normalizer_config, normalization_key=key))
+                preprocessors: list[PreProcessor] = [
+                    Factory().instantiate(normalizer_config, normalization_key=key, statistics=stats)
+                    for normalizer_config in normalizer_configs
+                ]
                 self.normalizers[key] = ComposePreProcess(normalization_key=key, preprocessors=preprocessors)
+
+    def fetch_statistics(self) -> dict[str, list[float] | float] | None:
+        """Load and cache dataset statistics from the dataset's STATS_FILE.
+
+        By default looks for a ``STATS_FILE`` class attribute on the dataset class (or its ancestors).
+        The file should be a YAML file mapping stat names to scalar or list values.
+
+        Returns:
+            Dict mapping stat names to float values or lists of floats.
+
+        """
+
+        stats_path = getattr(self, "STATS_FILE", None)
+        if stats_path is None:
+            return None
+
+        resolved = Path(stats_path).expanduser()
+        with open(resolved) as f:
+            data = yaml.safe_load(f)
+        result: dict[str, list[float] | float] = {}
+        for k, v in data.items():
+            if isinstance(v, list):
+                result[k] = [float(x) for x in v]
+            else:
+                result[k] = float(v)
+
+        return result
 
     @property
     def pipeline(self) -> Collator | None:

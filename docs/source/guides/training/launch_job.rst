@@ -9,7 +9,7 @@ For example:
 
 .. code-block:: bash
 
-   noether-train-submit-job /path/to/noether/tutorial/configs/train_shapenet.yaml  +experiment/shapenet=transformer +seed=1 tracker=disabled dataset_root=/path/to/datasets/shapenet_car/
+   noether-train-submit-job /path/to/noether/recipes/aero_cfd/configs/train_shapenet.yaml  +experiment/shapenet=transformer +seed=1 tracker=disabled dataset_root=/path/to/datasets/shapenet_car/
 
 The SLURM variables used for the job (e.g., number of GPUs, number of CPUs, etc.) have to be defined in the config schema under the ``slurm`` key. 
 

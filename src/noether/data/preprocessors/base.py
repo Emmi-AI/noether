@@ -26,7 +26,7 @@ class PreProcessor:
                 return x * 255.0
     """
 
-    def __init__(self, normalization_key: str):
+    def __init__(self, normalization_key: str, **kwargs):
         """
 
         Args:

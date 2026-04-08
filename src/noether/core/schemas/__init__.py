@@ -23,7 +23,7 @@ from .initializers import (
     ResumeInitializerConfig,
 )
 from .models import ModelBaseConfig
-from .normalizers import AnyNormalizer
+from .normalizers import AnyNormalizer, FieldNormalizerConfig
 from .optimizers import OptimizerConfig, ParamGroupModifierConfig
 from .schedules import (
     AnyScheduleConfig,
@@ -69,6 +69,7 @@ __all__ = [
     "PreviousRunInitializerConfig",
     "ResumeInitializerConfig",
     "AnyNormalizer",
+    "FieldNormalizerConfig",
     "OptimizerConfig",
     "ParamGroupModifierConfig",
     "AnyScheduleConfig",
