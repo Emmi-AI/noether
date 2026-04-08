@@ -5,7 +5,7 @@ Prerequisites
 --------------
 
 - You have cloned the **Noether Framework**
-- You have a ``tutorial/`` folder in the repo root
+- You have the ``recipes/aero_cfd/`` folder in the repo
 
 In this example we look at ``ShapeNet-Car`` dataset.
 
@@ -19,7 +19,7 @@ Note by default the outputs (checkpoints, logs, etc.) will be stored in the ``ou
 
 .. code-block:: bash
 
-    uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+    uv run noether-train --hp configs/train_shapenet.yaml \
         +experiment/shapenet=upt \
         tracker=disabled \
         dataset_root=/Users/user/data/shapenet_car
@@ -32,7 +32,7 @@ Additionally, we can alter the hyperparameters right from the CLI:
 
 .. code-block:: bash
 
-    uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+    uv run noether-train --hp configs/train_shapenet.yaml \
         +experiment/shapenet=upt \
         dataset_root=/Users/user/data/shapenet_car \
         trainer.precision=fp32 \

@@ -48,25 +48,22 @@ class UPT(nn.Module):
 
     def compute_rope_args(
         self,
-        surface_position_batch_idx: torch.Tensor,
-        surface_position: torch.Tensor,
-        surface_position_supernode_idx: torch.Tensor,
+        geometry_batch_idx: torch.Tensor,
+        geometry_position: torch.Tensor,
+        geometry_supernode_idx: torch.Tensor,
         query_position: torch.Tensor,
     ) -> tuple[dict[str, torch.Tensor], dict[str, torch.Tensor]]:
-        """Compute the RoPE frequency arguments for the surface_position and query_position. If we don't use RoPE,
-        return empty dicts.
+        """Compute the RoPE frequency arguments for the geometry and query positions.
+        If RoPE is not used, return empty dicts.
         """
         if not self.use_rope:
             return {}, {}
 
-        # supernode pooling needs a sparse tensor. However, for the output after the supernode pooling,
-        # we need to know the cast the shapes back to the batch dimension.
-        batch_size = surface_position_batch_idx.unique().shape[0]
-        supernode_freqs = self.rope(surface_position[surface_position_supernode_idx])
+        batch_size = geometry_batch_idx.unique().shape[0]
+        supernode_freqs = self.rope(geometry_position[geometry_supernode_idx])
         channels = supernode_freqs.shape[-1]
         if supernode_freqs.ndim == 2:
             supernode_freqs = supernode_freqs.unsqueeze(0)  # add batch dimension
-        # bring back the batch dimension
         supernode_freqs = supernode_freqs.reshape(batch_size, -1, channels)
         encoder_attn_kwargs = dict(freqs=supernode_freqs)
         decoder_attn_kwargs = dict(
@@ -78,33 +75,32 @@ class UPT(nn.Module):
 
     def forward(
         self,
-        surface_position_batch_idx: torch.Tensor,
-        surface_position_supernode_idx: torch.Tensor,
-        surface_position: torch.Tensor,
+        geometry_batch_idx: torch.Tensor,
+        geometry_supernode_idx: torch.Tensor,
+        geometry_position: torch.Tensor,
         query_position: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass of the UPT model.
 
         Args:
-            surface_position_batch_idx: Batch indices for the surface positions, since the surface positions are
-                a sparse tensor for the supernode pooling.
-            surface_position_supernode_idx: Supernode indices for the surface positions.
-            surface_position: Input coordinates of the surface points.
+            geometry_batch_idx: Batch indices for the geometry positions.
+            geometry_supernode_idx: Supernode indices for the geometry positions.
+            geometry_position: Input coordinates of the geometry mesh points.
             query_position: Input coordinates of the query points.
 
         Returns:
-            torch.Tensor: Output tensor containing the predictions for the surface and volume fields, sliced according to the data specifications.
+            torch.Tensor: Output tensor containing the predictions at query positions.
         """
 
         encoder_attn_kwargs, decoder_attn_kwargs = self.compute_rope_args(
-            surface_position_batch_idx, surface_position, surface_position_supernode_idx, query_position
+            geometry_batch_idx, geometry_position, geometry_supernode_idx, query_position
         )
 
         # supernode pooling encoder
         x = self.encoder(
-            input_pos=surface_position,
-            supernode_idx=surface_position_supernode_idx,
-            batch_idx=surface_position_batch_idx,
+            input_pos=geometry_position,
+            supernode_idx=geometry_supernode_idx,
+            batch_idx=geometry_batch_idx,
         )
         # approximator blocks
         for block in self.approximator_blocks:

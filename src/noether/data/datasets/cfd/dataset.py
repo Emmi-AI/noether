@@ -76,6 +76,11 @@ class AeroDataset(Dataset):
         """Retrieve signed distance field at volume points."""
         return self._load(idx=idx, filename=self.filemap.volume_distance_to_surface).unsqueeze(1)  # type: ignore[arg-type]
 
+    @with_normalizers("volume_sdf")
+    def getitem_surface_sdf(self, idx: int) -> torch.Tensor:
+        """Retrieve signed distance field at surface points. This is always 0.0, but we still create a sample processor for it to be able to easily concatenate it with the surface normals."""
+        return torch.zeros(self.getitem_surface_normals(idx).shape[0], 1)
+
     def getitem_volume_normals(self, idx: int) -> torch.Tensor:
         """Retrieve normal vectors at volume points."""
         return self._load(idx=idx, filename=self.filemap.volume_normals)  # type: ignore[arg-type]

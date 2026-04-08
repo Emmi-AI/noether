@@ -27,7 +27,7 @@ Example - UPT Configuration
 
 .. code-block:: yaml
 
-   kind: tutorial.model.UPT
+   kind: noether.modeling.models.aerodynamics.AeroUPT
    name: upt
    hidden_dim: 192 
    num_heads: 3 
@@ -75,7 +75,7 @@ You can override inherited values at any level by explicitly specifying them:
 
 .. code-block:: yaml
 
-   kind: tutorial.model.UPT
+   kind: noether.modeling.models.aerodynamics.AeroUPT
    name: upt
    hidden_dim: 192
    num_heads: 3

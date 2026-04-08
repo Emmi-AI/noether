@@ -9,7 +9,7 @@ import torch
 
 from noether.core.factory import Factory
 from noether.core.models import Model
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, UPTConfig
 from noether.modeling.models.ab_upt import AnchoredBranchedUPT
 from noether.modeling.models.transformer import Transformer
@@ -76,7 +76,7 @@ def test_model_factory_creates_transformer_and_runs_forward(
 
 # Verify a minimal UPTConfig instantiates via Factory, processes a forward pass and parameters receive gradients.
 def test_model_factory_creates_upt_and_runs_forward(
-    upt_config: UPTConfig, upt_data_specs: AeroDataSpecs, upt_input_generator: Callable[[int | None], dict[str, Any]]
+    upt_config: UPTConfig, upt_data_specs: ModelDataSpecs, upt_input_generator: Callable[[int | None], dict[str, Any]]
 ) -> None:
     model = Factory().create(upt_config)
 
@@ -109,7 +109,7 @@ def test_model_factory_creates_upt_and_runs_forward(
 # Verify a minimal AnchorBranchedUPTConfig instantiates via Factory, processes a forward pass and parameters receive gradients.
 def test_model_factory_creates_ab_upt_and_runs_forward(
     ab_upt_config: AnchorBranchedUPTConfig,
-    ab_upt_data_specs: AeroDataSpecs,
+    ab_upt_data_specs: ModelDataSpecs,
     ab_upt_input_generator: Callable[[int | None], dict[str, Any]],
 ) -> None:
     ab_upt_config.physics_blocks = ["perceiver", "self"]
@@ -125,9 +125,9 @@ def test_model_factory_creates_ab_upt_and_runs_forward(
     surface_anchor_tokens = 4
     volume_anchor_tokens = 3
 
-    # Extract expected output keys based on the data specs defined above
-    expected_surface_keys = {f"surface_{name}" for name in ab_upt_data_specs.surface_output_dims.keys()}
-    expected_volume_keys = {f"volume_{name}" for name in ab_upt_data_specs.volume_output_dims.keys()}
+    # Extract expected output keys based on the data specs domains
+    expected_surface_keys = {f"surface_{name}" for name in ab_upt_data_specs.domains["surface"].output_dims.keys()}
+    expected_volume_keys = {f"volume_{name}" for name in ab_upt_data_specs.domains["volume"].output_dims.keys()}
 
     # Check that the expected output keys are present in the predictions
     assert expected_surface_keys.issubset(predictions.keys())
@@ -135,14 +135,14 @@ def test_model_factory_creates_ab_upt_and_runs_forward(
 
     # For each expected surface output, check that the shape is correct and values are finite
     for key in expected_surface_keys:
-        surface_dim = ab_upt_data_specs.surface_output_dims[key.removeprefix("surface_")]
+        surface_dim = ab_upt_data_specs.domains["surface"].output_dims[key.removeprefix("surface_")]
         assert predictions[key].shape == (batch_size, surface_anchor_tokens, surface_dim)
         assert not torch.isnan(predictions[key]).any()
         assert torch.isfinite(predictions[key]).all()
 
     # For each expected volume output, check that the shape is correct and values are finite
     for key in expected_volume_keys:
-        volume_dim = ab_upt_data_specs.volume_output_dims[key.removeprefix("volume_")]
+        volume_dim = ab_upt_data_specs.domains["volume"].output_dims[key.removeprefix("volume_")]
         assert predictions[key].shape == (batch_size, volume_anchor_tokens, volume_dim)
         assert not torch.isnan(predictions[key]).any()
         assert torch.isfinite(predictions[key]).all()

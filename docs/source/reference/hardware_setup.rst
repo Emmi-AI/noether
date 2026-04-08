@@ -19,7 +19,7 @@ We often use MacBooks for development and debugging. While slower than dedicated
 
 .. code-block:: bash
 
-   uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+   uv run noether-train --hp configs/train_shapenet.yaml \
        +experiment/shapenet=upt \
        dataset_root=/Users/user/data/shapenet_car \
        trainer.precision=fp32 \
@@ -44,7 +44,7 @@ detects the available resources automatically.
 .. code-block:: bash
 
    # Assuming srun or sbatch has already allocated GPUs
-   uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+   uv run noether-train --hp configs/train_shapenet.yaml \
        +experiment/shapenet=upt \
        dataset_root=/data/shapenet_car \
        trainer.precision=bf16 \
@@ -67,7 +67,7 @@ control which GPUs are visible to the training job using the ``devices`` flag.
 
 .. code-block:: bash
 
-   uv run noether-train --hp tutorial/configs/train_shapenet.yaml \
+   uv run noether-train --hp configs/train_shapenet.yaml \
        +experiment/shapenet=upt \
        dataset_root=/home/user/data/shapenet_car \
        +accelerator=gpu \

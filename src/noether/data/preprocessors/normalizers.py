@@ -5,6 +5,7 @@ from typing import Any
 import torch
 
 from noether.core.schemas.normalizers import (
+    FieldNormalizerConfig,
     MeanStdNormalizerConfig,
     PositionNormalizerConfig,
     ShiftAndScaleNormalizerConfig,
@@ -160,3 +161,70 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
             raise ValueError("Normalized positions are out of bounds [0, scale].")
 
         return output
+
+
+class FieldNormalizer(PreProcessor):
+    """Preprocessor that normalizes a field based on a specified strategy and dataset statistics."""
+
+    normalizer: PreProcessor
+
+    def __init__(
+        self,
+        normalizer_config: FieldNormalizerConfig,
+        statistics: dict[str, list[float | int] | float | int] | None,
+        **kwargs,
+    ):
+        """
+
+        Args:
+            normalizer_config: Configuration containing the normalization strategy and logscale flag. See :class:`~noether.core.schemas.normalizers.FieldNormalizerConfig` for details.
+            statistics: A dictionary containing the dataset statistics needed for normalization (e.g., mean, std, raw_pos_min, raw_pos_max).
+            **kwargs: Additional arguments passed to the parent class.
+
+        Raises:
+            ValueError: If the required statistics for the chosen strategy are not present in the `statistics` dictionary.
+            ValueError: If the normalization strategy is not supported.
+        """
+        super().__init__(**kwargs)
+
+        stat_keys = normalizer_config.stat_keys or {}
+
+        if statistics is None:
+            raise ValueError("Statistics must be provided for FieldNormalizer.")
+
+        if normalizer_config.strategy == "mean_std":
+            mean_key = stat_keys.get("mean", f"{self.normalization_key}_mean")
+            std_key = stat_keys.get("std", f"{self.normalization_key}_std")
+            mean_val = statistics[mean_key]
+            std_val = statistics[std_key]
+            if isinstance(mean_val, (int, float)):
+                mean_val = [mean_val]
+            if isinstance(std_val, (int, float)):
+                std_val = [std_val]
+            self.normalizer = MeanStdNormalization(
+                MeanStdNormalizerConfig(
+                    mean=mean_val,
+                    std=std_val,
+                    logscale=normalizer_config.logscale,
+                ),
+                normalization_key=self.normalization_key,
+            )
+        elif normalizer_config.strategy == "position":
+            min_key = stat_keys.get("min", f"{self.normalization_key}_min")
+            max_key = stat_keys.get("max", f"{self.normalization_key}_max")
+            self.normalizer = PositionNormalizer(
+                PositionNormalizerConfig(
+                    raw_pos_min=statistics[min_key],
+                    raw_pos_max=statistics[max_key],
+                    scale=normalizer_config.scale,
+                ),
+                normalization_key=self.normalization_key,
+            )
+        else:
+            raise ValueError(f"Unknown normalizer type '{normalizer_config.strategy}'")
+
+    def __call__(self, x: Any) -> Any:
+        return self.normalizer(x)  # type: ignore[return-value]
+
+    def denormalize(self, x: torch.Tensor) -> torch.Tensor:
+        return self.normalizer.denormalize(x)  # type: ignore[return-value]

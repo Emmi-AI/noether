@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, computed_field, model_validator
 
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
@@ -36,18 +36,15 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     physics_blocks: list[Literal["self", "shared", "cross", "joint", "perceiver"]]
     """Types of physics blocks to use in the model.
     Options are "self", "cross", "joint", and "perceiver".
-    Self: Self-attention within a branch (surface or volume). Attention weights are shared between branches.
-    Cross: Cross-attention between surface and volume branches. Weights are shared between branches.
-    Joint: Joint attention over surface and volume points. I.e. full self-attention over both surface and volume points.
+    Self: Self-attention within a branch. Attention weights are shared between all domains.
+    Cross: Cross-attention between domains. Each domain attends to all other domains' anchors.
+    Joint: Joint attention over all domain points. Full self-attention over all points.
     Perceiver: Perceiver-style cross-attention to geometry encoding.
 
     Note: "shared" is a deprecated alias for "self" and will be removed in a future release."""
 
-    num_surface_blocks: int = Field(..., ge=1)
-    """Number of transformer blocks in the surface decoder. Weights are not shared with the volume decoder."""
-
-    num_volume_blocks: int = Field(..., ge=1)
-    """Number of transformer blocks in the volume decoder. Weights are not shared with the surface decoder."""
+    num_domain_decoder_blocks: dict[str, int]
+    """Number of final domain-specific decoder blocks with self attention and no weight sharing, e.g. {"surface": 2, "volume": 2}."""
 
     init_weights: InitWeightsMode = Field("truncnormal002")
     """Weight initialization of linear layers. Defaults to "truncnormal002"."""
@@ -55,7 +52,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     drop_path_rate: float = Field(0.0)
     """Drop path rate for stochastic depth. Defaults to 0.0 (no drop path)."""
 
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     """Data specifications for the model."""
 
     @model_validator(mode="after")
@@ -118,22 +115,16 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
         )
 
     @computed_field
-    def surface_decoder_config(self) -> LinearProjectionConfig:
-        return LinearProjectionConfig(
-            input_dim=self.hidden_dim,
-            output_dim=self.data_specs.surface_output_dims.total_dim,
-            init_weights="truncnormal002",
-        )
-
-    @computed_field
-    def volume_decoder_config(self) -> LinearProjectionConfig | None:
-        if self.data_specs.volume_output_dims is None:
-            return None
-        return LinearProjectionConfig(
-            input_dim=self.hidden_dim,
-            output_dim=self.data_specs.volume_output_dims.total_dim,
-            init_weights="truncnormal002",
-        )
+    def domain_decoder_configs(self) -> dict[str, LinearProjectionConfig]:
+        """Per-domain decoder projection configs, keyed by domain name."""
+        return {
+            name: LinearProjectionConfig(
+                input_dim=self.hidden_dim,
+                output_dim=spec.output_dims.total_dim,
+                init_weights="truncnormal002",
+            )
+            for name, spec in self.data_specs.domains.items()
+        }
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "AnchorBranchedUPTConfig":

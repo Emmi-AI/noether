@@ -1,0 +1,33 @@
+- kind: noether.core.callbacks.CheckpointCallback
+  every_n_epochs: 10
+  save_weights: false 
+  save_latest_weights: true
+  save_latest_optim: true
+  save_optim: false
+# validation loss
+- kind: noether.training.callbacks.OfflineLossCallback
+  batch_size: 1
+  every_n_epochs: 1
+  dataset_key: test
+- kind: noether.core.callbacks.BestCheckpointCallback
+  every_n_epochs: 1
+  metric_key: loss/test/total
+# test loss
+- kind: callbacks.AeroMetricsCallback
+  batch_size: 1
+  every_n_epochs: 1
+  dataset_key: test
+  forward_properties: ${model.forward_properties}
+- kind: callbacks.AeroMetricsCallback
+  batch_size: 1
+  every_n_epochs: ${trainer.max_epochs}
+  dataset_key: test_repeat
+  forward_properties: ${model.forward_properties}
+#ema
+- kind: noether.core.callbacks.EmaCallback
+  every_n_epochs: 10
+  save_weights: false 
+  save_last_weights: false 
+  save_latest_weights: true
+  target_factors:
+    - 0.9999

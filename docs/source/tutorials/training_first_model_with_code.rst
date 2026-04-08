@@ -5,7 +5,7 @@ Prerequisites
 --------------
 
 - you cloned the **Noether Framework**
-- you have a ``tutorial/`` folder in the repo root
+- you have the ``recipes/aero_cfd/`` folder in the repo
 - you prepared the ``ShapeNet-Car`` dataset
 
 The fetching and preprocessing instructions are in the ``README.md`` located in the
@@ -51,8 +51,8 @@ In this tutorial we skip ``yaml`` configs and build the run config in Python.
 Step 1: Create an entry point
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Let's create a new file ``tutorial/train_shapenet_upt.py`` and use it to run our pipeline. Why "tutorial"? Because
-it has necessary components to get us started and here we want to see a difference between "configs vs. code" workflows.
+Let's create a new file ``recipes/aero_cfd/train_shapenet_upt.py`` and use it to run our pipeline. This file will
+live alongside the recipe and let us see the difference between "configs vs. code" workflows.
 
 Step 2: Create necessary imports
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -75,24 +75,24 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         EmaCallbackConfig,
         OfflineLossCallbackConfig,
     )
-    from noether.core.schemas.dataset import AeroDataSpecs, StandardDatasetConfig, DatasetWrappers, RepeatWrapperConfig
+    from noether.core.schemas.dataset import ModelDataSpecs, StandardDatasetConfig, DatasetWrappers, RepeatWrapperConfig
     from noether.core.schemas.modules import (
         DeepPerceiverDecoderConfig,
         SupernodePoolingConfig,
         PerceiverBlockConfig,
         TransformerBlockConfig,
     )
-    from noether.core.schemas.aero import AeroCFDPipelineConfig
     from noether.core.schemas.normalizers import AnyNormalizer, MeanStdNormalizerConfig, PositionNormalizerConfig
     from noether.core.schemas.optimizers import OptimizerConfig
     from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
     from noether.core.schemas.statistics import AeroStatsSchema
+    from noether.core.schemas.models.upt import UPTConfig
     from noether.training.runners import HydraRunner
-    from tutorial.callbacks.surface_volume_evaluation_metrics import (
-        SurfaceVolumeEvaluationMetricsCallbackConfig,
+    from recipes.aero_cfd.callbacks import (
+        AeroMetricsCallbackConfig,
     )
-    from tutorial.schemas.models.upt_config import UPTConfig
-    from tutorial.schemas.trainers.automotive_aerodynamics_trainer_config import AutomotiveAerodynamicsCfdTrainerConfig
+    from recipes.aero_cfd.pipeline import AeroCFDPipelineConfig
+    from recipes.aero_cfd.trainers import AerodynamicsCfdTrainerConfig
 
 Let's go over each group to better understand the outline:
 
@@ -109,8 +109,8 @@ Training:
 
 - ``noether.core.schemas.callbacks`` - relevant callbacks for our training
 - ``noether.core.schemas.optimizers`` - optimizer config
-- ``tutorial.schemas.trainers.automotive_aerodynamics_trainer_config`` - trainer configuration
-- ``tutorial.schemas.models`` - configs for model initialization
+- ``recipes.aero_cfd.trainers`` - trainer configuration
+- ``recipes.aero_cfd.models`` - configs for model initialization
 - etc.
 
 Execution:
@@ -207,8 +207,8 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
         return AeroStatsSchema(**DATASET_STATS)
 
 
-    def build_specs() -> AeroDataSpecs:
-        return AeroDataSpecs(**DATA_SPECS)
+    def build_specs() -> ModelDataSpecs:
+        return ModelDataSpecs(**DATA_SPECS)
 
 .. testcode:: tutorial
    :hide:
@@ -221,7 +221,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
     def build_dataset_config(
         mode: Literal["train", "test"],
         dataset_root: str,
-        data_specs: dict[str, Any] | AeroDataSpecs,
+        data_specs: dict[str, Any] | ModelDataSpecs,
         dataset_statistics: dict[str, Sequence[float]],
         dataset_normalizer: dict[str, list[AnyNormalizer]],
         dataset_wrappers: list[DatasetWrappers] | None = None,
@@ -230,7 +230,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
             kind="noether.data.datasets.cfd.ShapeNetCarDataset",
             root=dataset_root,
             pipeline=AeroCFDPipelineConfig(
-                kind="tutorial.pipeline.AeroMultistagePipeline",
+                kind="recipes.aero_cfd.pipeline.multistage_pipelines.aero_multistage.AeroMultistagePipeline",
                 num_surface_points=3586, # max = 3586
                 num_volume_points=4096,   # max = 28504
                 num_surface_queries=3586,
@@ -239,7 +239,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
                 sample_query_points=False,
                 use_physics_features=False,
                 dataset_statistics=AeroStatsSchema(**dataset_statistics),
-                data_specs=data_specs if isinstance(data_specs, AeroDataSpecs) else AeroDataSpecs(**data_specs),
+                data_specs=data_specs if isinstance(data_specs, ModelDataSpecs) else ModelDataSpecs(**data_specs),
             ),
             split=mode,
             dataset_normalizers=dataset_normalizer,
@@ -268,13 +268,13 @@ Step 5: Trainer config
 
 .. testcode:: tutorial
 
-    def build_trainer_config(model_forward_properties: list[str]) -> AutomotiveAerodynamicsCfdTrainerConfig:
+    def build_trainer_config(model_forward_properties: list[str]) -> AerodynamicsCfdTrainerConfig:
         batch_size = 1
         loss_and_log_every_n_epochs = 1
         save_and_ema_every_n_epochs = 10
 
-        return AutomotiveAerodynamicsCfdTrainerConfig(
-            kind="tutorial.trainers.AutomotiveAerodynamicsCFDTrainer",
+        return AerodynamicsCfdTrainerConfig(
+            kind="recipes.aero_cfd.trainers.aerodynamics_cfd.AerodynamicsCFDTrainer",
             surface_weight=1.0,
             volume_weight=1.0,
             surface_pressure_weight=1.0,
@@ -305,15 +305,15 @@ Step 5: Trainer config
                     metric_key="loss/test/total",
                 ),
                 # test loss
-                SurfaceVolumeEvaluationMetricsCallbackConfig(
-                    kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
+                AeroMetricsCallbackConfig(
+                    kind="recipes.aero_cfd.callbacks.aero_metrics.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=loss_and_log_every_n_epochs,
                     dataset_key="test",
                     forward_properties=model_forward_properties,
                 ),
-                SurfaceVolumeEvaluationMetricsCallbackConfig(
-                    kind="tutorial.callbacks.SurfaceVolumeEvaluationMetricsCallback",
+                AeroMetricsCallbackConfig(
+                    kind="recipes.aero_cfd.callbacks.aero_metrics.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=500,
                     dataset_key="test_repeat",
@@ -421,14 +421,13 @@ from your terminal:
 
 .. code-block:: bash
 
-    uv run python -m tutorial.train_shapenet_upt
+    uv run python -m recipes.aero_cfd.train_shapenet_upt
 
-This makes Python add the repo root to sys.path, so ``from tutorial.*`` works. Alternatively, you can add repo root
-to PYTHONPATH:
+This makes Python add the repo root to sys.path. Alternatively, you can add repo root to PYTHONPATH:
 
 .. code-block:: bash
 
-    PYTHONPATH=. uv run python tutorial/train_shapenet_upt.py
+    PYTHONPATH=. uv run python recipes/aero_cfd/train_shapenet_upt.py
 
 If everything is set up correctly, you should see the logs indicating successful initialization and training
 (use your task manager and/or activity monitor to see if the hardware is properly utilized).

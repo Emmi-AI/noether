@@ -214,65 +214,49 @@ class FieldDimSpec(RootModel[OrderedDict[str, int]]):
         return self.root.items()
 
 
-class AeroDataSpecs(BaseModel):
-    """Defines the complete data specification for a surrogate model."""
+class DomainDataSpec(BaseModel):
+    """Data specification for a single domain (e.g., surface, volume, wake)."""
+
+    output_dims: FieldDimSpec
+    """Output fields and their dimensions for this domain, e.g. {"pressure": 1, "velocity": 3}."""
+    feature_dim: FieldDimSpec | None = None
+    """Input feature fields and their dimensions for this domain."""
+
+
+class ModelDataSpecs(BaseModel):
+    """Base data specification for models that operate on arbitrary named domains.
+
+    This is the minimal interface that model configs need from data specifications:
+    position dimensions, available conditioning, and per-domain data descriptions.
+    """
 
     position_dim: int = Field(..., ge=1)
     """Dimension of the input position vectors."""
-    surface_feature_dim: FieldDimSpec | None = None
-    volume_feature_dim: FieldDimSpec | None = None
-
-    surface_output_dims: FieldDimSpec
-    volume_output_dims: FieldDimSpec | None = None
     conditioning_dims: FieldDimSpec | None = None
+    """Available conditioning features and their dimensions."""
+    domains: dict[str, DomainDataSpec] = Field(default_factory=dict)
+    """Per-domain data specifications keyed by domain name."""
     use_physics_features: bool = False
-
-    @property
-    def surface_feature_dim_total(self) -> int:
-        """Calculates the total surface feature dimension."""
-        if self.surface_feature_dim:
-            return self.surface_feature_dim.total_dim
-        return 0
-
-    @property
-    def volume_feature_dim_total(self) -> int:
-        """Calculates the total volume feature dimension."""
-        if self.volume_feature_dim:
-            return self.volume_feature_dim.total_dim
-        return 0
+    """Whether physics features are used as input."""
 
     @property
     def total_output_dim(self) -> int:
-        """Calculates the total output dimension by summing surface and volume output dimensions."""
-        total_dim = self.surface_output_dims.total_dim
-        if self.volume_output_dims:
-            total_dim += self.volume_output_dims.total_dim
-        return total_dim
+        """Calculates the total output dimension across all domains."""
+        return sum(spec.output_dims.total_dim for spec in self.domains.values())
 
     @property
-    def volume_targets(self) -> set[str]:
-        """Returns the list of volume target field names."""
-        if self.volume_output_dims:
-            return {f"volume_{key}" for key in self.volume_output_dims.keys()}
-        return set()
+    def all_targets(self) -> set[str]:
+        """Returns all target field names across all domains, prefixed by domain name."""
+        targets: set[str] = set()
+        for name, spec in self.domains.items():
+            targets |= {f"{name}_{key}" for key in spec.output_dims.keys()}
+        return targets
 
     @property
-    def surface_targets(self) -> set[str]:
-        """Returns the list of surface target field names."""
-        if self.surface_output_dims:
-            return {f"surface_{key}" for key in self.surface_output_dims.keys()}
-        return set()
-
-    @property
-    def surface_features(self) -> set[str]:
-        """Returns the list of surface feature field names."""
-        if self.surface_feature_dim:
-            return set(self.surface_feature_dim.keys())
-        return set()
-
-    @property
-    def volume_features(self) -> set[str]:
-        """Returns the list of volume feature field names."""
-        if self.volume_feature_dim:
-            return set(self.volume_feature_dim.keys())
-        return set()
+    def all_features(self) -> set[str]:
+        """Returns all feature field names across all domains."""
+        features: set[str] = set()
+        for spec in self.domains.values():
+            if spec.feature_dim:
+                features |= set(spec.feature_dim.keys())
+        return features
