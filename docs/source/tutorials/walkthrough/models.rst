@@ -131,7 +131,7 @@ heterogeneity:
 
 - Takes the entire output tensor and the number of surface points
 - Splits the output tensor to isolate surface predictions from volume predictions
-- Uses ``AeroDataSpecs`` to map output dimensions to named physical quantities
+- Uses ``ModelDataSpecs`` to map output dimensions to named physical quantities
 
 **Example output structure:**
 

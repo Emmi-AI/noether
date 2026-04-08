@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.dataset import AeroDataSpecs, PipelineConfig
+from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
 from noether.data.pipeline.collators import (
@@ -52,7 +52,7 @@ class AeroCFDPipelineConfig(PipelineConfig):
     """Number of surface anchor points to sample for AB-UPT."""
     seed: int | None = None
     """Random seed for sampling processes."""
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     """Data specifications for the pipeline."""
 
 
@@ -151,10 +151,14 @@ class AeroMultistagePipeline(MultiStagePipeline):
             pipeline_config.use_physics_features
         )  # Whether to use physics features (i.e., SDF, normals, etc.) as input to the model.
 
-        self.surface_features = pipeline_config.data_specs.surface_features
-        self.volume_features = pipeline_config.data_specs.volume_features
-        self.surface_targets = pipeline_config.data_specs.surface_targets
-        self.volume_targets = pipeline_config.data_specs.volume_targets
+        surface_spec = pipeline_config.data_specs.domains.get("surface")
+        volume_spec = pipeline_config.data_specs.domains.get("volume")
+        self.surface_targets = {f"surface_{k}" for k in surface_spec.output_dims.keys()} if surface_spec else set()
+        self.volume_targets = {f"volume_{k}" for k in volume_spec.output_dims.keys()} if volume_spec else set()
+        self.surface_features = (
+            set(surface_spec.feature_dim.keys()) if surface_spec and surface_spec.feature_dim else set()
+        )
+        self.volume_features = set(volume_spec.feature_dim.keys()) if volume_spec and volume_spec.feature_dim else set()
         self.conditioning_dims = pipeline_config.data_specs.conditioning_dims
 
         self._define_items_keys()

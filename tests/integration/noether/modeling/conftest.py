@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 import torch
 
-from noether.core.schemas.dataset import AeroDataSpecs, FieldDimSpec
+from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, UPTConfig
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
@@ -27,16 +27,18 @@ def transformer_config() -> TransformerConfig:
 
 
 @pytest.fixture
-def upt_data_specs() -> AeroDataSpecs:
-    return AeroDataSpecs(
+def upt_data_specs() -> ModelDataSpecs:
+    return ModelDataSpecs(
         position_dim=3,
-        surface_output_dims=FieldDimSpec({"pressure": 1}),
-        volume_output_dims=FieldDimSpec({"density": 1}),
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"pressure": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"density": 1})),
+        },
     )
 
 
 @pytest.fixture
-def upt_config(upt_data_specs: AeroDataSpecs) -> UPTConfig:
+def upt_config(upt_data_specs: ModelDataSpecs) -> UPTConfig:
     return UPTConfig(
         kind="noether.modeling.models.upt.UPT",
         name="test_upt",
@@ -70,24 +72,25 @@ def upt_config(upt_data_specs: AeroDataSpecs) -> UPTConfig:
 
 
 @pytest.fixture
-def ab_upt_data_specs() -> AeroDataSpecs:
-    return AeroDataSpecs(
+def ab_upt_data_specs() -> ModelDataSpecs:
+    return ModelDataSpecs(
         position_dim=3,
-        surface_output_dims=FieldDimSpec({"cp": 1}),
-        volume_output_dims=FieldDimSpec({"temperature": 1}),
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"cp": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"temperature": 1})),
+        },
     )
 
 
 @pytest.fixture
-def ab_upt_config(ab_upt_data_specs: AeroDataSpecs) -> AnchorBranchedUPTConfig:
+def ab_upt_config(ab_upt_data_specs: ModelDataSpecs) -> AnchorBranchedUPTConfig:
     return AnchorBranchedUPTConfig(
         kind="noether.modeling.models.ab_upt.AnchoredBranchedUPT",
         name="test_ab_upt",
         geometry_depth=1,
         hidden_dim=12,
         physics_blocks=["perceiver", "self"],
-        num_surface_blocks=1,
-        num_volume_blocks=1,
+        num_domain_decoder_blocks={"surface": 1, "volume": 1},
         data_specs=ab_upt_data_specs,
         supernode_pooling_config=SupernodePoolingConfig(
             hidden_dim=12,
@@ -105,7 +108,7 @@ def ab_upt_config(ab_upt_data_specs: AeroDataSpecs) -> AnchorBranchedUPTConfig:
 
 @pytest.fixture
 def upt_input_generator(
-    upt_data_specs: AeroDataSpecs,
+    upt_data_specs: ModelDataSpecs,
 ) -> Callable[[int | None], dict[str, Any]]:
     def _generate(seed: int | None = None) -> dict[str, Any]:
         if seed is not None:
@@ -118,11 +121,9 @@ def upt_input_generator(
         supernodes_per_sample = 3
         total_surface_points = batch_size * surface_points_per_sample
 
-        surface_position = torch.randn(total_surface_points, upt_data_specs.position_dim, generator=gen)
-        # Create batch indices that repeat for each surface point in a sample
-        surface_position_batch_idx = torch.arange(batch_size).repeat_interleave(surface_points_per_sample)
-        # Arbitrarily choose first `n=supernodes_per_sample` points as supernodes for each sample
-        surface_position_supernode_idx = torch.cat(
+        geometry_position = torch.randn(total_surface_points, upt_data_specs.position_dim, generator=gen)
+        geometry_batch_idx = torch.arange(batch_size).repeat_interleave(surface_points_per_sample)
+        geometry_supernode_idx = torch.cat(
             [
                 torch.arange(supernodes_per_sample) + sample_index * surface_points_per_sample
                 for sample_index in range(batch_size)
@@ -133,9 +134,9 @@ def upt_input_generator(
         query_position = torch.randn(batch_size, query_tokens, upt_data_specs.position_dim, generator=gen)
 
         return {
-            "surface_position": surface_position,
-            "surface_position_batch_idx": surface_position_batch_idx,
-            "surface_position_supernode_idx": surface_position_supernode_idx,
+            "geometry_position": geometry_position,
+            "geometry_batch_idx": geometry_batch_idx,
+            "geometry_supernode_idx": geometry_supernode_idx,
             "query_position": query_position,
         }
 
@@ -144,7 +145,7 @@ def upt_input_generator(
 
 @pytest.fixture
 def ab_upt_input_generator(
-    ab_upt_data_specs: AeroDataSpecs,
+    ab_upt_data_specs: ModelDataSpecs,
 ) -> Callable[[int | None], dict[str, Any]]:
     def _generate(seed: int | None = None) -> dict[str, Any]:
         if seed is not None:
@@ -183,10 +184,14 @@ def ab_upt_input_generator(
             "geometry_position": geometry_position,
             "geometry_supernode_idx": geometry_supernode_idx,
             "geometry_batch_idx": geometry_batch_idx,
-            "surface_anchor_position": surface_anchor_position,
-            "volume_anchor_position": volume_anchor_position,
-            "query_surface_position": surface_anchor_position,  # Explicitly reusing anchor positions as query positions
-            "query_volume_position": volume_anchor_position,  # Explicitly reusing anchor positions as query positions
+            "domain_anchor_positions": {
+                "surface": surface_anchor_position,
+                "volume": volume_anchor_position,
+            },
+            "domain_query_positions": {
+                "surface": surface_anchor_position,  # Explicitly reusing anchor positions as query positions
+                "volume": volume_anchor_position,
+            },
         }
 
     return _generate

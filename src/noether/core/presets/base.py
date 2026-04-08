@@ -72,7 +72,7 @@ class DomainPreset(ABC):
     @property
     @abstractmethod
     def data_specs(self) -> Any:
-        """Return the domain's data specification (e.g., AeroDataSpecs)."""
+        """Return the domain's data specification (e.g., ModelDataSpecs)."""
 
     @property
     def dataset_statistics(self) -> dict[str, list[float] | float]:

@@ -5,7 +5,7 @@ from typing import Annotated
 
 from pydantic import ConfigDict, Field, computed_field, model_validator
 
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
@@ -45,7 +45,7 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
 
     bias_layers: bool = Field(False)
 
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
 
     @computed_field
     def linear_output_projection_config(self) -> "LinearProjectionConfig":
@@ -71,13 +71,6 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
                 raise ValueError(
                     "If 'use_rope' is set to True in the UPTConfig, it must also be set to True in the approximator_config."
                 )
-        return self
-
-    @model_validator(mode="after")
-    def update_supernode_pooling_config(self) -> "UPTConfig":
-        """Inject shared fields into supernode_pooling_config."""
-        if self.data_specs.use_physics_features:
-            self.supernode_pooling_config.input_features_dim = self.data_specs.surface_feature_dim_total
         return self
 
     @computed_field

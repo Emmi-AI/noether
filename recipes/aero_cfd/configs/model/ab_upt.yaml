@@ -20,8 +20,9 @@ physics_blocks:
   - self
   - cross
   - self
-num_surface_blocks: 2
-num_volume_blocks: 2
+num_domain_decoder_blocks:
+  surface: 2
+  volume: 2
 optimizer_config: ${optimizer}
 forward_properties:
   - geometry_position

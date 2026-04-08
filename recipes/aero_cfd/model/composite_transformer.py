@@ -5,7 +5,7 @@ from typing import Literal
 import torch
 
 from noether.core.models import CompositeModel, Model
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.models.base import ModelBaseConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
@@ -24,7 +24,7 @@ class CompositeTransformerConfig(ModelBaseConfig):
     num_heads: int | None = None
     hidden_dim: int | None = None
     mlp_expansion_factor: int | None = None
-    data_specs: AeroDataSpecs
+    data_specs: ModelDataSpecs
     """Data specifications for the model. If None, default data specifications will be used."""
 
 

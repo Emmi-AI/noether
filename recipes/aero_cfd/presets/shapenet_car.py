@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from aero_cfd.callbacks import AeroMetricsCallbackConfig
-from noether.core.schemas.dataset import AeroDataSpecs, RepeatWrapperConfig
+from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs, RepeatWrapperConfig
 from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
 
@@ -41,13 +41,19 @@ class ShapeNetCarPreset(AeroCFDPreset):
     }
 
     @property
-    def data_specs(self) -> AeroDataSpecs:
-        return AeroDataSpecs(
+    def data_specs(self) -> ModelDataSpecs:
+        return ModelDataSpecs(
             position_dim=3,
-            surface_feature_dim={"surface_sdf": 1, "surface_normals": 3},
-            volume_feature_dim={"volume_sdf": 1, "volume_normals": 3},
-            surface_output_dims={"pressure": 1},
-            volume_output_dims={"velocity": 3},
+            domains={
+                "surface": DomainDataSpec(
+                    output_dims={"pressure": 1},
+                    feature_dim={"surface_sdf": 1, "surface_normals": 3},
+                ),
+                "volume": DomainDataSpec(
+                    output_dims={"velocity": 3},
+                    feature_dim={"volume_sdf": 1, "volume_normals": 3},
+                ),
+            },
         )
 
     @property

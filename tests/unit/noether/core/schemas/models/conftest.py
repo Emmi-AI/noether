@@ -2,7 +2,7 @@
 
 import pytest
 
-from noether.core.schemas.dataset import AeroDataSpecs
+from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs
 
 
 @pytest.fixture
@@ -35,9 +35,9 @@ def base_upt_config_dict():
                 # mlp_expansion_factor is missing -> inject from parent
             },
         },
-        "data_specs": AeroDataSpecs(
+        "data_specs": ModelDataSpecs(
             position_dim=3,
-            surface_output_dims={"loss_var": 1},
+            domains={"surface": DomainDataSpec(output_dims={"loss_var": 1})},
         ),
     }
 
@@ -51,8 +51,7 @@ def base_ab_upt_config_dict():
         "hidden_dim": 128,
         "geometry_depth": 2,
         "physics_blocks": ["self", "cross"],
-        "num_surface_blocks": 2,
-        "num_volume_blocks": 2,
+        "num_domain_decoder_blocks": {"surface": 2, "volume": 2},
         "supernode_pooling_config": {
             "input_dim": 3,
             "radius": 0.1,
@@ -64,10 +63,12 @@ def base_ab_upt_config_dict():
             "mlp_expansion_factor": 4,
             # hidden_dim is missing -> inject from parent
         },
-        "data_specs": AeroDataSpecs(
+        "data_specs": ModelDataSpecs(
             position_dim=3,
-            surface_output_dims={"loss_var": 1},
-            volume_output_dims={"loss_var": 1},
+            domains={
+                "surface": DomainDataSpec(output_dims={"loss_var": 1}),
+                "volume": DomainDataSpec(output_dims={"loss_var": 1}),
+            },
         ),
     }
 
@@ -102,9 +103,9 @@ def explicit_upt_config_dict():
                 "mlp_expansion_factor": 2,
             },
         },
-        "data_specs": AeroDataSpecs(
+        "data_specs": ModelDataSpecs(
             position_dim=3,
-            surface_output_dims={"loss_var": 1},
+            domains={"surface": DomainDataSpec(output_dims={"loss_var": 1})},
         ),
     }
 
@@ -118,8 +119,7 @@ def explicit_ab_upt_config_dict():
         "hidden_dim": 128,
         "geometry_depth": 2,
         "physics_blocks": ["self", "cross"],
-        "num_surface_blocks": 2,
-        "num_volume_blocks": 2,
+        "num_domain_decoder_blocks": {"surface": 2, "volume": 2},
         "supernode_pooling_config": {
             "input_dim": 3,
             "radius": 0.1,
@@ -131,8 +131,8 @@ def explicit_ab_upt_config_dict():
             "mlp_expansion_factor": 4,
             "hidden_dim": 128,
         },
-        "data_specs": AeroDataSpecs(
+        "data_specs": ModelDataSpecs(
             position_dim=3,
-            surface_output_dims={"loss_var": 1},
+            domains={"surface": DomainDataSpec(output_dims={"loss_var": 1})},
         ),
     }

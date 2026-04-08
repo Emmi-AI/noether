@@ -12,8 +12,8 @@ from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 def _apply_abupt_defaults(data_specs: Any, model_params: dict[str, Any]) -> None:
     """Fill in AB-UPT sub-configs from top-level knobs.
 
-    Derives ``supernode_pooling_config``, ``transformer_block_config``, ``name``, ``num_surface_blocks``, and
-    ``num_volume_blocks`` so the user only needs to specify ``hidden_dim``, ``geometry_depth``, ``physics_blocks``, etc.
+    Derives ``supernode_pooling_config``, ``transformer_block_config``, ``name``, and ``num_domain_decoder_blocks``
+    so the user only needs to specify ``hidden_dim``, ``geometry_depth``, ``physics_blocks``, etc.
     """
     hidden_dim = model_params.get("hidden_dim", 192)
     num_heads = model_params.pop("num_heads", 3)
@@ -22,8 +22,10 @@ def _apply_abupt_defaults(data_specs: Any, model_params: dict[str, Any]) -> None
     radius = model_params.pop("radius", 9)
 
     model_params.setdefault("name", "ab_upt")
-    model_params.setdefault("num_surface_blocks", 12)
-    model_params.setdefault("num_volume_blocks", 12)
+    model_params.setdefault(
+        "num_domain_decoder_blocks",
+        dict.fromkeys(data_specs.domains, 12),
+    )
     model_params.setdefault(
         "supernode_pooling_config",
         SupernodePoolingConfig(

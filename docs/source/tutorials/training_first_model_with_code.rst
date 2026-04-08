@@ -75,7 +75,7 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
         EmaCallbackConfig,
         OfflineLossCallbackConfig,
     )
-    from noether.core.schemas.dataset import AeroDataSpecs, StandardDatasetConfig, DatasetWrappers, RepeatWrapperConfig
+    from noether.core.schemas.dataset import ModelDataSpecs, StandardDatasetConfig, DatasetWrappers, RepeatWrapperConfig
     from noether.core.schemas.modules import (
         DeepPerceiverDecoderConfig,
         SupernodePoolingConfig,
@@ -207,8 +207,8 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
         return AeroStatsSchema(**DATASET_STATS)
 
 
-    def build_specs() -> AeroDataSpecs:
-        return AeroDataSpecs(**DATA_SPECS)
+    def build_specs() -> ModelDataSpecs:
+        return ModelDataSpecs(**DATA_SPECS)
 
 .. testcode:: tutorial
    :hide:
@@ -221,7 +221,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
     def build_dataset_config(
         mode: Literal["train", "test"],
         dataset_root: str,
-        data_specs: dict[str, Any] | AeroDataSpecs,
+        data_specs: dict[str, Any] | ModelDataSpecs,
         dataset_statistics: dict[str, Sequence[float]],
         dataset_normalizer: dict[str, list[AnyNormalizer]],
         dataset_wrappers: list[DatasetWrappers] | None = None,
@@ -239,7 +239,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
                 sample_query_points=False,
                 use_physics_features=False,
                 dataset_statistics=AeroStatsSchema(**dataset_statistics),
-                data_specs=data_specs if isinstance(data_specs, AeroDataSpecs) else AeroDataSpecs(**data_specs),
+                data_specs=data_specs if isinstance(data_specs, ModelDataSpecs) else ModelDataSpecs(**data_specs),
             ),
             split=mode,
             dataset_normalizers=dataset_normalizer,

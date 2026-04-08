@@ -57,7 +57,7 @@ consider global features for this project.
 
 The data structure for our tasks is defined in, for example,
 :source:`configs/data_specs/shapenet_car.yaml <../../../../recipes/aero_cfd/configs/data_specs/shapenet_car.yaml>`,
-which corresponds to the ``AeroDataSpecs`` schema.
+which corresponds to the ``ModelDataSpecs`` schema.
 
 The models we use can be roughly **divided** into two classes:
 
