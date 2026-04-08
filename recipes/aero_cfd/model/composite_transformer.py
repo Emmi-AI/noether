@@ -16,7 +16,7 @@ from .composite_components import CompositeTransformerBlock
 
 
 class CompositeTransformerConfig(ModelBaseConfig):
-    kind: str = "tutorial.models.composite_transformer.CompositeTransformer"
+    kind: str = "recipes.aero_cfd.model.composite_transformer.CompositeTransformer"
     name: Literal["composite_transformer"] = "composite_transformer"
     use_rope: bool = True
     low_level_blocks: CompositeTransformerBlockConfig

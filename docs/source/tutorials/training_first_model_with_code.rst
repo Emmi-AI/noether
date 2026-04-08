@@ -230,7 +230,7 @@ Now we will declare dataset constants and convenience ``build_`` methods (you ca
             kind="noether.data.datasets.cfd.ShapeNetCarDataset",
             root=dataset_root,
             pipeline=AeroCFDPipelineConfig(
-                kind="tutorial.pipeline.AeroMultistagePipeline",
+                kind="recipes.aero_cfd.pipeline.multistage_pipelines.aero_multistage.AeroMultistagePipeline",
                 num_surface_points=3586, # max = 3586
                 num_volume_points=4096,   # max = 28504
                 num_surface_queries=3586,
@@ -274,7 +274,7 @@ Step 5: Trainer config
         save_and_ema_every_n_epochs = 10
 
         return AerodynamicsCfdTrainerConfig(
-            kind="tutorial.trainers.AutomotiveAerodynamicsCFDTrainer",
+            kind="recipes.aero_cfd.trainers.aerodynamics_cfd.AerodynamicsCFDTrainer",
             surface_weight=1.0,
             volume_weight=1.0,
             surface_pressure_weight=1.0,
@@ -306,14 +306,14 @@ Step 5: Trainer config
                 ),
                 # test loss
                 AeroMetricsCallbackConfig(
-                    kind="tutorial.callbacks.AeroMetricsCallback",
+                    kind="recipes.aero_cfd.callbacks.aero_metrics.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=loss_and_log_every_n_epochs,
                     dataset_key="test",
                     forward_properties=model_forward_properties,
                 ),
                 AeroMetricsCallbackConfig(
-                    kind="tutorial.callbacks.AeroMetricsCallback",
+                    kind="recipes.aero_cfd.callbacks.aero_metrics.AeroMetricsCallback",
                     batch_size=1,
                     every_n_epochs=500,
                     dataset_key="test_repeat",
