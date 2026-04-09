@@ -1,0 +1,60 @@
+# @package _global_
+
+config_schema_kind: development.development_schema.DevelopmentSchema
+development_batch_size: 8 # only for the development CLI forward pass - TODO: rename 
+output_path: './development_output'  # can be set to None to test behavior when output path is not defined, skip saving outputs
+datasets:
+  development_dataset:
+    kind: development.dataset.DevelopmentDataset
+    x_dim: 3
+    y_dim: 1
+    z_dim: 2
+    sample_size: 1024
+    num_samples: 1000
+    split: train  
+    dataset_normalizers: # can be commented out to test behavior when normalizers are not defined, dataset only returns unnormalized data
+        x:
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0, 0, 0]
+              std: [1, 1, 1]
+        y:
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0, 0]
+              std: [1, 1]
+        z:  
+            - kind: noether.data.preprocessors.normalizers.MeanStdNormalization
+              mean: [0]
+              std: [1]
+    pipeline: # can be commented out to test behavior when no pipeline is defined, dataset only returns uncollated data
+      kind: development.pipeline.DevelopmentPipeline
+      num_points: 64
+model: # can be commented out to test behavior when no model is defined, skip model instantiation and forward pass
+    kind: development.model.DevelopmentModel
+    input_dim: 5
+    output_dim: ${datasets.development_dataset.y_dim}
+    forward_properties: ["x_z"]
+    # no optimizer config needed to build a model
+    optimizer_config:
+      kind: torch.optim.AdamW
+      lr: 1.0e-3
+      weight_decay: 0.05
+      clip_grad_norm: 1.0
+      schedule_config:
+        kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+        warmup_percent: 0.05
+        end_value: 1.0e-6
+        max_value: ${model.optimizer_config.lr}
+
+trainer: # can be commented out to test behavior when no trainer is defined, skip training loop
+  kind: development.trainer.DevelopmentTrainer
+  effective_batch_size: ${development_batch_size}
+  max_epochs: 10 # has to to
+  forward_properties: ${model.forward_properties}
+  target_properties: ["y"]
+  callbacks: # can be commented out to test behavior when no callbacks are defined, skip callback execution
+     - kind: development.callbacks.DevelopmentCallback
+       batch_size: 1
+       every_n_epochs: 1
+       dataset_key: development_dataset
+       name: DevelopmentCallback
+       forward_properties: ${model.forward_properties}
