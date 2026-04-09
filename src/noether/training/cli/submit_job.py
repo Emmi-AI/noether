@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 import hydra
 import yaml
@@ -15,11 +16,11 @@ from noether.core.schemas.slurm import SlurmConfig
 from noether.training.cli import setup_hydra
 
 _HELP_TEXT = """\
-noether-submit-job — validate a training config and submit it as a SLURM job
+noether-train-submit-job — validate a training config and submit it as a SLURM job
 
 USAGE
-  noether-submit-job --hp <config.yaml> [hydra overrides] [--dry-run]
-  noether-submit-job <config.yaml> [hydra overrides] [--dry-run]
+  noether-train-submit-job --hp <config.yaml> [hydra overrides] [--dry-run]
+  noether-train-submit-job <config.yaml> [hydra overrides] [--dry-run]
 
 ARGUMENTS
   <config.yaml>         Path to the Hydra training configuration file.
@@ -64,16 +65,16 @@ SLURM CONFIG (config.yaml → slurm:)
 
 EXAMPLES
   # Submit with default config
-  noether-submit-job --hp configs/train_shapenet.yaml
+  noether-train-submit-job --hp configs/train_shapenet.yaml
 
   # Override seed and disable tracker
-  noether-submit-job --hp configs/train_shapenet.yaml seed=1 tracker=disabled
+  noether-train-submit-job --hp configs/train_shapenet.yaml seed=1 tracker=disabled
 
   # Preview the sbatch command without submitting
-  noether-submit-job --hp configs/train_shapenet.yaml --dry-run
+  noether-train-submit-job --hp configs/train_shapenet.yaml --dry-run
 
   # Override a SLURM field on the fly
-  noether-submit-job --hp configs/train_shapenet.yaml +slurm.time=02:00:00
+  noether-train-submit-job --hp configs/train_shapenet.yaml +slurm.time=02:00:00
 """
 
 if "--help" in sys.argv or "-h" in sys.argv:
@@ -115,12 +116,11 @@ def validate_config(config: DictConfig) -> ConfigSchema:
     """
     config_dict = yaml.safe_load(OmegaConf.to_yaml(config, resolve=True))
 
+    config_schema_class: Any = ConfigSchema
     config_schema_kind = config_dict.get("config_schema_kind")
-    if not config_schema_kind:
-        raise ValueError("Configuration must specify 'config_schema_kind'")
-
-    print(f"Validating configuration with schema: {config_schema_kind}")
-    config_schema_class = class_constructor_from_class_path(config_schema_kind)
+    if config_schema_kind is not None:
+        print(f"Validating configuration with schema: {config_schema_kind}")
+        config_schema_class = class_constructor_from_class_path(config_schema_kind)
     validated_config: ConfigSchema = config_schema_class(**config_dict)
     print("Configuration validated successfully")
     return validated_config
@@ -195,8 +195,8 @@ def main(config: DictConfig):
     Example:
     .. code-block:: bash
 
-       noether-submit-job --hp configs/train_shapenet.yaml +seed=1 tracker=disabled
-       noether-submit-job --hp configs/train_shapenet.yaml --dry-run
+       noether-train-submit-job --hp configs/train_shapenet.yaml +seed=1 tracker=disabled
+       noether-train-submit-job --hp configs/train_shapenet.yaml --dry-run
     """
     print("Starting job submission process")
     if os.getcwd() not in sys.path:

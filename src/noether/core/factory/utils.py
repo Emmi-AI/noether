@@ -44,7 +44,8 @@ def class_constructor_from_class_path(class_path: str) -> Callable[..., Any]:
     # e.g. torch.nn.Linear -> module_name=torch.nn type_name=Linear
 
     split = class_path.split(".")
-    assert len(split) > 1, f"invalid path to class ({class_path}) use MODULE_NAME.CLASS_NAME"
+    if len(split) <= 1:
+        raise ValueError(f"invalid path to class ({class_path}) use MODULE_NAME.CLASS_NAME")
     module_name = ".".join(split[:-1])
     type_name = split[-1]
     try:
