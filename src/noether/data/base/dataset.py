@@ -313,3 +313,28 @@ class Dataset(TorchDataset):
         """Returns all names of getitem functions that are implemented. E.g., image classification has getitem_x and
         getitem_class -> the result will be ["x", "class"]."""
         return [attr for attr in dir(self) if attr.startswith("getitem_") and callable(getattr(self, attr))]
+
+    def denormalize(self, key: str, data):
+        """
+        Denormalize data using the appropriate normalizer.
+
+        This method finds the specific normalizer for the given key and uses it to denormalize,
+        instead of calling pipeline.denormalize which would process the entire pipeline.
+
+        Args:
+            key: Key to identify the normalizer for denormalization
+            data: Data to denormalize
+
+        Returns:
+            Denormalized data
+
+        Raises:
+            KeyError: If no normalizer is found for the given key
+        """
+        try:
+            normalizer = self.normalizers[key]
+            return normalizer.inverse(data)
+        except KeyError as e:
+            raise KeyError(
+                f"No normalizer found for key '{key}'. Available normalizers: {list(self.normalizers.keys())}"
+            ) from e

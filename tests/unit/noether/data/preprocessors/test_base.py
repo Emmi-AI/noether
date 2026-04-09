@@ -15,9 +15,6 @@ class ConcretePreProcessor(PreProcessor):
     def __call__(self, x):
         return x
 
-    def _denormalize(self, x):
-        return x
-
 
 class ScaleTenTimes(PreProcessor):
     """A concrete implementation of PreProcessor for testing purposes."""

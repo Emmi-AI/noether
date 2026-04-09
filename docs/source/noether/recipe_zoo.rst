@@ -13,8 +13,12 @@ In the `Noether Recipe Zoo <https://github.com/Emmi-AI/noether/tree/main/recipes
    * - **External Aerodynamics**
      - `recipes/aero_cfd/ <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd>`_
      - :doc:`/tutorials/walkthrough/index` :doc:`aero_cfd_python`
+   * - **Fluid Heat Transfer**
+     - `recipes/heat_transfer/ <https://github.com/Emmi-AI/noether/tree/main/recipes/heat_transfer>`_
+     - :doc:`heat_transfer`
 
 .. toctree::
    :hidden:
 
    aero_cfd_python
+   heat_transfer

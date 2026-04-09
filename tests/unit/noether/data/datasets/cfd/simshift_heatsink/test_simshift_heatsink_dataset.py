@@ -88,11 +88,10 @@ def heatsink_root(tmp_path):
     for sid in sample_ids:
         with h5py.File(tmp_path / f"{sid}.h5", "w") as h5f:
             mesh_grp = h5f.create_group("mesh")
-            mesh_grp.create_dataset("node_coords", data=rng.standard_normal((NUM_NODES, 3)).astype(np.float32))
+            mesh_grp.create_dataset("element_coords", data=rng.standard_normal((NUM_NODES, 3)).astype(np.float32))
             mesh_grp.create_dataset("element_connectivity", data=rng.integers(0, NUM_NODES, size=(NUM_NODES * 2, 4)))
-            mesh_grp.create_dataset("element_types", data=np.ones(NUM_NODES * 2, dtype=np.uint8))
 
-            fields_grp = h5f.create_group("node_fields")
+            fields_grp = h5f.create_group("element_fields")
             fields_grp.create_dataset("U", data=rng.standard_normal((NUM_NODES, 3)).astype(np.float32))
             fields_grp.create_dataset("T", data=rng.standard_normal(NUM_NODES).astype(np.float32))
             fields_grp.create_dataset("p_rgh", data=rng.standard_normal(NUM_NODES).astype(np.float32))
@@ -123,8 +122,8 @@ def test_config_valid_minimal():
         root="/tmp/data",
         split="train",
     )
-    assert config.difficulty == "medium"
-    assert config.domain == "source"
+    assert config.difficulty is None
+    assert config.domain is None
 
 
 def test_config_invalid_difficulty():
@@ -188,7 +187,7 @@ def test_dataset_getitem_keys(heatsink_root):
         "volume_velocity",
         "volume_temperature",
         "volume_pressure",
-        "design_parameters",
+        "simulation_parameters",
     }
     assert set(sample.keys()) == expected_keys
 
@@ -203,8 +202,8 @@ def test_dataset_getitem_shapes(heatsink_root):
     assert sample["volume_velocity"].shape == (NUM_NODES, 3)
     assert sample["volume_temperature"].shape == (NUM_NODES, 1)
     assert sample["volume_pressure"].shape == (NUM_NODES, 1)
-    # design_parameters: unsqueezed to (1, num_cond_params)
-    assert sample["design_parameters"].shape == (1, 2)  # fins, spacing
+    # simulation_parameters: unsqueezed to (1, num_cond_params)
+    assert sample["simulation_parameters"].shape == (1, 2)  # fins, spacing
 
 
 def test_dataset_sample_info(heatsink_root):
