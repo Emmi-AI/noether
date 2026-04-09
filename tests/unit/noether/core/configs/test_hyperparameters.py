@@ -31,7 +31,7 @@ def mock_params() -> MockHyperparameters:
         output_path="/tmp",
         datasets=dict(),
         model=dict(name="abc", kind="xyz"),
-        trainer=dict(kind="mock", effective_batch_size=32, callbacks=[]),
+        trainer=dict(kind="mock", effective_batch_size=32, callbacks=[], max_epochs=1),
         spec=DimSpec({"def": 1, "abc": 2}),
     )
 

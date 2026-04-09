@@ -28,6 +28,7 @@ class TransformerBlock(nn.Module):
                 for available options.
         """
         super().__init__()
+        self.config = config
         # modulation
         if config.condition_dim is None:
             self.modulation = None
@@ -106,6 +107,10 @@ class TransformerBlock(nn.Module):
             if condition is None:
                 raise ValueError(
                     "No conditioning vector provided, but the transformer block is configured for conditioning."
+                )
+            if condition.shape[-1] != self.config.condition_dim:
+                raise ValueError(
+                    f"Conditioning vector has incorrect shape. Expected {self.config.condition_dim}, got {condition.shape[-1]}"
                 )
 
             mod = self.modulation(condition)

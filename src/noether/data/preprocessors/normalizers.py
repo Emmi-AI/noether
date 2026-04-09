@@ -212,6 +212,14 @@ class FieldNormalizer(PreProcessor):
         elif normalizer_config.strategy == "position":
             min_key = stat_keys.get("min", f"{self.normalization_key}_min")
             max_key = stat_keys.get("max", f"{self.normalization_key}_max")
+            if min_key not in statistics:
+                raise ValueError(
+                    f"Missing required statistics for position normalization: '{min_key}' and/or '{max_key}' not found in statistics."
+                )
+            if max_key not in statistics:
+                raise ValueError(
+                    f"Missing required statistics for position normalization: '{min_key}' and/or '{max_key}' not found in statistics."
+                )
             self.normalizer = PositionNormalizer(
                 PositionNormalizerConfig(
                     raw_pos_min=statistics[min_key],
