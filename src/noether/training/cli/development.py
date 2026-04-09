@@ -192,11 +192,12 @@ def main(hydra_config: DictConfig):
 
     assert dataset is not None
 
-    perm = random.sample(range(len(dataset)), config.batch_size)  # type: ignore[attr-defined]
+    perm = random.sample(range(len(dataset)), config.development_batch_size)  # type: ignore[attr-defined]
     batch = []
     for i in perm:
         sample = dataset[i]
         batch.append(sample)
+
     log_batch(batch[0], title="RAW BATCH SAMPLE CONTENTS (first random sample from the batch)")
 
     if dataset_config.pipeline is not None:
