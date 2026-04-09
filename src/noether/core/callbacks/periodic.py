@@ -681,7 +681,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         data_times = []
         results = []
         pbar_ctor = NoopTqdm if not sys.stdout.isatty() or not is_rank0() else tqdm
-        for _ in pbar_ctor(iterable=range(num_batches)):
+        for _ in pbar_ctor(iterable=range(num_batches), desc=f"{self} on {self.dataset_key}", unit="b"):
             with Stopwatch() as data_sw:
                 batch = next(data_iter)
                 batch = move_items_to_device(self.trainer.device, batch)

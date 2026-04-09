@@ -7,7 +7,7 @@ from typing import Any, Self
 class NoopTqdm:
     """A no-operation (noop) version of tqdm that does not display a progress bar."""
 
-    def __init__(self, iterable: Iterable[Any]) -> None:
+    def __init__(self, iterable: Iterable[Any], **kwargs: Any) -> None:
         self.iterable = iterable
 
     def __enter__(self) -> Self:
