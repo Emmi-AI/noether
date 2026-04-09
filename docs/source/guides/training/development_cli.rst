@@ -20,7 +20,7 @@ However, we decided to enforce that the dependencies between the modules are cor
 
 
 Building a Dataset
-==================
+------------------
 
 We start with building a simple custom dataset that generates random dummy data.
 This dataset is also presented in `development/datasets.py`.
@@ -130,6 +130,9 @@ If you want to add normalizers to the dataset, you can do so by adding the follo
 
 Running the CLI again will now print out the normalized batch content, centered around the mean values defined in the normalizers (i.e., `0`, `1`, `2`).
 
+Building a Pipeline
+-------------------
+
 Given that we have a dataset that loads and normalizes tensor data, we can continue to build the pipeline that collates the samples into batches.
 
 .. code-block:: python
@@ -200,6 +203,10 @@ Now when we run the CLI again, we can see the collated batch content, which shou
         first 10 values: [-1.2091279029846191, -1.2091279029846191, -0.3098295032978058, -0.3098295032978058, ...
 
 We can see that the collated batch contains the `x_z` (with dimensions `x + z`) and `y` tensors, both containing `8` samples with `64` points, which are the outputs of the pipeline and the collator, respectively.
+
+Building a Model 
+----------------
+
 Next we can build a simple model that takes the collated batch as input and performs a forward pass on the `x_z` tensor to predict the `y` tensor.
 
 .. code-block:: python
@@ -263,6 +270,9 @@ If we now run the CLI again, we can see the output of the forward pass of the mo
 
 You can see that we get an output tensor with the same number of samples and points as the input `x_z` tensor, but with a different number of features (i.e., `output_dim`), which is the output of the model forward pass.
 Note that it is not necessary to configure an optimizer with the model (which is needed for running a training loop).
+
+Building a Trainer and Callbacks
+-------------------------------- 
 
 Finally, we can work on the last two modules that depend on the dataset/pipeline/model, which are the trainer and the callbacks.
 We first start with the trainer, where the user has to define the loss computation:
