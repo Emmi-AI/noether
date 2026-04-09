@@ -61,6 +61,11 @@ class OptimizerConfig(BaseModel):
     weight_decay_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
     schedule_config: AnyScheduleConfig | None = Field(None, discriminator="kind")
 
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for optimizers like SGD and Muon."""
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
+
     _optim_wrapper_kwargs: set[str] = {
         "clip_grad_value",
         "clip_grad_norm",

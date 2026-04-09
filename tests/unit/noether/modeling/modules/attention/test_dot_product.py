@@ -30,14 +30,20 @@ def test_forward_shape(attention_module):
     output = attention_module(x)
     assert output.shape == (2, 10, 16), "Output shape mismatch"
     assert attention_module.num_heads == 4, "Number of heads mismatch"
-    assert attention_module.qkv.in_features == 16, "Input features mismatch"
-    assert attention_module.qkv.out_features == 3 * 16, "Output features mismatch"
+    assert attention_module.q.in_features == 16, "Input features mismatch"
+    assert attention_module.q.out_features == 16, "Output features mismatch"
+    assert attention_module.k.in_features == 16, "Input features mismatch"
+    assert attention_module.k.out_features == 16, "Output features mismatch"
+    assert attention_module.v.in_features == 16, "Input features mismatch"
+    assert attention_module.v.out_features == 16, "Output features mismatch"
     assert attention_module.proj.in_features == 16, "Input features mismatch"
     assert attention_module.proj.out_features == 16, "Output features mismatch"
     assert torch.allclose(output, DOT_PRODUCT_ATTENTION, 1e-2), "Output is not as expected"
 
     output.sum().backward()
-    assert attention_module.qkv.weight.grad is not None, "Gradients should not be None"
+    assert attention_module.q.weight.grad is not None, "Gradients should not be None"
+    assert attention_module.k.weight.grad is not None, "Gradients should not be None"
+    assert attention_module.v.weight.grad is not None, "Gradients should not be None"
     assert attention_module.proj.weight.grad is not None, "Gradients should not be None"
 
 
@@ -53,7 +59,9 @@ def test_forward_with_mask(attention_module):
 def test_no_bias():
     config = DotProductAttentionConfig(hidden_dim=4, num_heads=2, bias=False)
     attn = DotProductAttention(config)
-    assert attn.qkv.bias is None
+    assert attn.q.bias is None
+    assert attn.k.bias is None
+    assert attn.v.bias is None
     assert attn.proj.bias is None
 
 

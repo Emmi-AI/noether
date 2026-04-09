@@ -22,8 +22,10 @@ def test_perceiver_attention_init_valid():
     assert attention.num_heads == num_heads
     assert attention.head_dim == dim // num_heads
     assert attention.init_weights == init_weights
-    assert attention.kv.in_features == kv_dim
-    assert attention.kv.out_features == dim * 2
+    assert attention.k.in_features == kv_dim
+    assert attention.k.out_features == dim
+    assert attention.v.in_features == kv_dim
+    assert attention.v.out_features == dim
     assert attention.q.in_features == dim
     assert attention.q.out_features == dim
     assert attention.proj.in_features == dim
@@ -48,7 +50,8 @@ def test_no_bias():
     config = PerceiverAttentionConfig(hidden_dim=4, num_heads=2, bias=False)
     attn = PerceiverAttention(config)
     assert attn.q.bias is None
-    assert attn.kv.bias is None
+    assert attn.k.bias is None
+    assert attn.v.bias is None
     assert attn.proj.bias is None
 
 
@@ -81,10 +84,12 @@ def test_perceiver_attention_forward_shape():
     output.sum().backward()
     assert output.shape == (2, 10, dim)
 
-    assert attention.kv.weight.grad is not None
+    assert attention.k.weight.grad is not None
+    assert attention.v.weight.grad is not None
     assert attention.q.weight.grad is not None
     assert attention.proj.weight.grad is not None
-    assert attention.kv.bias.grad is not None
+    assert attention.k.bias.grad is not None
+    assert attention.v.bias.grad is not None
     assert attention.q.bias.grad is not None
     assert attention.proj.bias.grad is not None
 

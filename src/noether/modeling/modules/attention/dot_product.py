@@ -38,7 +38,9 @@ class DotProductAttention(nn.Module):
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 
-        self.qkv = nn.Linear(config.hidden_dim, config.hidden_dim * 3, bias=config.bias)
+        self.q = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.k = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.v = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         apply_init_method(self, self.proj.weight, self.init_weights)
 
@@ -59,13 +61,24 @@ class DotProductAttention(nn.Module):
             Returns the output of the attention module.
         """
 
-        q, k, v = einops.rearrange(
-            self.qkv(x),
-            "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
-            three=3,
+        q = einops.rearrange(
+            self.q(x),
+            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
             num_heads=self.num_heads,
             head_dim=self.head_dim,
-        ).unbind(0)
+        )
+        k = einops.rearrange(
+            self.k(x),
+            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+        )
+        v = einops.rearrange(
+            self.v(x),
+            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
+            num_heads=self.num_heads,
+            head_dim=self.head_dim,
+        )
 
         if self.use_rope:
             assert freqs is not None

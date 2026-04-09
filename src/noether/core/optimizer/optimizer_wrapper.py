@@ -158,6 +158,11 @@ class OptimizerWrapper:
             # excluding norm and bias params is very common for all models -> support with simple flag
             # bias has ndim == 1, so it needs to be checked before
             # the bias of norm layers is considered a bias, not a norm parameter
+            if param.ndim >= 2:
+                properties["use_muon"] = True
+            else:
+                properties["use_muon"] = False
+
             if name.split(".")[-1] == "bias" and self.config.exclude_bias_from_weight_decay:
                 properties["weight_decay"] = 0.0
             # timm does it like this...not sure if other parameters can also have ndim <= 1
@@ -200,6 +205,10 @@ class OptimizerWrapper:
             names = []
             for key, value in param_group.items():
                 if key == "params":
+                    continue
+                if key == "kind":
+                    continue
+                if key == "use_muon":
                     continue
                 if isinstance(value, float):
                     if value == 0.0:
@@ -275,8 +284,10 @@ class OptimizerWrapper:
             grad_scaler.unscale_(self.torch_optim)
         # clip gradients
         if self.config.clip_grad_value is not None:
+            assert self.all_parameters is not None
             torch.nn.utils.clip_grad_value_(self.all_parameters, self.config.clip_grad_value)
         if self.config.clip_grad_norm is not None:
+            assert self.all_parameters is not None
             torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
         # torch optim step with grad scaler
         grad_scaler.step(self.torch_optim)
