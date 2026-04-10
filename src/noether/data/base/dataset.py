@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import inspect
 import logging
 from collections.abc import Iterator
 from pathlib import Path
@@ -166,6 +167,8 @@ class Dataset(TorchDataset):
                       std: [0.1, 0.2, 0.3]
     """
 
+    _sig_cache: dict[str, bool]  # cache for whether getitem functions accept extra kwargs
+
     def __init__(
         self,
         dataset_config: DatasetBaseConfig,
@@ -177,6 +180,7 @@ class Dataset(TorchDataset):
                 for available options including dataset normalizers.
         """
         super().__init__()
+        self._sig_cache = {}
         self.logger = logging.getLogger(type(self).__name__)
         self._pipeline: Collator | MultiStagePipeline | None = None
         self.config = dataset_config
@@ -236,6 +240,32 @@ class Dataset(TorchDataset):
     def __len__(self) -> int:
         raise NotImplementedError("__len__ method must be implemented")
 
+    def pre_getitem(self, idx: int) -> dict[str, Any] | None:
+        """Optional hook called once before the individual ``getitem_*`` methods.
+
+        Override this to load shared data (e.g. an HDF5 file that contains
+        multiple fields) and return it as a dictionary.  The returned dict is
+        forwarded as keyword arguments to every ``getitem_*`` call for the
+        same sample, so each getter can pull its field without re-opening the
+        file.
+
+        The default implementation returns an empty dict
+        """
+        return dict()
+
+    def post_getitem(self, idx: int, pre: dict[str, Any] | None) -> None:
+        """Optional hook called once after all ``getitem_*`` methods have run.
+
+        Override this to perform per-sample cleanup (e.g. closing a file
+        handle that was opened in :meth:`pre_getitem`).
+
+        The *pre* argument is the value originally returned by
+        :meth:`pre_getitem` so that the cleanup logic can access the same
+        resources.
+
+        The default implementation does nothing.
+        """
+
     def __getitem__(self, idx: int) -> Any:
         """Calls all implemented getitem methods and returns the results
 
@@ -243,11 +273,32 @@ class Dataset(TorchDataset):
             dict[key, Any]: dictionary of all getitem result
         """
         result = dict(index=idx)
-        getitem_names = self.get_all_getitem_names()
-        for getitem_name in getitem_names:
-            getitem_fn = getattr(self, getitem_name)
-            result[getitem_name[len("getitem_") :]] = getitem_fn(idx)
+        pre = self.pre_getitem(idx)
+        if not isinstance(pre, dict):
+            raise TypeError(f"Expected dict from pre_getitem, got {type(pre)}")
+        try:
+            getitem_names = self.get_all_getitem_names()
+            for getitem_name in getitem_names:
+                getitem_fn = getattr(self, getitem_name)
+                # only pass extra kwargs if the getitem_fn accepts more than just idx
+                accepts_kwargs = self._getitem_accepts_kwargs(getitem_name, getitem_fn)
+                if accepts_kwargs:
+                    result[getitem_name[len("getitem_") :]] = getitem_fn(idx, **pre)
+                else:
+                    result[getitem_name[len("getitem_") :]] = getitem_fn(idx)
+        finally:
+            self.post_getitem(idx, pre)
         return result
+
+    def _getitem_accepts_kwargs(self, name: str, fn: Any) -> bool:
+        """Return whether *fn* accepts more than one positional parameter (cached)."""
+        try:
+            return self._sig_cache[name]
+        except KeyError:
+            params = list(inspect.signature(fn).parameters.values())
+            accepts = len(params) > 1
+            self._sig_cache[name] = accepts
+            return accepts
 
     def __iter__(self) -> Iterator[Any]:
         """torch.utils.data.Dataset doesn't define __iter__ which makes 'for sample in dataset' run endlessly.
