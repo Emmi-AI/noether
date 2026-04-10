@@ -17,6 +17,9 @@ HFRepoType = Literal["model", "dataset"]
 def _get_hf_token() -> str | None:
     """Retrieve the HuggingFace token from credentials, or return None if unavailable.
 
+    If credentials cannot be retrieved, the failure is logged at INFO level and
+    None is returned so callers can proceed without authentication.
+
     Returns:
         The HF_TOKEN string, or None if credentials are not configured.
     """
