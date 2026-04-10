@@ -1,6 +1,10 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
+import math
 from collections import defaultdict
+from pathlib import Path
 
 import torch
 from pydantic import Field, model_validator
@@ -26,11 +30,19 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
     """Size of each chunk when performing chunked inference."""
     sample_size_property: str | None = Field(None)
     """Property in the batch to determine the sample size for chunking."""
+    save_predictions: bool = False
+    """If True, save denormalized predictions to disk during evaluation."""
+    predictions_path: str | None = None
+    """Directory to save per-sample prediction files. Required when save_predictions=True."""
+    batch_properties_to_save: list[str] = []
+    """Batch keys (e.g. position tensors) to save alongside predictions."""
 
     @model_validator(mode="after")
-    def validate_config(self) -> "AeroMetricsCallbackConfig":
+    def validate_config(self) -> AeroMetricsCallbackConfig:
         if self.batch_size != 1:
             raise ValueError("AeroMetricsCallback only supports batch_size=1")
+        if self.save_predictions and self.predictions_path is None:
+            raise ValueError("predictions_path must be specified when save_predictions=True")
         if self.chunked_inference:
             if self.chunk_size is None:
                 raise ValueError("chunk_size must be specified when chunked_inference is True")
@@ -63,27 +75,15 @@ class MetricType:
 
 
 class AeroMetricsCallback(PeriodicDataIteratorCallback):
-    """
-    Callback for computing evaluation metrics on surface and volume predictions.
+    """Evaluation callback for aerodynamic surface and volume predictions.
 
-    This callback periodically evaluates model performance by computing MSE, MAE,
-    and L2 error metrics for various physical fields (pressure, velocity, friction, etc.).
-    Supports both standard and chunked inference for memory efficiency.
+    Computes MSE, MAE, and relative L2 error metrics for physical fields
+    (pressure, friction, velocity, vorticity) by running model inference on
+    an evaluation dataset.  Supports chunked inference for memory efficiency.
 
-    Args:
-        callback_config: Configuration for the callback including dataset key,
-                        forward properties, and chunking settings
-        **kwargs: Additional arguments passed to parent class
-
-    Attributes:
-        dataset_key: Identifier for the dataset to evaluate
-        evaluation_modes: List of field names to evaluate
-        dataset_normalizers: Normalizers for denormalizing predictions
-        forward_properties: Properties to pass to model forward
-        chunked_inference: Whether to use chunked inference
-        chunk_properties: Properties to chunk
-        chunk_size: Size of each chunk
-        chunk_property: Property to determine chunk count
+    When ``save_predictions=True``, denormalized predictions (and optionally
+    batch properties such as positions) are saved to disk per-sample for
+    downstream use (VTK export, force coefficient computation).
     """
 
     def __init__(self, callback_config: AeroMetricsCallbackConfig, **kwargs):
@@ -98,6 +98,9 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self.chunk_properties = callback_config.chunk_properties
         self.chunk_size = callback_config.chunk_size
         self.sample_size_property = callback_config.sample_size_property
+        self._save_predictions = callback_config.save_predictions
+        self._predictions_path = callback_config.predictions_path
+        self._prediction_counter: int = 0
 
     def _denormalize(
         self, predictions: torch.Tensor, targets: torch.Tensor, key: str
@@ -196,11 +199,11 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             List of (start_idx, end_idx) tuples for each chunk
         """
         indices = []
-        n_chunks = batch_size // self.chunk_size
+        num_chunks = math.ceil(batch_size / self.chunk_size)
 
-        for chunk_idx in range(n_chunks):
+        for chunk_idx in range(num_chunks):
             start = chunk_idx * self.chunk_size
-            end = start + self.chunk_size
+            end = min(start + self.chunk_size, batch_size)
             indices.append((start, end))
 
         return indices
@@ -317,11 +320,40 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         for mode in self.evaluation_modes:
             metrics.update(self._compute_mode_metrics(batch, model_outputs, mode))
 
+        if self._save_predictions:
+            self._collect_predictions(batch, model_outputs)
+
         return metrics
+
+    def _collect_predictions(self, batch: dict[str, torch.Tensor], model_outputs: dict[str, torch.Tensor]) -> None:
+        """Denormalize and save predictions (and batch properties) for the current sample.
+
+        Saves each sample to disk immediately to avoid accumulating large tensors in memory.
+        """
+        sample = {}
+        for mode in self.evaluation_modes:
+            prediction = model_outputs.get(mode)
+            if prediction is None:
+                continue
+            normalizer = self.dataset_normalizers.get(mode)
+            if normalizer is not None:
+                denorm = normalizer.inverse(prediction.cpu())
+            else:
+                denorm = prediction.cpu()
+            sample[mode] = denorm.squeeze(0)
+        for key in self._config.batch_properties_to_save:
+            if key in batch:
+                sample[key] = batch[key].cpu().squeeze(0)
+        if sample:
+            out_dir = Path(self._predictions_path)
+            out_dir.mkdir(parents=True, exist_ok=True)
+            idx = self._prediction_counter
+            torch.save(sample, out_dir / f"sample_{idx:04d}.pt")
+            self._prediction_counter += 1
 
     def process_results(self, results: dict[str, torch.Tensor], **_) -> None:
         """
-        Log computed metrics to writer.
+        Log computed metrics to writer and optionally save predictions.
 
         Args:
             results: Dictionary of computed metrics
@@ -341,3 +373,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             )
 
         self.logger.debug(f"Logged {len(results)} metrics for dataset '{self.dataset_key}'")
+
+        if self._save_predictions and self._prediction_counter > 0:
+            self.logger.info(f"Saved {self._prediction_counter} prediction files to {self._predictions_path}")
+            self._prediction_counter = 0
