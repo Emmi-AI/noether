@@ -25,7 +25,7 @@ def _get_hf_token() -> str | None:
     """
     try:
         credentials = get_credentials(Provider.HUGGINGFACE)
-        return credentials["HF_TOKEN"]
+        return str(credentials["HF_TOKEN"])
     except Exception as e:
         logger.info("Failed to get HuggingFace credentials, proceeding without authentication: %s", e)
         return None
