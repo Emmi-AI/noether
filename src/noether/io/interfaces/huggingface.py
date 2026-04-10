@@ -14,6 +14,20 @@ from noether.io.providers import Provider
 HFRepoType = Literal["model", "dataset"]
 
 
+def _get_hf_token() -> str | None:
+    """Retrieve the HuggingFace token from credentials, or return None if unavailable.
+
+    Returns:
+        The HF_TOKEN string, or None if credentials are not configured.
+    """
+    try:
+        credentials = get_credentials(Provider.HUGGINGFACE)
+        return credentials["HF_TOKEN"]
+    except Exception as e:
+        logger.info("Failed to get HuggingFace credentials, proceeding without authentication: %s", e)
+        return None
+
+
 def estimate_hf_repo_size(
     repo_id: str,
     repo_type: HFRepoType = "model",
@@ -114,12 +128,7 @@ def fetch_huggingface_file(
     Returns:
         - None
     """
-    token = None
-    try:
-        credentials = get_credentials(Provider.HUGGINGFACE)
-        token = credentials["HF_TOKEN"]
-    except Exception as e:
-        logger.info("Failed to get HuggingFace credentials, proceeding without authentication: %s", e)
+    token = _get_hf_token()
     local_dir.mkdir(parents=True, exist_ok=True)
 
     hf_hub_download(
@@ -153,12 +162,7 @@ def fetch_huggingface_by_extension(
     Returns:
         - A list of downloaded files.
     """
-    token = None
-    try:
-        credentials = get_credentials(Provider.HUGGINGFACE)
-        token = credentials["HF_TOKEN"]
-    except Exception as e:
-        logger.info("Failed to get HuggingFace credentials, proceeding without authentication: %s", e)
+    token = _get_hf_token()
     local_dir.mkdir(parents=True, exist_ok=True)
 
     api = HfApi()
