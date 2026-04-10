@@ -42,8 +42,8 @@ class TransformerBlockConfig(BaseModel):
     condition_dim: int | None = Field(None)
     """Dimension of the conditioning vector. If none, no conditioning is applied. If provided, the transformer block will turn into a Diffusion Transformer (DiT) block."""
 
-    bias: bool = Field(True)
-    """Whether to use biases in norm/projections. Defaults to True."""
+    bias: bool = Field(False)
+    """Whether to use biases in norm/projections. Defaults to False."""
 
     eps: float = Field(1e-6, gt=0.0)
     """Epsilon Value for the layer nornalization. Defaults to 1e-6."""

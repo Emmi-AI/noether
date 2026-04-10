@@ -1,11 +1,11 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from noether.core.schemas.modules.mlp import UpActDownMLPConfig
 from noether.modeling.functional.init import init_trunc_normal_zero_bias
-from noether.modeling.modules.activations import Activation
 
 
 class UpActDownMlp(nn.Module):
@@ -28,7 +28,7 @@ class UpActDownMlp(nn.Module):
         self.init_weights = config.init_weights
 
         self.fc1 = nn.Linear(config.input_dim, config.hidden_dim, bias=config.bias)
-        self.act = Activation.GELU.build()
+        # self.act = Activation.GELU.build()
         self.fc2 = nn.Linear(config.hidden_dim, config.input_dim, bias=config.bias)
 
         self.reset_parameters()
@@ -65,6 +65,6 @@ class UpActDownMlp(nn.Module):
         """
 
         x = self.fc1(x)
-        x = self.act(x)
+        x = F.relu(x).square()
         x = self.fc2(x)
         return x
