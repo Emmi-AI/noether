@@ -8,11 +8,14 @@ However, although modules can be developed in isolation, some modules still depe
 
 Here is how the dependency graph of the main Noether modules looks like:
 
-- 1. **Dataset**: The dataset is responsible for loading the data per sample from disk and is at the root of the dependency graph.
-    - 2. **Pipeline**: The multi-stage pipeline (i.e., collator) collates the data loaded by the dataset into a batch and applies additional transformations to the data (if applicable). The pipeline depends on the dataset and cannot be configured without one.
-        - 3. **Model**: Performs the forward pass on the collated batch.
-            - 4.1 **Trainer**: Manages the training loop, mainly defining the loss computation.
-            - 4.2 **Callbacks** (For now only PeriodicDataIteratorCallbacks are supported).
+- **Dataset** (1): The dataset is responsible for loading the data per sample from disk and is at the root of the dependency graph.
+
+  - **Pipeline** (2): The multi-stage pipeline (i.e., collator) collates the data loaded by the dataset into a batch and applies additional transformations to the data (if applicable). The pipeline depends on the dataset and cannot be configured without one.
+
+    - **Model** (3): Performs the forward pass on the collated batch.
+
+      - **Trainer** (4.1): Manages the training loop, mainly defining the loss computation.
+      - **Callbacks** (4.2): For now only PeriodicDataIteratorCallbacks are supported.
 
 This implies that a model (`3`) cannot be developed without a dataset (`1`) and pipeline (`2`), and a trainer (`4.1`) or callbacks (`4.2`) cannot be developed without a model (`3`), etc.
 In practice, it would be possible to develop each component fully in isolation by using dummy data.
