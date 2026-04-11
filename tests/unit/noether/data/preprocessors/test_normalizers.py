@@ -341,3 +341,56 @@ def test_call_raises_value_error_for_out_of_bounds_input():
     )
     with pytest.raises(ValueError):
         normalizer(torch.tensor([[0.0, 2.0], [3.0, 4.0]]))  # type: ignore[arg-type]
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
+class TestNormalizationOnCuda:
+    """Tests normalization and denormalization with tensors on CUDA device."""
+
+    def test_shift_and_scale_normalizer_on_cuda(self):
+        shift = [1.0, 2.0]
+        scale = [3.0, 4.0]
+        normalizer = ShiftAndScaleNormalizer(
+            ShiftAndScaleNormalizerConfig(shift=shift, scale=scale), normalization_key="test_cuda"
+        )
+
+        x = torch.tensor([[5.0, 10.0], [15.0, 20.0]], device="cuda")
+        normalized = normalizer(x)
+
+        assert normalized.device.type == "cuda"
+        expected = (x + torch.tensor(shift, device="cuda")) * torch.tensor(scale, device="cuda")
+        assert torch.allclose(normalized, expected)
+
+        denormalized = normalizer.denormalize(normalized)
+        assert denormalized.device.type == "cuda"
+        assert torch.allclose(denormalized, x, atol=1e-6)
+
+    def test_mean_std_normalization_on_cuda(self):
+        mean = [10.0, 20.0]
+        std = [2.0, 4.0]
+        normalizer = MeanStdNormalization(MeanStdNormalizerConfig(mean=mean, std=std), normalization_key="test_cuda")
+
+        x = torch.tensor([[12.0, 24.0], [14.0, 28.0]], device="cuda")
+        normalized = normalizer(x)
+
+        assert normalized.device.type == "cuda"
+
+        denormalized = normalizer.denormalize(normalized)
+        assert denormalized.device.type == "cuda"
+        assert torch.allclose(denormalized, x, atol=1e-6)
+
+    def test_position_normalizer_on_cuda(self):
+        normalizer = PositionNormalizer(
+            PositionNormalizerConfig(raw_pos_min=[-10.0], raw_pos_max=[10.0], scale=1000),
+            normalization_key="test_cuda",
+        )
+
+        x = torch.tensor([-10.0, 0.0, 10.0], device="cuda")
+        normalized = normalizer(x)
+
+        assert normalized.device.type == "cuda"
+        assert torch.allclose(normalized, torch.tensor([0.0, 500.0, 1000.0], device="cuda"))
+
+        denormalized = normalizer.denormalize(normalized)
+        assert denormalized.device.type == "cuda"
+        assert torch.allclose(denormalized, x, atol=1e-6)
