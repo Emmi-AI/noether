@@ -9,10 +9,8 @@ from noether.core.utils.torch.device import move_items_to_device
 
 @pytest.fixture
 def mock_device():
-    """Returns a mock device that behaves like torch.device('cuda:0')."""
-    device = MagicMock()
-    device.type = "cuda"
-    return device
+    """Returns a dummy device object (e.g., 'cuda:0' or a Mock)."""
+    return "cuda:0"
 
 
 @pytest.fixture
