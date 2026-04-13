@@ -84,6 +84,21 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
     When ``save_predictions=True``, denormalized predictions (and optionally
     batch properties such as positions) are saved to disk per-sample for
     downstream use (VTK export, force coefficient computation).
+
+    Args:
+        callback_config: Configuration for the callback including dataset key,
+            forward properties, and chunking settings.
+        **kwargs: Additional arguments passed to parent class.
+
+    Attributes:
+        dataset_key: Identifier for the dataset to evaluate.
+        evaluation_modes: List of field names to evaluate.
+        dataset_normalizers: Normalizers for denormalizing predictions.
+        forward_properties: Properties to pass to model forward.
+        chunked_inference: Whether to use chunked inference.
+        chunk_properties: Properties to chunk.
+        chunk_size: Size of each chunk.
+        sample_size_property: Property to determine chunk count.
     """
 
     def __init__(self, callback_config: AeroMetricsCallbackConfig, **kwargs):
