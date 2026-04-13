@@ -61,7 +61,7 @@ and limitations under the License.
 
 ## 3. Muon optimizer(s)
 
-`noether/core/optimizer/muon_adamw.py` is derived from the Muon optimizer implementations in
+`noether/core/optimizer/muon_composite.py` is derived from the Muon optimizer implementations in
 [Muon](https://github.com/KellerJordan/Muon),
 originally authored by Keller Jordan, and remains subject to the following MIT License requirements:
 

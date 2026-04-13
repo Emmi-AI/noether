@@ -37,6 +37,24 @@ class ParamGroupModifierConfig(BaseModel):
         return self
 
 
+class MuonSecondaryOptimizerConfig(BaseModel):
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`.
+    """
+
+    model_config = {"extra": "forbid"}
+
+    kind: str | None = None
+    """The class path of the torch optimizer to use. E.g., 'torch.optim.Lion'."""
+    lr: float | None = Field(None, gt=0.0)
+    """The learning rate for the optimizer. Falls back to the primary lr if not set."""
+    weight_decay: float | None = Field(None, ge=0.0)
+    """The weight decay. Falls back to the primary weight_decay if not set."""
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for optimizers like SGD."""
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
+
+
 class OptimizerConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
@@ -45,7 +63,7 @@ class OptimizerConfig(BaseModel):
     lr: float | None = Field(None, gt=0.0)
     """The learning rate for the optimizer."""
     weight_decay: float | None = Field(0.0, ge=0.0)
-    """The weight decay (L2 penalty) for the optimizer."""
+    """The weight decay. Falls back to the primary weight_decay if not set."""
 
     # these are the kwargs for the OptimWrapper
     clip_grad_value: float | None = Field(None, ge=0.0)
@@ -65,6 +83,9 @@ class OptimizerConfig(BaseModel):
     """Momentum factor for optimizers like SGD and Muon."""
     betas: tuple[float, float] | None = None
     """Beta coefficients for Adam-style optimizers."""
+    secondary: MuonSecondaryOptimizerConfig | None = None
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`.
+    Ignored by other optimizers."""
 
     _optim_wrapper_kwargs: set[str] = {
         "clip_grad_value",

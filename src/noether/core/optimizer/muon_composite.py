@@ -1,38 +1,46 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-"""MuonAdamW: torch.optim.Muon for 2D params, AdamW for the rest.
+"""MuonComposite: torch.optim.Muon for 2D params, any optimizer for the rest.
 
 Param groups are tagged with use_muon=True/False by OptimizerWrapper
-based on parameter dimensionality (ndim >= 2 -> Muon, otherwise -> AdamW).
+based on parameter dimensionality (ndim >= 2 -> Muon, otherwise -> secondary optimizer).
 """
 
 import torch
 
 
-class MuonAdamW(torch.optim.Optimizer):
+class MuonComposite(torch.optim.Optimizer):
     """Composite optimizer using torch.optim.Muon for 2D weight matrices
-    and torch.optim.AdamW for all other parameters (biases, norms, embeddings).
-
-    Config example::
-
-        kind: noether.core.optimizer.MuonAdamW
-        lr: 2.0e-2
-        momentum: 0.95
-        weight_decay: 0.01
+    and a configurable secondary optimizer for all other parameters (biases, norms, embeddings).
     """
 
-    def __init__(self, params, lr=0.02, momentum=0.95, weight_decay=0.01):
+    def __init__(
+        self,
+        params,
+        lr=2.0e-3,
+        momentum=0.95,
+        weight_decay=0.01,
+        secondary=None,
+    ):
         params = list(params)
+
+        # Resolve secondary optimizer kwargs: fall back to primary lr/weight_decay if not set.
+        secondary_kwargs = dict(secondary) if secondary else {}
+        secondary_kind = secondary_kwargs.pop("kind", None) or "noether.core.optimizer.Lion"
+
+        # If the secondary optimizer config doesn't specify lr/wd, it inherits from the primary config
+        secondary_kwargs.setdefault("lr", lr)
+        secondary_kwargs.setdefault("weight_decay", weight_decay)
 
         # Split groups by use_muon flag before super().__init__ modifies them
         muon_groups = []
-        adam_groups = []
+        secondary_groups = []
         for group in params:
             clean = {k: v for k, v in group.items() if k != "use_muon"}
             if group.get("use_muon", True):
                 muon_groups.append(clean)
             else:
-                adam_groups.append(clean)
+                secondary_groups.append(clean)
 
         defaults = dict(lr=lr, momentum=momentum, weight_decay=weight_decay)
         super().__init__(params, defaults)
@@ -41,15 +49,18 @@ class MuonAdamW(torch.optim.Optimizer):
         self._muon = (
             torch.optim.Muon(muon_groups, lr=lr, momentum=momentum, weight_decay=weight_decay) if muon_groups else None
         )
-        self._adamw = torch.optim.AdamW(adam_groups, lr=lr, weight_decay=weight_decay) if adam_groups else None
+        from noether.core.factory.utils import class_constructor_from_class_path
+
+        secondary_cls = class_constructor_from_class_path(secondary_kind)
+        self._secondary = secondary_cls(secondary_groups, **secondary_kwargs) if secondary_groups else None
 
         # Replace param_groups with references from internal optimizers
         # so that external lr/wd mutations (e.g. from schedulers) propagate directly
         self.param_groups = []
         if self._muon:
             self.param_groups.extend(self._muon.param_groups)
-        if self._adamw:
-            self.param_groups.extend(self._adamw.param_groups)
+        if self._secondary:
+            self.param_groups.extend(self._secondary.param_groups)
 
     @torch.no_grad()
     def step(self, closure=None):
@@ -59,21 +70,24 @@ class MuonAdamW(torch.optim.Optimizer):
                 loss = closure()
         if self._muon:
             self._muon.step()
-        if self._adamw:
-            self._adamw.step()
+        if self._secondary:
+            self._secondary.step()
         return loss
 
     def zero_grad(self, set_to_none=True):
         if self._muon:
             self._muon.zero_grad(set_to_none)
-        if self._adamw:
-            self._adamw.zero_grad(set_to_none)
+        if self._secondary:
+            self._secondary.zero_grad(set_to_none)
 
     def state_dict(self):
+        # Each child optimizer indexes its params starting from 0, so muon and secondary
+        # use overlapping keys. Renumber them into a single global counter (`idx`) so the
+        # merged state/param_groups don't collide. 
         state = {}
         param_groups = []
         idx = 0
-        for opt in (self._muon, self._adamw):
+        for opt in (self._muon, self._secondary):
             if opt is None:
                 continue
             sd = opt.state_dict()
@@ -90,11 +104,14 @@ class MuonAdamW(torch.optim.Optimizer):
         return {"state": state, "param_groups": param_groups}
 
     def load_state_dict(self, state_dict):
+        # The merged dict from state_dict() uses global param indices, but each child
+        # optimizer expects its own local indices starting at 0, hence this function 
+        # maps the global indices back to local ones for each optimizer.
         sd_state = state_dict["state"]
         sd_groups = state_dict["param_groups"]
 
         offset = 0
-        for opt in (self._muon, self._adamw):
+        for opt in (self._muon, self._secondary):
             if opt is None:
                 continue
             n_groups = len(opt.param_groups)
