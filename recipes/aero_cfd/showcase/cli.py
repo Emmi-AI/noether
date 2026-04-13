@@ -131,6 +131,7 @@ def train(
     eval_every_n_epochs: Annotated[int, typer.Option(help="Compute eval metrics every N epochs.")] = 10,
     tracker: Annotated[Tracker | None, typer.Option(help="Experiment tracker: wandb, tensorboard, or trackio.")] = None,
     tracker_project: Annotated[str | None, typer.Option(help="Project name for the tracker.")] = None,
+    precision: Annotated[str, typer.Option(help="Training precision: float32, float16, or bfloat16.")] = "float32",
 ) -> None:
     from aero_cfd.callbacks import AeroMetricsCallbackConfig
     from noether.training.runners import HydraRunner
@@ -155,7 +156,7 @@ def train(
         model_kind=ABUPT_MODEL_KIND,
         model_params=size_config.model_params,
         trainer_kind=TRAINER_KIND,
-        trainer_params=dict(field_weights=FIELD_WEIGHTS),
+        trainer_params=dict(field_weights=FIELD_WEIGHTS, precision=precision),
         dataset_root=dataset_root,
         output_path=output_path,
         datasets=["train", "val", "test"],
@@ -196,15 +197,21 @@ def evaluate(
         str | None,
         typer.Option(help="Directory to save predictions. Default: <output_path>/<run_id>/eval/predictions."),
     ] = None,
-    export_vtk: Annotated[
-        bool, typer.Option("--export-vtk", help="Export all predictions as VTK point clouds.")  # type: ignore
-    ] = False,
-    compute_forces: Annotated[
-        bool, typer.Option("--compute-forces", help="Compute Cd/Cl for all samples (requires surface_area_vtp.pt).")
-    ] = False,
-    query_inference: Annotated[
-        bool, typer.Option("--query-inference", help="Dense query-based inference for higher-resolution predictions.")
-    ] = False,
+    export_vtk: bool = typer.Option(
+        False,
+        "--export-vtk",
+        help="Export all predictions as VTK point clouds.",
+    ),
+    compute_forces: bool = typer.Option(
+        False,
+        "--compute-forces",
+        help="Compute Cd/Cl for all samples (requires surface_area_vtp.pt).",
+    ),
+    query_inference: bool = typer.Option(
+        False,
+        "--query-inference",
+        help="Dense query-based inference for higher-resolution predictions.",
+    ),
     num_inference_surface_points: Annotated[
         int, typer.Option(help="Total surface points for query inference.")
     ] = 10000,
