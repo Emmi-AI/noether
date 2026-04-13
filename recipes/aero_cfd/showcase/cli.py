@@ -132,8 +132,11 @@ def train(
     tracker: Annotated[Tracker | None, typer.Option(help="Experiment tracker: wandb, tensorboard, or trackio.")] = None,
     tracker_project: Annotated[str | None, typer.Option(help="Project name for the tracker.")] = None,
     precision: Annotated[str, typer.Option(help="Training precision: float32, float16, or bfloat16.")] = "float32",
+    resume_run_id: Annotated[str | None, typer.Option(help="Run ID to resume training from.")] = None,
+    resume_checkpoint: Annotated[str, typer.Option(help="Checkpoint tag to resume from.")] = "latest",
 ) -> None:
     from aero_cfd.callbacks import AeroMetricsCallbackConfig
+    from noether.core.schemas.callbacks import CheckpointCallbackConfig
     from noether.training.runners import HydraRunner
 
     size_config = MODEL_SIZES[model_size.value]
@@ -152,6 +155,36 @@ def train(
         if tracker_project:
             tracker_config["project"] = tracker_project
 
+    resume_kwargs = {}
+    if resume_run_id is not None:
+        # ResumeInitializer requires both model and optimizer checkpoints.
+        # Runs created before optimizer saving was enabled won't have *_optim.th files.
+        checkpoint_dir = Path(output_path) / resume_run_id / "checkpoints"
+        optim_file = checkpoint_dir / f"ab_upt_cp={resume_checkpoint}_optim.th"
+        if not optim_file.exists():
+            available = sorted(f.name for f in checkpoint_dir.glob("*_optim.th")) if checkpoint_dir.exists() else []
+            console.print(f"[red]Cannot resume: optimizer checkpoint not found at {optim_file}[/red]")
+            if available:
+                console.print(f"[yellow]Available optimizer checkpoints: {available}[/yellow]")
+                console.print("[yellow]Try a different --resume-checkpoint tag.[/yellow]")
+            else:
+                console.print(
+                    "[yellow]This run has no optimizer checkpoints. "
+                    "Only runs started with the current CLI save optimizer state.[/yellow]"
+                )
+                console.print(
+                    "[yellow]Start a fresh training run, or use 'evaluate' to load model weights only.[/yellow]"
+                )
+            raise typer.Exit(1)
+        resume_kwargs["resume_run_id"] = resume_run_id
+        resume_kwargs["resume_checkpoint"] = resume_checkpoint
+
+    # Build standard callbacks but with optimizer saving enabled for resumability.
+    standard_callbacks = preset.standard_callbacks()
+    for callback in standard_callbacks:
+        if isinstance(callback, CheckpointCallbackConfig):
+            callback.save_optim = True
+
     config = preset.build_config(
         model_kind=ABUPT_MODEL_KIND,
         model_params=size_config.model_params,
@@ -162,8 +195,9 @@ def train(
         datasets=["train", "val", "test"],
         max_epochs=max_epochs,
         accelerator=accelerator,
-        extra_callbacks=[eval_callback],
+        callbacks_override=standard_callbacks + [eval_callback],
         tracker=tracker_config,
+        **resume_kwargs,
     )
 
     console.print(f"[bold]Training AB-UPT ({model_size.value}) on DrivAerML[/bold]")

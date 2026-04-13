@@ -2,6 +2,42 @@
 
 Train, evaluate, and visualize the Anchored-Branched Universal Physics Transformer (AB-UPT) on the DrivAerML automotive aerodynamics dataset.
 
+## Dataset
+
+The DrivAerML dataset (subsampled 10x) is hosted on HuggingFace:
+[EmmiAI/DrivAerML_subsampled_10x](https://huggingface.co/datasets/EmmiAI/DrivAerML_subsampled_10x)
+
+### Download with `noether-data` CLI
+
+```bash
+# Full dataset snapshot
+noether-data huggingface snapshot EmmiAI/DrivAerML_subsampled_10x /path/to/drivaerml
+```
+
+See `noether.io.cli` for additional options (verification, manifests, parallel downloads).
+
+### Download with huggingface_hub
+
+```bash
+uv pip install huggingface_hub
+
+huggingface-cli download EmmiAI/DrivAerML_subsampled_10x \
+  --repo-type dataset \
+  --local-dir /path/to/drivaerml
+```
+
+### Download with Python
+
+```python
+from huggingface_hub import snapshot_download
+
+snapshot_download(
+    repo_id="EmmiAI/DrivAerML_subsampled_10x",
+    repo_type="dataset",
+    local_dir="/path/to/drivaerml",
+)
+```
+
 ## Quick Start
 
 All commands must be run from the `recipes/aero_cfd/` directory.
@@ -11,7 +47,7 @@ All commands must be run from the `recipes/aero_cfd/` directory.
 ```bash
 cd recipes/aero_cfd/
 
-# Small model — fast iteration / smoke tests
+# Small model -- fast iteration / smoke tests
 python -m showcase.cli train \
   --dataset-root /path/to/drivaerml \
   --output-path /path/to/outputs
@@ -21,7 +57,8 @@ python -m showcase.cli train \
   --dataset-root /path/to/drivaerml \
   --output-path /path/to/outputs \
   --model-size scaled \
-  --accelerator gpu
+  --accelerator gpu \
+  --precision float16
 
 # Scaled model on Apple Silicon (reduced point budget)
 python -m showcase.cli train \
@@ -81,8 +118,8 @@ python -m showcase.cli export-vtk \
   --domain surface
 ```
 
-Open the `.vtp` files in [ParaView](https://www.paraview.org/) and color by field
-(e.g., `surface_pressure`, `surface_friction`).
+Open the `.vtp` files in [ParaView](https://www.paraview.org/) and color by field (e.g., `surface_pressure`, 
+`surface_friction`).
 
 ## Model Sizes
 
@@ -94,9 +131,9 @@ Open the `.vtp` files in [ParaView](https://www.paraview.org/) and color by fiel
 
 All sizes use the same physics block pattern: `perceiver -> self -> cross -> self -> cross -> self`.
 
-- **`small`** — Fast iteration and smoke tests. Default for CPU.
-- **`scaled`** — Full research configuration for GPU (matches `train_drivaerml_ab-upt_scale.yaml`).
-- **`scaled_mps`** — Same architecture as `scaled` with reduced point budget to fit Apple Silicon MPS memory and INT32 index limits.
+- **`small`** -- Fast iteration and smoke tests. Default for CPU.
+- **`scaled`** -- Full research configuration for GPU. Use `--precision float16` for ~2x speedup on supported hardware.
+- **`scaled_mps`** -- Same architecture as `scaled` with reduced point budget to fit Apple Silicon MPS memory and INT32 index limits (on a 32GB machine).
 
 ## Query-Based Inference
 
@@ -116,9 +153,9 @@ matching the workload the model handles during a single training step.
 `--compute-forces` computes ground-truth and predicted drag/lift coefficients (Cd/Cl)
 for each sample in the evaluation split.  Requires per-run reference data:
 
-- `surface_normal_vtp.pt` — cell normals (included in the dataset)
-- `surface_area_vtp.pt` — cell areas scaled by the subsample factor (precomputed from the original VTP mesh)
-- `geo_ref_<N>.csv` — per-run reference area (optional, falls back to DrivAerML defaults)
+- `surface_normal_vtp.pt` -- cell normals (included in the dataset)
+- `surface_area_vtp.pt` -- cell areas scaled by the subsample factor (precomputed from the original VTP mesh)
+- `geo_ref_<N>.csv` -- per-run reference area (optional, falls back to DrivAerML defaults)
 
 Results are saved to `forces.csv` in the predictions directory.
 
