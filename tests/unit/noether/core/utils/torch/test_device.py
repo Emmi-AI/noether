@@ -9,8 +9,10 @@ from noether.core.utils.torch.device import move_items_to_device
 
 @pytest.fixture
 def mock_device():
-    """Returns a dummy device object (e.g., 'cuda:0' or a Mock)."""
-    return "cuda:0"
+    """Returns a mock device that behaves like torch.device('cuda:0')."""
+    device = MagicMock()
+    device.type = "cuda"
+    return device
 
 
 @pytest.fixture
@@ -87,3 +89,23 @@ def test_mixed_batch(mock_device, mock_tensor):
     assert result["wrapped_tensor"] == "moved_tensor"
     assert result["none_val"] is None
     assert result["wrapped_none"] is None
+
+
+def test_non_blocking_only_for_cuda(mock_tensor):
+    """Test that non_blocking=True is only used for CUDA devices."""
+    cuda_device = MagicMock()
+    cuda_device.type = "cuda"
+    move_items_to_device(cuda_device, {"data": mock_tensor})
+    mock_tensor.to.assert_called_with(cuda_device, non_blocking=True)
+
+    mock_tensor.reset_mock()
+    mps_device = MagicMock()
+    mps_device.type = "mps"
+    move_items_to_device(mps_device, {"data": mock_tensor})
+    mock_tensor.to.assert_called_with(mps_device, non_blocking=False)
+
+    mock_tensor.reset_mock()
+    cpu_device = MagicMock()
+    cpu_device.type = "cpu"
+    move_items_to_device(cpu_device, {"data": mock_tensor})
+    mock_tensor.to.assert_called_with(cpu_device, non_blocking=False)

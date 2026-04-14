@@ -50,10 +50,33 @@ Each dataset implements one ``getitem_<property>`` method per tensor it provides
    # simplified from base/dataset.py
    def __getitem__(self, idx):
        result = {"index": idx}
-       for getitem_name in self.get_all_getitem_names():
-           getitem_fn = getattr(self, getitem_name)
-           result[getitem_name[len("getitem_"):]] = getitem_fn(idx)
+       pre = self.pre_getitem(idx)
+       extra_kwargs = pre if pre is not None else {}
+       try:
+           for getitem_name in self.get_all_getitem_names():
+               getitem_fn = getattr(self, getitem_name)
+               result[getitem_name[len("getitem_"):]] = getitem_fn(idx, **extra_kwargs)
+       finally:
+           self.post_getitem(idx, pre)
        return result
+
+``pre_getitem`` / ``post_getitem`` hooks
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The base class provides two optional lifecycle hooks around the ``getitem_*`` calls:
+
+- :py:meth:`~noether.data.Dataset.pre_getitem` is called **once** before any ``getitem_*`` method.
+  It can return a dictionary whose entries are forwarded as keyword arguments to every ``getitem_*``
+  method that accepts them.  This is useful when multiple properties live in the same file (e.g. an
+  HDF5 container): ``pre_getitem`` opens the file once, and each getter reads its field without
+  re-opening.
+
+- :py:meth:`~noether.data.Dataset.post_getitem` is called **once** after all ``getitem_*`` methods
+  have finished (or if one of them raises).  It receives the value returned by ``pre_getitem`` so
+  that cleanup logic (e.g. closing a file handle) can access the same resources.  The call is
+  wrapped in a ``finally`` block, so cleanup runs even on error.
+
+Both hooks default to no-ops, so existing datasets are unaffected.
 
 By default, every ``__getitem__`` call invokes **all** ``getitem_*`` methods and therefore loads all
 properties from disk. To avoid unnecessary I/O, we provide two ways to restrict which properties are
