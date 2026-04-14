@@ -35,7 +35,7 @@ To implement a custom trainer in **Noether**, you need to create a new class tha
 .. testcode::
    :hide:
 
-   _cfg = CustomTrainerConfig(kind="test.CustomTrainer", effective_batch_size=1, callbacks=[])
+   _cfg = CustomTrainerConfig(kind="test.CustomTrainer", effective_batch_size=1, callbacks=[], max_epochs=1)
 
 The default ``train_step`` implementation of the BaseTrainer calls the ``loss_compute`` method to calculate the loss.
 Best practice is to return a dictionary of losses from the ``loss_compute`` method, where each key is a loss name and the value is the corresponding loss tensor.

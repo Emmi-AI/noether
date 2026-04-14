@@ -1,12 +1,38 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
+import typing
+from typing import Any, Union, get_args, get_origin
 
 from pydantic import BaseModel, model_validator
+from pydantic.fields import FieldInfo
 
 
 class Shared:
     """Marker class to indicate a field should inherit shared values from the parent config."""
+
+
+def _has_marker(field_info: FieldInfo) -> bool:
+    """Extract a BaseModel subclass from an annotation, handling Optional/Union types."""
+    metadata = field_info.metadata
+    # Handle Union types like `X | None` or `Optional[X]`
+    if get_origin(field_info.annotation) is Union:
+        for arg in get_args(field_info.annotation):
+            metadata.extend(getattr(arg, "__metadata__", []))
+    return any(x is Shared for x in metadata)
+
+
+def _extract_base_model(annotation: Any) -> type[BaseModel] | None:
+    """Extract a BaseModel subclass from an annotation, handling Optional/Union types."""
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    # Handle Union types like `X | None` or `Optional[X]`
+    if get_origin(annotation) is Union:
+        for arg in get_args(annotation):
+            if isinstance(arg, type) and issubclass(arg, BaseModel):
+                return arg
+            if hasattr(arg, "__origin__") and issubclass(arg.__origin__, BaseModel):
+                return typing.cast("type[BaseModel]", arg.__origin__)
+    return None
 
 
 class InjectSharedFieldFromParentMixin(BaseModel):
@@ -40,14 +66,12 @@ class InjectSharedFieldFromParentMixin(BaseModel):
         # Iterate over all fields in the parent model
         for field_name, field_info in parent_model_type.model_fields.items():
             # Check if inheritance of shared fields is requested via Annotated[..., Shared]
-            if not any(x is Shared for x in field_info.metadata):
+            if not _has_marker(field_info):
                 continue
 
             # Check if the field is a Pydantic model (i.e., a sub-config)
-            if isinstance(field_info.annotation, type) and issubclass(field_info.annotation, BaseModel):
-                sub_model_type = field_info.annotation
-            else:
-                # Not a Pydantic model, skip
+            sub_model_type = _extract_base_model(field_info.annotation)
+            if sub_model_type is None:
                 continue
 
             # Get the sub-config data from the parent dictionary
@@ -83,13 +107,12 @@ class InjectSharedFieldFromParentMixin(BaseModel):
         # Iterate over all fields in the current model
         for field_name, field_info in config_model_type.model_fields.items():
             # Check if inheritance of shared fields is requested via Annotated[..., Shared]
-            if not any(x is Shared or isinstance(x, Shared) for x in field_info.metadata):
+            if not _has_marker(field_info):
                 continue
 
             # Check if the field is a Pydantic model (i.e., a sub-config)
-            if isinstance(field_info.annotation, type) and issubclass(field_info.annotation, BaseModel):
-                sub_model_type = field_info.annotation
-            else:
+            sub_model_type = _extract_base_model(field_info.annotation)
+            if sub_model_type is None:
                 continue
 
             # Get the nested sub-config data

@@ -15,12 +15,15 @@ from noether.modeling.models.transformer import Transformer
 from noether.modeling.models.upt import UPT
 
 
-# Check that the Transformer model produces the same output for the same input across multiple runs, ensuring determinism.
-# If model architecture changes or initialization methods change, this test will fail
-# and expected_sum will need to be updated to the new value.
 def test_transformer_determinism_regression_check(
     transformer_config: TransformerConfig,
 ) -> None:
+    """
+    Checks transformer output against a hardcoded expected sum to ensure that changes to the model are intentional.
+    If the test fails, it indicates a change in the model's output which could be due to changes in architecture,
+    initialization, or other factors affecting determinism.
+    The expected_sum should be updated to the new value if the change is intentional.
+    """
     torch.manual_seed(42)
 
     model = Factory().create(transformer_config)
@@ -44,13 +47,16 @@ def test_transformer_determinism_regression_check(
     assert actual_sum == pytest.approx(expected_sum, abs=1e-5)
 
 
-# Check that the UPT model produces the same output for the same input across multiple runs, ensuring determinism.
-# If model architecture changes or initialization methods change, this test will fail
-# and expected_sum will need to be updated to the new value.
 def test_upt_determinism_regression_check(
     upt_config: UPTConfig,
     upt_input_generator: Callable[[int | None], dict[str, Any]],
 ) -> None:
+    """
+    Checks UPT output against a hardcoded expected sum to ensure that changes to the model are intentional.
+    If the test fails, it indicates a change in the model's output which could be due to changes in architecture,
+    initialization, or other factors affecting determinism.
+    The expected_sum should be updated to the new value if the change is intentional.
+    """
     torch.manual_seed(42)
 
     model = Factory().create(upt_config)
@@ -72,13 +78,16 @@ def test_upt_determinism_regression_check(
     assert actual_sum == pytest.approx(expected_sum, abs=1e-5)
 
 
-# Check that the AB-UPT model produces the same output for the same input across multiple runs, ensuring determinism.
-# If model architecture changes or initialization methods change, this test will fail
-# and expected_sum will need to be updated to the new value.
 def test_ab_upt_determinism_regression_check(
     ab_upt_config: AnchorBranchedUPTConfig,
     ab_upt_input_generator: Callable[[int | None], dict[str, Any]],
 ) -> None:
+    """
+    Checks AB-UPT output against a hardcoded expected sum to ensure that changes to the model are intentional.
+    If the test fails, it indicates a change in the model's output which could be due to changes in architecture,
+    initialization, or other factors affecting determinism.
+    The expected_sum should be updated to the new value if the change is intentional.
+    """
     # 1. Set a random seed
     torch.manual_seed(42)
 
@@ -96,6 +105,6 @@ def test_ab_upt_determinism_regression_check(
     print(f"AnchoredBranchedUPT determinism check: Output Sum = {actual_sum:.6f}")
 
     # Hardcoded expected sum from a previous run to check for regressions in determinism.
-    expected_sum = -0.021468846505740657
+    expected_sum = 0.009243674110621214
     # Check that the actual sum is approximately equal to the expected sum within a small tolerance.
     assert actual_sum == pytest.approx(expected_sum, abs=1e-5)

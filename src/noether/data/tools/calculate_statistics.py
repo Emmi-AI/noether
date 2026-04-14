@@ -10,7 +10,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from noether.core.factory.dataset import DatasetFactory
-from noether.core.schemas.dataset import StandardDatasetConfig
+from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.schemas.lib import resolve_config_class
 from noether.data.base.dataset import Dataset
 from noether.data.base.wrappers import PropertySubsetWrapper
 from noether.data.stats import RunningMoments
@@ -215,14 +216,12 @@ def save_statistics_to_json(
 
     stats_dict = {}
     for key, stats in sorted(running_stats.items()):
-        stats_dict[key] = {
-            "mean": stats.mean.tolist() if isinstance(stats.mean, torch.Tensor) else stats.mean,
-            "std": stats.std.tolist() if isinstance(stats.std, torch.Tensor) else stats.std,
-            "min": stats.min.tolist() if isinstance(stats.min, torch.Tensor) else stats.min,
-            "max": stats.max.tolist() if isinstance(stats.max, torch.Tensor) else stats.max,
-            "count": int(stats.count),
-            "log_scale": key in log_scale,
-        }
+        stats_dict[f"{key}_mean"] = stats.mean.tolist() if isinstance(stats.mean, torch.Tensor) else stats.mean
+        stats_dict[f"{key}_std"] = stats.std.tolist() if isinstance(stats.std, torch.Tensor) else stats.std
+        stats_dict[f"{key}_min"] = stats.min.tolist() if isinstance(stats.min, torch.Tensor) else stats.min
+        stats_dict[f"{key}_max"] = stats.max.tolist() if isinstance(stats.max, torch.Tensor) else stats.max
+        stats_dict[f"{key}_count"] = int(stats.count)
+        stats_dict[f"{key}_log_scale"] = key in log_scale
 
     with open(output_path, "w") as f:
         json.dump(stats_dict, f, indent=2)
@@ -251,7 +250,10 @@ def calculate_dataset_statistics(
     """
     try:
         # Instantiate dataset
-        config = StandardDatasetConfig(kind=dataset_kind, **dataset_constructor_args)
+        config_class = resolve_config_class(dataset_kind, DatasetBaseConfig)
+        if config_class is None:
+            raise ValueError(f"Could not resolve dataset class for kind: '{dataset_kind}'")
+        config = config_class.model_validate(dataset_constructor_args)
         dataset: Dataset | PropertySubsetWrapper = DatasetFactory().instantiate(config)
         dataset.compute_statistics = True  # type: ignore[union-attr]
 

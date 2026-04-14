@@ -2,7 +2,7 @@
 
 import pytest
 
-from noether.core.schemas.dataset import RepeatWrapperConfig
+from noether.core.schemas.dataset import DatasetBaseConfig, RepeatWrapperConfig
 from noether.data import Dataset
 from noether.data.base.wrappers import PropertySubsetWrapper, RepeatWrapper
 
@@ -220,3 +220,56 @@ def test_double_property_wrapper_2(mock_dataset):
         assert second_wrapper[i] == expected_item
         assert first_wrapper[i]["x"] == f"x_{original_idx}"
         assert first_wrapper[i]["y"] == f"y_{original_idx}"
+
+
+class PreGetItemDataset(Dataset):
+    """Dataset with pre_getitem that provides shared data to getitem methods."""
+
+    def __init__(self, length: int = 10):
+        super().__init__(dataset_config=DatasetBaseConfig(kind="pre"))
+        self._length = length
+        self.pre_getitem_call_count = 0
+
+    def __len__(self) -> int:
+        return self._length
+
+    def pre_getitem(self, idx: int) -> dict:
+        self.pre_getitem_call_count += 1
+        return {"shared": f"shared_{idx}"}
+
+    def getitem_plain(self, idx: int) -> str:
+        return f"plain_{idx}"
+
+    def getitem_fancy(self, idx: int, *, shared: str = "", **kwargs) -> str:
+        return f"fancy_{shared}"
+
+
+def test_property_subset_bypasses_pre_getitem():
+    """PropertySubsetWrapper calls getitem methods directly, skipping pre_getitem."""
+    ds = PreGetItemDataset(length=5)
+    wrapper = PropertySubsetWrapper(dataset=ds, properties={"plain"})
+
+    sample = wrapper[2]
+    assert sample == {"plain": "plain_2"}
+    assert ds.pre_getitem_call_count == 0
+
+
+def test_property_subset_getitem_with_kwargs_uses_defaults():
+    """When PropertySubsetWrapper bypasses pre_getitem, getitem methods fall back to defaults."""
+    ds = PreGetItemDataset(length=5)
+    wrapper = PropertySubsetWrapper(dataset=ds, properties={"fancy"})
+
+    sample = wrapper[3]
+    # fancy gets default shared="" because pre_getitem is not called
+    assert sample == {"fancy": "fancy_"}
+    assert ds.pre_getitem_call_count == 0
+
+
+def test_direct_dataset_calls_pre_getitem():
+    """Contrast: accessing the dataset directly does invoke pre_getitem."""
+    ds = PreGetItemDataset(length=5)
+    sample = ds[2]
+
+    assert sample["plain"] == "plain_2"
+    assert sample["fancy"] == "fancy_shared_2"
+    assert ds.pre_getitem_call_count == 1

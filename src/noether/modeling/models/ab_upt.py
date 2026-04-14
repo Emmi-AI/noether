@@ -47,12 +47,6 @@ class AnchoredBranchedUPT(nn.Module):
         self.rope = RopeFrequency(config=config.rope_frequency_config)  # type: ignore[arg-type]
         self.pos_embed = ContinuousSincosEmbed(config=config.pos_embed_config)  # type: ignore[arg-type]
 
-        # geometry
-        self.encoder = SupernodePooling(config=config.supernode_pooling_config)  # type: ignore[arg-type]
-        self.geometry_blocks = nn.ModuleList(
-            [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
-        )
-
         # domains (e.g. surface, volume)
         self.domain_names: list[str] = list(config.data_specs.domains.keys())
         self.domain_biases = nn.ModuleDict(
@@ -82,6 +76,13 @@ class AnchoredBranchedUPT(nn.Module):
                 raise NotImplementedError(
                     f"Unknown physics block type: {block}. Supported: self, cross, joint, perceiver."
                 )
+
+        if self.use_geometry_branch and config.supernode_pooling_config is not None:
+            # geometry
+            self.encoder = SupernodePooling(config=config.supernode_pooling_config)  # type: ignore[arg-type]
+            self.geometry_blocks = nn.ModuleList(
+                [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
+            )
 
         # per-domain decoder blocks (separate weights per domain)
         self.domain_decoder_blocks = nn.ModuleDict()

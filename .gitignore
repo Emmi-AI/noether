@@ -6,7 +6,8 @@ neural_cfd/
 se_lpt/
 .idea
 .vscode/
-*.json
+.claude/
+.benchmarks/
 *.jpg
 *.mp4
 _obsolete*.py

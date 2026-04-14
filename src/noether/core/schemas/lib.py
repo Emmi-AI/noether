@@ -3,7 +3,7 @@
 import importlib
 from abc import ABC
 from functools import partial
-from typing import Any, ClassVar, get_type_hints
+from typing import Any, ClassVar, TypeVar, get_type_hints
 
 from pydantic import BaseModel, BeforeValidator
 
@@ -20,7 +20,10 @@ class _RegistryBase(BaseModel, ABC):
     _type_field: ClassVar[str] = "type"
 
 
-def resolve_config_class(kind: str, base_cls: type[BaseModel]) -> type[BaseModel]:
+T = TypeVar("T", bound=_RegistryBase)
+
+
+def resolve_config_class[T: _RegistryBase](kind: str, base_cls: type[T]) -> type[T]:
     """Resolve a config class from a dotted kind string.
 
     Resolution order:

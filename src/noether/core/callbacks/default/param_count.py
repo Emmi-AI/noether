@@ -28,13 +28,15 @@ class ParamCountCallback(CallbackBase):
             frozen_sum = sum(count for _, _, count in immediate_children)
             return [(trace, trainable_sum, frozen_sum)] + result
         else:
-            return [
-                (
-                    f"{snake_type_name(model)}" if trace is None else f"{trace}.{snake_type_name(model)}",
-                    model.trainable_param_count,
-                    model.frozen_param_count,
-                )
-            ]
+            entry = (
+                f"{snake_type_name(model)}" if trace is None else f"{trace}.{snake_type_name(model)}",
+                model.trainable_param_count,
+                model.frozen_param_count,
+            )
+            # add a total entry at the top level (trace=None) for non-composite models, but not for submodels in a trace
+            if trace is None:
+                return [(None, model.trainable_param_count, model.frozen_param_count), entry]
+            return [entry]
 
     def before_training(self, **_) -> None:
         param_counts = self._get_param_counts(self.model)

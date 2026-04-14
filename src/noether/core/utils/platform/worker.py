@@ -36,12 +36,12 @@ def get_fair_cpu_count(reserve_for_main: int = 1) -> int:
 
     if is_managed():
         cpus_per_task = _get_slurm_cpus_per_task(total_cpu_count)
-        tasks_per_node = int(os.environ.get("SLURM_NTASKS_PER_NODE", 1))
+        tasks_per_node = _get_int_env("SLURM_NTASKS_PER_NODE", 1)
         if cpus_per_task is not None:
             # currently only 1 GPU per task is supported
             if device_count != tasks_per_node:
                 raise RuntimeError(f"Managed SLURM run expects one task per GPU ({device_count=}, {tasks_per_node=})")
-            tasks_per_node = _get_int_env("SLURM_NTASKS_PER_NODE") or 1
+
             if device_count != tasks_per_node:
                 logger.warning(
                     "Device count (%s) != SLURM_NTASKS_PER_NODE (%s)",

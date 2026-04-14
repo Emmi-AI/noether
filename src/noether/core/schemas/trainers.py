@@ -139,6 +139,13 @@ class BaseTrainerConfig[TCallbackConfig: CallBackBaseConfig](_RegistryBase):
 
         return self
 
+    @model_validator(mode="after")
+    def validate_max_training_criteria(self) -> BaseTrainerConfig:
+        """Ensures that exactly one of max_epochs, max_updates, or max_samples is specified."""
+        if sum(criterion is not None for criterion in [self.max_epochs, self.max_updates, self.max_samples]) != 1:
+            raise ValueError("Exactly one of 'max_epochs', 'max_updates', or 'max_samples' must be specified.")
+        return self
+
 
 class WeightedLossTrainerConfig(BaseTrainerConfig):
     """Config for a generic trainer that computes weighted loss per output field.

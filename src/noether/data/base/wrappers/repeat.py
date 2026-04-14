@@ -11,16 +11,22 @@ class RepeatWrapper(Subset):
 
     Example:
 
-    .. code-block:: python
+        .. code-block:: python
 
-        from noether.data import Dataset as ListDataset
+            from noether.data import Dataset as ListDataset
 
-        dataset = ListDataset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-        len(dataset)
-        10
-        repeat_dataset = RepeatWrapper(dataset, repetitions=3)
-        len(repeat_dataset)
-        30
+            dataset = ListDataset([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+            len(dataset)
+            10
+            repeat_dataset = RepeatWrapper(dataset, repetitions=3)
+            len(repeat_dataset)
+            30
+
+        .. code-block:: yaml
+
+                dataset_wrappers:
+                    kind: noether.data.base.wrappers.RepeatWrapper
+                    repetitions: 3
     """
 
     def __init__(self, config: RepeatWrapperConfig, dataset: Dataset) -> None:

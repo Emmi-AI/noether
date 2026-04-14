@@ -23,7 +23,7 @@ from .base import ModelBaseConfig
 class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
     model_config = ConfigDict(extra="forbid")
 
-    supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared]
+    supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared] | None = None
 
     transformer_block_config: Annotated[TransformerBlockConfig, Shared]
 
@@ -134,7 +134,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
         Note: transformer_block_config validates hidden_dim % num_heads == 0 in its own validator.
         """
         # SupernodePoolingConfig: hidden_dim equality
-        if self.supernode_pooling_config.hidden_dim != self.hidden_dim:
+        if self.supernode_pooling_config is not None and self.supernode_pooling_config.hidden_dim != self.hidden_dim:
             raise ValueError(
                 f"supernode_pooling_config.hidden_dim ({self.supernode_pooling_config.hidden_dim}) "
                 f"must match model hidden_dim ({self.hidden_dim})."
