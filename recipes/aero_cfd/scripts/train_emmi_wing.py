@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from aero_cfd.presets import EmmiWingHFPreset, EmmiWingPreset
+from aero_cfd.presets import EmmiWingPreset
 from noether.core.distributed.utils import accelerator_to_device
 from noether.data.datasets.cfd.emmi_wing.dataset_hf import EmmiWingHFDataset
 from noether.training.runners import HydraRunner
@@ -22,9 +22,10 @@ DEFAULT_HF_CACHE = "~/.cache/noether/emmi_wing_hf"
 
 
 def _get_preset(use_hf: bool):  # noqa: ANN202
+    preset = EmmiWingPreset()
     if use_hf:
-        return EmmiWingHFPreset()
-    return EmmiWingPreset()
+        preset.dataset_kind = "noether.data.datasets.cfd.EmmiWingHFDataset"
+    return preset
 
 
 def _ensure_dataset(dataset_root: str | None) -> tuple[str, bool]:
