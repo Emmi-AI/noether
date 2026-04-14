@@ -40,12 +40,16 @@ snapshot_download(
 
 ## Quick Start
 
-All commands must be run from the `recipes/aero_cfd/` directory.
+All commands must be run from the `recipes/aero_cfd/` directory with `recipes/` on the Python path:
+
+```bash
+cd recipes/aero_cfd/
+export PYTHONPATH=$(git -C ../.. rev-parse --show-toplevel)/recipes:$PYTHONPATH
+```
 
 ### Train
 
 ```bash
-cd recipes/aero_cfd/
 
 # Small model -- fast iteration / smoke tests
 python -m showcase.cli train \
