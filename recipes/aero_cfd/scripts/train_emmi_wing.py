@@ -161,7 +161,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Train aerodynamic models on Emmi-Wing dataset.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=("By default, downloads the 248-case HF subset. Pass --dataset-root for the full dataset."),
+        epilog=(
+            "examples:\n"
+            "  # Auto-download HF subset and train with defaults:\n"
+            "  python scripts/train_emmi_wing.py --output-path ./outputs\n"
+            "\n"
+            "  # AB-UPT on GPU with mixed precision:\n"
+            "  python scripts/train_emmi_wing.py --model abupt --accelerator gpu --precision float16 --max-epochs 500 --output-path ./outputs\n"
+            "\n"
+            "  # AB-UPT on Apple Silicon:\n"
+            "  python scripts/train_emmi_wing.py --model abupt --accelerator mps --max-epochs 100 --output-path ./outputs\n"
+            "\n"
+            "  # Full dataset (local copy):\n"
+            "  python scripts/train_emmi_wing.py --dataset-root /path/to/emmi_wings --model abupt --accelerator gpu --precision float16 --max-epochs 500 --output-path ./outputs\n"
+            "\n"
+            "  # Download HF subset to a custom directory:\n"
+            "  python scripts/train_emmi_wing.py --dataset-root /my/data/emmi_wing_hf --model abupt --accelerator gpu --max-epochs 100 --output-path ./outputs\n"
+        ),
     )
     parser.add_argument(
         "--dataset-root",

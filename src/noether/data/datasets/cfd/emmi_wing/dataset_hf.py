@@ -74,15 +74,24 @@ class EmmiWingHFDataset(EmmiWingDataset):
         with zipfile.ZipFile(scans_zip, "r") as outer:
             outer.extractall(local_path)
 
-        # Extract nested run_N.zip files:
-        for run_zip in sorted(local_path.glob("run_*.zip")):
+        # scans.zip may extract into a subdirectory (e.g. "scans_with_density_zipped/")
+        # Find wherever the run_*.zip files ended up.
+        run_zips = sorted(local_path.rglob("run_*.zip"))
+        if not run_zips:
+            raise FileNotFoundError(f"No run_*.zip files found after extracting {scans_zip}")
+
+        logger.info(f"Extracting {len(run_zips)} run archives...")
+        for run_zip in run_zips:
             run_dir = local_path / run_zip.stem
             if not run_dir.exists():
                 with zipfile.ZipFile(run_zip, "r") as inner:
                     inner.extractall(run_dir)
             run_zip.unlink()
 
-        # Clean up outer zip:
+        # Clean up the intermediate directory and outer zip
+        for subdir in local_path.iterdir():
+            if subdir.is_dir() and not subdir.name.startswith("run_"):
+                subdir.rmdir()  # remove empty intermediate directory
         Path(scans_zip).unlink(missing_ok=True)
 
         n_runs = len(list(local_path.glob("run_*")))
