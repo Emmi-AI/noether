@@ -26,7 +26,7 @@ Required Arguments
 
 - ``input_dir``: The absolute or relative path to the directory of root of the outputs of the training run you wish to evaluate (without the `run_id`). 
 - ``run_id``: The specific run ID to evaluate a model from. 
-- ``stage_name``: The stage of the training run to evaluate (optinal and can be empty). This is used to locate the correct checkpoint and configuration files.
+- ``stage_name``: The stage of the training run to evaluate (optional and can be empty). This is used to locate the correct checkpoint and configuration files.
 
 
 The folder `input_dir/run_id/stage_name` should contain the desired checkpoint files and the resolved configuration file (`hp_resolved.yaml`).
@@ -62,10 +62,10 @@ Run evaluation with modified callbacks, for example to calculate offline losses 
 
    # configs/inference/custom_eval_callbacks.yaml
    trainer:
-   callbacks:
-   - kind: noether.training.callbacks.OfflineLossCallback
-      dataset_key: test
-      name: OfflineLossCallback
+     callbacks:
+     - kind: noether.training.callbacks.OfflineLossCallback
+       dataset_key: test
+       name: OfflineLossCallback
 
 .. code-block:: bash
 

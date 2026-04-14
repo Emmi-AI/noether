@@ -148,7 +148,6 @@ Step 3: Declare main() function
         HydraRunner().main(
             device=torch.device("mps"),
             config=ConfigSchema(...),  # note that '...' is a placeholder that we will populate later
-            output_path=output_path.as_posix(),
         )
 
     if __name__ == "__main__":
@@ -367,7 +366,6 @@ At last, we will populate the placeholder fields that we declared for the ``Hydr
             seed=42,
             dataset_statistics=DATASET_STATS,
             dataset_normalizer=dataset_normalizer,
-            output_path=output_path.as_posix(),
             tracker=None,
             run_id=None,
             devices=None,
