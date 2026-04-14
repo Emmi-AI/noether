@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
 from noether.data.pipeline.collators import DefaultCollator
+from noether.data.pipeline.collators.concat_sparse_tensor import ConcatSparseTensorCollator
+from noether.data.pipeline.collators.sparse_tensor_offset import SparseTensorOffsetCollator
 from noether.data.pipeline.sample_processors import (
     DuplicateKeysSampleProcessor,
     PointSamplingSampleProcessor,
     RenameKeysSampleProcessor,
 )
+from noether.data.pipeline.sample_processors.supernode_sampling import SupernodeSamplingSampleProcessor
 
 
 class HeatTransferPipelineConfig(PipelineConfig):
@@ -21,6 +26,13 @@ class HeatTransferPipelineConfig(PipelineConfig):
     """Number of volume points to sample as input for the model."""
     num_volume_anchor_points: int | None = None
     """Number of volume anchor points for AB-UPT. If None, all sampled volume points are used as anchors."""
+
+    num_geometry_points: int = 0
+    """Number of geometry points to sample. Set to 0 if no geometry encoder is used."""
+
+    num_geometry_supernodes: int = 0
+    """Number of geometry supernodes for AB-UPT. Set to 0 if no geometry encoder is used."""
+
     data_specs: ModelDataSpecs
     """Data specifications for the pipeline."""
     seed: int | None = None
@@ -37,6 +49,8 @@ class HeatTransferPipeline(MultiStagePipeline):
     def __init__(self, pipeline_config: HeatTransferPipelineConfig, **kwargs) -> None:
         self.num_volume_points = pipeline_config.num_volume_points
         self.num_volume_anchor_points = pipeline_config.num_volume_anchor_points or self.num_volume_points
+        self.num_geometry_points = pipeline_config.num_geometry_points
+        self.num_geometry_supernodes = pipeline_config.num_geometry_supernodes
         self.seed = pipeline_config.seed
 
         volume_spec = pipeline_config.data_specs.domains.get("volume")
@@ -54,6 +68,27 @@ class HeatTransferPipeline(MultiStagePipeline):
 
         # 1. Sample volume points (position + all target fields together)
         volume_items = {"volume_position"} | self.volume_targets
+
+        if self.num_geometry_points > 0 and self.num_geometry_supernodes > 0:
+            processors.extend(
+                [
+                    DuplicateKeysSampleProcessor(
+                        key_map={"volume_position": "geometry_position"},
+                    ),
+                    PointSamplingSampleProcessor(
+                        items={"geometry_position"},
+                        num_points=self.num_geometry_points,
+                        seed=None if self.seed is None else self.seed + 2,
+                    ),
+                    SupernodeSamplingSampleProcessor(
+                        item="geometry_position",
+                        num_supernodes=self.num_geometry_supernodes,
+                        supernode_idx_key="geometry_supernode_idx",
+                        seed=None if self.seed is None else self.seed + 2,
+                    ),
+                ]
+            )
+
         processors.append(
             PointSamplingSampleProcessor(
                 items=volume_items,
@@ -99,9 +134,26 @@ class HeatTransferPipeline(MultiStagePipeline):
 
         return processors
 
-    def _build_collators(self) -> list:
+    def _build_collators(self) -> list[Any]:
         collate_items = ["volume_anchor_position"]
         collate_items += [f"{t}_target" for t in self.volume_targets]
         if self.conditioning_dims:
             collate_items += list(self.conditioning_dims.keys())
-        return [DefaultCollator(items=collate_items)]
+        collators: list[Any] = [DefaultCollator(items=collate_items)]
+
+        if self.num_geometry_supernodes:
+            # if we have geometry supernodes, we have to turn the geometry positions into a sparse tensor with batch indices.
+            collators.extend(
+                [
+                    ConcatSparseTensorCollator(
+                        items=["geometry_position"],
+                        create_batch_idx=True,
+                        batch_idx_key="geometry_batch_idx",
+                    ),
+                    SparseTensorOffsetCollator(
+                        item="geometry_supernode_idx",
+                        offset_key="geometry_position",
+                    ),
+                ]
+            )
+        return collators

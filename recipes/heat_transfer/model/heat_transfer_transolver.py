@@ -32,10 +32,11 @@ class HeatTransferTransolverConfig(TransolverConfig):
         )
 
     @computed_field
-    def conditioning_projection_config(self) -> LinearProjectionConfig:
-        return LinearProjectionConfig(
+    def conditioning_projection_config(self) -> MLPConfig:
+        return MLPConfig(
             input_dim=self.data_specs.conditioning_dims["simulation_parameters"],
             output_dim=self.hidden_dim,
+            hidden_dim=self.hidden_dim,
             init_weights="truncnormal002",
         )
 
@@ -66,7 +67,7 @@ class HeatTransferTransolver(Model):
 
         self.volume_bias = MLP(config=MLPConfig(input_dim=hidden_dim, hidden_dim=hidden_dim, output_dim=hidden_dim))
 
-        self.project_simulation_parameters = LinearProjection(config=model_config.conditioning_projection_config)
+        self.project_simulation_parameters = MLP(config=model_config.conditioning_projection_config)
 
         self.placeholder = nn.Parameter(torch.rand(1, 1, hidden_dim) / hidden_dim)
 

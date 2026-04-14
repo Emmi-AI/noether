@@ -8,6 +8,7 @@ dependencies = [
     "plotly",
     "wandb>=0.25.1",
 ]
-# Uncomment the following if you are outside the Noether repo
+
+# Remove the following if you are outside the Noether repo
 [tool.uv.sources]
 emmiai-noether = { path = "../../", editable = true }

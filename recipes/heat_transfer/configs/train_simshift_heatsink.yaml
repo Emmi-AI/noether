@@ -48,6 +48,11 @@ pipeline:
   num_volume_points: 4096
   data_specs: ${data_specs}
 
+inference_pipeline:
+  kind: pipeline.HeatTransferPipeline
+  num_volume_points: 32768
+  data_specs: ${data_specs}
+
 datasets:
   train:
     kind: ${dataset_kind}
@@ -65,16 +70,13 @@ datasets:
     kind: ${dataset_kind}
     root: ${dataset_root}
     split: test
-    pipeline: ${pipeline}
+    pipeline: ${inference_pipeline}
     dataset_normalizers: ${dataset_normalizers}
   test_viz:
     kind: ${dataset_kind}
     root: ${dataset_root}
     split: test
-    pipeline:
-      kind: pipeline.HeatTransferPipeline
-      num_volume_points: 32_768
-      data_specs: ${data_specs}
+    pipeline: ${inference_pipeline}
     dataset_normalizers: ${dataset_normalizers}
     wrappers:
       - kind: noether.data.base.wrappers.SubsetWrapper
