@@ -2,6 +2,10 @@
 
 This recipe trains neural surrogate models for heat transfer simulations on the [SIMSHIFT Heatsink](https://arxiv.org/abs/2506.12007) benchmark dataset.
 
+We published a report on baseline models on [W&B](https://wandb.ai/emmi-ai/heat_transfer/reports/SIMSHIFT-Heatsink-example-with-Noether--VmlldzoxNjUyNjM4Nw)
+
+![SIMSHIFT Heatsink Example](image.png)
+
 ## Overview
 
 Given a heatsink geometry described by simulation parameters (number of fins, fin dimensions, inlet temperature, etc.), the model predicts the full 3D volume fields:
