@@ -7,6 +7,9 @@ from typing import Any, cast
 import torch
 from torch import Tensor, nn
 
+from noether.core.schemas.modules.untied import UntiedPerceiverBlockConfig, UntiedTransformerBlockConfig
+from noether.modeling.modules.untied import UntiedPerceiverBlock, UntiedTransformerBlock
+
 KVPair = dict[str, Tensor]  # {"k": tensor, "v": tensor}
 LayerCache = dict[str, KVPair]  # {token_name: KVPair}
 ModelKVCache = dict[str, list[LayerCache]]  # {branch_name: [LayerCache, ...]}
@@ -63,18 +66,43 @@ class AnchoredBranchedUPT(nn.Module):
             "cross": CrossAnchorAttention,
             "joint": JointAnchorAttention,
         }
+        num_domains = len(self.domain_names)
         for block in config.physics_blocks:
-            if block == "perceiver":
+            untied = block.endswith("_untied")
+            block_type = block.removesuffix("_untied") if untied else block
+
+            if block_type == "perceiver":
                 self.use_geometry_branch = True
-                self.physics_blocks.append(PerceiverBlock(config=config.perceiver_block_config))  # type: ignore[arg-type]
-            elif block in attention_constructors:
+                if not untied:
+                    self.physics_blocks.append(PerceiverBlock(config=config.perceiver_block_config))  # type: ignore[arg-type]
+                else:
+                    self.physics_blocks.append(
+                        UntiedPerceiverBlock(
+                            config=UntiedPerceiverBlockConfig(
+                                num_types=num_domains,
+                                perceiver_block_config=config.perceiver_block_config,
+                            )
+                        )
+                    )
+            elif block_type in attention_constructors:
                 block_config = copy.deepcopy(config.transformer_block_config)
-                block_config.attention_constructor = attention_constructors[block]  # type: ignore[assignment]
+                block_config.attention_constructor = attention_constructors[block_type]  # type: ignore[assignment]
                 block_config.attention_arguments = {"branches": tuple(self.domain_names)}
-                self.physics_blocks.append(TransformerBlock(config=block_config))  # type: ignore[arg-type]
+                if not untied:
+                    self.physics_blocks.append(TransformerBlock(config=block_config))  # type: ignore[arg-type]
+                else:
+                    self.physics_blocks.append(
+                        UntiedTransformerBlock(
+                            config=UntiedTransformerBlockConfig(
+                                num_types=num_domains,
+                                transformer_block=block_config,
+                            )
+                        )
+                    )
             else:
                 raise NotImplementedError(
-                    f"Unknown physics block type: {block}. Supported: self, cross, joint, perceiver."
+                    f"Unknown physics block type: {block}. "
+                    "Supported: self, cross, joint, perceiver (each optionally with _untied suffix)."
                 )
 
         if self.use_geometry_branch and config.supernode_pooling_config is not None:
@@ -249,7 +277,7 @@ class AnchoredBranchedUPT(nn.Module):
             start = end
         new_physics_cache: list[LayerCache] = []
         for i, block in enumerate(self.physics_blocks):
-            if isinstance(block, TransformerBlock):
+            if isinstance(block, TransformerBlock | UntiedTransformerBlock):
                 x_physics, block_cache = block(
                     x_physics,
                     attn_kwargs=dict(
@@ -262,13 +290,16 @@ class AnchoredBranchedUPT(nn.Module):
                 if block_cache is not None:
                     new_physics_cache.append(block_cache)
             elif isinstance(block, PerceiverBlock):
+                perceiver_attn_kwargs: dict[str, Any] = dict(
+                    kv_cache=physics_cache[i]["geometry_encoding"] if physics_cache else None,
+                    **physics_perceiver_attn_kwargs,
+                )
+                if isinstance(block, UntiedPerceiverBlock):
+                    perceiver_attn_kwargs["token_specs"] = physics_token_specs
                 x_physics, block_cache = block(
                     q=x_physics,
                     kv=geometry_encoding,
-                    attn_kwargs=dict(
-                        kv_cache=physics_cache[i]["geometry_encoding"] if physics_cache else None,
-                        **physics_perceiver_attn_kwargs,
-                    ),
+                    attn_kwargs=perceiver_attn_kwargs,
                     condition=condition,
                 )
                 if block_cache is not None:

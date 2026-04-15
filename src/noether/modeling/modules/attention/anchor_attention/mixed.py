@@ -94,56 +94,28 @@ class MixedAttention(DotProductAttention):
 
         self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs, cached_token_names)
 
-        input_sizes = [spec.size for spec in input_specs]
-
-        def to_token_dict(x: torch.Tensor, split_dim: int = 2) -> dict[str, torch.Tensor]:
-            splits = x.split(input_sizes, dim=split_dim)
-            return {spec.name: split for spec, split in zip(input_specs, splits, strict=True)}
-
         if cached_token_names:
-            # Cached path: only compute Q (K/V come from cache)
+            # Cached path: only compute Q (K/V come from cache); shares no helper with the normal
+            # path because Q uses a slice of qkv.weight and K/V are loaded, not computed.
             if not kv_cache:
                 raise ValueError("Cannot use cached tokens: kv_cache is empty.")
             q = einops.rearrange(self.q(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
             if self.use_rope and freqs is not None:
                 q = rope(q, freqs=freqs)
 
-            q_dict: dict[str, torch.Tensor] = to_token_dict(q)
+            q_dict = self._split_per_token_spec(q, input_specs, split_dim=2)
             k_dict: dict[str, torch.Tensor] = {}
             v_dict: dict[str, torch.Tensor] = {}
-
             for name in cached_token_names:
                 if name not in kv_cache:
                     raise ValueError(f"Cached token '{name}' not found in kv_cache.")
                 k_dict[name] = kv_cache[name]["k"]
                 v_dict[name] = kv_cache[name]["v"]
 
-            new_cache = None
-        else:
-            # Normal path: compute Q, K, V for all input tokens
-            q = einops.rearrange(self.q(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-            k = einops.rearrange(self.k(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-            v = einops.rearrange(self.v(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-            if self.use_rope and freqs is not None:
-                q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
-
-            q_dict, k_dict, v_dict = [to_token_dict(x) for x in [q, k, v]]
-
-            # Save anchor K/V for future cached inference
-            new_cache = {}
-            for spec in input_specs:
-                if "_anchor" in spec.name:
-                    new_cache[spec.name] = {"k": k_dict[spec.name], "v": v_dict[spec.name]}
-
-        # Build key_padding_mask dict (if provided)
-        mask_dict: dict[str, torch.Tensor] | None = None
-        if key_padding_mask is not None:
-            if cached_token_names:
+            if key_padding_mask is not None:
                 raise ValueError("key_padding_mask is not supported when using KV cache.")
-            mask_dict = to_token_dict(key_padding_mask, split_dim=1)
 
-        # Filter cached tokens out of pattern query lists (they have no Q, only cached K/V)
-        if cached_token_names:
+            # Filter cached tokens out of pattern query lists (they have no Q, only cached K/V).
             attention_patterns = [
                 AttentionPattern(
                     query_tokens=[name for name in p.query_tokens if name not in cached_token_names],
@@ -152,6 +124,113 @@ class MixedAttention(DotProductAttention):
                 for p in attention_patterns
                 if any(name not in cached_token_names for name in p.query_tokens)
             ]
+            token_outputs = self._process_pattern_batched(
+                attention_patterns=attention_patterns,
+                q_dict=q_dict,
+                k_dict=k_dict,
+                v_dict=v_dict,
+                mask_dict=None,
+            )
+            output = self._assemble_per_token_spec(token_outputs, input_specs)
+            new_cache = None
+        else:
+            # Normal path: compute Q, K, V for all input tokens, then run the shared attention helper.
+            qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
+            qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
+            qkv = F.linear(x, qkv_weight, qkv_bias)
+
+            q, k, v = einops.rearrange(
+                qkv, "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
+            ).unbind(0)
+            output, k_dict, v_dict = self._attend(
+                q,
+                k,
+                v,
+                input_specs=input_specs,
+                attention_patterns=attention_patterns,
+                key_padding_mask=key_padding_mask,
+                freqs=freqs,
+            )
+            # Save anchor K/V for future cached inference.
+            new_cache = {
+                spec.name: {"k": k_dict[spec.name], "v": v_dict[spec.name]}
+                for spec in input_specs
+                if "_anchor" in spec.name
+            }
+
+        return self.proj(output), new_cache
+
+    @staticmethod
+    def _split_per_token_spec(
+        x: torch.Tensor,
+        input_specs: Sequence[TokenSpec],
+        split_dim: int,
+    ) -> dict[str, torch.Tensor]:
+        """Split ``x`` along ``split_dim`` according to ``input_specs`` sizes.
+
+        Args:
+            x: Tensor whose ``split_dim`` size equals the sum of input-spec sizes.
+            input_specs: Specs with non-``None`` ``size``.
+            split_dim: Axis along which to split.
+
+        Returns:
+            Dict mapping each ``input_specs`` name to its slice of ``x``.
+        """
+        sizes = [spec.size for spec in input_specs if spec.size is not None]
+        return {spec.name: chunk for spec, chunk in zip(input_specs, x.split(sizes, dim=split_dim), strict=True)}
+
+    @staticmethod
+    def _assemble_per_token_spec(
+        token_outputs: dict[str, torch.Tensor],
+        input_specs: Sequence[TokenSpec],
+    ) -> torch.Tensor:
+        """Concatenate per-name attention outputs in ``input_specs`` order and merge heads.
+
+        Args:
+            token_outputs: Per-name tensors of shape ``(B, num_heads, S_t, head_dim)``.
+            input_specs: Specs defining the assembly order.
+
+        Returns:
+            Tensor of shape ``(B, S, num_heads * head_dim)`` ready for the output projection.
+        """
+        parts = [token_outputs[spec.name] for spec in input_specs]
+        merged = torch.cat(parts, dim=2)
+        return einops.rearrange(merged, "bs nh s hd -> bs s (nh hd)")
+
+    def _attend(
+        self,
+        q: torch.Tensor,
+        k: torch.Tensor,
+        v: torch.Tensor,
+        input_specs: Sequence[TokenSpec],
+        attention_patterns: Sequence[AttentionPattern],
+        key_padding_mask: torch.Tensor | None = None,
+        freqs: torch.Tensor | None = None,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor], dict[str, torch.Tensor]]:
+        """Apply RoPE → split per spec → batched pattern attention → reassemble.
+
+        Args:
+            q, k, v: ``(B, num_heads, S, head_dim)`` tensors (already projected).
+            input_specs: Specs whose sizes sum to ``S``.
+            attention_patterns: Patterns to apply (already filtered for cached tokens, if any).
+            key_padding_mask: Optional ``(B, S)`` boolean mask. ``True`` = real token.
+            freqs: RoPE frequencies (used only when ``self.use_rope``).
+
+        Returns:
+            ``(output, k_dict, v_dict)``:
+            - ``output``: ``(B, S, num_heads * head_dim)`` ready for the output projection.
+            - ``k_dict``, ``v_dict``: per-name K/V tensors post-RoPE, useful for building a KV cache.
+        """
+        if self.use_rope and freqs is not None:
+            q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
+
+        q_dict = self._split_per_token_spec(q, input_specs, split_dim=2)
+        k_dict = self._split_per_token_spec(k, input_specs, split_dim=2)
+        v_dict = self._split_per_token_spec(v, input_specs, split_dim=2)
+
+        mask_dict: dict[str, torch.Tensor] | None = None
+        if key_padding_mask is not None:
+            mask_dict = self._split_per_token_spec(key_padding_mask, input_specs, split_dim=1)
 
         token_outputs = self._process_pattern_batched(
             attention_patterns=attention_patterns,
@@ -160,12 +239,8 @@ class MixedAttention(DotProductAttention):
             v_dict=v_dict,
             mask_dict=mask_dict,
         )
-
-        # Assemble output (only input tokens, in original order)
-        output_parts = [token_outputs[spec.name] for spec in input_specs]
-        output = torch.cat(output_parts, dim=2)
-        output = einops.rearrange(output, "bs nh s hd -> bs s (nh hd)")
-        return self.proj(output), new_cache
+        output = self._assemble_per_token_spec(token_outputs, input_specs)
+        return output, k_dict, v_dict
 
     def _process_pattern_batched(
         self,

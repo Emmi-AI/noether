@@ -102,7 +102,7 @@ class TransformerBlock(nn.Module):
             if isinstance(attn_out, tuple):
                 attn_out, kv_cache = attn_out
             x = x + self.drop_path1(self.ls1(attn_out))
-            x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+            x = x + self.drop_path2(self.ls2(self._mlp_forward(self.norm2(x), attn_kwargs=attn_kwargs)))
         else:
             if condition is None:
                 raise ValueError(
@@ -130,8 +130,31 @@ class TransformerBlock(nn.Module):
             )
             x = x + self.drop_path2(
                 modulate_gate(
-                    self.ls2(self.mlp(modulate_scale_shift(self.norm2(x), scale=mlp_scale, shift=mlp_shift))),
+                    self.ls2(
+                        self._mlp_forward(
+                            modulate_scale_shift(self.norm2(x), scale=mlp_scale, shift=mlp_shift),
+                            attn_kwargs=attn_kwargs,
+                        )
+                    ),
                     gate=mlp_gate,
                 ),
             )
         return x, kv_cache
+
+    def _mlp_forward(self, x: torch.Tensor, attn_kwargs: dict[str, Any] | None = None) -> torch.Tensor:
+        """Apply the MLP sub-layer.
+
+        Override in subclasses that need to pass extra arguments to ``self.mlp``
+        (for example, a token-spec-aware MLP that must route tokens to per-type
+        weight banks). The default implementation ignores ``attn_kwargs`` and
+        calls ``self.mlp`` with just the input tensor.
+
+        Args:
+            x: Input to the MLP, shape ``(B, S, hidden_dim)``.
+            attn_kwargs: Same dict passed to :meth:`forward`; subclasses may read
+                extra keys (e.g., ``token_specs``) from it.
+
+        Returns:
+            MLP output, shape ``(B, S, hidden_dim)``.
+        """
+        return self.mlp(x)  # type: ignore[no-any-return]

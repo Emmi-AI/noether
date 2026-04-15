@@ -4,7 +4,7 @@ import abc
 from collections.abc import Sequence
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from noether.core.types import InitWeightsMode
 
@@ -153,6 +153,18 @@ class TokenSpec(BaseModel):
     def to_dict(self) -> dict[str, int | None]:
         """Convert TokenSpec to dictionary."""
         return {self.name: self.size}
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def domain(self) -> str:
+        """Extract token domain from the name (e.g., "surface" from "surface_anchors")."""
+        return self.name.split("_")[0]
+
+    @computed_field  # type: ignore[misc]
+    @property
+    def attn_type(self) -> str:
+        """Extract attention type from the name (e.g., "anchors" from "surface_anchors")."""
+        return self.name.split("_")[-1]
 
 
 class AttentionPattern(BaseModel):
