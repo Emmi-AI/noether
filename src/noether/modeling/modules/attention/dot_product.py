@@ -61,24 +61,17 @@ class DotProductAttention(nn.Module):
             Returns the output of the attention module.
         """
 
-        q = einops.rearrange(
-            self.q(x),
-            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
+        qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
+        qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
+        qkv = F.linear(x, qkv_weight, qkv_bias)
+
+        q, k, v = einops.rearrange(
+            qkv,
+            "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
+            three=3,
             num_heads=self.num_heads,
             head_dim=self.head_dim,
-        )
-        k = einops.rearrange(
-            self.k(x),
-            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
-        )
-        v = einops.rearrange(
-            self.v(x),
-            "bs seqlen (num_heads head_dim) -> bs num_heads seqlen head_dim",
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
-        )
+        ).unbind(0)
 
         if self.use_rope:
             assert freqs is not None

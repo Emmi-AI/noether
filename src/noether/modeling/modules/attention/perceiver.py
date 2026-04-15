@@ -91,20 +91,17 @@ class PerceiverAttention(nn.Module):
             # Project K/V from input
             if kv is None:
                 raise ValueError("Either kv or kv_cache must be provided.")
-            k = self.k(kv)
-            v = self.v(kv)
-            k = einops.rearrange(
-                k,
-                "bs seqlen_kv (num_heads head_dim) -> bs num_heads seqlen_kv head_dim",
+            kv_weight = torch.cat([self.k.weight, self.v.weight], dim=0)
+            kv_bias = torch.cat([self.k.bias, self.v.bias], dim=0) if self.k.bias is not None else None
+            kv_proj = F.linear(kv, kv_weight, kv_bias)
+
+            k, v = einops.rearrange(
+                kv_proj,
+                "bs seqlen_kv (two num_heads head_dim) -> two bs num_heads seqlen_kv head_dim",
+                two=2,
                 num_heads=self.num_heads,
                 head_dim=self.head_dim,
-            )
-            v = einops.rearrange(
-                v,
-                "bs seqlen_kv (num_heads head_dim) -> bs num_heads seqlen_kv head_dim",
-                num_heads=self.num_heads,
-                head_dim=self.head_dim,
-            )
+            ).unbind(0)
 
             if self.use_rope:
                 assert k_freqs is not None

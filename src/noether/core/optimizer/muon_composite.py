@@ -2,8 +2,8 @@
 
 """MuonComposite: torch.optim.Muon for 2D params, any optimizer for the rest.
 
-Param groups are tagged with use_muon=True/False by OptimizerWrapper
-based on parameter dimensionality (ndim >= 2 -> Muon, otherwise -> secondary optimizer).
+Parameters are routed based on dimensionality: ``ndim >= 2`` goes to Muon,
+everything else (biases, norms, 1D embeddings) goes to the secondary optimizer.
 """
 
 import torch
@@ -32,15 +32,19 @@ class MuonComposite(torch.optim.Optimizer):
         secondary_kwargs.setdefault("lr", lr)
         secondary_kwargs.setdefault("weight_decay", weight_decay)
 
-        # Split groups by use_muon flag before super().__init__ modifies them
+        # Route params by dimensionality: 2D+ -> Muon, 1D/0D -> secondary.
+        # A single incoming group may be split across both optimizers.
         muon_groups = []
         secondary_groups = []
         for group in params:
-            clean = {k: v for k, v in group.items() if k != "use_muon"}
-            if group.get("use_muon", True):
-                muon_groups.append(clean)
-            else:
-                secondary_groups.append(clean)
+            group_params = group["params"]
+            other = {k: v for k, v in group.items() if k != "params"}
+            muon_params = [p for p in group_params if p.ndim >= 2]
+            secondary_params = [p for p in group_params if p.ndim < 2]
+            if muon_params:
+                muon_groups.append({**other, "params": muon_params})
+            if secondary_params:
+                secondary_groups.append({**other, "params": secondary_params})
 
         defaults = dict(lr=lr, momentum=momentum, weight_decay=weight_decay)
         super().__init__(params, defaults)

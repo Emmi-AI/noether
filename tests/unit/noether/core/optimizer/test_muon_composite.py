@@ -20,14 +20,13 @@ class SimpleModel(nn.Module):
 
 
 def _build_param_groups(model):
-    """Build param groups with use_muon flag, mimicking OptimizerWrapper."""
+    """Build one param group per named parameter, mimicking OptimizerWrapper."""
     groups = []
     for name, param in model.named_parameters():
         groups.append(
             {
                 "params": [param],
                 "name": name,
-                "use_muon": param.ndim >= 2,
             }
         )
     return groups
@@ -57,14 +56,6 @@ class TestMuonComposite:
         # No param should appear in both
         assert set(muon_params).isdisjoint(set(secondary_params))
 
-    def test_use_muon_flag_stripped_from_groups(self, param_groups):
-        """The use_muon flag should not leak into internal optimizer param groups."""
-        opt = MuonComposite(param_groups, lr=1e-3)
-
-        for g in opt._muon.param_groups:
-            assert "use_muon" not in g
-        for g in opt._secondary.param_groups:
-            assert "use_muon" not in g
 
     def test_default_secondary_is_lion(self, param_groups):
         """When no secondary kind is specified, Lion is used."""
