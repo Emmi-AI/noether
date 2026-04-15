@@ -4,7 +4,7 @@ defaults:
   - override /tracker: development_tracker
   - override /optimizer: muon
 
-name: drivaerml-muon-lion
+name: drivaerml-ab-upt-muon-lion
 
 pipeline:
     num_geometry_points: 65536

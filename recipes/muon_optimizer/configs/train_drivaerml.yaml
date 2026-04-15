@@ -1,7 +1,0 @@
-# @package _global_
-
-# Define key values here that are used multiple times in the config files.
-dataset_root:  /nfs-gpu/research/datasets/drivaerml/preprocessed/subsampled_10x
-dataset_kind: noether.data.datasets.cfd.DrivAerMLDataset
-defaults:
-  - train_caeml 
