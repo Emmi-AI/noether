@@ -38,8 +38,7 @@ class ParamGroupModifierConfig(BaseModel):
 
 
 class MuonSecondaryOptimizerConfig(BaseModel):
-    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`.
-    """
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
 
     model_config = {"extra": "forbid"}
 

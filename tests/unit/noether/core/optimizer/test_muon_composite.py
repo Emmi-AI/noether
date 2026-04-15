@@ -23,11 +23,13 @@ def _build_param_groups(model):
     """Build param groups with use_muon flag, mimicking OptimizerWrapper."""
     groups = []
     for name, param in model.named_parameters():
-        groups.append({
-            "params": [param],
-            "name": name,
-            "use_muon": param.ndim >= 2,
-        })
+        groups.append(
+            {
+                "params": [param],
+                "name": name,
+                "use_muon": param.ndim >= 2,
+            }
+        )
     return groups
 
 
@@ -211,7 +213,8 @@ class TestMuonComposite:
 
         for n, p in model.named_parameters():
             torch.testing.assert_close(
-                p.data, params_after_second_step[n],
+                p.data,
+                params_after_second_step[n],
                 msg=f"Parameter {n} diverged after load_state_dict roundtrip",
             )
 

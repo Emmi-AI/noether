@@ -83,7 +83,7 @@ class MuonComposite(torch.optim.Optimizer):
     def state_dict(self):
         # Each child optimizer indexes its params starting from 0, so muon and secondary
         # use overlapping keys. Renumber them into a single global counter (`idx`) so the
-        # merged state/param_groups don't collide. 
+        # merged state/param_groups don't collide.
         state = {}
         param_groups = []
         idx = 0
@@ -105,7 +105,7 @@ class MuonComposite(torch.optim.Optimizer):
 
     def load_state_dict(self, state_dict):
         # The merged dict from state_dict() uses global param indices, but each child
-        # optimizer expects its own local indices starting at 0, hence this function 
+        # optimizer expects its own local indices starting at 0, hence this function
         # maps the global indices back to local ones for each optimizer.
         sd_state = state_dict["state"]
         sd_groups = state_dict["param_groups"]
