@@ -866,6 +866,8 @@ class BaseTrainer:
             # Check end of training
             if self.update_counter.is_finished:
                 self._skip_remaining_batches(data_iter, remaining_batches, accumulation_steps_total, batch_size)
+                # break here in case we are finished in the middle of an epoch,
+                break
 
         return self._handle_end_of_epoch(
             model=model,
@@ -907,17 +909,18 @@ class BaseTrainer:
         data_iter,
     ) -> bool:
         """Handle end of epoch callbacks and checks. Returns True if training should stop."""
-        if not self.update_counter.is_full_epoch:
-            return False
 
-        early_exit = self._run_periodic_callbacks(
-            periodic_callbacks=periodic_callbacks,
-            model=model,
-            dist_model=dist_model,
-            data_iter=data_iter,
-            batch_size=batch_size,
-            end_of_epoch=True,
-        )
+        early_exit = False
+
+        if self.update_counter.is_full_epoch:
+            early_exit = self._run_periodic_callbacks(
+                periodic_callbacks=periodic_callbacks,
+                model=model,
+                dist_model=dist_model,
+                data_iter=data_iter,
+                batch_size=batch_size,
+                end_of_epoch=True,
+            )
 
         # Check end of training
         return self.update_counter.is_finished or early_exit

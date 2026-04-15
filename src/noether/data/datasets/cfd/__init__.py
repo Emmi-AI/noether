@@ -3,7 +3,7 @@
 from .caeml.ahmedml import AhmedMLDataset, AhmedMLDefaultSplitIDs
 from .caeml.drivaerml import DrivAerMLDataset, DrivAerMLDefaultSplitIDs
 from .drivaernet.dataset import DrivAerNetDataset
-from .emmi_wing import EmmiWingDataset
+from .emmi_wing import EmmiWingDataset, EmmiWingHFDataset
 from .shapenet_car import ShapeNetCarDataset, ShapeNetCarDefaultSplitIDs
 
 __all__ = [
@@ -13,6 +13,7 @@ __all__ = [
     "DrivAerMLDefaultSplitIDs",
     "DrivAerNetDataset",
     "EmmiWingDataset",
+    "EmmiWingHFDataset",
     "ShapeNetCarDataset",
     "ShapeNetCarDefaultSplitIDs",
 ]
