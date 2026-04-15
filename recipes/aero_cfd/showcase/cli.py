@@ -40,6 +40,7 @@ DOMAIN_POSITION_KEYS: dict[str, str] = {
 
 app = typer.Typer(
     name="abupt-showcase",
+    pretty_exceptions_short=True,
     help="""AB-UPT + DrivAerML Showcase.
 
     Single entry point for training, evaluating, and exporting AB-UPT models on the DrivAerML aerodynamic CFD dataset.

@@ -33,6 +33,7 @@ dependencies = [
     "typer>=0.16.0",
     "fsspec>=2025.5.1",
     "psutil>=5.9.0",
+    "scipy>=1.13.0",
     # ---
 ]
 

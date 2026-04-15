@@ -62,6 +62,10 @@ snapshot_download(
 )
 ```
 
+## Prerequisites
+
+The `--export-vtk` flag requires `pyvista`, which is included in the core Noether dependencies. No extra packages are needed beyond a standard Noether installation.
+
 ## Quick Start
 
 All commands must be run from the `recipes/aero_cfd/` directory with `recipes/` on the Python path:
@@ -275,9 +279,24 @@ Results are saved to `forces.csv` in the predictions directory.
 
 ## Results
 
-_Results to be populated after benchmark runs._
+Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samples.
 
-| Model | Surface Pressure L2 | Volume Velocity L2 | Cd Error | Cl Error |
-|-------|--------------------|--------------------|----------|----------|
-| `scaled` | -- | -- | -- | -- |
-| `scaled_mps` | -- | -- | -- | -- |
+| Metric | `small` | `scaled` |
+|---|---|---|
+| Surface Pressure L2 | 0.0800 | 0.0357 |
+| Surface Friction L2 | 0.1370 | 0.0680 |
+| Volume Velocity L2 | 0.0963 | 0.0518 |
+| Volume Pressure L2 | 0.1079 | 0.0538 |
+| Volume Vorticity L2 | 0.6577 | 0.2387 |
+| Mean \|dCd\| | 0.2811 | 0.2568 |
+| Mean \|dCl\| | 0.0640 | 0.0515 |
+
+### Training curves
+
+Surface field losses (pressure, friction):
+
+<img src="images/surface_losses.png" alt="Surface losses" width="600">
+
+Volume field losses (velocity, pressure):
+
+<img src="images/volume_losses.png" alt="Volume losses" width="600">
