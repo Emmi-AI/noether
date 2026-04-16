@@ -28,3 +28,4 @@ directory of the repository.
    models
    callbacks
    running_experiments
+   showcase

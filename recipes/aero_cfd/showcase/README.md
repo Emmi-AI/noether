@@ -279,7 +279,7 @@ Results are saved to `forces.csv` in the predictions directory.
 
 ## Results
 
-Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samples. The training was run on a single H100 GPU.
+Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samples. The training was run on a single H100 GPU with `--precision float16`.
 
 | Metric              | `small` | `scaled` | Improvement |
 |---------------------|---------|----------|-------------|
@@ -296,8 +296,8 @@ Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samp
 
 Surface field losses (pressure, friction):
 
-<img src="images/surface_losses.png" alt="Surface losses" width="600">
+<img src="../../../docs/source/_static/showcase/surface_losses.png" alt="Surface losses" width="600">
 
 Volume field losses (velocity, pressure):
 
-<img src="images/volume_losses.png" alt="Volume losses" width="600">
+<img src="../../../docs/source/_static/showcase/volume_losses.png" alt="Volume losses" width="600">
