@@ -874,20 +874,6 @@ class TestWrapDdp:
 
 
 class TestHandleEndOfEpoch:
-    def test_returns_false_when_not_full_epoch(self):
-        trainer = _make_trainer()
-        trainer.update_counter = MagicMock()
-        trainer.update_counter.is_full_epoch = False
-
-        result = trainer._handle_end_of_epoch(
-            model=MagicMock(),
-            dist_model=MagicMock(),
-            batch_size=4,
-            periodic_callbacks=list(),
-            data_iter=iter([]),
-        )
-        assert result is False
-
     def test_runs_periodic_callbacks_on_full_epoch(self):
         trainer = _make_trainer()
         trainer.update_counter = MagicMock()
@@ -1085,6 +1071,206 @@ class TestApplyResumeInitializer:
         initializer.init_weights.assert_called_once_with(model)
         initializer.init_optimizer.assert_called_once_with(model)
         initializer.init_callbacks.assert_called_once_with(trainer.callbacks, model=model)
+
+
+class TestMaxUpdatesTrainingLoop:
+    """Integration tests for trainer behaviour when max_updates is set instead of max_epochs.
+
+    These tests exercise the full training loop with a real dataset, data container,
+    and model to verify that training stops at exactly the requested number of updates.
+    """
+
+    @staticmethod
+    def _build_trainer_and_model(
+        dataset_len: int,
+        effective_batch_size: int,
+        max_updates: int,
+    ):
+        """Set up a real trainer, dataset, data container, and model for integration testing."""
+        from noether.core.schemas.models.base import ModelBaseConfig
+        from noether.core.schemas.trainers import BaseTrainerConfig
+        from noether.data.base.dataset import Dataset
+        from noether.data.container import DataContainer
+        from noether.data.pipeline.collator import Collator
+
+        # -- minimal noether Dataset ---------------------------------------------------
+        class StubDatasetConfig:
+            dataset_normalizers = None
+            pipeline = None
+            included_properties = None
+            dataset_wrappers = None
+
+        class StubDataset(Dataset):
+            def __init__(self, n: int):
+                # bypass Dataset.__init__ to avoid needing a real DatasetBaseConfig
+                self._sig_cache = {}
+                self.logger = logging.getLogger("StubDataset")
+                self._pipeline = None
+                self.config = StubDatasetConfig()
+                self.normalizers = {}
+                self.compute_statistics = False
+                self._n = n
+
+            def __len__(self):
+                return self._n
+
+            def getitem_x(self, idx):
+                return torch.randn(4)
+
+            def getitem_y(self, idx):
+                return torch.randn(2)
+
+        dataset = StubDataset(dataset_len)
+        dataset.pipeline = Collator()
+
+        # -- data container -------------------------------------------------------------
+        data_container = DataContainer(datasets={"train": dataset}, num_workers=0, pin_memory=False)
+
+        # -- trainer config -------------------------------------------------------------
+        trainer_config = BaseTrainerConfig(
+            kind="test",
+            max_updates=max_updates,
+            effective_batch_size=effective_batch_size,
+            callbacks=[],
+            add_default_callbacks=False,
+            add_trainer_callbacks=False,
+            precision="float32",
+            forward_properties=["x"],
+            target_properties=["y"],
+            disable_gradient_accumulation=True,
+        )
+
+        # -- minimal model --------------------------------------------------------------
+        model_config = ModelBaseConfig(name="stub")
+
+        class StubModel(nn.Module):
+            """Minimal stand-in that satisfies the ModelBase interface used by BaseTrainer."""
+
+            def __init__(self):
+                super().__init__()
+                self.linear = nn.Linear(4, 2)
+                self.is_initialized = True
+                self.name = "stub"
+                self._optim = None
+                self.logger = logging.getLogger("StubModel")
+                self.device = torch.device("cpu")
+                self.is_frozen = False
+
+            @property
+            def nograd_paramnames(self):
+                return []
+
+            def initialize(self):
+                self.is_initialized = True
+                return self
+
+            def forward(self, x):
+                return {"pred": self.linear(x)}
+
+            def optimizer_step(self, grad_scaler=None):
+                pass
+
+            def optimizer_zero_grad(self, set_to_none=True):
+                pass
+
+            def optimizer_schedule_step(self):
+                pass
+
+            def to(self, device):
+                return self
+
+        # -- trainer (concrete subclass) ------------------------------------------------
+        class ConcreteTrainer(BaseTrainer):
+            def loss_compute(self, forward_output, targets):
+                return torch.nn.functional.mse_loss(forward_output["pred"], targets["y"])
+
+        tracker = MagicMock()
+        path_provider = MagicMock()
+
+        with (
+            patch(_MODULE_PATH + ".get_supported_precision", return_value="float32"),
+            patch(
+                _MODULE_PATH + ".get_grad_scaler_and_autocast_context",
+                return_value=(MagicMock(), MagicMock()),
+            ),
+            patch(_MODULE_PATH + ".LogWriter"),
+            patch(_MODULE_PATH + ".CheckpointWriter"),
+        ):
+            trainer = ConcreteTrainer(
+                config=trainer_config,
+                data_container=data_container,
+                device="cpu",
+                tracker=tracker,
+                path_provider=path_provider,
+            )
+
+        model = StubModel()
+        return trainer, model
+
+    def test_stops_at_exact_max_updates_mid_epoch(self):
+        """Training with max_updates that falls mid-epoch must perform exactly max_updates updates.
+
+        Setup: dataset_len=20, effective_batch_size=4 → updates_per_epoch=5.
+        max_updates=7 → should stop after 7 updates (mid second epoch), NOT 10.
+        """
+        max_updates = 7
+        trainer, model = self._build_trainer_and_model(
+            dataset_len=20,
+            effective_batch_size=4,
+            max_updates=max_updates,
+        )
+
+        with (
+            patch(_MODULE_PATH + ".is_distributed", return_value=False),
+            patch(_MODULE_PATH + ".get_world_size", return_value=1),
+            patch(_MODULE_PATH + ".get_num_nodes", return_value=1),
+            patch(_MODULE_PATH + ".is_rank0", return_value=True),
+        ):
+            trainer.train(model)
+
+        assert trainer.update_counter.update == max_updates
+
+    def test_stops_at_exact_max_updates_epoch_aligned(self):
+        """When max_updates aligns with an epoch boundary, training still stops correctly.
+
+        Setup: dataset_len=20, effective_batch_size=4 → updates_per_epoch=5.
+        max_updates=10 → exactly 2 epochs.
+        """
+        max_updates = 10
+        trainer, model = self._build_trainer_and_model(
+            dataset_len=20,
+            effective_batch_size=4,
+            max_updates=max_updates,
+        )
+
+        with (
+            patch(_MODULE_PATH + ".is_distributed", return_value=False),
+            patch(_MODULE_PATH + ".get_world_size", return_value=1),
+            patch(_MODULE_PATH + ".get_num_nodes", return_value=1),
+            patch(_MODULE_PATH + ".is_rank0", return_value=True),
+        ):
+            trainer.train(model)
+
+        assert trainer.update_counter.update == max_updates
+
+    def test_single_update(self):
+        """max_updates=1 should perform exactly one update then stop."""
+        max_updates = 1
+        trainer, model = self._build_trainer_and_model(
+            dataset_len=20,
+            effective_batch_size=4,
+            max_updates=max_updates,
+        )
+
+        with (
+            patch(_MODULE_PATH + ".is_distributed", return_value=False),
+            patch(_MODULE_PATH + ".get_world_size", return_value=1),
+            patch(_MODULE_PATH + ".get_num_nodes", return_value=1),
+            patch(_MODULE_PATH + ".is_rank0", return_value=True),
+        ):
+            trainer.train(model)
+
+        assert trainer.update_counter.update == max_updates
 
 
 class TestSkipRemainingBatches:

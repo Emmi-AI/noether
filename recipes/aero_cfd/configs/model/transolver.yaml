@@ -7,7 +7,6 @@ transformer_block_config:
   num_heads: 3
 attention_arguments:
   num_slices: 512
-use_output_projection: true
 optimizer_config: ${optimizer}
 data_specs: ${data_specs}
 forward_properties:
