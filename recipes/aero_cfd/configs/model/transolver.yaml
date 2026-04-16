@@ -5,6 +5,7 @@ depth: 12
 transformer_block_config:
   mlp_expansion_factor: 4
   num_heads: 3
+  #attention_constructor: 'transolver'
 attention_arguments:
   num_slices: 512
 optimizer_config: ${optimizer}

@@ -158,6 +158,7 @@ class Model(ModelBase):
 
     def optimizer_zero_grad(self, set_to_none: bool = True) -> None:
         """Zero the gradients of the optimizer."""
+
         if self._optim is not None:
             self._optim.zero_grad(set_to_none)
 

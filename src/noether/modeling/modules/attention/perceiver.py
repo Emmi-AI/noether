@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from torch import nn
 
 from noether.core.schemas.modules import AttentionConfig, PerceiverAttentionConfig
+from noether.modeling.functional import norm
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
 
@@ -111,7 +112,7 @@ class PerceiverAttention(nn.Module):
             q = rope(q, freqs=q_freqs)
 
         x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+            norm(q), norm(k), v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         return self.proj_dropout(self.proj(x)), new_cache

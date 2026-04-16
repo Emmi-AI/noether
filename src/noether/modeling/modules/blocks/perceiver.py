@@ -6,6 +6,7 @@ import torch
 from torch import Tensor, nn
 
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig
+from noether.modeling.functional import norm
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
 from noether.modeling.modules.attention import PerceiverAttention
 from noether.modeling.modules.layers import LayerScale, LinearProjection, UnquantizedDropPath
@@ -44,12 +45,12 @@ class PerceiverBlock(nn.Module):
                     "If modulation is enabled, modulation_linear_projection_config must be provided. Likely condition_dim is not set."
                 )
 
-        self.norm1q = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
-        self.norm1kv = torch.nn.LayerNorm(
-            config.kv_dim or config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        # self.norm1q = torch.nn.LayerNorm(
+        #    config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        # )
+        # self.norm1kv = torch.nn.LayerNorm(
+        #    config.kv_dim or config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        # )
 
         self.attn = PerceiverAttention(config=config.perceiver_attention_config)  # type: ignore[arg-type]
 
@@ -57,9 +58,9 @@ class PerceiverBlock(nn.Module):
 
         self.drop_path1 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
 
-        self.norm2 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        # self.norm2 = torch.nn.LayerNorm(
+        #    config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        # )
 
         self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
         self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
@@ -93,10 +94,10 @@ class PerceiverBlock(nn.Module):
             if condition is not None:
                 raise ValueError("Conditioning vector provided, but modulation is not configured.")
             attn_out, kv_cache_out = self.attn(
-                q=self.norm1q(q), kv=self.norm1kv(kv) if kv is not None else None, **(attn_kwargs or {})
+                q=norm(q), kv=norm(kv) if kv is not None else None, **(attn_kwargs or {})
             )
             q = q + self.drop_path1(self.ls1(attn_out))
-            q = q + self.drop_path2(self.ls2(self.mlp(self.norm2(q))))
+            q = q + self.drop_path2(self.ls2(self.mlp(norm(q))))
         else:
             if condition is None:
                 raise ValueError("No conditioning vector provided, but modulation is configured.")
@@ -111,10 +112,10 @@ class PerceiverBlock(nn.Module):
                 normed_kv = None
             else:
                 assert kv is not None, "kv must be provided when not using kv_cache"
-                normed_kv = modulate_scale_shift(self.norm1kv(kv), scale=kv_scale, shift=kv_shift)
+                normed_kv = modulate_scale_shift(norm(kv), scale=kv_scale, shift=kv_shift)
 
             attn_out, kv_cache_out = self.attn(
-                q=modulate_scale_shift(self.norm1q(q), scale=q_scale, shift=q_shift),
+                q=modulate_scale_shift(norm(q), scale=q_scale, shift=q_shift),
                 kv=normed_kv,
                 **(attn_kwargs or {}),
             )
@@ -129,7 +130,7 @@ class PerceiverBlock(nn.Module):
                     self.ls2(
                         self.mlp(
                             modulate_scale_shift(
-                                self.norm2(q),
+                                norm(q),
                                 scale=mlp_scale,
                                 shift=mlp_shift,
                             ),
