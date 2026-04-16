@@ -1,6 +1,0 @@
-# @package _global_
-defaults:
-  - override /model: transolver_plusplus
-  - override /tracker: development_tracker
-
-name: simshift-heatsink-transolver-plusplus

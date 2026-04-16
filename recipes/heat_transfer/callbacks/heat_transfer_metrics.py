@@ -13,7 +13,7 @@ EVALUATION_FIELDS = [
 ]
 
 METRIC_SUFFIX_TARGET = "_target"
-METRIC_PREFIX_LOSS = "loss/"
+METRIC_PREFIX = "denormalized/"
 
 
 class HeatTransferMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
@@ -90,7 +90,7 @@ class HeatTransferMetricsCallback(PeriodicDataIteratorCallback):
             return
 
         for name, metric in results.items():
-            metric_key = f"{METRIC_PREFIX_LOSS}{self.dataset_key}/{name}"
+            metric_key = f"{METRIC_PREFIX}{self.dataset_key}/{name}"
             self.writer.add_scalar(
                 key=metric_key,
                 value=metric.mean(),

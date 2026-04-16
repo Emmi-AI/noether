@@ -4,7 +4,9 @@ This recipe trains neural surrogate models for heat transfer simulations on the 
 
 We published a report on baseline models on [W&B](https://wandb.ai/emmi-ai/heat_transfer/reports/SIMSHIFT-Heatsink-example-with-Noether--VmlldzoxNjUyNjM4Nw)
 
-![SIMSHIFT Heatsink Example](image.png)
+![SIMSHIFT Heatsink Example](./temperature_prediction.png)
+
+*Figure: Visualization showing the unnormalized temperature error of a trained ABUPT model.*
 
 ## Overview
 
@@ -17,7 +19,7 @@ Given a heatsink geometry described by simulation parameters (number of fins, fi
 The recipe includes:
 
 - **Dataset**: `SimshiftHeatsinkDataset` -- 819 heat transfer simulations with varying fin configurations
-- **Models**: AB-UPT and Transolver++ architectures, both conditioned on simulation parameters
+- **Models**: AB-UPT and Transformer architectures, both conditioned on simulation parameters
 - **Pipeline**: Volume point sampling with configurable anchor subsampling
 - **Callbacks**: Denormalized RMSE/nRMSE metrics and interactive 3D plotly visualizations
 - **Normalization**: Position scaling to `[0, 1000]`, mean-std normalization for all other fields
@@ -50,7 +52,7 @@ uv run noether-train-submit-job \
 | Experiment config | Model | Description |
 |---|---|---|
 | `+experiment/simshift_heatsink=ab_upt` | AB-UPT | Anchored-Branched UPT with 5 physics blocks |
-| `+experiment/simshift_heatsink=transolver_plusplus` | Transolver++ | Transolver with physics-aware slice attention (512 slices, depth 12) |
+| `+experiment/simshift_heatsink=transformer` | Transformer | Standard Transformer |
 
 ## Project structure
 
@@ -66,7 +68,7 @@ recipes/heat_transfer/
 │   ├── tracker/                          # WandB / disabled tracker configs
 │   └── train_simshift_heatsink.yaml      # Main training config
 ├── model/
-│   └── heat_transfer_transolver.py       # Transolver++ wrapper for volume-only + conditioning
+│   └── heat_transfer_transformer.py       # Transformer wrapper for volume-only + conditioning
 ├── pipeline/
 │   └── heat_transfer_pipeline.py         # Volume point sampling and anchor creation
 └── README.md

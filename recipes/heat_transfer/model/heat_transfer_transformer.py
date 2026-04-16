@@ -8,7 +8,7 @@ from pydantic import computed_field
 
 from noether.core.models import Model
 from noether.core.schemas.dataset import ModelDataSpecs
-from noether.core.schemas.models import TransolverConfig
+from noether.core.schemas.models.transformer import TransformerConfig
 from noether.core.schemas.modules.layers import (
     ContinuousSincosEmbeddingConfig,
     LinearProjectionConfig,
@@ -19,8 +19,8 @@ from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProject
 from noether.modeling.modules.mlp import MLP
 
 
-class HeatTransferTransolverConfig(TransolverConfig):
-    """Transolver config for volume-only heat transfer with simulation parameter conditioning."""
+class HeatTransferTransformerConfig(TransformerConfig):
+    """Transformer config for volume-only heat transfer with simulation parameter conditioning."""
 
     data_specs: ModelDataSpecs
 
@@ -49,14 +49,14 @@ class HeatTransferTransolverConfig(TransolverConfig):
         )
 
 
-class HeatTransferTransolver(Model):
-    """Transolver++ wrapper for volume-only heat transfer.
+class HeatTransferTransformer(Model):
+    """Transformer wrapper for volume-only heat transfer.
 
     Takes volume anchor positions and simulation parameters as input,
     predicts velocity, temperature, and pressure fields.
     """
 
-    def __init__(self, model_config: HeatTransferTransolverConfig, **kwargs):
+    def __init__(self, model_config: HeatTransferTransformerConfig, **kwargs):
         super().__init__(model_config=model_config, **kwargs)
 
         hidden_dim = model_config.hidden_dim

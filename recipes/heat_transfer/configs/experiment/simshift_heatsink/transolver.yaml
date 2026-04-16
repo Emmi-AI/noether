@@ -1,6 +1,6 @@
 # @package _global_
 defaults:
-  - override /model: transolver
+  - override /model: transformer
   - override /tracker: development_tracker
 
-name: simshift-heatsink-transolver
+name: simshift-heatsink-transformer

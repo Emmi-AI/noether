@@ -1,8 +1,8 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from .heat_transfer_transolver import HeatTransferTransolver, HeatTransferTransolverConfig
+from .heat_transfer_transolver import HeatTransferTransformer, HeatTransferTransformerConfig
 
 __all__ = [
-    "HeatTransferTransolverConfig",
-    "HeatTransferTransolver",
+    "HeatTransferTransformerConfig",
+    "HeatTransferTransformer",
 ]
