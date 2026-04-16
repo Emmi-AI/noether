@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import math
 import warnings
 from typing import Annotated, Literal
 
@@ -15,6 +16,7 @@ from noether.core.schemas.modules.layers import (
     RopeFrequencyConfig,
 )
 from noether.core.schemas.modules.mlp import MLPConfig
+from noether.core.schemas.parameterizations import CompletePConfig
 from noether.core.types import InitWeightsMode
 
 from .base import ModelBaseConfig
@@ -54,6 +56,32 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
 
     data_specs: ModelDataSpecs
     """Data specifications for the model."""
+
+    completep_config: CompletePConfig | None = Field(None)
+    """Optional CompleteP parameterization config. When set, automatically computes residual_scale, attn_scale, and init_std
+    on the transformer_block_config and perceiver_block_config. The effective depth is
+    geometry_depth + len(physics_blocks) + max(num_domain_decoder_blocks)."""
+
+    @model_validator(mode="after")
+    def apply_completep(self) -> "AnchorBranchedUPTConfig":
+        """When CompleteP config is provided, compute and inject all derived scaling factors."""
+        if self.completep_config is not None:
+            cfg = self.completep_config
+            m_w = self.hidden_dim / cfg.base_width
+            effective_depth = (
+                self.geometry_depth + len(self.physics_blocks) + max(self.num_domain_decoder_blocks.values())
+            )
+            m_d = effective_depth / cfg.base_depth
+            head_dim = self.hidden_dim // self.transformer_block_config.num_heads
+
+            residual_scale = 1.0 / (m_d**cfg.depth_alpha_exp)
+            attn_scale = 1.0 / head_dim
+            init_std = cfg.init_std / math.sqrt(m_w)
+
+            self.transformer_block_config.residual_scale = residual_scale
+            self.transformer_block_config.attn_scale = attn_scale
+            self.transformer_block_config.init_std = init_std
+        return self
 
     @model_validator(mode="after")
     def migrate_shared_to_self(self) -> "AnchorBranchedUPTConfig":
@@ -114,6 +142,9 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             kv_dim=None,
             use_rope=self.transformer_block_config.use_rope,
             condition_dim=self.transformer_block_config.condition_dim,
+            residual_scale=self.transformer_block_config.residual_scale,
+            attn_scale=self.transformer_block_config.attn_scale,
+            init_std=self.transformer_block_config.init_std,
         )
 
     @computed_field

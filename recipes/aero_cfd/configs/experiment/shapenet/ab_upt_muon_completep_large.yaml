@@ -1,0 +1,17 @@
+# @package _global_
+defaults:
+  - override /model: ab_upt_completep_large
+  - override /tracker: development_tracker
+  - override /optimizer: muon_completep_ab_upt_large
+
+name: shapenet-ab-upt-muon-completep-large
+
+model:
+  supernode_pooling_config:
+    radius: 9
+
+pipeline:
+  num_geometry_points: 3586
+  num_geometry_supernodes: 3586
+  num_surface_anchor_points: 3586
+  num_volume_anchor_points: 4096

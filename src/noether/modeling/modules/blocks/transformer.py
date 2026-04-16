@@ -29,6 +29,7 @@ class TransformerBlock(nn.Module):
         """
         super().__init__()
         self.config = config
+        self.residual_scale = config.residual_scale
         # modulation
         if config.condition_dim is None:
             self.modulation = None
@@ -101,8 +102,8 @@ class TransformerBlock(nn.Module):
             kv_cache = None
             if isinstance(attn_out, tuple):
                 attn_out, kv_cache = attn_out
-            x = x + self.drop_path1(self.ls1(attn_out))
-            x = x + self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
+            x = x + self.residual_scale * self.drop_path1(self.ls1(attn_out))
+            x = x + self.residual_scale * self.drop_path2(self.ls2(self.mlp(self.norm2(x))))
         else:
             if condition is None:
                 raise ValueError(
@@ -122,13 +123,13 @@ class TransformerBlock(nn.Module):
             kv_cache = None
             if isinstance(attn_out, tuple):
                 attn_out, kv_cache = attn_out
-            x = x + self.drop_path1(
+            x = x + self.residual_scale * self.drop_path1(
                 modulate_gate(
                     self.ls1(attn_out),
                     gate=attn_gate,
                 ),
             )
-            x = x + self.drop_path2(
+            x = x + self.residual_scale * self.drop_path2(
                 modulate_gate(
                     self.ls2(self.mlp(modulate_scale_shift(self.norm2(x), scale=mlp_scale, shift=mlp_shift))),
                     gate=mlp_gate,

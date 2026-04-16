@@ -37,6 +37,43 @@ class ParamGroupModifierConfig(BaseModel):
         return self
 
 
+class CompletePModifierConfig(BaseModel):
+    """Configuration for the CompleteP parameter group modifier.
+
+    Applies per-parameter scaling of learning rate, weight decay, and Adam epsilon
+    based on width and depth multipliers, following the CompleteP parameterization.
+    """
+
+    kind: str = "noether.core.optimizer.param_group_modifiers.completep.CompletePModifier"
+    """Class path for the CompletePModifier."""
+
+    optimizer_type: Literal["adamw", "muon"] = "adamw"
+    """Optimizer family this modifier targets. ``"adamw"`` is standard CompleteP for Adam-style
+    optimizers (per-element RMS-bounded updates, Adam ``eps``). ``"muon"`` is for
+    :class:`~noether.core.optimizer.MuonComposite`: hidden 2D weights flow through Muon, whose
+    Newton-Schulz orthogonalization already bounds the update spectral norm independent of width,
+    so the ``1/m_w`` width LR scaling on hidden weights is dropped. ``eps`` is also omitted because
+    Muon's ``eps`` controls NS spectral regularization (different semantics) and Lion has no ``eps``."""
+
+    width_multiplier: float = Field(1.0, gt=0.0)
+    """Width multiplier m_w = width / base_width."""
+
+    depth_multiplier: float = Field(1.0, gt=0.0)
+    """Depth multiplier m_d = depth / base_depth."""
+
+    depth_alpha_exp: float = Field(1.0, ge=0.5, le=1.0)
+    """Depth scaling exponent (alpha). CompleteP uses 1.0."""
+
+    base_eps: float = Field(1e-8, gt=0.0)
+    """Base Adam epsilon value before scaling. Ignored when ``optimizer_type == "muon"``."""
+
+    base_weight_decay: float = Field(0.0, ge=0.0)
+    """Base weight decay value before scaling."""
+
+    hidden_param_substrings: list[str] = Field(default=["blocks."])
+    """Substrings to identify hidden/block parameters by name. Parameters containing any of these substrings are classified as hidden."""
+
+
 class MuonSecondaryOptimizerConfig(BaseModel):
     """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
 
@@ -75,7 +112,7 @@ class OptimizerConfig(BaseModel):
     """The maximum value for gradient clipping."""
     clip_grad_norm: float | None = Field(None, ge=0.0)
     """The maximum norm for gradient clipping."""
-    param_group_modifiers_config: list[ParamGroupModifierConfig] | None = None
+    param_group_modifiers_config: list[ParamGroupModifierConfig | CompletePModifierConfig] | None = None
     """List of parameter group modifiers to apply. These can modify the learning rate or weight decay for specific parameters."""
     exclude_bias_from_weight_decay: bool = True
     """If true, excludes the bias parameters (i.e., parameters that end with '.bias') from the weight decay. Default true."""

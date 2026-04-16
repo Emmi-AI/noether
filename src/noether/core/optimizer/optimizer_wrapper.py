@@ -184,6 +184,10 @@ class OptimizerWrapper:
                 for key, value in param_group_modifier.get_properties(model, name, param).items():
                     if key in properties and key == "lr_scale":
                         properties[key] *= value
+                    elif key in properties and key in ("weight_decay", "eps"):
+                        # Allow overriding weight_decay and eps (e.g., CompleteP modifier
+                        # overrides the default bias/norm weight decay exclusion)
+                        properties[key] = value
                     else:
                         if key in properties:
                             raise ValueError(f"{key} is already in {properties}")

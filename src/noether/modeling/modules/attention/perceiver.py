@@ -44,8 +44,9 @@ class PerceiverAttention(nn.Module):
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
+        self.init_std = getattr(config, "init_std", 0.02)
 
-        apply_init_method(self, self.proj.weight, self.init_weights)
+        apply_init_method(self, self.proj.weight, self.init_weights, std=self.init_std)
 
     def forward(
         self,

@@ -1,0 +1,33 @@
+kind: noether.modeling.models.AeroABUPT
+name: ab-upt-completep-base
+geometry_depth: 1
+hidden_dim: 256
+transformer_block_config:
+  num_heads: 4
+  mlp_expansion_factor: 4
+  use_rope: true
+supernode_pooling_config:
+  input_dim: ${data_specs.position_dim}
+  radius: 1
+physics_blocks:
+  - perceiver
+  - self
+  - cross
+  - self
+num_domain_decoder_blocks:
+  surface: 1
+  volume: 1
+completep_config:
+  base_width: 256
+  base_depth: 6       # effective depth: geometry_depth(1) + physics(4) + decoder(max 1) = 6
+  depth_alpha_exp: 1.0
+  init_std: 0.02
+  output_alpha: 1.0
+optimizer_config: ${optimizer}
+data_specs: ${data_specs}
+forward_properties:
+  - geometry_position
+  - geometry_supernode_idx
+  - geometry_batch_idx
+  - surface_anchor_position
+  - volume_anchor_position

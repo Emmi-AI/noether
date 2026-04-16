@@ -1,0 +1,7 @@
+# @package _global_
+defaults:
+  - override /model: transformer_completep_large
+  - override /tracker: development_tracker
+  - override /optimizer: muon_completep_large
+
+name: shapenet-transformer-muon-completep-large

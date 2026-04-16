@@ -28,6 +28,7 @@ class PerceiverBlock(nn.Module):
             for available options.
         """
         super().__init__()
+        self.residual_scale = config.residual_scale
 
         # modulation
         if config.condition_dim is None:
@@ -95,8 +96,8 @@ class PerceiverBlock(nn.Module):
             attn_out, kv_cache_out = self.attn(
                 q=self.norm1q(q), kv=self.norm1kv(kv) if kv is not None else None, **(attn_kwargs or {})
             )
-            q = q + self.drop_path1(self.ls1(attn_out))
-            q = q + self.drop_path2(self.ls2(self.mlp(self.norm2(q))))
+            q = q + self.residual_scale * self.drop_path1(self.ls1(attn_out))
+            q = q + self.residual_scale * self.drop_path2(self.ls2(self.mlp(self.norm2(q))))
         else:
             if condition is None:
                 raise ValueError("No conditioning vector provided, but modulation is configured.")
@@ -118,13 +119,13 @@ class PerceiverBlock(nn.Module):
                 kv=normed_kv,
                 **(attn_kwargs or {}),
             )
-            q = q + self.drop_path1(
+            q = q + self.residual_scale * self.drop_path1(
                 modulate_gate(
                     self.ls1(attn_out),
                     gate=attn_gate,
                 ),
             )
-            q = q + self.drop_path2(
+            q = q + self.residual_scale * self.drop_path2(
                 modulate_gate(
                     self.ls2(
                         self.mlp(

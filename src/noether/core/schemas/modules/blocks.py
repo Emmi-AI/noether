@@ -48,6 +48,15 @@ class TransformerBlockConfig(BaseModel):
     eps: float = Field(1e-6, gt=0.0)
     """Epsilon Value for the layer nornalization. Defaults to 1e-6."""
 
+    residual_scale: float = Field(1.0, gt=0.0)
+    """Scaling factor for the residual branch outputs. Used by CompleteP parameterization (1/m_d^alpha). Defaults to 1.0 (no scaling)."""
+
+    attn_scale: float | None = Field(None, gt=0.0)
+    """Custom attention scaling factor. If None, uses the default 1/sqrt(d_head). CompleteP sets this to 1/d_head."""
+
+    init_std: float = Field(0.02, gt=0.0)
+    """Standard deviation for weight initialization. CompleteP scales this by 1/sqrt(m_w). Defaults to 0.02."""
+
     init_weights: InitWeightsMode = Field("truncnormal002")
     """Initialization method for the weight matrices of the network. Defaults to "truncnormal002"""
 
@@ -115,6 +124,7 @@ class TransformerBlockConfig(BaseModel):
             hidden_dim=self.mlp_hidden_dim,
             bias=self.bias,
             init_weights=self.init_weights,
+            init_std=self.init_std,
         )
 
 

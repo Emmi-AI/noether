@@ -37,12 +37,15 @@ class DotProductAttention(nn.Module):
         self.use_rope = config.use_rope
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
+        self.attn_scale = getattr(config, "attn_scale", None)
+
+        self.init_std = getattr(config, "init_std", 0.02)
 
         self.q = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.k = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.v = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
-        apply_init_method(self, self.proj.weight, self.init_weights)
+        apply_init_method(self, self.proj.weight, self.init_weights, std=self.init_std)
 
     def forward(
         self,
@@ -81,7 +84,7 @@ class DotProductAttention(nn.Module):
             assert freqs is None
 
         x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0, scale=self.attn_scale
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         x = self.proj_dropout(self.proj(x))

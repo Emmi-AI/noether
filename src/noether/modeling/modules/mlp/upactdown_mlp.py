@@ -26,6 +26,7 @@ class UpActDownMlp(nn.Module):
         super().__init__()
 
         self.init_weights = config.init_weights
+        self.init_std = config.init_std
 
         self.fc1 = nn.Linear(config.input_dim, config.hidden_dim, bias=config.bias)
         self.act = Activation.GELU.build()
@@ -40,13 +41,14 @@ class UpActDownMlp(nn.Module):
         Raises:
             NotImplementedError: raised if the specified initialization is not implemented.
         """
+        from functools import partial
 
         if self.init_weights == "torch":
             pass
-        elif self.init_weights == "truncnormal002":
-            self.apply(init_trunc_normal_zero_bias)
+        elif self.init_weights in ("truncnormal", "truncnormal002"):
+            self.apply(partial(init_trunc_normal_zero_bias, std=self.init_std))
         elif self.init_weights == "truncnormal002-identity":
-            self.apply(init_trunc_normal_zero_bias)
+            self.apply(partial(init_trunc_normal_zero_bias, std=self.init_std))
             nn.init.zeros_(self.fc2.weight)
         else:
             raise NotImplementedError(

@@ -47,19 +47,24 @@ def apply_init_method(
     module: torch.nn.Module,
     proj_weight: torch.Tensor,
     init_method: str,
+    std: float = 0.02,
 ) -> None:
     """Apply an initialization function to all applicable sub-modules of a given module.
 
     Args:
         module: The nn.Module instance to initialize.
-        init_fn: The initialization function to apply to each sub-module.
+        proj_weight: The projection weight tensor (used for identity init).
+        init_method: The initialization method name.
+        std: Standard deviation for truncated normal initialization. Defaults to 0.02.
     """
+    from functools import partial
+
     if init_method == "torch":
         pass
     elif init_method in ["truncnormal", "truncnormal002"]:
-        module.apply(init_trunc_normal_zero_bias)
+        module.apply(partial(init_trunc_normal_zero_bias, std=std))
     elif init_method == "truncnormal002-identity":
-        module.apply(init_trunc_normal_zero_bias)
+        module.apply(partial(init_trunc_normal_zero_bias, std=std))
         torch.nn.init.zeros_(proj_weight)
     else:
         raise NotImplementedError(f"Weight initialization method {init_method} not implemented for DotProductAttention")

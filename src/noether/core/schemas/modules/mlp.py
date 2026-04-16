@@ -31,6 +31,8 @@ class UpActDownMLPConfig(BaseModel):
     """Whether to use bias in the MLP."""
     init_weights: InitWeightsMode = Field("truncnormal002")
     """ Initialization method of the weights of the MLP. Options are  "torch" (i.e., similar to the module) or  'truncnormal002'. Defaults to 'truncnormal002'."""
+    init_std: float = Field(0.02, gt=0.0)
+    """Standard deviation for truncated normal weight initialization. Defaults to 0.02."""
 
     @model_validator(mode="after")
     def check_dims(self) -> "UpActDownMLPConfig":

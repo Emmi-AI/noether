@@ -20,6 +20,7 @@ class Transformer(nn.Module):
             config: Configuration of the Transformer model.
         """
         super().__init__()
+        self.output_scale = config.output_scale
 
         self.blocks = nn.ModuleList(
             [
@@ -46,5 +47,8 @@ class Transformer(nn.Module):
 
         for block in self.blocks:
             x, _ = block(x, attn_kwargs=attn_kwargs)
+
+        if self.output_scale != 1.0:
+            x = x * self.output_scale
 
         return x
