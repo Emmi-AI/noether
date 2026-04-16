@@ -122,6 +122,12 @@ class MuonOptimizerConfig(OptimizerConfig):
     """Momentum factor for the Muon optimizer."""
     secondary: MuonSecondaryOptimizerConfig | None = None
     """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
+    nesterov: bool | None = None
+    """Enable Nesterov momentum in Muon. None uses Muon's default (True)."""
+    ns_steps: int | None = Field(None, ge=1, le=99)
+    """Number of Newton-Schulz iteration steps. None uses Muon's default (5)."""
+    adjust_lr_fn: Literal["original", "match_rms_adamw"] | None = None
+    """Per-matrix LR adjustment strategy. None uses Muon's default (``"original"``)."""
 
 
 AnyOptimizerConfig = Union[AdamOptimizerConfig, SGDOptimizerConfig, MuonOptimizerConfig]

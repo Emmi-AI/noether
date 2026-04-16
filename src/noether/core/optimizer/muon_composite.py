@@ -21,7 +21,22 @@ class MuonComposite(torch.optim.Optimizer):
         momentum=0.95,
         weight_decay=0.01,
         secondary=None,
+        nesterov=None,
+        ns_steps=None,
+        adjust_lr_fn=None,
     ):
+        """
+        Args:
+            params: Iterable of parameter groups.
+            lr: Learning rate for the Muon optimizer.
+            momentum: Momentum factor for the Muon optimizer.
+            weight_decay: Weight decay for the Muon optimizer.
+            secondary: Configuration dict for the secondary optimizer (biases, norms, embeddings).
+            nesterov: Enable Nesterov momentum in Muon. None uses Muon's default (True).
+            ns_steps: Number of Newton-Schulz iteration steps. None uses Muon's default (5).
+            adjust_lr_fn: Per-matrix LR adjustment strategy for Muon. One of ``"original"``
+                or ``"match_rms_adamw"``. None uses Muon's default (``"original"``).
+        """
         params = list(params)
 
         # Resolve secondary optimizer kwargs: fall back to primary lr/weight_decay if not set.
@@ -49,10 +64,15 @@ class MuonComposite(torch.optim.Optimizer):
         defaults = dict(lr=lr, momentum=momentum, weight_decay=weight_decay)
         super().__init__(params, defaults)
 
-        # Create internal optimizers
-        self._muon = (
-            torch.optim.Muon(muon_groups, lr=lr, momentum=momentum, weight_decay=weight_decay) if muon_groups else None
-        )
+        # Create internal Muon optimizer, forwarding only explicitly set kwargs
+        muon_kwargs: dict = dict(lr=lr, momentum=momentum, weight_decay=weight_decay)
+        if nesterov is not None:
+            muon_kwargs["nesterov"] = nesterov
+        if ns_steps is not None:
+            muon_kwargs["ns_steps"] = ns_steps
+        if adjust_lr_fn is not None:
+            muon_kwargs["adjust_lr_fn"] = adjust_lr_fn
+        self._muon = torch.optim.Muon(muon_groups, **muon_kwargs) if muon_groups else None
         from noether.core.factory.utils import class_constructor_from_class_path
 
         secondary_cls = class_constructor_from_class_path(secondary_kind)
