@@ -9,6 +9,7 @@ from .callbacks import (
     EmaCallbackConfig,
     FixedEarlyStopperConfig,
     MetricEarlyStopperConfig,
+    ModelNormCallbackConfig,
     OfflineLossCallbackConfig,
     OnlineLossCallbackConfig,
     PeriodicDataIteratorCallbackConfig,
@@ -90,4 +91,6 @@ __all__ = [
     "WandBTrackerSchema",
     "BaseTrainerConfig",
     "SlurmConfig",
+    "ModelNormCallbackConfig",
+    "PeriodicDataIteratorCallbackConfig",
 ]

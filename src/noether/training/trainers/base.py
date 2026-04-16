@@ -32,7 +32,7 @@ from noether.core.providers import (
     PathProvider,
 )
 from noether.core.schemas import BaseTrainerConfig
-from noether.core.schemas.callbacks import CallBackBaseConfig, OnlineLossCallbackConfig
+from noether.core.schemas.callbacks import CallBackBaseConfig, ModelNormCallbackConfig, OnlineLossCallbackConfig
 from noether.core.trackers import BaseTracker
 from noether.core.types import CheckpointKeys
 from noether.core.utils.common.stopwatch import Stopwatch
@@ -291,6 +291,7 @@ class BaseTrainer:
         if not self.update_counter.is_finished:
             from noether.core.callbacks import (
                 EtaCallback,
+                ModelNormCallback,
                 PeakMemoryCallback,
                 ProgressCallback,
                 TrainTimeCallback,
@@ -313,6 +314,12 @@ class BaseTrainer:
                 ),
                 OnlineLossCallback(
                     callback_config=OnlineLossCallbackConfig.model_validate({**default_intervals, "verbose": True}),
+                    **default_kwargs,
+                ),
+                ModelNormCallback(
+                    callback_config=ModelNormCallbackConfig.model_validate(
+                        {"every_n_updates": 50, "individual_params_norms": False, "history_steps": 100}
+                    ),
                     **default_kwargs,
                 ),
             ]

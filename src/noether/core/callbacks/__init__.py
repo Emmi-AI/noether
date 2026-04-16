@@ -6,6 +6,7 @@ from .default import (
     DatasetStatsCallback,
     EtaCallback,
     LrCallback,
+    ModelNormCallback,
     OnlineLossCallback,
     ParamCountCallback,
     PeakMemoryCallback,
@@ -33,6 +34,7 @@ __all__ = [
     "ParamCountCallback",
     "PeakMemoryCallback",
     "ProgressCallback",
+    "ModelNormCallback",
     # --- from early stoppers:
     "EarlyStopIteration",
     "EarlyStopperBase",

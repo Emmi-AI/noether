@@ -210,6 +210,16 @@ class FixedEarlyStopperConfig(BaseModel):
         return self
 
 
+class ModelNormCallbackConfig(CallBackBaseConfig):
+    name: Literal["ModelNormCallback"] = Field("ModelNormCallback", frozen=True)
+
+    individual_params_norms: bool = Field(False)
+    """Whether to log the norms of individual parameters or just the overall model norm. False by default"""
+
+    history_steps: int = Field(10, ge=1)
+    """The number of steps to keep in the history for logging (individual parameter) norms when a model crashes"""
+
+
 CallbacksConfig = Union[
     BestCheckpointCallbackConfig
     | CheckpointCallbackConfig
@@ -221,4 +231,5 @@ CallbacksConfig = Union[
     | MetricEarlyStopperConfig
     | FixedEarlyStopperConfig
     | PeriodicDataIteratorCallbackConfig
+    | ModelNormCallbackConfig
 ]
