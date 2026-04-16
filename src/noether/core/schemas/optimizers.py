@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Self
+from typing import ClassVar, Literal, Self, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -55,6 +55,12 @@ class MuonSecondaryOptimizerConfig(BaseModel):
 
 
 class OptimizerConfig(BaseModel):
+    """Base configuration for optimizers.
+
+    Holds fields common to all optimizers plus the wrapper-level options. Optimizer-specific
+    fields live on the dedicated subclasses.
+    """
+
     model_config = {"extra": "forbid"}
 
     kind: str | None = None
@@ -78,15 +84,7 @@ class OptimizerConfig(BaseModel):
     weight_decay_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
     schedule_config: AnyScheduleConfig | None = Field(None, discriminator="kind")
 
-    momentum: float | None = Field(None, ge=0.0, le=1.0)
-    """Momentum factor for optimizers like SGD and Muon."""
-    betas: tuple[float, float] | None = None
-    """Beta coefficients for Adam-style optimizers."""
-    secondary: MuonSecondaryOptimizerConfig | None = None
-    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`.
-    Ignored by other optimizers."""
-
-    _optim_wrapper_kwargs: set[str] = {
+    _optim_wrapper_kwargs: ClassVar[set[str]] = {
         "clip_grad_value",
         "clip_grad_norm",
         "param_group_modifiers_config",
@@ -98,3 +96,32 @@ class OptimizerConfig(BaseModel):
 
     def return_optim_wrapper_args(self) -> dict:
         return self.model_dump(include=self._optim_wrapper_kwargs)
+
+
+class AdamOptimizerConfig(OptimizerConfig):
+    """Configuration for Adam-family optimizers (AdamW, Lion)."""
+
+    kind: Literal["torch.optim.AdamW", "noether.core.optimizer.Lion"] = "torch.optim.AdamW"
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
+
+
+class SGDOptimizerConfig(OptimizerConfig):
+    """Configuration for SGD."""
+
+    kind: Literal["torch.optim.SGD"] = "torch.optim.SGD"
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor."""
+
+
+class MuonOptimizerConfig(OptimizerConfig):
+    """Configuration for :class:`~noether.core.optimizer.MuonComposite`."""
+
+    kind: Literal["noether.core.optimizer.MuonComposite"] = "noether.core.optimizer.MuonComposite"
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for the Muon optimizer."""
+    secondary: MuonSecondaryOptimizerConfig | None = None
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
+
+
+AnyOptimizerConfig = Union[AdamOptimizerConfig, SGDOptimizerConfig, MuonOptimizerConfig]
