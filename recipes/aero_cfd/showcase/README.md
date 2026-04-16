@@ -279,17 +279,18 @@ Results are saved to `forces.csv` in the predictions directory.
 
 ## Results
 
-Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samples.
+Test set metrics on DrivAerML (10x subsampled), anchor-point resolution, 50 samples. The training was run on a single H100 GPU.
 
-| Metric | `small` | `scaled` |
-|---|---|---|
-| Surface Pressure L2 | 0.0800 | 0.0357 |
-| Surface Friction L2 | 0.1370 | 0.0680 |
-| Volume Velocity L2 | 0.0963 | 0.0518 |
-| Volume Pressure L2 | 0.1079 | 0.0538 |
-| Volume Vorticity L2 | 0.6577 | 0.2387 |
-| Mean \|dCd\| | 0.2811 | 0.2568 |
-| Mean \|dCl\| | 0.0640 | 0.0515 |
+| Metric              | `small` | `scaled` | Improvement |
+|---------------------|---------|----------|-------------|
+| Surface Pressure L2 | 0.0800  | 0.0357   | 2.2x        |
+| Surface Friction L2 | 0.1370  | 0.0680   | 2.0x        |
+| Volume Velocity L2  | 0.0963  | 0.0518   | 1.9x        |
+| Volume Pressure L2  | 0.1079  | 0.0538   | 2.0x        |
+| Volume Vorticity L2 | 0.6577  | 0.2387   | 2.8x        |
+| Mean \|dCd\|        | 0.2818  | 0.2768   | 1.0x        |
+| Mean \|dCl\|        | 0.0645  | 0.0633   | 1.0x        |
+| Train time          | ~7h     | ~28.5h   |             |
 
 ### Training curves
 

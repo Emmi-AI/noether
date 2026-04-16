@@ -35,8 +35,11 @@ class ABUPTSizeConfig:
     pipeline_overrides: dict[str, Any]
 
 
-_PHYSICS_BLOCKS_SHORT: list[str] = ["perceiver", "self", "cross", "self", "cross", "self"]
-_PHYSICS_BLOCKS_LONG: list[str] = ["perceiver"] + ["self", "cross"] * 5
+# Physics block patterns for the AB-UPT architecture.
+# Default: compact 6-block pattern, more efficient with comparable performance.
+PHYSICS_BLOCKS_DEFAULT: list[str] = ["perceiver", "self", "cross", "self", "cross", "self"]
+# Original: 11-block pattern from the AB-UPT paper (arxiv:2502.09587).
+PHYSICS_BLOCKS_PAPER: list[str] = ["perceiver"] + ["self", "cross"] * 5 + ["self"]
 
 MODEL_SIZES: dict[str, ABUPTSizeConfig] = {
     "small": ABUPTSizeConfig(
@@ -44,7 +47,7 @@ MODEL_SIZES: dict[str, ABUPTSizeConfig] = {
             hidden_dim=192,
             num_heads=3,
             geometry_depth=1,
-            physics_blocks=_PHYSICS_BLOCKS_SHORT,
+            physics_blocks=PHYSICS_BLOCKS_DEFAULT,
             num_domain_decoder_blocks={"surface": 2, "volume": 2},
             radius=0.25,
         ),
@@ -60,7 +63,7 @@ MODEL_SIZES: dict[str, ABUPTSizeConfig] = {
             hidden_dim=384,
             num_heads=6,
             geometry_depth=1,
-            physics_blocks=_PHYSICS_BLOCKS_SHORT,
+            physics_blocks=PHYSICS_BLOCKS_DEFAULT,
             num_domain_decoder_blocks={"surface": 6, "volume": 6},
             radius=0.1,
         ),
@@ -77,7 +80,7 @@ MODEL_SIZES: dict[str, ABUPTSizeConfig] = {
             hidden_dim=384,
             num_heads=6,
             geometry_depth=1,
-            physics_blocks=_PHYSICS_BLOCKS_SHORT,
+            physics_blocks=PHYSICS_BLOCKS_DEFAULT,
             num_domain_decoder_blocks={"surface": 6, "volume": 6},
             radius=0.1,
         ),

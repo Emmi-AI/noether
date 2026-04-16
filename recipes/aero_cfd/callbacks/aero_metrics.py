@@ -8,7 +8,9 @@ from pathlib import Path
 
 import torch
 from pydantic import Field, model_validator
+from scipy.spatial import cKDTree
 
+from aero_cfd.utils.drag_lift import FlowConditions, compute_force_coefficients
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 
@@ -36,6 +38,8 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
     """Directory to save per-sample prediction files. Required when save_predictions=True."""
     batch_properties_to_save: list[str] = []
     """Batch keys (e.g. position tensors) to save alongside predictions."""
+    compute_forces: bool = False
+    """If True, compute drag/lift coefficients per sample and log errors."""
 
     @model_validator(mode="after")
     def validate_config(self) -> AeroMetricsCallbackConfig:
@@ -116,6 +120,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self._save_predictions = callback_config.save_predictions
         self._predictions_path = callback_config.predictions_path
         self._prediction_counter: int = 0
+        self._compute_forces = callback_config.compute_forces
 
     def _denormalize(
         self, predictions: torch.Tensor, targets: torch.Tensor, key: str
@@ -318,6 +323,100 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         # Compute metrics
         return self._compute_metrics(denorm_pred, denorm_target, mode)
 
+    def _compute_force_metrics(
+        self, batch: dict[str, torch.Tensor], model_outputs: dict[str, torch.Tensor]
+    ) -> dict[str, torch.Tensor]:
+        """Compute drag/lift coefficient errors for the current sample.
+
+        Uses full-resolution mesh geometry from the batch (``surface_normals``,
+        ``surface_area``, ``surface_position``) and loads full-resolution GT
+        fields from disk (since batch targets are subsampled by the pipeline).
+        Predicted Cd/Cl uses denormalized model outputs matched to the mesh via
+        nearest-neighbor lookup.
+
+        Requires ``surface_normals``, ``surface_area``, and ``surface_position``
+        to be present in the batch. Enable these by removing them from
+        ``excluded_properties`` in the dataset config.
+        """
+        # Full-resolution mesh geometry from batch
+        surface_normals = batch.get("surface_normals")
+        surface_areas = batch.get("surface_area")
+        mesh_positions = batch.get("surface_position")
+
+        if surface_normals is None or surface_areas is None or mesh_positions is None:
+            self.logger.warning(
+                "Skipping force computation: surface_normals, surface_area, or surface_position "
+                "not in batch. Ensure these fields are not excluded in the dataset config."
+            )
+            return {}
+
+        surface_normals = surface_normals.cpu().squeeze(0).float()
+        surface_areas = surface_areas.cpu().squeeze(0).float()
+        mesh_positions = mesh_positions.cpu().squeeze(0).float()
+
+        # Ground-truth Cd/Cl from full-resolution dataset files.
+        # Batch targets are subsampled by the pipeline, so we load the originals.
+        dataset = self.data_container.get_dataset(self.dataset_key)
+        sample_idx = batch["index"].squeeze().item()
+        info = dataset.sample_info(sample_idx)
+        run_dir = Path(info["sample_uri"])
+
+        # Load per-run reference area if available, otherwise use defaults.
+        design_id = info["design_id"]
+        ref_csv = run_dir / f"geo_ref_{design_id}.csv"
+        if ref_csv.exists():
+            import pandas as pd
+
+            ref_area = float(pd.read_csv(ref_csv)["aRef"][0])
+            flow = FlowConditions(reference_area=ref_area)
+        else:
+            flow = FlowConditions()
+
+        gt_pressure_path = run_dir / "surface_pressure.pt"
+        gt_shear_path = run_dir / "surface_wallshearstress.pt"
+        if not gt_pressure_path.exists() or not gt_shear_path.exists():
+            self.logger.debug(f"Skipping GT force computation for sample {sample_idx}: missing GT files")
+            return {}
+
+        gt_pressure = torch.load(gt_pressure_path, map_location="cpu", weights_only=True).float()
+        gt_shear = torch.load(gt_shear_path, map_location="cpu", weights_only=True).float()
+        if gt_pressure.ndim == 2 and gt_pressure.shape[-1] == 1:
+            gt_pressure = gt_pressure.squeeze(-1)
+
+        gt_coeffs = compute_force_coefficients(gt_pressure, gt_shear, surface_normals, surface_areas, flow)
+
+        # Predicted Cd/Cl from model outputs (denormalized)
+        pred_pressure = model_outputs.get("surface_pressure")
+        pred_friction = model_outputs.get("surface_friction")
+        pred_positions = batch.get("surface_anchor_position")
+
+        if pred_pressure is None or pred_friction is None or pred_positions is None:
+            return {}
+
+        pred_pressure_denorm = self.dataset_normalizers["surface_pressure"].inverse(pred_pressure.cpu()).squeeze(0)
+        pred_friction_denorm = self.dataset_normalizers["surface_friction"].inverse(pred_friction.cpu()).squeeze(0)
+        pred_positions_cpu = pred_positions.cpu().squeeze(0)
+
+        if pred_pressure_denorm.ndim == 2 and pred_pressure_denorm.shape[-1] == 1:
+            pred_pressure_denorm = pred_pressure_denorm.squeeze(-1)
+
+        # Match predicted positions to mesh positions for normals/areas lookup
+        position_tree = cKDTree(mesh_positions.numpy())
+        _, matched_indices = position_tree.query(pred_positions_cpu.numpy())
+
+        pred_coeffs = compute_force_coefficients(
+            pred_pressure_denorm,
+            pred_friction_denorm,
+            surface_normals[matched_indices],
+            surface_areas[matched_indices],
+            flow,
+        )
+
+        return {
+            "drag_error": torch.tensor(abs(gt_coeffs.cd - pred_coeffs.cd)),
+            "lift_error": torch.tensor(abs(gt_coeffs.cl - pred_coeffs.cl)),
+        }
+
     def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
@@ -334,6 +433,9 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         metrics = {}
         for mode in self.evaluation_modes:
             metrics.update(self._compute_mode_metrics(batch, model_outputs, mode))
+
+        if self._compute_forces:
+            metrics.update(self._compute_force_metrics(batch, model_outputs))
 
         if self._save_predictions:
             self._collect_predictions(batch, model_outputs)

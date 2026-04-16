@@ -41,6 +41,7 @@ DOMAIN_POSITION_KEYS: dict[str, str] = {
 app = typer.Typer(
     name="abupt-showcase",
     pretty_exceptions_short=True,
+    pretty_exceptions_show_locals=False,
     help="""AB-UPT + DrivAerML Showcase.
 
     Single entry point for training, evaluating, and exporting AB-UPT models on the DrivAerML aerodynamic CFD dataset.
@@ -135,6 +136,11 @@ def train(
     precision: Annotated[str, typer.Option(help="Training precision: float32, float16, or bfloat16.")] = "float32",
     resume_run_id: Annotated[str | None, typer.Option(help="Run ID to resume training from.")] = None,
     resume_checkpoint: Annotated[str, typer.Option(help="Checkpoint tag to resume from.")] = "latest",
+    compute_forces: bool = typer.Option(
+        False,
+        "--compute-forces",
+        help="Compute Cd/Cl errors during eval callbacks (logged to tracker).",
+    ),
 ) -> None:
     from aero_cfd.callbacks import AeroMetricsCallbackConfig
     from noether.core.schemas.callbacks import CheckpointCallbackConfig
@@ -148,6 +154,7 @@ def train(
         dataset_key="val",
         every_n_epochs=eval_every_n_epochs,
         forward_properties=preset.forward_properties(ABUPT_MODEL_KIND),
+        compute_forces=compute_forces,
     )
 
     tracker_config = None
@@ -201,6 +208,13 @@ def train(
         **resume_kwargs,
     )
 
+    if compute_forces:
+        # Only include force fields for the val split (eval callback), not train.
+        for key in ("val", "test"):
+            ds_config = config.datasets.get(key)
+            if ds_config is not None and ds_config.excluded_properties:
+                ds_config.excluded_properties -= {"surface_normals", "surface_area"}
+
     console.print(f"[bold]Training AB-UPT ({model_size.value}) on DrivAerML[/bold]")
     console.print(
         f"\tHidden dim: {size_config.model_params['hidden_dim']}, Heads: {size_config.model_params['num_heads']}"
@@ -240,7 +254,7 @@ def evaluate(
     compute_forces: bool = typer.Option(
         False,
         "--compute-forces",
-        help="Compute Cd/Cl for all samples (requires surface_area_vtp.pt).",
+        help="Compute Cd/Cl errors during inference (logged to tracker) and save per-sample forces.csv.",
     ),
     query_inference: bool = typer.Option(
         False,
@@ -310,6 +324,7 @@ def evaluate(
             num_surface_anchors=num_sa,
             num_volume_anchors=num_va,
             query_chunk_size=query_chunk_size,
+            compute_forces=compute_forces,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split} — query inference[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")
@@ -326,6 +341,7 @@ def evaluate(
             save_predictions=True,
             predictions_path=predictions_path,
             batch_properties_to_save=batch_props,
+            compute_forces=compute_forces,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split}[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")
@@ -342,6 +358,12 @@ def evaluate(
         callbacks=[callback],
         extra_datasets=extra_datasets,
     )
+
+    if compute_forces:
+        # Include surface_normals and surface_area in the batch for force computation.
+        for ds_config in config.datasets.values():
+            if ds_config.excluded_properties:
+                ds_config.excluded_properties -= {"surface_normals", "surface_area"}
 
     InferenceRunner.main(device=_get_device(accelerator), config=config)
     console.print(f"\tPredictions saved to: {predictions_path}")

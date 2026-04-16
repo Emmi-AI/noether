@@ -254,6 +254,8 @@ class AeroMultistagePipeline(MultiStagePipeline):
             [
                 DefaultCollator(
                     items=self.default_collator_items,
+                    optional_items=["index", "surface_normals", "surface_area"]
+                    + (["surface_position"] if self.use_anchor_points else []),
                 )
             ]
         )

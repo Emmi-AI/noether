@@ -9,7 +9,7 @@ from pathlib import Path
 
 import torch
 
-from .drag_lift import FlowConditions, compute_force_coefficients
+from aero_cfd.utils.drag_lift import FlowConditions, compute_force_coefficients
 
 
 def compute_forces_for_split(
