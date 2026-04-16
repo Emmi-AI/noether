@@ -8,9 +8,7 @@ from pathlib import Path
 
 import torch
 from pydantic import Field, model_validator
-from scipy.spatial import cKDTree
 
-from aero_cfd.utils.drag_lift import FlowConditions, compute_force_coefficients
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
 
@@ -121,6 +119,14 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self._predictions_path = callback_config.predictions_path
         self._prediction_counter: int = 0
         self._compute_forces = callback_config.compute_forces
+        if self._compute_forces:
+            from scipy.spatial import cKDTree
+
+            from aero_cfd.utils.drag_lift import FlowConditions, compute_force_coefficients
+
+            self._cKDTree = cKDTree
+            self._FlowConditions = FlowConditions
+            self._compute_force_coefficients = compute_force_coefficients
 
     def _denormalize(
         self, predictions: torch.Tensor, targets: torch.Tensor, key: str
@@ -368,9 +374,9 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             import pandas as pd
 
             ref_area = float(pd.read_csv(ref_csv)["aRef"][0])
-            flow = FlowConditions(reference_area=ref_area)
+            flow = self._FlowConditions(reference_area=ref_area)
         else:
-            flow = FlowConditions()
+            flow = self._FlowConditions()
 
         gt_pressure_path = run_dir / "surface_pressure.pt"
         gt_shear_path = run_dir / "surface_wallshearstress.pt"
@@ -383,7 +389,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         if gt_pressure.ndim == 2 and gt_pressure.shape[-1] == 1:
             gt_pressure = gt_pressure.squeeze(-1)
 
-        gt_coeffs = compute_force_coefficients(gt_pressure, gt_shear, surface_normals, surface_areas, flow)
+        gt_coeffs = self._compute_force_coefficients(gt_pressure, gt_shear, surface_normals, surface_areas, flow)
 
         # Predicted Cd/Cl from model outputs (denormalized)
         pred_pressure = model_outputs.get("surface_pressure")
@@ -401,10 +407,10 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             pred_pressure_denorm = pred_pressure_denorm.squeeze(-1)
 
         # Match predicted positions to mesh positions for normals/areas lookup
-        position_tree = cKDTree(mesh_positions.numpy())
+        position_tree = self._cKDTree(mesh_positions.numpy())
         _, matched_indices = position_tree.query(pred_positions_cpu.numpy())
 
-        pred_coeffs = compute_force_coefficients(
+        pred_coeffs = self._compute_force_coefficients(
             pred_pressure_denorm,
             pred_friction_denorm,
             surface_normals[matched_indices],
