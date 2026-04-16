@@ -76,7 +76,9 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     tracker: Annotated[BaseTrackerConfig, Discriminated(BaseTrackerConfig)] | None = Field(None)
     """Configuration for experiment tracking. If None, no tracking is used. If "disabled", tracking is explicitly disabled.  WandB is currently the only supported tracker."""
     run_id: str | None = None
-    """Unique identifier for the run. If None, a new ID will be generated."""
+    """Unique identifier for the run. When running under SLURM and not set explicitly,
+    defaults to the SLURM job ID (e.g. ``12345_2`` for array task 2 of job 12345).
+    Otherwise a new ID is generated at runtime."""
     devices: str | None = None
     """Comma-separated list of device IDs to use. If None, all available devices will be used."""
     num_workers: int | None = None
@@ -129,8 +131,15 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
                 return v
 
     @model_validator(mode="after")
-    def _resolve_output_path(self) -> ConfigSchema:
-        """Default ``output_path`` from ``slurm.folder`` when omitted."""
+    def _resolve_slurm_defaults(self) -> ConfigSchema:
+        """Apply SLURM-aware defaults for ``output_path`` and ``run_id``.
+
+        * ``output_path`` defaults to ``slurm.folder`` when omitted.
+        * ``run_id`` defaults to the SLURM job ID when running inside a SLURM
+          allocation (``SLURM_JOB_ID`` env var). For array jobs this becomes
+          ``<array_job_id>_<task_id>``.
+        """
+        # --- output_path ---
         if self.output_path is None:
             if self.slurm is None:
                 raise ValueError(
@@ -139,6 +148,17 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
                 )
             self.output_path = Path(self.slurm.folder)
         self.output_path = validate_path(self.output_path, mkdir=True).absolute()
+
+        # --- run_id from SLURM env ---
+        if self.run_id is None:
+            slurm_job_id = os.environ.get("SLURM_JOB_ID")
+            slurm_array_job_id = os.environ.get("SLURM_ARRAY_JOB_ID")
+            slurm_array_task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
+            if slurm_array_job_id is not None and slurm_array_task_id is not None:
+                self.run_id = f"{slurm_array_job_id}_{slurm_array_task_id}"
+            elif slurm_job_id is not None:
+                self.run_id = slurm_job_id
+
         return self
 
     @field_serializer("output_path", mode="plain")
