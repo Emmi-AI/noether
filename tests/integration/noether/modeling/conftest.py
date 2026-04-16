@@ -9,10 +9,21 @@ import pytest
 import torch
 
 from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
-from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, UPTConfig
+from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, TransolverConfig, UPTConfig
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
+
+
+@pytest.fixture
+def transolver_config() -> TransolverConfig:
+    return TransolverConfig(
+        kind="noether.modeling.models.transolver.Transolver",
+        name="test_transolver",
+        hidden_dim=8,
+        transformer_block_config={"num_heads": 2, "mlp_expansion_factor": 2, "drop_path": 0.0},
+        depth=2,
+    )
 
 
 @pytest.fixture

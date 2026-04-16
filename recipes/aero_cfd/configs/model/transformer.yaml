@@ -7,7 +7,6 @@ transformer_block_config:
   use_rope: true
 depth: 12
 optimizer_config: ${optimizer}
-use_output_projection: true
 data_specs: ${data_specs}
 forward_properties:
   - surface_position
