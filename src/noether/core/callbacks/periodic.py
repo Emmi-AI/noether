@@ -577,7 +577,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
             metric_property_provider,
             name,
         )
-        self.dataset_key = callback_config.dataset_key  # type: ignore
+        self.dataset_key = callback_config.dataset_key
         self.total_data_time = torch.tensor(0.0)
         self.sampler_config = self._sampler_config_from_key(key=self.dataset_key)
 

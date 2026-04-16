@@ -1,0 +1,14 @@
+# @package _global_
+defaults:
+  - override /model: ab_upt
+  - override /tracker: development_tracker
+
+name: simshift-heatsink-ab-upt
+
+pipeline:
+  num_geometry_points: 32768
+  num_geometry_supernodes: 4096
+
+inference_pipeline:
+  num_geometry_points: 32768
+  num_geometry_supernodes: 4096

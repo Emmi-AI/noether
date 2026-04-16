@@ -1,0 +1,12 @@
+kind: model.HeatTransferTransformer
+name: transformer
+hidden_dim: 192
+depth: 12
+transformer_block_config:
+  num_heads: 3
+  mlp_expansion_factor: 4
+optimizer_config: ${optimizer}
+data_specs: ${data_specs}
+forward_properties:
+  - volume_anchor_position
+  - simulation_parameters

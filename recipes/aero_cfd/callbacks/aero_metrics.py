@@ -99,37 +99,6 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self.chunk_size = callback_config.chunk_size
         self.sample_size_property = callback_config.sample_size_property
 
-    def _denormalize(
-        self, predictions: torch.Tensor, targets: torch.Tensor, key: str
-    ) -> tuple[torch.Tensor, torch.Tensor]:
-        """
-        Denormalize predictions and targets using the appropriate normalizer.
-
-        This method finds the specific normalizer for the given key and uses it to denormalize,
-        instead of calling pipeline.denormalize which would process the entire pipeline.
-
-        Args:
-            predictions: Tensor containing the predictions to denormalize
-            targets: Tensor containing the targets to denormalize
-            key: Key to identify the normalizer for denormalization
-
-        Returns:
-            Tuple of (denormalized_predictions, denormalized_targets)
-
-        Raises:
-            KeyError: If no normalizer is found for the given key
-        """
-        try:
-            normalizer = self.dataset_normalizers[key]
-        except KeyError as e:
-            raise KeyError(
-                f"No normalizer found for key '{key}'. Available normalizers: {list(self.dataset_normalizers.keys())}"
-            ) from e
-
-        denormalized_predictions = normalizer.inverse(predictions.cpu())
-        denormalized_targets = normalizer.inverse(targets.cpu())
-        return denormalized_predictions, denormalized_targets
-
     def _compute_metrics(
         self, denormalized_predictions: torch.Tensor, denormalized_targets: torch.Tensor, field_name: str
     ) -> dict[str, torch.Tensor]:
@@ -291,8 +260,9 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         if prediction is None or target is None:
             return {}
 
-        # Denormalize
-        denorm_pred, denorm_target = self._denormalize(prediction, target, mode)
+        dataset = self.data_container.get_dataset(self.dataset_key)
+        denorm_pred = dataset.denormalize(mode, prediction)
+        denorm_target = dataset.denormalize(f"{mode}{METRIC_SUFFIX_TARGET}", target)
 
         # Align sizes if needed
         denorm_pred, denorm_target = self._align_chunk_sizes(denorm_pred, denorm_target)
