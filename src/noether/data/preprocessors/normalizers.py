@@ -53,7 +53,7 @@ class ShiftAndScaleNormalizer(PreProcessor):
             raise TypeError("Input must be a torch.Tensor.")
         if self.logscale:
             x = to_logscale(x)
-        return (x + self.shift) * self.scale
+        return (x + self.shift.to(x.device)) * self.scale.to(x.device)
 
     def denormalize(self, x: torch.Tensor) -> torch.Tensor:
         """Denormalizes the input data by applying the inverse operation of the normalization.
@@ -63,7 +63,7 @@ class ShiftAndScaleNormalizer(PreProcessor):
         """
         if not isinstance(x, torch.Tensor):
             raise TypeError("Input must be a torch.Tensor.")
-        x = x * (1.0 / self.scale) - self.shift  # type: ignore[operator]
+        x = x * (1.0 / self.scale.to(x.device)) - self.shift.to(x.device)  # type: ignore[operator]
         if self.logscale:
             x = from_logscale(x)
         return x
@@ -157,7 +157,7 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
         if not isinstance(x, torch.Tensor):
             raise TypeError("Input must be a torch.Tensor.")
         output = super().__call__(x)  # type: ignore[return-value]
-        if torch.any(output < 0) or torch.any(output > self.resizing_scale):
+        if torch.any(output < 0) or torch.any(output > self.resizing_scale.to(x.device)):
             raise ValueError("Normalized positions are out of bounds [0, scale].")
 
         return output

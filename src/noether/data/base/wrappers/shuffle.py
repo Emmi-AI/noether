@@ -8,7 +8,16 @@ from noether.data.base import Dataset, DatasetWrapper, Subset
 
 
 class ShuffleWrapper(Subset):
-    """Shuffles the dataset, optionally with seed."""
+    """Shuffles the dataset, optionally with seed.
+
+    Example:
+
+        .. code-block:: yaml
+
+            dataset_wrappers:
+                kind: noether.data.base.wrappers.ShuffleWrapper
+                seed: 42
+    """
 
     def __init__(self, config: ShuffleWrapperConfig, dataset: Dataset | DatasetWrapper):
         """

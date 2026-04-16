@@ -14,6 +14,23 @@ from noether.io.providers import Provider
 HFRepoType = Literal["model", "dataset"]
 
 
+def _get_hf_token() -> str | None:
+    """Retrieve the HuggingFace token from credentials, or return None if unavailable.
+
+    If credentials cannot be retrieved, the failure is logged at INFO level and
+    None is returned so callers can proceed without authentication.
+
+    Returns:
+        The HF_TOKEN string, or None if credentials are not configured.
+    """
+    try:
+        credentials = get_credentials(Provider.HUGGINGFACE)
+        return str(credentials["HF_TOKEN"])
+    except Exception as e:
+        logger.info("Failed to get HuggingFace credentials, proceeding without authentication: %s", e)
+        return None
+
+
 def estimate_hf_repo_size(
     repo_id: str,
     repo_type: HFRepoType = "model",
@@ -114,7 +131,7 @@ def fetch_huggingface_file(
     Returns:
         - None
     """
-    credentials = get_credentials(Provider.HUGGINGFACE)
+    token = _get_hf_token()
     local_dir.mkdir(parents=True, exist_ok=True)
 
     hf_hub_download(
@@ -122,7 +139,7 @@ def fetch_huggingface_file(
         filename=filename,
         repo_type=repo_type,
         revision=revision,
-        token=credentials["HF_TOKEN"],
+        token=token,
         local_dir=str(local_dir),
     )
 
@@ -148,14 +165,14 @@ def fetch_huggingface_by_extension(
     Returns:
         - A list of downloaded files.
     """
-    credentials = get_credentials(Provider.HUGGINGFACE)
+    token = _get_hf_token()
     local_dir.mkdir(parents=True, exist_ok=True)
 
     api = HfApi()
     files = api.list_repo_files(
         repo_id=repo_id,
         repo_type=repo_type,
-        token=credentials["HF_TOKEN"],
+        token=token,
         revision=revision,
     )
 
@@ -175,7 +192,7 @@ def fetch_huggingface_by_extension(
             filename=fname,
             repo_type=repo_type,
             revision=revision,
-            token=credentials["HF_TOKEN"],
+            token=token,
             local_dir=str(local_dir),
         )
         downloaded_files.append(fname)

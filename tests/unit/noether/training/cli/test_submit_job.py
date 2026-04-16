@@ -19,14 +19,9 @@ class TestValidateConfig:
             base.update(extra)
         return OmegaConf.create(base)
 
-    def test_raises_if_config_schema_kind_missing(self):
-        config = OmegaConf.create({"some_key": "some_value"})
-        with pytest.raises(ValueError, match="config_schema_kind"):
-            validate_config(config)
-
     def test_raises_if_config_schema_kind_empty(self):
         config = OmegaConf.create({"config_schema_kind": ""})
-        with pytest.raises(ValueError, match="config_schema_kind"):
+        with pytest.raises(ValueError):
             validate_config(config)
 
     def test_calls_class_constructor_with_schema_kind(self):

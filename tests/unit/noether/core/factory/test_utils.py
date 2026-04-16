@@ -74,5 +74,5 @@ def test_class_constructor_invalid_class():
 
 def test_class_constructor_bad_format():
     """Test assertions for invalid strings."""
-    with pytest.raises(AssertionError):
+    with pytest.raises(ValueError):
         class_constructor_from_class_path("JustClassNameWithoutModule")
