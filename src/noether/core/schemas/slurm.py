@@ -26,9 +26,11 @@ class SlurmConfig(BaseModel):
     model_config = {"extra": "forbid"}
 
     # --- Executor constructor argument ---
-    folder: str = "slurm_logs/%j"
+    folder: str = "submitit_logs"
     """Directory where submitit writes the job script, pickled task, and stdout/stderr logs.
-    Supports SLURM filename patterns (e.g. ``%j``, ``%u``)."""
+    Per-job files are named ``<job_id>_log.out`` etc. inside this directory.
+    This is also used as the default ``output_path`` for training runs (see
+    :attr:`ConfigSchema.output_path`)."""
 
     # --- AutoExecutor-generic parameters (mapped to update_parameters as-is) ---
     name: str | None = None

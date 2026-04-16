@@ -64,7 +64,9 @@ LOG FILES
   override them, pass them via ``slurm.slurm_additional_parameters``.
 
 SLURM CONFIG (config.yaml → slurm:)
-  folder                       Submitit log/script directory (default ``slurm_logs/%j``)
+  folder                       Submitit log/script directory (default ``submitit_logs``).
+                               Also used as the default ``output_path`` for training
+                               runs when ``output_path`` is omitted from the config.
   name                         Job name (--job-name)
   slurm_partition              Partition, e.g. ``gpu``
   nodes                        Number of nodes

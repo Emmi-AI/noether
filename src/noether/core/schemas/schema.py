@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Annotated, Any, Literal, TypeVar
 
 import torch
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.lib import Discriminated
@@ -103,8 +103,10 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """If True, enables debug mode with more verbose logging, no WandB logging and output written to debug directory."""
     store_code_in_output: bool = True
     """If True, store a copy of the current code in the output directory for reproducibility."""
-    output_path: Path
-    """Path to output directory."""
+    output_path: Path | None = None
+    """Path to output directory. When omitted, defaults to ``slurm.folder`` if a
+    ``slurm`` section is present. Raises a validation error when neither
+    ``output_path`` nor ``slurm`` is provided."""
     master_port: int = Field(default_factory=master_port_from_env)
     """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
 
@@ -126,15 +128,22 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
             case _:
                 return v
 
-    @field_validator("output_path", mode="after")
-    @classmethod
-    def validate_output_path(cls, value: Path) -> Path:
-        """Validates that the output path is valid."""
-        return validate_path(value, mkdir=True).absolute()
+    @model_validator(mode="after")
+    def _resolve_output_path(self) -> ConfigSchema:
+        """Default ``output_path`` from ``slurm.folder`` when omitted."""
+        if self.output_path is None:
+            if self.slurm is None:
+                raise ValueError(
+                    "output_path is required when no slurm section is present. "
+                    "Either set output_path explicitly or add a slurm config (output_path defaults to slurm.folder)."
+                )
+            self.output_path = Path(self.slurm.folder)
+        self.output_path = validate_path(self.output_path, mkdir=True).absolute()
+        return self
 
     @field_serializer("output_path", mode="plain")
     def serialize_output_path(self, value: Any) -> Any:
-        return str(value)
+        return str(value) if value is not None else None
 
     @field_validator("master_port", mode="before")
     @classmethod

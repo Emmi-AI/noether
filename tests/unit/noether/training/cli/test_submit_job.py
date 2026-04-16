@@ -312,12 +312,12 @@ class TestMain:
 class TestSlurmConfigToExecutorKwargs:
     def test_excludes_none_fields(self):
         folder, params = SlurmConfig(name="job", slurm_partition="gpu").to_executor_kwargs()
-        assert folder == "slurm_logs/%j"
+        assert folder == "submitit_logs"
         assert params == {"name": "job", "slurm_partition": "gpu"}
 
     def test_folder_is_returned_separately(self):
-        folder, params = SlurmConfig(folder="/tmp/logs/%j").to_executor_kwargs()
-        assert folder == "/tmp/logs/%j"
+        folder, params = SlurmConfig(folder="/tmp/logs").to_executor_kwargs()
+        assert folder == "/tmp/logs"
         assert "folder" not in params
 
     def test_passes_setup_and_additional_parameters(self):
