@@ -56,7 +56,7 @@ accepted by :meth:`submitit.AutoExecutor.update_parameters`. An example:
 .. code-block:: yaml
 
    slurm:
-      folder: /home/logs/shapenet_car   # submitit log dir & default output_path
+      folder: /home/%u/logs/shapenet_car   # %u = username; also default output_path
       name: shapenet_experiment
       slurm_partition: compute
       nodes: 1
@@ -73,8 +73,10 @@ accepted by :meth:`submitit.AutoExecutor.update_parameters`. An example:
 Common fields:
 
 - ``folder`` — directory where submitit writes the job script, pickled task,
-  and stdout/stderr logs. Also serves as the default ``output_path`` for
-  training runs when ``output_path`` is not set in the config.
+  and stdout/stderr logs. Supports ``%u`` (current username) interpolation.
+  Also serves as the default ``output_path`` for training runs when
+  ``output_path`` is not set in the config. SLURM job-time patterns
+  (``%j``, ``%A``, etc.) are not supported.
 - ``name`` — job name (``--job-name``).
 - ``slurm_partition`` — partition to submit to.
 - ``nodes`` / ``tasks_per_node`` / ``cpus_per_task`` / ``gpus_per_node`` —

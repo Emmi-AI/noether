@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import getpass
 import re
 from typing import Any
 
 from pydantic import BaseModel, field_validator
+
+# SLURM patterns that require a running job and cannot be resolved at submission time.
+_UNSUPPORTED_FOLDER_PATTERNS: frozenset[str] = frozenset({"%j", "%J", "%A", "%a", "%N", "%x"})
 
 
 class SlurmConfig(BaseModel):
@@ -30,7 +34,12 @@ class SlurmConfig(BaseModel):
     """Directory where submitit writes the job script, pickled task, and stdout/stderr logs.
     Per-job files are named ``<job_id>_log.out`` etc. inside this directory.
     This is also used as the default ``output_path`` for training runs (see
-    :attr:`ConfigSchema.output_path`)."""
+    :attr:`ConfigSchema.output_path`).
+
+    Supports ``%u`` (current username) interpolation, e.g.
+    ``/home/%u/logs/experiment``. SLURM job-time patterns like ``%j`` are
+    **not** supported because submitit needs the directory to exist before
+    submission."""
 
     # --- AutoExecutor-generic parameters (mapped to update_parameters as-is) ---
     name: str | None = None
@@ -72,6 +81,19 @@ class SlurmConfig(BaseModel):
     """Escape hatch for SLURM directives not exposed as first-class fields, e.g.
     ``{"nice": 0, "reservation": "my_res", "chdir": "/work"}``. Keys are passed as
     ``--key=value`` to ``sbatch``."""
+
+    @field_validator("folder")
+    @classmethod
+    def _resolve_folder_patterns(cls, value: str) -> str:
+        """Resolve ``%u`` to the current username; reject job-time SLURM patterns."""
+        for pat in _UNSUPPORTED_FOLDER_PATTERNS:
+            if pat in value:
+                raise ValueError(
+                    f"SLURM pattern '{pat}' in folder is not supported — submitit needs "
+                    "the directory to exist before submission. Use %u (username) instead, "
+                    "or remove the pattern."
+                )
+        return value.replace("%u", getpass.getuser())
 
     @field_validator("gpus_per_node")
     @classmethod

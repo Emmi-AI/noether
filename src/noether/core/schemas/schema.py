@@ -162,7 +162,7 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
         return self
 
     @field_serializer("output_path", mode="plain")
-    def serialize_output_path(self, value: Any) -> Any:
+    def serialize_output_path(self, value: Any) -> str | None:
         return str(value) if value is not None else None
 
     @field_validator("master_port", mode="before")
