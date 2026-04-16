@@ -8,7 +8,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 import torch
 import torch.nn as nn
+from torch.amp.grad_scaler import GradScaler
 
+from noether.core.types import CheckpointKeys
 from noether.core.utils.training import TrainingIteration, UpdateCounter
 from noether.training.trainers.base import (
     BaseTrainer,
@@ -806,6 +808,77 @@ class TestStateDict:
         with pytest.raises(ValueError, match="Two stateful callbacks share checkpoint key"):
             CallbackBase.validate_checkpoint_keys([cb1, cb2])
 
+    def _make_mock_grad_scaler(self):
+        """Create a MagicMock that passes isinstance(_, GradScaler) checks."""
+        scaler = MagicMock(spec=GradScaler)
+        scaler.state_dict.return_value = {"_scale": 65536.0, "_growth_factor": 2.0}
+        return scaler
+
+    def test_state_dict_includes_grad_scaler_when_present(self):
+        """state_dict includes grad scaler state when trainer uses a GradScaler."""
+        trainer = _make_trainer()
+        trainer.callbacks = []
+        trainer.grad_scaler = self._make_mock_grad_scaler()
+
+        sd = trainer.state_dict()
+        assert CheckpointKeys.GRAD_SCALER in sd
+        assert sd[CheckpointKeys.GRAD_SCALER]["_scale"] == 65536.0
+
+    def test_state_dict_excludes_grad_scaler_when_not_grad_scaler(self):
+        """state_dict omits grad scaler key when trainer does not use a real GradScaler."""
+        trainer = _make_trainer()
+        trainer.callbacks = []
+        trainer.grad_scaler = MagicMock(spec=[])  # not a GradScaler
+
+        sd = trainer.state_dict()
+        assert CheckpointKeys.GRAD_SCALER not in sd
+
+    def test_load_state_dict_restores_grad_scaler(self):
+        """load_state_dict loads grad scaler state when both checkpoint and trainer have one."""
+        trainer = _make_trainer()
+        trainer.callbacks = []
+        trainer.grad_scaler = self._make_mock_grad_scaler()
+
+        scaler_state = {"_scale": 999.0, "_growth_factor": 2.0}
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {},
+            CheckpointKeys.TRAINING_ITERATION: {},
+            CheckpointKeys.GRAD_SCALER: scaler_state,
+        }
+        trainer.load_state_dict(state_dict)
+        trainer.grad_scaler.load_state_dict.assert_called_once_with(scaler_state)
+
+    def test_load_state_dict_warns_when_grad_scaler_missing_from_checkpoint(self, caplog):
+        """Warns when trainer uses a GradScaler but checkpoint has no grad scaler state."""
+        trainer = _make_trainer()
+        trainer.callbacks = []
+        trainer.grad_scaler = self._make_mock_grad_scaler()
+
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {},
+            CheckpointKeys.TRAINING_ITERATION: {},
+            # No GRAD_SCALER key
+        }
+        with caplog.at_level(logging.WARNING):
+            trainer.load_state_dict(state_dict)
+
+        assert any("no grad_scaler" in rec.message for rec in caplog.records)
+        trainer.grad_scaler.load_state_dict.assert_not_called()
+
+    def test_load_state_dict_ignores_grad_scaler_when_not_needed(self):
+        """No error when checkpoint has grad scaler state but trainer does not use one."""
+        trainer = _make_trainer()
+        trainer.callbacks = []
+        trainer.grad_scaler = MagicMock(spec=[])  # not a GradScaler
+
+        state_dict = {
+            CheckpointKeys.CALLBACK_STATE_DICT: {},
+            CheckpointKeys.TRAINING_ITERATION: {},
+            CheckpointKeys.GRAD_SCALER: {"_scale": 1.0},
+        }
+        # Should not raise
+        trainer.load_state_dict(state_dict)
+
 
 class TestWrapCompile:
     def test_no_compile_returns_model_unchanged(self):
@@ -980,6 +1053,104 @@ class TestRunPeriodicCallbacks:
 
         # cb2 still ran despite cb1 raising
         cb2.after_update.assert_called_once()
+
+    def test_callback_exception_saves_error_checkpoint(self):
+        """Error checkpoint is saved with '.error' tag before re-raising."""
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = self._make_trainer_with_counter()
+        trainer.checkpoint_writer = MagicMock()
+
+        cb = MagicMock(spec=PeriodicCallback)
+        cb.after_update.side_effect = RuntimeError("broken")
+        model = MagicMock()
+
+        with pytest.raises(RuntimeError, match="broken"):
+            trainer._run_periodic_callbacks(
+                periodic_callbacks=[cb],
+                model=model,
+                dist_model=MagicMock(),
+                data_iter=iter([]),
+                batch_size=4,
+                end_of_epoch=False,
+            )
+
+        trainer.checkpoint_writer.save.assert_called_once()
+        call_kwargs = trainer.checkpoint_writer.save.call_args
+        assert ".error" in call_kwargs.kwargs.get("checkpoint_tag", call_kwargs[1].get("checkpoint_tag", ""))
+
+    def test_multiple_callback_exceptions_reraises_first(self):
+        """When multiple callbacks raise, the first exception is re-raised."""
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = self._make_trainer_with_counter()
+        trainer.checkpoint_writer = MagicMock()
+
+        cb1 = MagicMock(spec=PeriodicCallback)
+        cb1.after_update.side_effect = ValueError("first")
+        cb2 = MagicMock(spec=PeriodicCallback)
+        cb2.after_update.side_effect = TypeError("second")
+
+        with pytest.raises(ValueError, match="first"):
+            trainer._run_periodic_callbacks(
+                periodic_callbacks=[cb1, cb2],
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                data_iter=iter([]),
+                batch_size=4,
+                end_of_epoch=False,
+            )
+
+        # Both callbacks were executed
+        cb1.after_update.assert_called_once()
+        cb2.after_update.assert_called_once()
+
+    def test_callback_exception_survives_checkpoint_save_failure(self):
+        """If saving the error checkpoint also fails, the original error is still raised."""
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = self._make_trainer_with_counter()
+        trainer.checkpoint_writer = MagicMock()
+        trainer.checkpoint_writer.save.side_effect = OSError("disk full")
+
+        cb = MagicMock(spec=PeriodicCallback)
+        cb.after_update.side_effect = ValueError("original")
+
+        with pytest.raises(ValueError, match="original"):
+            trainer._run_periodic_callbacks(
+                periodic_callbacks=[cb],
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                data_iter=iter([]),
+                batch_size=4,
+                end_of_epoch=False,
+            )
+
+    def test_callback_exception_in_after_epoch(self):
+        """Exception handling works the same for end-of-epoch callbacks."""
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = self._make_trainer_with_counter()
+        trainer.update_counter.is_full_epoch = True
+        trainer.checkpoint_writer = MagicMock()
+
+        cb1 = MagicMock(spec=PeriodicCallback)
+        cb1.after_epoch.side_effect = RuntimeError("epoch boom")
+        cb2 = MagicMock(spec=PeriodicCallback)
+
+        with pytest.raises(RuntimeError, match="epoch boom"):
+            trainer._run_periodic_callbacks(
+                periodic_callbacks=[cb1, cb2],
+                model=MagicMock(),
+                dist_model=MagicMock(),
+                data_iter=iter([]),
+                batch_size=4,
+                end_of_epoch=True,
+            )
+
+        # cb2 still ran despite cb1 raising
+        cb2.after_epoch.assert_called_once()
+        trainer.checkpoint_writer.save.assert_called_once()
 
 
 class TestPrepareBatchSize:
@@ -1306,3 +1477,70 @@ class TestSkipRemainingBatches:
         data_iter = MagicMock(spec=[])  # no batch_sampler attribute
         # Should not raise
         trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
+
+
+class TestEval:
+    def test_eval_calls_at_eval_on_periodic_callbacks(self):
+        """eval() calls at_eval on each PeriodicCallback."""
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = _make_trainer()
+
+        cb_periodic = MagicMock(spec=PeriodicCallback)
+        cb_non_periodic = MagicMock(spec=[])  # not a PeriodicCallback
+
+        with (
+            patch.object(trainer, "get_user_callbacks", return_value=[cb_periodic, cb_non_periodic]),
+            patch.object(trainer, "_prepare_model") as mock_prepare,
+            patch.object(trainer, "wrap_model") as mock_wrap,
+            patch.object(trainer, "_prepare_batch_size", return_value=(4, 1, 25)),
+            patch.object(trainer, "get_data_loader", return_value=iter([])),
+            patch(_MODULE_PATH + ".get_world_size", return_value=1),
+            patch(_MODULE_PATH + ".get_num_nodes", return_value=1),
+            patch(_MODULE_PATH + ".is_distributed", return_value=False),
+        ):
+            model = MagicMock()
+            mock_prepare.return_value = model
+            mock_wrap.return_value = model
+            model.to.return_value = model
+            model.eval.return_value = model
+            model.device = torch.device("cpu")
+
+            trainer.eval(model)
+
+        cb_periodic.at_eval.assert_called_once()
+        # Non-periodic callbacks are skipped
+        assert not hasattr(cb_non_periodic, "at_eval") or not cb_non_periodic.at_eval.called
+
+    def test_eval_passes_iterator_args_to_data_iterator_callback(self):
+        """eval() passes trainer_model, data_iter, and batch_size to PeriodicDataIteratorCallbacks."""
+        from noether.core.callbacks import PeriodicDataIteratorCallback
+
+        trainer = _make_trainer()
+        cb = MagicMock(spec=PeriodicDataIteratorCallback)
+
+        with (
+            patch.object(trainer, "get_user_callbacks", return_value=[cb]),
+            patch.object(trainer, "_prepare_model") as mock_prepare,
+            patch.object(trainer, "wrap_model") as mock_wrap,
+            patch.object(trainer, "_prepare_batch_size", return_value=(4, 1, 25)),
+            patch.object(trainer, "get_data_loader", return_value=iter([])),
+            patch(_MODULE_PATH + ".get_world_size", return_value=1),
+            patch(_MODULE_PATH + ".get_num_nodes", return_value=1),
+            patch(_MODULE_PATH + ".is_distributed", return_value=False),
+        ):
+            model = MagicMock()
+            mock_prepare.return_value = model
+            mock_wrap.return_value = model
+            model.to.return_value = model
+            model.eval.return_value = model
+            model.device = torch.device("cpu")
+
+            trainer.eval(model)
+
+        cb.at_eval.assert_called_once()
+        call_kwargs = cb.at_eval.call_args[1]
+        assert "trainer_model" in call_kwargs
+        assert "data_iter" in call_kwargs
+        assert "batch_size" in call_kwargs
+        assert call_kwargs["batch_size"] == 4
