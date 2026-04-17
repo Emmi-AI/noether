@@ -1,0 +1,325 @@
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
+
+from __future__ import annotations
+
+from collections import OrderedDict
+
+import torch
+from pydantic import Field, computed_field
+from torch import Tensor
+
+from noether.core.models import Model
+from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
+from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin
+from noether.core.schemas.models import AnchorBranchedUPTConfig
+from noether.core.schemas.models.ab_upt import AnchorBranchedUPTConfig
+from noether.modeling.models.ab_upt import ModelKVCache
+from noether.modeling.models.aerodynamics import AeroABUPT
+
+
+class UQABUPTConfig(AnchorBranchedUPTConfig, InjectSharedFieldFromParentMixin):
+    """Config for UQ-wrapped AB-UPT model with heteroscedastic output and anchor subsampling."""
+
+    # --- UQ-specific fields ---
+    enable_heteroscedastic: bool = Field(True, description="Enable aleatoric uncertainty via heteroscedastic output")
+    num_anchor_subsamples: int = Field(10, ge=1, description="Number of anchor subsamples for epistemic estimation")
+    anchor_subsample_ratio: float = Field(0.8, gt=0.0, le=1.0, description="Fraction of anchors to keep per subsample")
+    min_log_variance: float = Field(-10.0, description="Min clamp for predicted log-variance")
+    max_log_variance: float = Field(10.0, description="Max clamp for predicted log-variance")
+
+    @computed_field
+    def effective_data_specs(self) -> ModelDataSpecs:
+        """If heteroscedastic is enabled, double the output dims so the decoder produces mean + log_var."""
+        if not self.enable_heteroscedastic:
+            return self.data_specs
+
+        doubled_domains: dict[str, DomainDataSpec] = {}
+        for domain_name, domain_spec in self.data_specs.domains.items():
+            doubled_output = FieldDimSpec(OrderedDict((k, v * 2) for k, v in domain_spec.output_dims.root.items()))
+            doubled_domains[domain_name] = DomainDataSpec(
+                output_dims=doubled_output,
+                feature_dim=domain_spec.feature_dim,
+            )
+
+        return ModelDataSpecs(
+            position_dim=self.data_specs.position_dim,
+            conditioning_dims=self.data_specs.conditioning_dims,
+            domains=doubled_domains,
+            use_physics_features=self.data_specs.use_physics_features,
+        )
+
+
+class UQAnchoredBranchedUPT(Model):
+    """AB-UPT model wrapped with uncertainty quantification.
+
+    Provides two UQ mechanisms:
+    - Aleatoric (heteroscedastic): decoder outputs mean + log-variance per field
+    - Epistemic (anchor subsampling): multiple forward passes with random anchor subsets
+    """
+
+    def __init__(self, model_config: UQABUPTConfig, **kwargs):
+        super().__init__(model_config=model_config, **kwargs)
+        self.backbone = AeroABUPT(model_config=model_config)
+
+        self.enable_heteroscedastic = model_config.enable_heteroscedastic
+        self.original_data_specs = model_config.data_specs  # non-doubled specs
+        self.min_log_var = model_config.min_log_variance
+        self.max_log_var = model_config.max_log_variance
+        self.num_anchor_subsamples = model_config.num_anchor_subsamples
+        self.anchor_subsample_ratio = model_config.anchor_subsample_ratio
+
+    def _split_mean_logvar(self, predictions: dict[str, Tensor]) -> dict[str, Tensor]:
+        """Split doubled predictions into mean and log-variance for each field.
+
+        The backbone outputs fields with 2x the original dimension when heteroscedastic
+        is enabled. For each field (e.g. 'surface_pressure' with shape (B, N, 2*D)),
+        we produce 'surface_pressure_mean' (B, N, D) and 'surface_pressure_log_var' (B, N, D).
+        """
+        # Build lookup of original field dims across all domains
+        original_dims: dict[str, int] = {}
+        for domain_spec in self.original_data_specs.domains.values():
+            for name, dim in domain_spec.output_dims.root.items():
+                original_dims[name] = dim
+
+        split_preds: dict[str, Tensor] = {}
+        for key, tensor in predictions.items():
+            # key format: "{prefix}_{field_name}" e.g. "surface_pressure", "query_volume_velocity"
+            # Find which original field this corresponds to
+            field_name = self._extract_field_name(key)
+            if field_name in original_dims:
+                d = original_dims[field_name]
+                prefix = key[: -len(field_name) - 1]  # e.g. "surface" or "query_volume"
+                split_preds[f"{prefix}_{field_name}_mean"] = tensor[..., :d]
+                log_var = tensor[..., d:]
+                split_preds[f"{prefix}_{field_name}_log_var"] = log_var.clamp(self.min_log_var, self.max_log_var)
+            else:
+                split_preds[key] = tensor
+
+        return split_preds
+
+    @staticmethod
+    def _extract_field_name(key: str) -> str:
+        """Extract field name from prediction key.
+
+        Keys follow pattern: '{domain}_{field}' or 'query_{domain}_{field}'.
+        Domain is 'surface' or 'volume'.
+        """
+        parts = key.split("_")
+        if parts[0] == "query":
+            # query_surface_pressure -> pressure, query_volume_velocity -> velocity
+            return "_".join(parts[2:])
+        # surface_pressure -> pressure, volume_velocity -> velocity
+        return "_".join(parts[1:])
+
+    def forward(
+        self,
+        geometry_position: Tensor | None = None,
+        geometry_supernode_idx: Tensor | None = None,
+        geometry_batch_idx: Tensor | None = None,
+        surface_anchor_position: Tensor | None = None,
+        volume_anchor_position: Tensor | None = None,
+        geometry_design_parameters: Tensor | None = None,
+        inflow_design_parameters: Tensor | None = None,
+        query_surface_position: Tensor | None = None,
+        query_volume_position: Tensor | None = None,
+        kv_cache: ModelKVCache | None = None,
+    ) -> dict[str, Tensor]:
+        """Forward pass with optional heteroscedastic output splitting.
+
+        During training, this is the primary method called by the trainer.
+        Returns a flat dict of predictions (with _mean and _log_var suffixes if heteroscedastic).
+        """
+        predictions = self.backbone(
+            geometry_position=geometry_position,
+            geometry_supernode_idx=geometry_supernode_idx,
+            geometry_batch_idx=geometry_batch_idx,
+            surface_anchor_position=surface_anchor_position,
+            volume_anchor_position=volume_anchor_position,
+            geometry_design_parameters=geometry_design_parameters,
+            inflow_design_parameters=inflow_design_parameters,
+            query_surface_position=query_surface_position,
+            query_volume_position=query_volume_position,
+            kv_cache=kv_cache,
+        )
+
+        if self.enable_heteroscedastic:
+            return self._split_mean_logvar(predictions)
+        return predictions
+
+    @torch.no_grad()
+    def forward_with_epistemic(
+        self,
+        geometry_position: Tensor,
+        geometry_supernode_idx: Tensor,
+        geometry_batch_idx: Tensor,
+        surface_anchor_position: Tensor,
+        volume_anchor_position: Tensor,
+        geometry_design_parameters: Tensor | None = None,
+        inflow_design_parameters: Tensor | None = None,
+        query_surface_position: Tensor | None = None,
+        query_volume_position: Tensor | None = None,
+        num_subsamples: int | None = None,
+        subsample_ratio: float | None = None,
+    ) -> dict[str, Tensor]:
+        """Inference with epistemic uncertainty via anchor subsampling.
+
+        Runs the geometry branch once, then K forward passes through physics+decoder
+        with different random anchor subsets. Returns per-field mean, aleatoric log-variance
+        (if heteroscedastic), and epistemic variance.
+
+        Args:
+            num_subsamples: Number of anchor subsamples (overrides config default).
+            subsample_ratio: Fraction of anchors to keep (overrides config default).
+        """
+        K = num_subsamples or self.num_anchor_subsamples
+        ratio = subsample_ratio or self.anchor_subsample_ratio
+
+        # Compute geometry encoding once (shared across all subsamples)
+        condition = self.backbone._prepare_condition(geometry_design_parameters, inflow_design_parameters)
+        geometry_encoding = None
+        if self.backbone.use_geometry_branch:
+            # Compute RoPE for geometry
+            # We need a dummy call to get geometry attn kwargs — use full anchors for position
+            surface_position_all = (
+                torch.cat([surface_anchor_position, query_surface_position], dim=1)
+                if query_surface_position is not None
+                else surface_anchor_position
+            )
+            volume_position_all = (
+                torch.cat([volume_anchor_position, query_volume_position], dim=1)
+                if query_volume_position is not None
+                else volume_anchor_position
+            )
+
+            geometry_attn_kwargs, _, _, _, _ = self.backbone.create_rope_frequencies(
+                surface_position_all=surface_position_all,
+                volume_position_all=volume_position_all,
+                geometry_position=geometry_position,
+                geometry_supernode_idx=geometry_supernode_idx,
+            )
+            geometry_encoding = self.backbone.geometry_branch_forward(
+                geometry_position=geometry_position,
+                geometry_supernode_idx=geometry_supernode_idx,
+                geometry_batch_idx=geometry_batch_idx,
+                condition=condition,
+                geometry_attn_kwargs=geometry_attn_kwargs,
+            )
+
+        # Collect predictions from K subsampled forward passes
+        all_predictions: list[dict[str, Tensor]] = []
+        n_surface = surface_anchor_position.size(1)
+        n_volume = volume_anchor_position.size(1)
+        k_surface = max(1, int(n_surface * ratio))
+        k_volume = max(1, int(n_volume * ratio))
+
+        for _ in range(K):
+            # Random anchor subsampling
+            surface_idx = torch.randperm(n_surface, device=surface_anchor_position.device)[:k_surface].sort().values
+            volume_idx = torch.randperm(n_volume, device=volume_anchor_position.device)[:k_volume].sort().values
+
+            sub_surface = surface_anchor_position[:, surface_idx]
+            sub_volume = volume_anchor_position[:, volume_idx]
+
+            # Build position tensors
+            sub_surface_all = (
+                torch.cat([sub_surface, query_surface_position], dim=1)
+                if query_surface_position is not None
+                else sub_surface
+            )
+            sub_volume_all = (
+                torch.cat([sub_volume, query_volume_position], dim=1)
+                if query_volume_position is not None
+                else sub_volume
+            )
+
+            # Compute RoPE for this subsample
+            (
+                _,
+                surface_decoder_attn_kwargs,
+                volume_decoder_attn_kwargs,
+                physics_perceiver_attn_kwargs,
+                physics_attn_kwargs,
+            ) = self.backbone.create_rope_frequencies(
+                surface_position_all=sub_surface_all,
+                volume_position_all=sub_volume_all,
+                geometry_position=geometry_position,
+                geometry_supernode_idx=geometry_supernode_idx,
+            )
+
+            # Token specs for subsampled anchors
+            physics_token_specs, surface_token_specs, volume_token_specs = self.backbone._create_physics_token_specs(
+                surface_position=sub_surface,
+                volume_position=sub_volume,
+                query_surface_position=query_surface_position,
+                query_volume_position=query_volume_position,
+            )
+
+            # Physics blocks (reusing geometry_encoding)
+            x_physics, _ = self.backbone.physics_blocks_forward(
+                surface_position_all=sub_surface_all,
+                volume_position_all=sub_volume_all,
+                geometry_encoding=geometry_encoding,
+                physics_token_specs=physics_token_specs,
+                physics_attn_kwargs=physics_attn_kwargs,
+                physics_perceiver_attn_kwargs=physics_perceiver_attn_kwargs,
+                condition=condition,
+            )
+
+            # Decoder blocks
+            surface_preds, volume_preds, _, _ = self.backbone.decoder_blocks_forward(
+                x_physics=x_physics,
+                physics_token_specs=physics_token_specs,
+                surface_token_specs=surface_token_specs,
+                volume_token_specs=volume_token_specs,
+                surface_decoder_attn_kwargs=surface_decoder_attn_kwargs,
+                volume_decoder_attn_kwargs=volume_decoder_attn_kwargs,
+                condition=condition,
+                surface_position_all=sub_surface_all,
+                volume_position_all=sub_volume_all,
+            )
+
+            # Slice predictions
+            raw_preds = self.backbone._slice_predictions(
+                surface_predictions=surface_preds,
+                volume_predictions=volume_preds,
+                num_surface_anchors=k_surface,
+                num_volume_anchors=k_volume,
+            )
+
+            if self.enable_heteroscedastic:
+                raw_preds = self._split_mean_logvar(raw_preds)
+
+            all_predictions.append(raw_preds)
+
+        # Aggregate: compute epistemic statistics across K runs
+        return self._aggregate_epistemic(all_predictions)
+
+    @staticmethod
+    def _aggregate_epistemic(all_predictions: list[dict[str, Tensor]]) -> dict[str, Tensor]:
+        """Compute mean and variance across K subsampled predictions.
+
+        For each key ending in '_mean', computes epistemic variance across K runs.
+        For keys ending in '_log_var' (aleatoric), averages the log-variances.
+        Other keys (e.g. anchor predictions) are averaged.
+        """
+        keys = all_predictions[0].keys()
+        result: dict[str, Tensor] = {}
+
+        for key in keys:
+            stacked = torch.stack([p[key] for p in all_predictions], dim=0)  # (K, B, N, D)
+
+            if key.endswith("_mean"):
+                # Epistemic: variance of means across subsamples
+                base = key[: -len("_mean")]
+                result[key] = stacked.mean(dim=0)
+                result[f"{base}_epistemic_var"] = stacked.var(dim=0)
+            elif key.endswith("_log_var"):
+                # Aleatoric: average the predicted log-variances
+                result[key] = stacked.mean(dim=0)
+            else:
+                # Non-heteroscedastic fields or raw fields
+                base = key
+                result[f"{key}_mean"] = stacked.mean(dim=0)
+                result[f"{key}_epistemic_var"] = stacked.var(dim=0)
+
+        return result

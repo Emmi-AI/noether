@@ -1,0 +1,5 @@
+trainer:
+  callbacks:
+  - kind: noether.training.callbacks.OfflineLossCallback
+    dataset_key: test
+    name: OfflineLossCallback
