@@ -99,39 +99,6 @@ def _discriminated_validator(item, registry_cls: type[_RegistryBase]) -> Any:
     return item
 
 
-def _collect_computed_field_names() -> set[str]:
-    """Return all computed_field names across every loaded pydantic BaseModel subclass."""
-    names: set[str] = set()
-    visited: set[type] = set()
-    to_visit: list[type] = list(BaseModel.__subclasses__())
-    while to_visit:
-        cls = to_visit.pop()
-        if cls in visited:
-            continue
-        visited.add(cls)
-        to_visit.extend(cls.__subclasses__())
-        names.update(cls.model_computed_fields.keys())
-    return names
-
-
-def strip_computed_fields(data: Any) -> Any:
-    """Recursively drop any dict key matching a computed_field name in the loaded schema tree.
-
-    Computed fields are re-derived at validation time; they must not appear as input to
-    pydantic models configured with `extra='forbid'`, which would otherwise reject them.
-    """
-    names = _collect_computed_field_names()
-
-    def _walk(obj: Any) -> Any:
-        if isinstance(obj, dict):
-            return {k: _walk(v) for k, v in obj.items() if k not in names}
-        if isinstance(obj, list):
-            return [_walk(x) for x in obj]
-        return obj
-
-    return _walk(data)
-
-
 def ConfiguredBy(config_class: type[BaseModel]):
     """
     Decorator to mark a class as being configured by a specific config class.
