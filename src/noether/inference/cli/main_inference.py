@@ -10,7 +10,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from noether.inference.runners.inference_runner import InferenceRunner
 from noether.training.cli import setup_hydra
-from src.noether.core.configs.hyperparameters import strip_computed_fields
+from noether.core.schemas.lib import strip_computed_fields
 
 setup_hydra()
 
