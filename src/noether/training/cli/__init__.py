@@ -31,7 +31,15 @@ def setup_hydra():
     # Check if we should add custom help
     if "--help" in sys.argv or "-h" in sys.argv:
         prog_name = Path(sys.argv[0]).name
-        runner_name = "Training" if "train" in prog_name else "Inference" if "inference" in prog_name else "Generic"
+        runner_name = (
+            "Training"
+            if "train" in prog_name
+            else "Inference"
+            if "inference" in prog_name
+            else "Development"
+            if "development" in prog_name
+            else "Generic"
+        )
 
         help_header = (
             f"Noether {runner_name} Runner\n"

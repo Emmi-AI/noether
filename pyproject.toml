@@ -55,6 +55,7 @@ noether-eval = "noether.inference.cli.main_inference:main"
 noether-data = "noether.io.cli.cli:app"
 noether-dataset-stats = "noether.data.tools.calculate_statistics:main"
 noether-init = "noether.scaffold.cli:app"
+noether-development = "noether.training.cli.development:main"
 
 # --- Centralized Development & Tooling Dependencies ---
 # These are dependencies for developing the *entire* workspace.

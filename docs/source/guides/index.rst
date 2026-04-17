@@ -24,6 +24,7 @@ Customizing Training
 * :doc:`training/implement_a_custom_model`: Defining new model architectures and layers.
 * :doc:`training/implement_a_custom_trainer`: Tailoring the training loop for specific research or production needs.
 * :doc:`training/use_callbacks`: Extending the framework with custom training callbacks.
+* :doc:`training/development_cli`: How to develop individual components using Noether's CLI tools.
 
 Inference & Evaluation
 ----------------------
@@ -48,5 +49,6 @@ Inference & Evaluation
    training/experiment_tracking
    training/launch_job
    training/how_to_initialize
+   training/development_cli
 
    inference/how_to_run_evaluation_on_trained_models

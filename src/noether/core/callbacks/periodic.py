@@ -550,6 +550,7 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         checkpoint_writer: CheckpointWriter,
         metric_property_provider: MetricPropertyProvider,
         name: str | None = None,
+        development: bool = False,
     ):
         """
 
@@ -579,7 +580,8 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         )
         self.dataset_key = callback_config.dataset_key
         self.total_data_time = torch.tensor(0.0)
-        self.sampler_config = self._sampler_config_from_key(key=self.dataset_key)
+        if not development:
+            self.sampler_config = self._sampler_config_from_key(key=self.dataset_key)
 
     def _sampler_config_from_key(
         self, key: str | None, properties: set[str] | None = None, max_size: int | None = None

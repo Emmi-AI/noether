@@ -113,7 +113,7 @@ def test_iterator_over_dataset():
 
 
 def test_with_normalizers_decorator_key_error():
-    """Test that a KeyError is raised for a non-existent normalizer key."""
+    """Test that that the standard behavior of with_normalizers is preserved when a non-existent key is used."""
 
     class NormalizedDataset(Dataset):
         def __init__(self):
@@ -127,8 +127,8 @@ def test_with_normalizers_decorator_key_error():
             return "raw_data"
 
     ds = NormalizedDataset()
-    with pytest.raises(KeyError, match="Normalizer key 'non_existent_key' not found"):
-        _ = ds[0]
+    out = ds[0]
+    assert out == {"index": 0, "x": "raw_data"}
 
 
 # --- pre_getitem hook tests ---

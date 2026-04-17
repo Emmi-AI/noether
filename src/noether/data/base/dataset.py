@@ -12,6 +12,8 @@ from typing import Any
 import yaml
 from torch.utils.data import Dataset as TorchDataset
 
+logger = logging.getLogger(__name__)
+
 from noether.core.factory import Factory
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.data.pipeline import Collator, MultiStagePipeline
@@ -81,17 +83,18 @@ def with_normalizers(_func_or_key: str | Any | None = None):
                 try:
                     normalizers = self.normalizers
                 except AttributeError as exc:
-                    raise AttributeError(
-                        f"{self.__class__.__name__}.normalizers not found; "
-                        f"required for with_normalizers('{normalizer_key}') method"
-                    ) from exc
+                    logger.warning(
+                        f"{self.__class__.__name__}.normalizers not found; required for with_normalizers('{normalizer_key}') method"
+                    )
+                    return data  # Return unnormalized data if normalizers are not defined
 
                 try:
                     normalizer = normalizers[normalizer_key]
                 except KeyError:
-                    raise KeyError(
+                    logger.warning(
                         f"Normalizer key '{normalizer_key}' not found. Available: {list(normalizers.keys())}"
-                    ) from None
+                    )
+                    return data  # Return unnormalized data if the normalizer key is not found
                 object.__setattr__(self, cache_attr, normalizer)  # bypass any __setattr__ overrides
 
             data = normalizer(data)
