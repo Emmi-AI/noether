@@ -10,6 +10,7 @@ from omegaconf import DictConfig, OmegaConf
 
 from noether.inference.runners.inference_runner import InferenceRunner
 from noether.training.cli import setup_hydra
+from src.noether.core.configs.hyperparameters import strip_computed_fields
 
 setup_hydra()
 
@@ -64,6 +65,9 @@ def main(inference_config: DictConfig):
     # Load training config as base
     with open(hp_resolved_path) as f:
         train_config = yaml.full_load(f)
+
+    # Drop computed_fields, if present int hp_resolved.yaml
+    train_config = strip_computed_fields(train_config)
 
     # Merge: Training config is base, Inference config overrides
     # OmegaConf.merge handles DictConfig and dict
