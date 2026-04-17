@@ -1,0 +1,140 @@
+# @package _global_
+dataset_root: null
+dataset_kind: noether.data.datasets.cfd.SimshiftHeatsinkDataset
+project: heat_transfer
+
+defaults:
+  - model: ???  # set per experiment (e.g., +experiment/simshift_heatsink=ab_upt)
+  - tracker: ??
+  - slurm: slurm_config
+  - _self_
+
+stage_name: train
+store_code_in_output: false
+output_path: ./outputs
+
+dataset_normalizers:
+  volume_position:
+    kind: noether.data.preprocessors.normalizers.FieldNormalizer
+    strategy: position
+    scale: 1000
+  volume_velocity:
+    kind: noether.data.preprocessors.normalizers.FieldNormalizer
+    strategy: mean_std
+  volume_temperature:
+    kind: noether.data.preprocessors.normalizers.FieldNormalizer
+    strategy: mean_std
+  volume_pressure:
+    kind: noether.data.preprocessors.normalizers.FieldNormalizer
+    strategy: mean_std
+  simulation_parameters:
+    kind: noether.data.preprocessors.normalizers.FieldNormalizer
+    strategy: mean_std
+
+
+data_specs:
+  position_dim: 3
+  conditioning_dims:
+    simulation_parameters: 5
+  domains:
+    volume:
+      output_dims:
+        velocity: 3
+        temperature: 1
+        pressure: 1
+
+pipeline:
+  kind: pipeline.HeatTransferPipeline
+  num_volume_points: 4096
+  data_specs: ${data_specs}
+
+inference_pipeline:
+  kind: pipeline.HeatTransferPipeline
+  num_volume_points: 32768
+  data_specs: ${data_specs}
+
+datasets:
+  train:
+    kind: ${dataset_kind}
+    root: ${dataset_root}
+    split: train
+    pipeline: ${pipeline}
+    dataset_normalizers: ${dataset_normalizers}
+  val:
+    kind: ${dataset_kind}
+    root: ${dataset_root}
+    split: val
+    pipeline: ${pipeline}
+    dataset_normalizers: ${dataset_normalizers}
+  test:
+    kind: ${dataset_kind}
+    root: ${dataset_root}
+    split: test
+    pipeline: ${inference_pipeline}
+    dataset_normalizers: ${dataset_normalizers}
+  test_viz:
+    kind: ${dataset_kind}
+    root: ${dataset_root}
+    split: test
+    pipeline: ${inference_pipeline}
+    dataset_normalizers: ${dataset_normalizers}
+    wrappers:
+      - kind: noether.data.base.wrappers.SubsetWrapper
+        start_index: 0
+        end_index: 1
+
+trainer:
+  kind: noether.training.trainers.WeightedLossTrainer
+  precision: float16
+  max_epochs: 75
+  effective_batch_size: 1
+  log_every_n_epochs: 1
+  callbacks:
+    - kind: noether.core.callbacks.CheckpointCallback
+      every_n_epochs: 10
+      save_weights: false
+      save_latest_weights: true
+      save_latest_optim: true
+    - kind: noether.training.callbacks.OfflineLossCallback
+      batch_size: 1
+      every_n_epochs: 1
+      dataset_key: val
+    - kind: noether.core.callbacks.BestCheckpointCallback
+      every_n_epochs: 1
+      metric_key: loss/val/total
+    - kind: callbacks.HeatTransferMetricsCallback
+      batch_size: 1
+      every_n_epochs: 1
+      dataset_key: val
+      forward_properties: ${model.forward_properties}
+    - kind: callbacks.HeatTransferMetricsCallback
+      batch_size: 1
+      every_n_epochs: 1
+      dataset_key: test
+      forward_properties: ${model.forward_properties}
+    - kind: callbacks.HeatTransferVisualizationCallback
+      every_n_epochs: 10
+      dataset_key: test_viz
+      forward_properties: ${model.forward_properties}
+
+  forward_properties: ${model.forward_properties}
+  target_properties:
+    - volume_velocity_target
+    - volume_temperature_target
+    - volume_pressure_target
+  field_weights:
+    volume_velocity: 1.0
+    volume_temperature: 1.0
+    volume_pressure: 1.0
+
+
+optimizer:
+  kind: torch.optim.AdamW
+  lr: 1.0e-3
+  weight_decay: 0.05
+  clip_grad_norm: 1.0
+  schedule_config:
+    kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+    warmup_percent: 0.05
+    end_value: 1.0e-6
+    max_value: ${optimizer.lr}

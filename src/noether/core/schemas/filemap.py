@@ -15,6 +15,7 @@ class FileMap(BaseModel):
     surface_pressure: str | None = None
     surface_friction: str | None = None
     surface_normals: str | None = None
+    surface_area: str | None = None
 
     # Volume field files
     volume_position: str | None = None

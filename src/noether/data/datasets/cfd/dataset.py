@@ -88,3 +88,7 @@ class AeroDataset(Dataset):
     def getitem_surface_normals(self, idx: int) -> torch.Tensor:
         """Retrieve surface normal vectors."""
         return self._load(idx=idx, filename=self.filemap.surface_normals)  # type: ignore[arg-type]
+
+    def getitem_surface_area(self, idx: int) -> torch.Tensor:
+        """Retrieve surface cell areas."""
+        return self._load(idx=idx, filename=self.filemap.surface_area)  # type: ignore[arg-type]

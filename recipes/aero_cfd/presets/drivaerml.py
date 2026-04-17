@@ -70,7 +70,7 @@ class DrivAerMLPreset(AeroCFDPreset):
 
     @property
     def excluded_properties(self) -> set[str]:
-        return {"surface_normals", "volume_normals", "volume_sdf", "surface_sdf"}
+        return {"surface_normals", "surface_area", "volume_normals", "volume_sdf", "surface_sdf"}
 
     def target_properties(self) -> list[str]:
         return [
