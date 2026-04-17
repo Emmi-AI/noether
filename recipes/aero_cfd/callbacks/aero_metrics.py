@@ -291,7 +291,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
 
         dataset = self.data_container.get_dataset(self.dataset_key)
         denorm_pred = dataset.denormalize(mode, prediction)
-        denorm_target = dataset.denormalize(f"{mode}{METRIC_SUFFIX_TARGET}", target)
+        denorm_target = dataset.denormalize(mode, target)
 
         # Align sizes if needed
         denorm_pred, denorm_target = self._align_chunk_sizes(denorm_pred, denorm_target)
