@@ -19,7 +19,7 @@ inference_pipeline:
   num_volume_anchor_points: 1000000000
 
 trainer:
-  precision: bfloat16
+  precision: float16
 
 model:
   supernode_pooling_config:
