@@ -63,6 +63,37 @@ Available arguments:
 | `--accelerator` | Accelerator to use: `cpu`, `gpu`, or `mps` (default: `gpu`). |
 | `--model` | Model architecture: `abupt`, `upt`, `transformer`, or `transolver` (default: `abupt`). |
 
+## Muon optimizer
+
+The recipe contains a Muon-based composite optimizer as an alternative to the default Lion. Muon handles 2D weight matrices; a Lion secondary optimizer handles the remaining parameters (biases, normalization layers).
+
+Relevant configs:
+- [configs/optimizer/muon.yaml](configs/optimizer/muon.yaml) — Muon (lr=0.01, momentum=0.95) + Lion secondary (lr=5e-5)
+- [configs/experiment/drivaerml/ab_upt_muon_lion.yaml](configs/experiment/drivaerml/ab_upt_muon_lion.yaml) — AB-UPT on DrivAerML
+- [configs/experiment/shapenet/ab_upt_muon_lion.yaml](configs/experiment/shapenet/ab_upt_muon_lion.yaml) — AB-UPT on ShapeNet-Car
+
+To train AB-UPT on DrivAerML with Muon:
+
+```bash
+uv run noether-train \
+  --hp configs/train_drivaerml.yaml \
+  +experiment/drivaerml=ab_upt_muon_lion
+```
+
+### Results
+
+AB-UPT on DrivAerML (10x-subsampled), median over 3 seeds, test L2 error:
+
+| Metric | Lion baseline | Muon+Lion | Δ |
+|---|---|---|---|
+| Surface pressure | 0.0386 | 0.0368 | -4.7% |
+| Volume velocity | 0.0600 | 0.0568 | -5.3% |
+| Volume vorticity | 0.452 | 0.408 | -9.8% |
+
+The Muon LR was selected via a single-seed sweep over [0.001, 0.002, 0.005, 0.01, 0.02]. Training used float16 precision.
+
+See the [W&B report](https://wandb.ai/emmi-ai/optimizer-muon-ab-upt/reports/Muon-optimizer-AB-UPT--VmlldzoxNjU2OTgwMQ?accessToken=hqopdn0gmppyiv7l14zcvnoutjpm837alj1k6i6q97wtng5trzbl08y37djahojj) for training curves and additional metrics.
+
 ## Documentation
 
 For a detailed walkthrough of this recipe covering configuration, datasets, pipeline, models, callbacks, and experiment execution, see the [full tutorial in the documentation](https://noether-docs.emmi.ai/html/tutorials/walkthrough/index.html).

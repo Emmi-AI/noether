@@ -90,9 +90,9 @@ class OptimizerWrapper:
         # primary and secondary optimizers have different learning rates).
         for pg in self.torch_optim.param_groups:
             pg["initial_lr"] = pg["lr"]
-        self._schedule_reference_lr: float = max(
-            (pg["initial_lr"] for pg in self.torch_optim.param_groups),
-            default=0.0,
+        # Schedule's absolute value is anchored to group[0]'s initial LR (the primary group for MuonComposite).
+        self._schedule_reference_lr: float = (
+            self.torch_optim.param_groups[0]["initial_lr"] if self.torch_optim.param_groups else 0.0
         )
 
         # for grad clipping all parameters of the model are required

@@ -8,7 +8,6 @@ from noether.core.schemas.optimizers import (
     AdamOptimizerConfig,
     AnyOptimizerConfig,
     MuonOptimizerConfig,
-    OptimizerConfig,
     SGDOptimizerConfig,
 )
 
@@ -17,7 +16,7 @@ _adapter = TypeAdapter(AnyOptimizerConfig)
 
 class TestOptimizerConfigDispatch:
     @pytest.mark.parametrize(
-        "kind,expected_cls",
+        ("kind", "expected_cls"),
         [
             ("torch.optim.AdamW", AdamOptimizerConfig),
             ("noether.core.optimizer.Lion", AdamOptimizerConfig),
@@ -61,5 +60,3 @@ class TestModelBaseConfigDispatch:
         )
         assert isinstance(model_cfg.optimizer_config, SGDOptimizerConfig)
         assert model_cfg.optimizer_config.momentum == 0.9
-
-

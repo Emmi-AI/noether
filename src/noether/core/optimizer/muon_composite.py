@@ -17,7 +17,7 @@ class MuonComposite(torch.optim.Optimizer):
     def __init__(
         self,
         params,
-        lr=2.0e-3,
+        lr=0.01,
         momentum=0.95,
         weight_decay=0.01,
         secondary=None,
@@ -133,6 +133,14 @@ class MuonComposite(torch.optim.Optimizer):
         # maps the global indices back to local ones for each optimizer.
         sd_state = state_dict["state"]
         sd_groups = state_dict["param_groups"]
+
+        total_groups = sum(len(opt.param_groups) for opt in (self._muon, self._secondary) if opt is not None)
+        if len(sd_groups) != total_groups:
+            raise ValueError(
+                f"MuonComposite.load_state_dict: checkpoint has {len(sd_groups)} param groups but current "
+                f"split expects {total_groups}. The 2D/non-2D param routing likely changed (model architecture "
+                "or param_group modifiers differ from the saved run)."
+            )
 
         offset = 0
         for opt in (self._muon, self._secondary):
