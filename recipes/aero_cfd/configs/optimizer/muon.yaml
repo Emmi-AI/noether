@@ -1,5 +1,5 @@
 kind: noether.core.optimizer.MuonComposite
-lr: 2.0e-3
+lr: 0.01
 momentum: 0.95
 weight_decay: 0.01
 secondary:

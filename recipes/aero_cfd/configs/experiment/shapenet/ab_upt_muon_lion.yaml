@@ -17,10 +17,10 @@ pipeline:
     num_volume_anchor_points: 4096
 
 trainer:
-  precision: bfloat16
+  precision: float16
 
 optimizer:
-  lr: 0.001
+  lr: 0.01
   secondary:
     kind: noether.core.optimizer.Lion
     lr: 5.0e-5
