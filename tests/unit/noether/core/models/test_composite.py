@@ -6,7 +6,7 @@ import torch
 
 from noether.core.models import CompositeModel, Model, ModelBase
 from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.schemas.optimizers import AdamOptimizerConfig
 
 
 class TestCompositeModel(unittest.TestCase):
@@ -39,7 +39,7 @@ class TestCompositeModel(unittest.TestCase):
                 model_config=ModelBaseConfig(
                     kind="single",
                     name="model1",
-                    optimizer_config=OptimizerConfig(kind="torch.optim.AdamW", lr=1e-4) if not frozen_1 else None,
+                    optimizer_config=AdamOptimizerConfig(lr=1e-4) if not frozen_1 else None,
                 ),
                 is_frozen=frozen_1,
             ),
@@ -47,7 +47,7 @@ class TestCompositeModel(unittest.TestCase):
                 model_config=ModelBaseConfig(
                     kind="single",
                     name="model2",
-                    optimizer_config=OptimizerConfig(kind="torch.optim.AdamW", lr=1e-3) if not frozen_2 else None,
+                    optimizer_config=AdamOptimizerConfig(lr=1e-3) if not frozen_2 else None,
                 ),
                 is_frozen=frozen_2,
             ),
@@ -65,7 +65,7 @@ class TestCompositeModel(unittest.TestCase):
                     model_config=ModelBaseConfig(
                         kind="single",
                         name="model1",
-                        optimizer_config=OptimizerConfig(kind="torch.optim.AdamW", lr=1e-4),
+                        optimizer_config=AdamOptimizerConfig(lr=1e-4),
                     ),
                     is_frozen=True,
                 ),
@@ -73,7 +73,7 @@ class TestCompositeModel(unittest.TestCase):
                     model_config=ModelBaseConfig(
                         kind="single",
                         name="model2",
-                        optimizer_config=OptimizerConfig(kind="torch.optim.AdamW", lr=1e-3),
+                        optimizer_config=AdamOptimizerConfig(lr=1e-3),
                     ),
                     is_frozen=True,
                 ),

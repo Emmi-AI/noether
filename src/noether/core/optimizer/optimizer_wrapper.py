@@ -84,6 +84,17 @@ class OptimizerWrapper:
         # initialize torch optim
         self.torch_optim = torch_optim_ctor(merged_groups)
 
+        # Store each group's initial LR so that schedule_step() can apply the schedule
+        # as a multiplicative factor rather than an absolute overwrite. This preserves
+        # per-group LR ratios for composite optimizers (e.g. MuonComposite where the
+        # primary and secondary optimizers have different learning rates).
+        for pg in self.torch_optim.param_groups:
+            pg["initial_lr"] = pg["lr"]
+        self._schedule_reference_lr: float = max(
+            (pg["initial_lr"] for pg in self.torch_optim.param_groups),
+            default=0.0,
+        )
+
         # for grad clipping all parameters of the model are required
         self.all_parameters = None
         if self.config.clip_grad_value is not None or self.config.clip_grad_norm is not None:
@@ -289,14 +300,18 @@ class OptimizerWrapper:
     def schedule_step(self) -> None:
         """Applies the current state of the schedules to the parameter groups."""
         if self.schedule is not None:
-            lr_scale = self.schedule.get_value()
+            schedule_lr_value = self.schedule.get_value()
+            if self._schedule_reference_lr > 0:
+                ratio = schedule_lr_value / self._schedule_reference_lr
+            else:
+                ratio = 0.0
             for param_group in self.torch_optim.param_groups:
+                effective_lr = param_group["initial_lr"] * ratio
                 if "lr_scale" in param_group:
-                    # lr_scale -> current lr from schedule
-                    # param_group["lr_scale"] -> scale form layer-wise lr decay
-                    param_group["lr"] = param_group["lr_scale"] * lr_scale
+                    # param_group["lr_scale"] -> scale from layer-wise lr decay
+                    param_group["lr"] = param_group["lr_scale"] * effective_lr
                 else:
-                    param_group["lr"] = lr_scale
+                    param_group["lr"] = effective_lr
         if self.weight_decay_schedule is not None:
             wd_scale = self.weight_decay_schedule.get_value()
             for param_group in self.torch_optim.param_groups:

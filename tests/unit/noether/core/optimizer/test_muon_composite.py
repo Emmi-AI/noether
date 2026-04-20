@@ -56,7 +56,6 @@ class TestMuonComposite:
         # No param should appear in both
         assert set(muon_params).isdisjoint(set(secondary_params))
 
-
     def test_default_secondary_is_lion(self, param_groups):
         """When no secondary kind is specified, Lion is used."""
         opt = MuonComposite(param_groups, lr=1e-3)

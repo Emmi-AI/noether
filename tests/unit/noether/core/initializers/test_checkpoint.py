@@ -12,7 +12,7 @@ from noether.core.models import Model
 from noether.core.providers import PathProvider
 from noether.core.schemas.initializers import CheckpointInitializerConfig, ResumeInitializerConfig
 from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.schemas.optimizers import SGDOptimizerConfig
 from noether.core.utils.model import compute_model_norm
 from noether.core.utils.training.training_iteration import TrainingIteration
 
@@ -66,11 +66,7 @@ def base_config_dict():
 
 @pytest.fixture
 def dummy_model():
-    return DummyModel(
-        ModelBaseConfig(
-            name="dummy_model", kind="...", optimizer_config=OptimizerConfig(kind="torch.optim.SGD", lr=0.01)
-        )
-    )
+    return DummyModel(ModelBaseConfig(name="dummy_model", kind="...", optimizer_config=SGDOptimizerConfig(lr=0.01)))
 
 
 class DummyInitializer(CheckpointInitializer):
