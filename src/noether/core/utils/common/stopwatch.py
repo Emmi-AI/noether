@@ -114,10 +114,13 @@ class Stopwatch:
     def _flush_pending_gpu_laps(self) -> None:
         """Resolve pending GPU event pairs into elapsed seconds.
 
-        Synchronizes each end event before calling ``elapsed_time()``.
+        Synchronizes the device once before resolving all pending event pairs.
+        Per-event synchronization (``end_event.synchronize()``) can stall on MPS,
+        so a single device-level sync is used instead.
         """
+        if self._gpu_pending_laps and self._device is not None:
+            self.sync(self._device)
         for start_event, end_event in self._gpu_pending_laps:
-            end_event.synchronize()
             self._elapsed_seconds.append(start_event.elapsed_time(end_event) / 1000.0)  # type: ignore[arg-type]
         self._gpu_pending_laps.clear()
 
