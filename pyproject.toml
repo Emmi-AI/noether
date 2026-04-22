@@ -88,6 +88,8 @@ docs = [
     "myst-parser",
     "autodoc-pydantic>=2.2.0",
     "sphinx-copybutton>=0.5.2",
+    "sphinx-sitemap>=2.6.0",  # SEO: sitemap.xml generation
+    "sphinxext-opengraph>=0.9.1",  # SEO: Open Graph + Twitter card meta tags
     "roman-numerals-py==4.0.0", # pin because of https://github.com/sphinx-doc/sphinx/issues/14186
 ]
 
