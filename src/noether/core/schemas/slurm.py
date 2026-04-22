@@ -60,8 +60,8 @@ class SlurmConfig(BaseModel):
     mem_gb: float | None = None
     """Memory per node in gigabytes."""
 
-    timeout_min: int | None = None
-    """Wall-clock limit in minutes."""
+    timeout_min: int = 0
+    """Wall-clock limit in minutes. Use 0 for no time limit"""
 
     stderr_to_stdout: bool | None = None
     """If True, merge stderr into stdout."""
