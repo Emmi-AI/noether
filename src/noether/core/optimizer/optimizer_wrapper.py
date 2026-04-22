@@ -275,8 +275,12 @@ class OptimizerWrapper:
             grad_scaler.unscale_(self.torch_optim)
         # clip gradients
         if self.config.clip_grad_value is not None:
+            if self.all_parameters is None:
+                raise RuntimeError("all_parameters was not initialized")
             torch.nn.utils.clip_grad_value_(self.all_parameters, self.config.clip_grad_value)
         if self.config.clip_grad_norm is not None:
+            if self.all_parameters is None:
+                raise RuntimeError("all_parameters was not initialized")
             torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
         # torch optim step with grad scaler
         grad_scaler.step(self.torch_optim)
