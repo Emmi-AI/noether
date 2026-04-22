@@ -1,28 +1,103 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-import sys
+from __future__ import annotations
+
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 from omegaconf import OmegaConf
 
 from noether.core.schemas.slurm import SlurmConfig
-from noether.training.cli.submit_job import _collect_hydra_overrides, _find_config_path, validate_config
+from noether.training.cli.submit_job import (
+    _build_train_command,
+    _expand_sweeps,
+    _parse_argv,
+    _validate_all_combos,
+    main,
+    validate_config,
+)
 
 _MODULE_PATH = "noether.training.cli.submit_job"
 
 
+# --------------------------------------------------------------------------- #
+# _parse_argv
+# --------------------------------------------------------------------------- #
+class TestParseArgv:
+    def test_positional_yaml_is_config(self):
+        path, ov, mr, dr = _parse_argv(["prog", "cfg.yaml"])
+        assert path == "cfg.yaml"
+        assert ov == []
+        assert not mr and not dr
+
+    def test_hp_flag_is_config(self):
+        path, ov, mr, dr = _parse_argv(["prog", "--hp", "cfg.yaml"])
+        assert path == "cfg.yaml"
+
+    def test_collects_overrides(self):
+        path, ov, mr, dr = _parse_argv(["prog", "--hp", "cfg.yaml", "a=1", "b.c=2"])
+        assert ov == ["a=1", "b.c=2"]
+
+    def test_multirun_short_and_long(self):
+        _, _, mr1, _ = _parse_argv(["prog", "--hp", "cfg.yaml", "-m"])
+        _, _, mr2, _ = _parse_argv(["prog", "--hp", "cfg.yaml", "--multirun"])
+        assert mr1 and mr2
+
+    def test_dry_run_flag(self):
+        _, _, _, dr = _parse_argv(["prog", "--hp", "cfg.yaml", "--dry-run"])
+        assert dr
+
+    def test_exits_without_config(self):
+        with pytest.raises(SystemExit) as exc:
+            _parse_argv(["prog", "a=1"])
+        assert exc.value.code == 1
+
+    def test_rejects_unknown_flag(self):
+        with pytest.raises(SystemExit):
+            _parse_argv(["prog", "--hp", "cfg.yaml", "--whatever"])
+
+    def test_hp_without_value_errors(self):
+        with pytest.raises(SystemExit):
+            _parse_argv(["prog", "--hp"])
+
+
+# --------------------------------------------------------------------------- #
+# _expand_sweeps
+# --------------------------------------------------------------------------- #
+class TestExpandSweeps:
+    def test_no_multirun_passes_through(self):
+        assert _expand_sweeps(["a=1", "b=2"], multirun=False) == [["a=1", "b=2"]]
+
+    def test_no_multirun_rejects_sweeps(self):
+        with pytest.raises(ValueError, match="requires --multirun"):
+            _expand_sweeps(["a=1,2"], multirun=False)
+
+    def test_multirun_expands_cross_product(self):
+        combos = _expand_sweeps(["a=1,2", "b=x,y"], multirun=True)
+        assert len(combos) == 4
+        # Every combination contains exactly one a-value and one b-value.
+        as_sets = {frozenset(c) for c in combos}
+        assert as_sets == {
+            frozenset({"a=1", "b=x"}),
+            frozenset({"a=1", "b=y"}),
+            frozenset({"a=2", "b=x"}),
+            frozenset({"a=2", "b=y"}),
+        }
+
+    def test_multirun_with_no_sweep_yields_single_combo(self):
+        assert _expand_sweeps(["a=1", "b=2"], multirun=True) == [["a=1", "b=2"]]
+
+
+# --------------------------------------------------------------------------- #
+# validate_config
+# --------------------------------------------------------------------------- #
 class TestValidateConfig:
     def _make_config(self, extra: dict | None = None):
         base = {"config_schema_kind": "noether.core.schemas.schema.ConfigSchema"}
         if extra:
             base.update(extra)
         return OmegaConf.create(base)
-
-    def test_raises_if_config_schema_kind_empty(self):
-        config = OmegaConf.create({"config_schema_kind": ""})
-        with pytest.raises(ValueError):
-            validate_config(config)
 
     def test_calls_class_constructor_with_schema_kind(self):
         config = self._make_config()
@@ -36,293 +111,220 @@ class TestValidateConfig:
         mock_schema_class.assert_called_once()
         assert result is mock_schema_instance
 
-    def test_raises_if_class_constructor_fails(self):
-        config = self._make_config()
-        with patch(_MODULE_PATH + ".class_constructor_from_class_path", side_effect=ImportError("module not found")):
-            with pytest.raises(ImportError, match="module not found"):
-                validate_config(config)
-
     def test_propagates_validation_error_from_schema(self):
         config = self._make_config()
         mock_schema_class = MagicMock(side_effect=ValueError("bad field"))
-
         with patch(_MODULE_PATH + ".class_constructor_from_class_path", return_value=mock_schema_class):
             with pytest.raises(ValueError, match="bad field"):
                 validate_config(config)
 
 
-class TestFindConfigPath:
-    def _run(self, argv, raw_config_path):
+# --------------------------------------------------------------------------- #
+# _validate_all_combos
+# --------------------------------------------------------------------------- #
+class TestValidateAllCombos:
+    def _validated(self, slurm: SlurmConfig | None) -> MagicMock:
+        m = MagicMock()
+        m.slurm = slurm
+        return m
+
+    def test_returns_first_slurm_when_all_match(self):
+        slurm = SlurmConfig(name="job", slurm_partition="gpu")
+        combos = [["a=1"], ["a=2"]]
+
         with (
-            patch.object(sys, "argv", argv),
-            patch(_MODULE_PATH + "._RAW_CONFIG_PATH", raw_config_path),
+            patch(_MODULE_PATH + "._compose_config"),
+            patch(_MODULE_PATH + ".validate_config", return_value=self._validated(slurm)),
         ):
-            return _find_config_path()
+            result = _validate_all_combos(Path("/cfg.yaml"), combos)
 
-    def test_returns_absolute_path_from_raw_config_path(self, tmp_path):
-        config_file = tmp_path / "train.yaml"
-        config_file.touch()
-        result = self._run(["prog"], raw_config_path=str(config_file))
-        assert result == str(config_file.resolve())
+        assert result == slurm
 
-    def test_resolves_relative_raw_config_path_to_absolute(self, tmp_path, monkeypatch):
-        config_file = tmp_path / "train.yaml"
-        config_file.touch()
-        monkeypatch.chdir(tmp_path)
-        result = self._run(["prog"], raw_config_path="train.yaml")
-        assert result == str(config_file.resolve())
+    def test_aborts_when_validation_fails_on_combo(self, capsys):
+        with (
+            patch(_MODULE_PATH + "._compose_config"),
+            patch(_MODULE_PATH + ".validate_config", side_effect=[self._validated(SlurmConfig()), ValueError("boom")]),
+            pytest.raises(SystemExit) as exc,
+        ):
+            _validate_all_combos(Path("/cfg.yaml"), [["a=1"], ["a=2"]])
 
-    def test_finds_path_from_cp_and_cn_when_raw_is_none(self, tmp_path):
-        config_file = tmp_path / "train.yaml"
-        config_file.touch()
-        result = self._run(
-            ["prog", "-cp", str(tmp_path), "-cn", "train"],
-            raw_config_path=None,
-        )
-        assert result == str(config_file.resolve())
+        assert exc.value.code == 1
+        assert "boom" in capsys.readouterr().err
 
-    def test_cp_cn_appends_yaml_extension_if_missing(self, tmp_path):
-        config_file = tmp_path / "experiment.yaml"
-        config_file.touch()
-        result = self._run(
-            ["prog", "-cp", str(tmp_path), "-cn", "experiment"],
-            raw_config_path=None,
-        )
-        assert result.endswith(".yaml")
+    def test_rejects_missing_slurm_section(self, capsys):
+        with (
+            patch(_MODULE_PATH + "._compose_config"),
+            patch(_MODULE_PATH + ".validate_config", return_value=self._validated(None)),
+            pytest.raises(SystemExit) as exc,
+        ):
+            _validate_all_combos(Path("/cfg.yaml"), [[]])
 
-    def test_cp_cn_does_not_double_append_yaml(self, tmp_path):
-        config_file = tmp_path / "experiment.yaml"
-        config_file.touch()
-        result = self._run(
-            ["prog", "-cp", str(tmp_path), "-cn", "experiment.yaml"],
-            raw_config_path=None,
-        )
-        assert not result.endswith(".yaml.yaml")
+        assert exc.value.code == 1
+        assert "SLURM configuration is required" in capsys.readouterr().err
 
-    def test_exits_if_no_config_found(self):
-        with pytest.raises(SystemExit) as exc_info:
-            self._run(["prog", "some_random_arg=value"], raw_config_path=None)
-        assert exc_info.value.code == 1
+    def test_rejects_sweep_over_slurm_fields(self, capsys):
+        slurm_a = SlurmConfig(name="job", slurm_partition="gpu")
+        slurm_b = SlurmConfig(name="job", slurm_partition="cpu")  # different!
+        with (
+            patch(_MODULE_PATH + "._compose_config"),
+            patch(
+                _MODULE_PATH + ".validate_config",
+                side_effect=[self._validated(slurm_a), self._validated(slurm_b)],
+            ),
+            pytest.raises(SystemExit) as exc,
+        ):
+            _validate_all_combos(Path("/cfg.yaml"), [["a=1"], ["a=2"]])
 
-    def test_raw_config_path_takes_priority_over_cp_cn(self, tmp_path):
-        direct = tmp_path / "direct.yaml"
-        direct.touch()
-        other = tmp_path / "other.yaml"
-        other.touch()
-        result = self._run(
-            ["prog", "-cp", str(tmp_path), "-cn", "other"],
-            raw_config_path=str(direct),
-        )
-        assert result == str(direct.resolve())
+        assert exc.value.code == 1
+        assert "sweeping over fields under 'slurm'" in capsys.readouterr().err
 
 
-class TestCollectHydraOverrides:
-    def _run_with_argv(self, argv):
-        with patch.object(sys, "argv", argv):
-            return _collect_hydra_overrides()
+# --------------------------------------------------------------------------- #
+# _build_train_command
+# --------------------------------------------------------------------------- #
+class TestBuildTrainCommand:
+    def test_includes_uv_run_noether_train_and_hp(self):
+        cmd = _build_train_command(Path("/abs/cfg.yaml"), ["a=1", "b=2"])
+        assert cmd == ["uv", "run", "noether-train", "--hp", "/abs/cfg.yaml", "a=1", "b=2"]
 
-    def test_collects_key_value_overrides(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml", "seed=42", "trainer.lr=0.01"])
-        assert result == ["seed=42", "trainer.lr=0.01"]
-
-    def test_skips_hp_flag_and_its_value(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml", "key=val"])
-        assert "--hp" not in result
-        assert "cfg.yaml" not in result
-
-    def test_skips_cp_flag_and_its_value(self):
-        result = self._run_with_argv(["prog", "-cp", "some/dir", "key=val"])
-        assert "-cp" not in result
-        assert "some/dir" not in result
-
-    def test_skips_cn_flag_and_its_value(self):
-        result = self._run_with_argv(["prog", "-cn", "train", "key=val"])
-        assert "-cn" not in result
-        assert "train" not in result
-
-    def test_skips_hydra_prefixed_overrides(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml", "hydra.run.dir=.", "key=val"])
-        assert "hydra.run.dir=." not in result
-        assert "key=val" in result
-
-    def test_skips_dash_prefixed_args(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml", "--verbose", "key=val"])
-        assert "--verbose" not in result
-
-    def test_returns_empty_list_when_no_overrides(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml"])
-        assert result == []
-
-    def test_collects_multiple_overrides(self):
-        result = self._run_with_argv(["prog", "--hp", "cfg.yaml", "a=1", "b=2", "c=3"])
-        assert result == ["a=1", "b=2", "c=3"]
+    def test_handles_path_with_spaces(self):
+        # The command is a list (no shell), so spaces in paths require no quoting.
+        cmd = _build_train_command(Path("/my projects/cfg.yaml"), [])
+        assert cmd == ["uv", "run", "noether-train", "--hp", "/my projects/cfg.yaml"]
 
 
+# --------------------------------------------------------------------------- #
+# main()
+# --------------------------------------------------------------------------- #
 class TestMain:
     @pytest.fixture
-    def mock_validated_config(self):
-        config = MagicMock()
-        config.slurm = SlurmConfig(job_name="test-job", partition="gpu", time="01:00:00")
-        return config
+    def slurm(self) -> SlurmConfig:
+        return SlurmConfig(name="job", slurm_partition="gpu", timeout_min=60)
 
-    def _call_main(self, mock_config, dry_run=False):
-        from noether.training.cli.submit_job import main
+    @pytest.fixture
+    def cfg_path(self, tmp_path: Path) -> Path:
+        p = tmp_path / "cfg.yaml"
+        p.touch()
+        return p
 
-        with patch(_MODULE_PATH + "._DRY_RUN", dry_run):
-            main.__wrapped__(mock_config)
+    def _run(self, argv: list[str], slurm: SlurmConfig, *, mock_jobs: list | None = None):
+        """Drive main() with a stubbed-out validation pipeline and submitit."""
+        executor = MagicMock()
+        executor.batch.return_value.__enter__ = MagicMock(return_value=None)
+        executor.batch.return_value.__exit__ = MagicMock(return_value=False)
+        if mock_jobs is None:
+            executor.submit.side_effect = lambda fn: MagicMock(job_id="42_0")
+        else:
+            executor.submit.side_effect = mock_jobs
 
-    def test_exits_on_validation_failure(self):
-        mock_config = OmegaConf.create({})
-        with patch(_MODULE_PATH + ".validate_config", side_effect=ValueError("bad config")):
-            with pytest.raises(SystemExit) as exc_info:
-                self._call_main(mock_config)
-        assert exc_info.value.code == 1
-
-    def test_raises_if_slurm_config_missing(self, mock_validated_config):
-        mock_validated_config.slurm = None
-        mock_config = OmegaConf.create({})
-        with patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config):
-            with pytest.raises(SystemExit) as exc_info:
-                self._call_main(mock_config)
-        assert exc_info.value.code == 1
-
-    def test_submits_sbatch_command(self, mock_validated_config):
-        mock_config = OmegaConf.create({})
         with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/abs/configs/train.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit) as exc_info,
+            patch.object(__import__("sys"), "argv", argv),
+            patch(_MODULE_PATH + "._validate_all_combos", return_value=slurm),
+            patch(_MODULE_PATH + ".submitit.AutoExecutor", return_value=executor) as ex_cls,
         ):
-            self._call_main(mock_config)
+            try:
+                main()
+            except SystemExit as e:
+                return ex_cls, executor, e.code
+        return ex_cls, executor, None
 
-        assert exc_info.value.code == 0
-        mock_run.assert_called_once()
-        cmd = mock_run.call_args[0][0]
-        assert "sbatch" in cmd
-        assert "--wrap=" in cmd
-        assert "noether-train" in cmd
-        assert "/abs/configs/train.yaml" in cmd
+    def test_help_exits_cleanly(self, capsys):
+        with patch.object(__import__("sys"), "argv", ["prog", "--help"]):
+            with pytest.raises(SystemExit) as exc:
+                main()
+        assert exc.value.code == 0
+        assert "noether-train-submit-job" in capsys.readouterr().out
 
-    def test_config_path_is_shell_quoted(self, mock_validated_config):
-        mock_config = OmegaConf.create({})
-        spaced_path = "/my projects/train config.yaml"
+    def test_missing_config_file_errors(self, slurm):
+        argv = ["prog", "--hp", "/does/not/exist.yaml"]
         with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value=spaced_path),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
+            patch.object(__import__("sys"), "argv", argv),
+            pytest.raises(SystemExit) as exc,
+        ):
+            main()
+        assert exc.value.code == 1
+
+    def test_single_run_submits_once(self, slurm, cfg_path):
+        argv = ["prog", "--hp", str(cfg_path)]
+        ex_cls, executor, _ = self._run(argv, slurm)
+
+        ex_cls.assert_called_once_with(folder=slurm.folder)
+        executor.update_parameters.assert_called_once()
+        params = executor.update_parameters.call_args.kwargs
+        assert params["name"] == "job"
+        assert params["slurm_partition"] == "gpu"
+        assert params["timeout_min"] == 60
+        executor.submit.assert_called_once()
+        executor.batch.assert_not_called()  # batch() only used for arrays
+
+    def test_multirun_uses_batch_and_submits_n_times(self, slurm, cfg_path):
+        argv = ["prog", "--hp", str(cfg_path), "-m", "+seed=1,2,3"]
+        jobs = [MagicMock(job_id=f"42_{i}") for i in range(3)]
+        ex_cls, executor, _ = self._run(argv, slurm, mock_jobs=jobs)
+
+        executor.batch.assert_called_once()
+        assert executor.submit.call_count == 3
+        # Verify each submit got a distinct seed in its CommandFunction args.
+        seeds_seen = set()
+        for call in executor.submit.call_args_list:
+            cmd_fn = call.args[0]
+            cmd = " ".join(cmd_fn.command)
+            for s in ("+seed=1", "+seed=2", "+seed=3"):
+                if s in cmd:
+                    seeds_seen.add(s)
+        assert seeds_seen == {"+seed=1", "+seed=2", "+seed=3"}
+
+    def test_dry_run_does_not_construct_executor(self, slurm, cfg_path, capsys):
+        argv = ["prog", "--hp", str(cfg_path), "--dry-run"]
+        with (
+            patch.object(__import__("sys"), "argv", argv),
+            patch(_MODULE_PATH + "._validate_all_combos", return_value=slurm),
+            patch(_MODULE_PATH + ".submitit.AutoExecutor") as ex_cls,
+            pytest.raises(SystemExit) as exc,
+        ):
+            main()
+
+        assert exc.value.code == 0
+        ex_cls.assert_not_called()
+        out = capsys.readouterr().out
+        assert "[dry-run]" in out
+        assert "noether-train" in out
+
+    def test_dry_run_multirun_lists_all_tasks(self, slurm, cfg_path, capsys):
+        argv = ["prog", "--hp", str(cfg_path), "--dry-run", "-m", "+seed=1,2"]
+        with (
+            patch.object(__import__("sys"), "argv", argv),
+            patch(_MODULE_PATH + "._validate_all_combos", return_value=slurm),
+            patch(_MODULE_PATH + ".submitit.AutoExecutor"),
             pytest.raises(SystemExit),
         ):
-            self._call_main(mock_config)
+            main()
 
-        cmd = mock_run.call_args[0][0]
-        assert spaced_path in cmd
+        out = capsys.readouterr().out
+        assert "Would submit 2 task(s)" in out
+        assert "+seed=1" in out
+        assert "+seed=2" in out
 
-    def test_includes_hydra_overrides_in_train_cmd(self, mock_validated_config):
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=["seed=42", "trainer.lr=0.001"]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            self._call_main(mock_config)
 
-        cmd = mock_run.call_args[0][0]
-        assert "seed=42" in cmd
-        assert "trainer.lr=0.001" in cmd
+# --------------------------------------------------------------------------- #
+# SlurmConfig.to_executor_kwargs
+# --------------------------------------------------------------------------- #
+class TestSlurmConfigToExecutorKwargs:
+    def test_excludes_none_fields(self):
+        folder, params = SlurmConfig(name="job", slurm_partition="gpu").to_executor_kwargs()
+        assert folder == "submitit_logs"
+        assert params == {"name": "job", "slurm_partition": "gpu"}
 
-    def test_overrides_with_single_quotes_are_shell_safe(self, mock_validated_config):
-        mock_config = OmegaConf.create({})
-        override = "name='my run'"
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[override]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            self._call_main(mock_config)
+    def test_folder_is_returned_separately(self):
+        folder, params = SlurmConfig(folder="/tmp/logs").to_executor_kwargs()
+        assert folder == "/tmp/logs"
+        assert "folder" not in params
 
-        cmd = mock_run.call_args[0][0]
-        assert override in cmd
-
-    def test_chdir_appears_in_sbatch_args_not_as_cd_prefix(self, mock_validated_config):
-        mock_validated_config.slurm = SlurmConfig(job_name="job", chdir="/workspace/project")
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            self._call_main(mock_config)
-
-        cmd = mock_run.call_args[0][0]
-        assert "--chdir=/workspace/project" in cmd
-        assert "cd /workspace/project;" not in cmd
-
-    def test_prepends_source_when_env_path_set(self, mock_validated_config):
-        mock_validated_config.slurm = SlurmConfig(job_name="job", env_path="/opt/venv/bin/activate")
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            self._call_main(mock_config)
-
-        cmd = mock_run.call_args[0][0]
-        assert "source" in cmd
-        assert "/opt/venv/bin/activate" in cmd
-
-    def test_no_source_when_env_path_not_set(self, mock_validated_config):
-        mock_validated_config.slurm = SlurmConfig(job_name="job")
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=0)) as mock_run,
-            pytest.raises(SystemExit),
-        ):
-            self._call_main(mock_config)
-
-        cmd = mock_run.call_args[0][0]
-        assert "source " not in cmd
-
-    def test_propagates_nonzero_returncode(self, mock_validated_config):
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run", return_value=MagicMock(returncode=42)),
-            pytest.raises(SystemExit) as exc_info,
-        ):
-            self._call_main(mock_config)
-
-        assert exc_info.value.code == 42
-
-    def test_dry_run_prints_command_without_submitting(self, mock_validated_config, capsys):
-        mock_config = OmegaConf.create({})
-        with (
-            patch(_MODULE_PATH + ".validate_config", return_value=mock_validated_config),
-            patch(_MODULE_PATH + "._find_config_path", return_value="/cfg.yaml"),
-            patch(_MODULE_PATH + "._collect_hydra_overrides", return_value=[]),
-            patch(_MODULE_PATH + ".subprocess.run") as mock_run,
-            pytest.raises(SystemExit) as exc_info,
-        ):
-            self._call_main(mock_config, dry_run=True)
-
-        assert exc_info.value.code == 0
-        mock_run.assert_not_called()
-        captured = capsys.readouterr()
-        assert "[dry-run]" in captured.out
-        assert "sbatch" in captured.out
+    def test_passes_setup_and_additional_parameters(self):
+        cfg = SlurmConfig(
+            slurm_setup=["source .venv/bin/activate"],
+            slurm_additional_parameters={"nice": 0, "reservation": "res"},
+        )
+        _, params = cfg.to_executor_kwargs()
+        assert params["slurm_setup"] == ["source .venv/bin/activate"]
+        assert params["slurm_additional_parameters"] == {"nice": 0, "reservation": "res"}
