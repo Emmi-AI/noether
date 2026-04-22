@@ -2,159 +2,125 @@
 
 from __future__ import annotations
 
+import getpass
 import re
+from typing import Any
 
 from pydantic import BaseModel, field_validator
 
+# SLURM patterns that require a running job and cannot be resolved at submission time.
+_UNSUPPORTED_FOLDER_PATTERNS: frozenset[str] = frozenset({"%j", "%J", "%A", "%a", "%N", "%x"})
+
 
 class SlurmConfig(BaseModel):
-    """Configuration for SLURM job submission via sbatch.
+    """Configuration for SLURM job submission via :mod:`submitit`.
 
-    All fields are optional and default to None, meaning the cluster default will be used.
-    This schema covers all sbatch directives available in SLURM.
+    Field names mirror the keyword arguments accepted by
+    :meth:`submitit.AutoExecutor.update_parameters`. All fields are optional
+    and default to ``None``, meaning the cluster default is used.
+
+    Note:
+        Job stdout/stderr is owned by submitit and written to ``<folder>/<job_id>_log.out``
+        / ``<folder>/<job_id>_log.err``. Use the ``folder`` field to control where these
+        files land. SLURM ``--output``/``--error`` directives are intentionally not
+        exposed; pass them via ``slurm_additional_parameters`` if you really need to
+        override submitit's defaults (this disables ``job.stdout()`` helpers).
     """
 
     model_config = {"extra": "forbid"}
 
-    job_name: str | None = None
-    """Name of the job (--job-name)."""
+    # --- Executor constructor argument ---
+    folder: str = "submitit_logs"
+    """Directory where submitit writes the job script, pickled task, and stdout/stderr logs.
+    Per-job files are named ``<job_id>_log.out`` etc. inside this directory.
+    This is also used as the default ``output_path`` for training runs (see
+    :attr:`ConfigSchema.output_path`).
 
-    partition: str | None = None
-    """Partition to submit the job to (--partition). Multiple partitions can be comma-separated."""
+    Supports ``%u`` (current username) interpolation, e.g.
+    ``/home/%u/logs/experiment``. SLURM job-time patterns like ``%j`` are
+    **not** supported because submitit needs the directory to exist before
+    submission."""
 
-    reservation: str | None = None
-    """Reserve resources from a named reservation (--reservation)."""
+    # --- AutoExecutor-generic parameters (mapped to update_parameters as-is) ---
+    name: str | None = None
+    """Job name (SLURM ``--job-name``)."""
 
-    nodes: int | str | None = None
-    """Number of nodes to allocate (--nodes). Can be an integer or a range like '2-4'."""
+    nodes: int | None = None
+    """Number of nodes to allocate."""
 
-    ntasks: int | None = None
-    """Total number of tasks to launch (--ntasks)."""
-
-    ntasks_per_node: int | None = None
-    """Number of tasks per allocated node (--ntasks-per-node)."""
+    tasks_per_node: int | None = None
+    """Number of tasks per allocated node."""
 
     cpus_per_task: int | None = None
-    """Number of CPUs per task (--cpus-per-task)."""
+    """Number of CPUs per task."""
 
-    mem: str | None = None
-    """Memory per node (--mem), e.g. '4G', '512M', '0' for all available memory."""
+    gpus_per_node: int | str | None = None
+    """GPUs per node. Accepts a count or ``type:count`` (e.g. ``"a100:4"``)."""
 
-    gpus: str | int | None = None
-    """Total GPUs for the job (--gpus). Can be a count or 'type:count', e.g. 'v100:2'."""
+    mem_gb: float | None = None
+    """Memory per node in gigabytes."""
 
-    gpus_per_node: str | int | None = None
-    """GPUs per node (--gpus-per-node). Can be a count or 'type:count', e.g. 'a100:4'."""
+    timeout_min: int | None = None
+    """Wall-clock limit in minutes."""
 
-    gres: str | None = None
-    """Generic consumable resources (--gres), e.g. 'gpu:2,shard:1'."""
+    stderr_to_stdout: bool | None = None
+    """If True, merge stderr into stdout."""
 
-    time: str | None = None
-    """Wall clock time limit (--time). Formats: 'minutes', 'MM:SS', 'HH:MM:SS', 'D-HH', 'D-HH:MM', 'D-HH:MM:SS'."""
+    # --- Slurm-specific parameters (forwarded with the ``slurm_`` prefix) ---
+    slurm_partition: str | None = None
+    """Partition to submit the job to."""
 
-    begin: str | None = None
-    """Defer job start until the specified time (--begin), e.g. '2024-01-15T10:00:00', 'now+1hour'."""
+    slurm_array_parallelism: int | None = None
+    """Maximum number of array tasks running concurrently (SLURM ``%N`` in ``--array``)."""
 
-    output: str | None = None
-    """File path for stdout (--output). Supports replacement symbols: %j (job ID), %x (job name), %A (array master ID), %a (array task ID), %N (node name), %u (user name)."""
+    slurm_setup: list[str] | None = None
+    """Shell commands run inside the job before the main command, e.g.
+    ``["source .venv/bin/activate"]``."""
 
-    error: str | None = None
-    """File path for stderr (--error). Same replacement symbols as output."""
+    slurm_additional_parameters: dict[str, Any] | None = None
+    """Escape hatch for SLURM directives not exposed as first-class fields, e.g.
+    ``{"nice": 0, "reservation": "my_res", "chdir": "/work"}``. Keys are passed as
+    ``--key=value`` to ``sbatch``."""
 
-    array: str | None = None
-    """Job array specification (--array), e.g. '0-15', '1,3,5,7', '1-7%2' (max 2 concurrent)."""
-
-    kill_on_invalid_dep: bool | None = None
-    """Kill the job if any dependency is invalid (--kill-on-invalid-dep)."""
-
-    nice: int | None = None
-    """Scheduling priority adjustment (--nice). Positive values lower priority."""
-    chdir: str | None = None
-    """Working directory for the job (--chdir)."""
-
-    env_path: str | None = None
-    """Shell command to source before running the job (e.g. for activating a virtual environment) which should be used as 'source env_path'."""
-
-    # Fields that are not srun/sbatch directives
-    _non_slurm_fields: frozenset[str] = frozenset({"env_path"})
-
-    # Mapping from field names to srun flag names (where they differ from simple hyphenation)
-    _flag_overrides: dict[str, str] = {
-        "kill_on_invalid_dep": "kill-on-invalid-dep",
-    }
-
-    def to_srun_args(self) -> str:
-        """Return a string of srun arguments for all non-None SLURM fields.
-
-        Fields that are not actual srun directives (``experiment_file``, ``source``)
-        are excluded. Boolean fields are rendered as bare flags when ``True`` and
-        omitted when ``False``.
-        """
-        parts: list[str] = []
-        for name, value in self:
-            if value is None or name in self._non_slurm_fields:
-                continue
-            flag = f"--{self._flag_overrides.get(name, name.replace('_', '-'))}"
-            if isinstance(value, bool):
-                if value:
-                    parts.append(flag)
-            else:
-                parts.append(f"{flag}={value}")
-        return " ".join(parts)
-
-    @field_validator("time")
+    @field_validator("folder")
     @classmethod
-    def validate_time_format(cls, value: str | None) -> str | None:
-        """Validate SLURM time format."""
-        if value is None:
-            return value
-        if value.upper() in ("UNLIMITED", "INFINITE"):
-            return value
-        # Matches: minutes | MM:SS | HH:MM:SS | D-HH | D-HH:MM | D-HH:MM:SS
-        if not re.match(r"^(\d+-)?(\d+:)?\d+(:\d+)?$", value):
-            raise ValueError(
-                f"Invalid SLURM time format: '{value}'. "
-                "Expected: 'minutes', 'MM:SS', 'HH:MM:SS', 'D-HH', 'D-HH:MM', or 'D-HH:MM:SS'."
-            )
-        return value
+    def _resolve_folder_patterns(cls, value: str) -> str:
+        """Resolve ``%u`` to the current username; reject job-time SLURM patterns."""
+        for pat in _UNSUPPORTED_FOLDER_PATTERNS:
+            if pat in value:
+                raise ValueError(
+                    f"SLURM pattern '{pat}' in folder is not supported — submitit needs "
+                    "the directory to exist before submission. Use %u (username) instead, "
+                    "or remove the pattern."
+                )
+        return value.replace("%u", getpass.getuser())
 
-    @field_validator("mem")
+    @field_validator("gpus_per_node")
     @classmethod
-    def validate_memory_format(cls, value: str | None) -> str | None:
-        """Validate SLURM memory format (number with optional K/M/G/T suffix)."""
-        if value is None:
-            return value
-        if not re.match(r"^\d+(\.\d+)?[KMGT]?B?$", value, re.IGNORECASE):
-            raise ValueError(
-                f"Invalid memory format: '{value}'. Expected a number with optional suffix K, M, G, or T (e.g. '4G', '512M')."
-            )
-        return value
-
-    @field_validator("array")
-    @classmethod
-    def validate_array_format(cls, value: str | None) -> str | None:
-        """Validate SLURM array specification."""
-        if value is None:
-            return value
-        # Matches: ranges, lists, steps, and max concurrent (e.g. '0-15', '1,3,5', '1-7:2%4')
-        if not re.match(r"^[\d,\-:]+(%\d+)?$", value):
-            raise ValueError(
-                f"Invalid array specification: '{value}'. Expected format like '0-15', '1,3,5,7', '1-7%2'."
-            )
-        return value
-
-    @field_validator("gpus", "gpus_per_node")
-    @classmethod
-    def validate_gpu_spec(cls, value: str | int | None) -> str | int | None:
-        """Validate GPU specification (count or type:count)."""
-        if value is None:
-            return value
-        if isinstance(value, int):
-            if value < 0:
-                raise ValueError(f"GPU count must be non-negative, got {value}.")
+    def _validate_gpu_spec(cls, value: str | int | None) -> str | int | None:
+        if value is None or isinstance(value, int):
+            if isinstance(value, int) and value < 0:
+                raise ValueError(f"gpus_per_node must be non-negative, got {value}.")
             return value
         if not re.match(r"^(\w+:)?\d+$", value):
             raise ValueError(
-                f"Invalid GPU specification: '{value}'. Expected a count or 'type:count' (e.g. '2', 'v100:4')."
+                f"Invalid gpus_per_node spec: '{value}'. Expected a count or 'type:count' (e.g. '2', 'a100:4')."
             )
         return value
+
+    def to_executor_kwargs(self) -> tuple[str, dict[str, Any]]:
+        """Return ``(folder, update_parameters_kwargs)`` for :class:`submitit.AutoExecutor`.
+
+        Generic fields are passed under their bare name; everything else keeps its
+        ``slurm_`` prefix so submitit routes it to the slurm executor.
+
+        Returns:
+            A tuple ``(folder, kwargs)`` where ``folder`` is the executor's log directory
+            and ``kwargs`` is the dict to splat into ``executor.update_parameters(**kwargs)``.
+        """
+        params: dict[str, Any] = {}
+        for name, value in self:
+            if name == "folder" or value is None:
+                continue
+            params[name] = value
+        return self.folder, params
