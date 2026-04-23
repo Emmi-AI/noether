@@ -18,6 +18,7 @@ from torch.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel
 
 from noether.core.callbacks import CallbackBase, PeriodicCallback, PeriodicDataIteratorCallback
+from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
     all_gather_nograd,
@@ -211,8 +212,16 @@ class BaseTrainer:
 
     def _signal_handler(self, signum: int, frame: Any) -> None:
         sig_name = signal.Signals(signum).name
-        self.logger.warning(f"Received {sig_name} — will save checkpoint and exit after current update")
         self._signal_received = True
+
+        has_checkpoint_callback = any(isinstance(cb, CheckpointCallback) for cb in self.callbacks)
+        message = f"Received {sig_name} - exiting after current update. "
+        if not has_checkpoint_callback:
+            message += (
+                "No CheckpointCallback configured, no checkpoint will be saved. "
+                "Add a CheckpointCallback to your config if you want checkpoints on termination."
+            )
+        self.logger.warning(message)
 
     def _install_signal_handlers(self) -> None:
         self._signal_received = False
