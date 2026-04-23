@@ -7,6 +7,7 @@ from torch import nn
 
 from noether.core.schemas.modules import AttentionConfig, DotProductAttentionConfig
 from noether.modeling.functional.init import apply_init_method
+from noether.modeling.functional.norm import rms_norm
 from noether.modeling.functional.rope import rope
 
 
@@ -72,6 +73,8 @@ class DotProductAttention(nn.Module):
             num_heads=self.num_heads,
             head_dim=self.head_dim,
         ).unbind(0)
+        q = rms_norm(q)
+        k = rms_norm(k)
 
         if self.use_rope:
             assert freqs is not None

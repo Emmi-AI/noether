@@ -7,6 +7,7 @@ from torch import nn
 
 from noether.core.schemas.modules import AttentionConfig, PerceiverAttentionConfig
 from noether.modeling.functional.init import apply_init_method
+from noether.modeling.functional.norm import rms_norm
 from noether.modeling.functional.rope import rope
 
 
@@ -75,11 +76,13 @@ class PerceiverAttention(nn.Module):
         """
         # Project query
         q = self.q(q)
-        q = einops.rearrange(
-            q,
-            "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
+        q = rms_norm(
+            einops.rearrange(
+                q,
+                "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
+                num_heads=self.num_heads,
+                head_dim=self.head_dim,
+            )
         )
 
         if kv_cache is not None:
@@ -102,6 +105,7 @@ class PerceiverAttention(nn.Module):
                 num_heads=self.num_heads,
                 head_dim=self.head_dim,
             ).unbind(0)
+            k = rms_norm(k)
 
             if self.use_rope:
                 assert k_freqs is not None

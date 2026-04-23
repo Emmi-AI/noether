@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from noether.core.schemas.modules.attention import AttentionPattern, MixedAttentionConfig, TokenSpec
+from noether.modeling.functional.norm import rms_norm
 from noether.modeling.functional.rope import rope
 from noether.modeling.modules.attention import DotProductAttention
 
@@ -142,6 +143,8 @@ class MixedAttention(DotProductAttention):
             q, k, v = einops.rearrange(
                 qkv, "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
             ).unbind(0)
+            q = rms_norm(q)
+            k = rms_norm(k)
             output, k_dict, v_dict = self._attend(
                 q,
                 k,
