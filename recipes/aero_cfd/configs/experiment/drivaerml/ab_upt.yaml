@@ -20,10 +20,12 @@ inference_pipeline:
 
 trainer:
   precision: float16
+  monitor_training_stability: true
 
 model:
   supernode_pooling_config:
     radius: 0.25
+    bias: false
   num_domain_decoder_blocks:
     surface: 6
     volume: 6
@@ -36,6 +38,9 @@ model:
     - self
   transformer_block_config:
     max_wavelength: 40_000
+    bias: false
+    attention_arguments:
+      qk_norm: true
     
 sample_size_property: surface_anchor_position
 chunk_size: ${pipeline.num_surface_anchor_points}
