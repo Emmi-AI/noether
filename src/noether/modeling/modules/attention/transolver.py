@@ -51,13 +51,28 @@ class TransolverAttention(nn.Module):
         self.in_project_slice = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=dim_head, output_dim=config.num_slices, init_weights=config.init_weights, bias=config.bias
-            )  # type: ignore[call-arg]
+            )
         )
-
-        self.qkv = LinearProjection(
+        self.q = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=dim_head,
-                output_dim=dim_head * 3,
+                output_dim=dim_head,
+                bias=False,
+                init_weights=config.init_weights,
+            )
+        )
+        self.k = LinearProjection(
+            config=LinearProjectionConfig(
+                input_dim=dim_head,
+                output_dim=dim_head,
+                bias=False,
+                init_weights=config.init_weights,
+            )
+        )
+        self.v = LinearProjection(
+            config=LinearProjectionConfig(
+                input_dim=dim_head,
+                output_dim=dim_head,
                 bias=False,
                 init_weights=config.init_weights,
             )  # type: ignore[call-arg]
@@ -131,7 +146,7 @@ class TransolverAttention(nn.Module):
         slice_token, slice_weights = self.create_slices(x, num_input_points=num_input_points, attn_mask=attn_mask)
 
         # attention among slice tokens
-        q_slice_token, k_slice_token, v_slice_token = self.qkv(slice_token).chunk(3, dim=-1)
+        q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
         out_slice_token = F.scaled_dot_product_attention(
             q_slice_token,
             k_slice_token,

@@ -39,7 +39,9 @@ def test_transolver_attention_init(dim, num_heads, num_slices, dropout, bias, in
     assert isinstance(model.in_project_x, LinearProjection)
     assert isinstance(model.in_project_fx, LinearProjection)
     assert isinstance(model.in_project_slice, LinearProjection)
-    assert isinstance(model.qkv, LinearProjection)
+    assert isinstance(model.q, LinearProjection)
+    assert isinstance(model.k, LinearProjection)
+    assert isinstance(model.v, LinearProjection)
     assert isinstance(model.proj, LinearProjection)
 
     # Check Dropout layer
@@ -61,7 +63,9 @@ def test_forward_transolver_attention():
     assert attention_module.in_project_fx.project.weight.grad is not None
     assert attention_module.in_project_fx.project.weight.grad is not None
     assert attention_module.in_project_slice.project.weight.grad is not None
-    assert attention_module.qkv.project.weight.grad is not None
+    assert attention_module.q.project.weight.grad is not None
+    assert attention_module.k.project.weight.grad is not None
+    assert attention_module.v.project.weight.grad is not None
     assert attention_module.proj.project.weight.grad is not None
 
     assert attention_module.in_project_fx.project.bias.grad is not None

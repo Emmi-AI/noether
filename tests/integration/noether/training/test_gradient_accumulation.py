@@ -12,7 +12,7 @@ from noether.core.models import Model
 from noether.core.providers import PathProvider
 from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.models import ModelBaseConfig
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.schemas.optimizers import SGDOptimizerConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.trackers import BaseTracker
 from noether.data import Dataset
@@ -352,7 +352,7 @@ class _TinyLinearModel(Model):
             model_config=ModelBaseConfig(
                 kind="test._TinyLinearModel",
                 name="tiny_linear",
-                optimizer_config=OptimizerConfig(kind="torch.optim.SGD", lr=0.1),
+                optimizer_config=SGDOptimizerConfig(lr=0.1),
             )
         )
         self.linear = nn.Linear(features, 1, bias=False)

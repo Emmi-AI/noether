@@ -24,7 +24,14 @@ from .initializers import (
 )
 from .models import ModelBaseConfig
 from .normalizers import AnyNormalizer, FieldNormalizerConfig
-from .optimizers import OptimizerConfig, ParamGroupModifierConfig
+from .optimizers import (
+    AdamOptimizerConfig,
+    AnyOptimizerConfig,
+    MuonOptimizerConfig,
+    OptimizerConfig,
+    ParamGroupModifierConfig,
+    SGDOptimizerConfig,
+)
 from .schedules import (
     AnyScheduleConfig,
     ConstantScheduleConfig,
@@ -70,8 +77,12 @@ __all__ = [
     "ResumeInitializerConfig",
     "AnyNormalizer",
     "FieldNormalizerConfig",
+    "AdamOptimizerConfig",
+    "AnyOptimizerConfig",
+    "MuonOptimizerConfig",
     "OptimizerConfig",
     "ParamGroupModifierConfig",
+    "SGDOptimizerConfig",
     "AnyScheduleConfig",
     "ConstantScheduleConfig",
     "CustomScheduleConfig",

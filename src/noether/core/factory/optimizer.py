@@ -42,7 +42,8 @@ class OptimizerFactory(Factory):
             raise ValueError("OptimizerConfig.kind must be specified to create the torch optimizer.")
         torch_optimizer_kind = class_constructor_from_class_path(class_path=optimizer_config.kind)
         optimizer_config_dict = optimizer_config.model_dump(
-            exclude={"kind"} | optimizer_config.return_optim_wrapper_args().keys()
+            exclude={"kind"} | optimizer_config.return_optim_wrapper_args().keys(),
+            exclude_none=True,  # None values are not passed; optimizers only receive the explicitly set args
         )  # filter out all the kwargs of the wrapper
         if len(optimizer_config_dict) > 0:
             torch_optim_constructor = partial(torch_optimizer_kind, **optimizer_config_dict)
