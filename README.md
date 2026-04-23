@@ -7,6 +7,7 @@
 [![Docs - noether-docs.emmi.ai](https://img.shields.io/static/v1?label=Docs&message=noether-docs.emmi.ai&color=2ea44f&logo=gitbook)](https://noether-docs.emmi.ai)
 [![License: ENPL](https://img.shields.io/badge/License-ENPL-orange.svg)](https://github.com/Emmi-AI/noether/blob/main/LICENSE.txt)
 [![Static Badge](https://img.shields.io/badge/Walkthrough-Tutorial-DD537C)](https://noether-docs.emmi.ai/html/tutorials/walkthrough/index.html)
+[![Changelog](https://img.shields.io/badge/Changelog-latest-blue)](https://github.com/Emmi-AI/noether/blob/main/CHANGELOG.md)
 
 [![Tests](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml/badge.svg)](https://github.com/Emmi-AI/noether/actions/workflows/run-tests.yml)
 
@@ -36,6 +37,7 @@ re-engineering or an in-house deep learning team.
     - [How to clean up and do a fresh installation](#how-to-clean-up-and-do-a-fresh-installation)
   - [Working with pre-built packages](#working-with-pre-built-packages)
 - [Quickstart](#quickstart)
+- [Recipes](#recipes)
 - [Performance Benchmarks](#performance-benchmarks)
 - [Contributing](#contributing)
   - [Guidelines](#guidelines)
@@ -143,38 +145,46 @@ uv run noether-train --hp my_project/configs/base_experiment.yaml
 
 See the [scaffolding tutorial](https://noether-docs.emmi.ai/tutorials/scaffolding_a_new_project.html) for all options and the generated project structure.
 
-## Run the Aerodynamics Example
+---
+# Recipes
 
-The [aero_cfd recipe](./recipes/aero_cfd/README.MD) training can be started in two ways:
+End-to-end training and evaluation examples for specific engineering tasks.
 
-**With configs** (from `recipes/aero_cfd/`):
+## Featured: AB-UPT Showcase on DrivAerML
 
-```console
-cd recipes/aero_cfd
-uv run noether-train --hp configs/train_shapenet.yaml \
-    +experiment/shapenet=upt \
-    dataset_root=./data \
-    +accelerator=mps \
+Train [AB-UPT](https://arxiv.org/abs/2502.09587) on the [DrivAerML](https://arxiv.org/abs/2408.11969) aerodynamics
+benchmark with a preset-based CLI. Ready-to-use model sizes for CPU, GPU, and Apple Silicon.
+
+- **Walkthrough**: [AB-UPT Showcase docs](https://noether-docs.emmi.ai/html/tutorials/walkthrough/showcase.html)
+- **Source**: [`recipes/aero_cfd/showcase/`](./recipes/aero_cfd/showcase/README.md)
+- **Dataset**: [EmmiAI/DrivAerML_subsampled_10x](https://huggingface.co/datasets/EmmiAI/DrivAerML_subsampled_10x)
+
+```bash
+cd recipes/aero_cfd/
+export PYTHONPATH=$(git -C ../.. rev-parse --show-toplevel)/recipes:$PYTHONPATH
+
+python -m showcase.cli train \
+  --dataset-root /path/to/drivaerml \
+  --output-path /path/to/outputs \
+  --model-size scaled \
+  --accelerator gpu \
+  --precision float16
 ```
 
-**With Python scripts** (from `recipes/`):
+## All recipes
 
-```console
-cd recipes
-uv run python -m aero_cfd.scripts.train_shapenet_car \
-    --dataset-root ./data \
-    --output-path ./outputs \
-    --accelerator mps \
-    --model abupt
-```
+| Recipe | Description | Quicklinks |
+|---|---|---|
+| **AB-UPT Showcase** | AB-UPT on DrivAerML with a preset-based CLI for training, evaluation, and VTK export. | [code](./recipes/aero_cfd/showcase/README.md) · [docs](https://noether-docs.emmi.ai/html/tutorials/walkthrough/showcase.html) |
+| **External Aerodynamics** | Multi-dataset aero CFD (ShapeNet-Car, AhmedML, DrivAerML, DrivAerNet++, Emmi-Wing) across AB-UPT, UPT, Transformer, and Transolver. | [code](./recipes/aero_cfd/README.MD) · [walkthrough](https://noether-docs.emmi.ai/html/tutorials/walkthrough/index.html) · [scripts](https://noether-docs.emmi.ai/html/noether/aero_cfd_python.html) |
+| **Fluid Heat Transfer** | Neural surrogates for heat transfer on the SIMSHIFT Heatsink benchmark -- predict 3D velocity, temperature, and pressure fields from heatsink geometry. | [code](./recipes/heat_transfer/README.md) · [docs](https://noether-docs.emmi.ai/html/noether/heat_transfer.html) |
 
-Learn more about different hardware support [here](https://noether-docs.emmi.ai/guides/hardware_setup.html).
+Browse the full list in the [Noether Recipe Zoo](https://noether-docs.emmi.ai/html/noether/recipe_zoo.html).
 
 ---
 # Performance Benchmarks
 
-The following benchmarks demonstrate **Noether**'s acceleration compatibility over different hardware using 
-the `ShapeNet-Car` dataset and the `AB-UPT` model. 
+Training time for the `AB-UPT` model on the `ShapeNet-Car` dataset across hardware configurations.
 
 > [!NOTE]
 > All benchmarks were conducted using **FP32 precision** to establish a baseline for raw computational performance.
