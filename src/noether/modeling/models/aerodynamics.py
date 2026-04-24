@@ -91,7 +91,11 @@ class AeroTransformer(Model):
         self.use_rope = model_config.transformer_block_config.use_rope
 
         self.pos_embed = ContinuousSincosEmbed(
-            config=ContinuousSincosEmbeddingConfig(hidden_dim=hidden_dim, input_dim=position_dim),
+            config=ContinuousSincosEmbeddingConfig(
+                hidden_dim=hidden_dim,
+                input_dim=position_dim,
+                max_wavelength=model_config.transformer_block_config.max_wavelength,
+            ),
         )
 
         if self.use_rope:
@@ -100,6 +104,7 @@ class AeroTransformer(Model):
                     hidden_dim=hidden_dim // model_config.transformer_block_config.num_heads,
                     input_dim=position_dim,
                     implementation="complex",
+                    max_wavelength=model_config.transformer_block_config.max_wavelength,
                 ),
             )
 

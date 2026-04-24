@@ -34,6 +34,8 @@ model:
     - self
     - cross
     - self
+  transformer_block_config:
+    max_wavelength: 40_000
 
 optimizer:
   lr: 0.01

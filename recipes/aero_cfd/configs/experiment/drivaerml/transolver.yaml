@@ -15,3 +15,8 @@ chunk_size: ${pipeline.num_surface_points}
 chunk_properties:
   - surface_position
   - volume_position
+
+model:
+  transformer_block_config:
+    max_wavelength: 40_000
+    

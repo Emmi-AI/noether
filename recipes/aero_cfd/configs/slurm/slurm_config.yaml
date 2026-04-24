@@ -1,11 +1,11 @@
-name: shapenet_experiment
+name: ${name}
 slurm_partition: compute
 nodes: 1
 tasks_per_node: 1
 cpus_per_task: 28
 gpus_per_node: 1
 mem_gb: 128
-folder: /home/%u/logs/shapenet_car
+folder: /home/%u/logs/${name}
 slurm_setup:
   - source .venv/bin/activate
 slurm_additional_parameters:
