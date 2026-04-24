@@ -246,6 +246,36 @@ class CosineIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
     kind: Literal["noether.core.schedules.CosineIncreasingSchedule"] = "noether.core.schedules.CosineIncreasingSchedule"  # type: ignore[assignment]
 
 
+class PiecewiseLinearScheduleConfig(ScheduleBaseConfig):
+    """Schedule linearly interpolated between user-defined ``(fraction, value)`` control points.
+
+    Unlike ProgressSchedule subclasses, values need not be monotonic — useful for U-shapes
+    or any other non-monotonic trajectory (e.g. for an α schedule on Muon).
+    """
+
+    kind: Literal["noether.core.schedules.PiecewiseLinearSchedule"] = "noether.core.schedules.PiecewiseLinearSchedule"
+    control_points: list[tuple[float, float]] = Field(...)
+    """List of ``(fraction, value)`` pairs. Fractions must be non-decreasing and cover 0.0 and 1.0.
+
+    Duplicate fractions encode a step: e.g. ``[(0.0, 1.0), (0.5, 1.0), (0.5, 0.0), (1.0, 0.0)]``
+    jumps from 1.0 to 0.0 at fraction 0.5. At a tie, the later value wins (right-continuous).
+    """
+
+    @model_validator(mode="after")
+    def validate_control_points(self) -> "PiecewiseLinearScheduleConfig":
+        pts = self.control_points
+        if len(pts) < 2:
+            raise ValueError("control_points must contain at least two points")
+        fracs = [p[0] for p in pts]
+        if fracs[0] != 0.0 or fracs[-1] != 1.0:
+            raise ValueError("control_points must start at fraction 0.0 and end at fraction 1.0")
+        if any(fracs[i + 1] < fracs[i] for i in range(len(fracs) - 1)):
+            raise ValueError("control_points fractions must be non-decreasing")
+        if any(not (0.0 <= f <= 1.0) for f in fracs):
+            raise ValueError("control_points fractions must be in [0, 1]")
+        return self
+
+
 AnyScheduleConfig = Union[
     SchedulerConfig,
     DecreasingProgressScheduleConfig,
@@ -264,4 +294,5 @@ AnyScheduleConfig = Union[
     CosineIncreasingScheduleConfig,
     LinearIncreasingScheduleConfig,
     LinearDecreasingScheduleConfig,
+    PiecewiseLinearScheduleConfig,
 ]

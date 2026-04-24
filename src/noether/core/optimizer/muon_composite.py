@@ -1,16 +1,22 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-"""MuonComposite: torch.optim.Muon for 2D params, any optimizer for the rest.
+"""MuonComposite: Muon for 2D params, any optimizer for the rest.
 
 Parameters are routed based on dimensionality: ``ndim >= 2`` goes to Muon,
 everything else (biases, norms, 1D embeddings) goes to the secondary optimizer.
+
+The Muon primary is :class:`noether.core.optimizer._muon_alpha._MuonAlpha`, which
+extends ``torch.optim.Muon`` with an α-interpolated update (see that module for
+details). At ``alpha=1.0`` (default) the update is bit-identical to torch.optim.Muon.
 """
 
 import torch
 
+from noether.core.optimizer._muon_alpha import _MuonAlpha
+
 
 class MuonComposite(torch.optim.Optimizer):
-    """Composite optimizer using torch.optim.Muon for 2D weight matrices
+    """Composite optimizer using Muon for 2D weight matrices
     and a configurable secondary optimizer for all other parameters (biases, norms, embeddings).
     """
 
@@ -24,6 +30,7 @@ class MuonComposite(torch.optim.Optimizer):
         nesterov=None,
         ns_steps=None,
         adjust_lr_fn=None,
+        alpha=1.0,
     ):
         """
         Args:
@@ -36,6 +43,11 @@ class MuonComposite(torch.optim.Optimizer):
             ns_steps: Number of Newton-Schulz iteration steps. None uses Muon's default (5).
             adjust_lr_fn: Per-matrix LR adjustment strategy for Muon. One of ``"original"``
                 or ``"match_rms_adamw"``. None uses Muon's default (``"original"``).
+            alpha: α ∈ [0, 1] blend between normalized raw momentum (α=0) and
+                Newton-Schulz orthogonalized momentum (α=1). Default 1.0 preserves
+                torch.optim.Muon behavior exactly. For schedule-driven α, set the
+                initial value here and mutate ``param_group["alpha"]`` externally
+                via an :class:`~noether.core.optimizer.OptimizerWrapper` alpha schedule.
         """
         params = list(params)
 
@@ -65,14 +77,14 @@ class MuonComposite(torch.optim.Optimizer):
         super().__init__(params, defaults)
 
         # Create internal Muon optimizer, forwarding only explicitly set kwargs
-        muon_kwargs: dict = dict(lr=lr, momentum=momentum, weight_decay=weight_decay)
+        muon_kwargs: dict = dict(lr=lr, momentum=momentum, weight_decay=weight_decay, alpha=alpha)
         if nesterov is not None:
             muon_kwargs["nesterov"] = nesterov
         if ns_steps is not None:
             muon_kwargs["ns_steps"] = ns_steps
         if adjust_lr_fn is not None:
             muon_kwargs["adjust_lr_fn"] = adjust_lr_fn
-        self._muon = torch.optim.Muon(muon_groups, **muon_kwargs) if muon_groups else None
+        self._muon = _MuonAlpha(muon_groups, **muon_kwargs) if muon_groups else None
         from noether.core.factory.utils import class_constructor_from_class_path
 
         secondary_cls = class_constructor_from_class_path(secondary_kind)
@@ -97,6 +109,22 @@ class MuonComposite(torch.optim.Optimizer):
         if self._secondary:
             self._secondary.step()
         return loss
+
+    # --- α diagnostics (populated by the primary optimizer's last step) ---
+    @property
+    def last_alpha(self) -> float:
+        """Mean α across Muon param groups in the most recent :meth:`step` (or NaN if no Muon params)."""
+        return self._muon.last_alpha if self._muon is not None else float("nan")
+
+    @property
+    def last_update_frob_mean(self) -> float:
+        """Mean Frobenius norm of the α-blended update across Muon params in the most recent step."""
+        return self._muon.last_update_frob_mean if self._muon is not None else 0.0
+
+    @property
+    def last_cos_mhat_ns(self) -> float:
+        """Mean cosine similarity between ``M_hat`` and ``NS(M_hat)`` across Muon params in the most recent step."""
+        return self._muon.last_cos_mhat_ns if self._muon is not None else 0.0
 
     def zero_grad(self, set_to_none=True):
         if self._muon:

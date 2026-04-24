@@ -33,6 +33,7 @@ class OptimizerWrapper:
 
     schedule: ScheduleWrapper | None = None
     weight_decay_schedule: ScheduleWrapper | None = None
+    alpha_schedule: ScheduleWrapper | None = None
 
     def __init__(
         self,
@@ -118,6 +119,14 @@ class OptimizerWrapper:
             for param_group in self.torch_optim.param_groups:
                 assert "exclude_from_wd" not in param_group
                 param_group["exclude_from_wd"] = param_group["weight_decay"] == 0.0
+        alpha_schedule_config = getattr(optim_wrapper_config, "alpha_schedule", None)
+        if alpha_schedule_config is not None:
+            # Only meaningful for MuonComposite, which stores `alpha` in each Muon param group.
+            # For any other optimizer, silently no-op at schedule_step() time.
+            self.alpha_schedule = ScheduleFactory().create(
+                alpha_schedule_config,
+                update_counter=self.update_counter,
+            )
 
     def _apply_learning_rate_scaling(self):
         """Applies the learning rate scaling to the parameter groups in the optimizer."""
@@ -317,6 +326,13 @@ class OptimizerWrapper:
             for param_group in self.torch_optim.param_groups:
                 if not param_group["exclude_from_wd"]:
                     param_group["weight_decay"] = wd_scale
+        if self.alpha_schedule is not None:
+            alpha_value = float(self.alpha_schedule.get_value())
+            alpha_value = max(0.0, min(1.0, alpha_value))  # clip defensively
+            for param_group in self.torch_optim.param_groups:
+                # Only MuonComposite param groups carry "alpha"; skip others (e.g. the secondary).
+                if "alpha" in param_group:
+                    param_group["alpha"] = alpha_value
 
     def zero_grad(self, set_to_none=True):
         """Wrapper around `torch.optim.Optimizer.zero_grad`."""

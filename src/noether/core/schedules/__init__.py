@@ -16,6 +16,7 @@ from .custom import CustomSchedule, CustomScheduleConfig
 from .functional import cosine, linear, polynomial
 from .linear import LinearDecreasingSchedule, LinearIncreasingSchedule
 from .linear_warmup_cosine_decay import LinearWarmupCosineDecaySchedule
+from .piecewise_linear import PiecewiseLinearSchedule
 from .polynomial import PolynomialDecreasingSchedule, PolynomialIncreasingSchedule
 from .step import StepDecreasingSchedule, StepFixedSchedule, StepIntervalSchedule
 
@@ -43,6 +44,7 @@ __all__ = [
     "LinearDecreasingSchedule",
     "LinearIncreasingSchedule",
     "LinearWarmupCosineDecaySchedule",
+    "PiecewiseLinearSchedule",
     "PolynomialDecreasingSchedule",
     "StepDecreasingSchedule",
     "StepFixedSchedule",

@@ -1,0 +1,29 @@
+kind: noether.core.optimizer.MuonComposite
+lr: 0.01
+momentum: 0.95
+weight_decay: 0.01
+secondary:
+  kind: noether.core.optimizer.Lion
+  lr: 5.0e-5
+  weight_decay: 0.05
+clip_grad_norm: 1.0
+# Step-function U-shape:
+#   - [0, 5%)   : α = 1.0  (full orthogonalization during warmup)
+#   - [5%, 45%) : α = 0.3  (relaxed — let raw momentum shape the update)
+#   - [45%, 100%]: α = 1.0  (full orthogonalization for final polish)
+# Duplicate fractions encode the sharp jumps; at the tie the later value wins (right-continuous).
+alpha: 1.0  # initial value; overridden by alpha_schedule each step
+alpha_schedule:
+  kind: noether.core.schedules.PiecewiseLinearSchedule
+  control_points:
+    - [0.0, 1.0]
+    - [0.05, 1.0]
+    - [0.05, 0.3]
+    - [0.45, 0.3]
+    - [0.45, 1.0]
+    - [1.0, 1.0]
+schedule_config:
+  kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+  warmup_percent: 0.05
+  end_value: 1.0e-6
+  max_value: ${model.optimizer_config.lr}

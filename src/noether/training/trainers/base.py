@@ -343,10 +343,11 @@ class BaseTrainer:
                     f"No tracking intervals set, defaulting to every {track_config['every_n_updates']} updates for tracking callbacks."
                 )
 
-            from noether.core.callbacks import LrCallback
+            from noether.core.callbacks import LrCallback, MuonAlphaCallback
 
             default_callbacks += [
                 LrCallback(callback_config=CallBackBaseConfig.model_validate(track_config), **default_kwargs),
+                MuonAlphaCallback(callback_config=CallBackBaseConfig.model_validate(track_config), **default_kwargs),
                 OnlineLossCallback(
                     callback_config=OnlineLossCallbackConfig.model_validate({**track_config, "verbose": False}),
                     **default_kwargs,

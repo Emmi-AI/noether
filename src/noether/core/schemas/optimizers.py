@@ -83,6 +83,8 @@ class OptimizerConfig(BaseModel):
     """If true, excludes the weights of normalization layers from the weight decay. This is implemented by excluding all 1D tensors from the weight decay. Default true."""
     weight_decay_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
     schedule_config: AnyScheduleConfig | None = Field(None, discriminator="kind")
+    alpha_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
+    """Schedule for the Muon α blend factor. Only meaningful for :class:`~noether.core.optimizer.MuonComposite`."""
 
     _optim_wrapper_kwargs: ClassVar[set[str]] = {
         "clip_grad_value",
@@ -92,6 +94,7 @@ class OptimizerConfig(BaseModel):
         "exclude_normalization_params_from_weight_decay",
         "weight_decay_schedule",
         "schedule_config",
+        "alpha_schedule",
     }
 
     def return_optim_wrapper_args(self) -> dict:
@@ -128,6 +131,11 @@ class MuonOptimizerConfig(OptimizerConfig):
     """Number of Newton-Schulz iteration steps. None uses Muon's default (5)."""
     adjust_lr_fn: Literal["original", "match_rms_adamw"] | None = None
     """Per-matrix LR adjustment strategy. None uses Muon's default (``"original"``)."""
+    alpha: float = Field(1.0, ge=0.0, le=1.0)
+    """Initial α blend factor. ``alpha=1.0`` (default) is torch.optim.Muon behavior exactly.
+    ``alpha=0.0`` skips the Newton-Schulz iteration and uses ``√min(m, n) · M/‖M‖_F`` as the update.
+    For scheduled α, leave this at the starting value and set ``alpha_schedule`` on the optimizer config.
+    """
 
 
 AnyOptimizerConfig = Union[AdamOptimizerConfig, SGDOptimizerConfig, MuonOptimizerConfig]

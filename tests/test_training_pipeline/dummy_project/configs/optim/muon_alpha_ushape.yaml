@@ -1,0 +1,19 @@
+kind: noether.core.optimizer.MuonComposite
+lr: 0.01
+weight_decay: 0.01
+clip_grad_norm: 1.0
+alpha: 1.0  # initial value; overridden by alpha_schedule each step
+alpha_schedule:
+  kind: noether.core.schedules.PiecewiseLinearSchedule
+  # U-shape: start orthogonalized, drop to α=0.3 for the middle 40% of training,
+  # then return to α=1.0 for the final polish.
+  control_points:
+    - [0.0, 1.0]
+    - [0.3, 0.3]
+    - [0.7, 0.3]
+    - [1.0, 1.0]
+schedule_config:
+  kind: noether.core.schedules.LinearWarmupCosineDecaySchedule
+  max_value: ${optim.lr}
+  warmup_percent: 0.10
+  end_value: 1.0e-6
