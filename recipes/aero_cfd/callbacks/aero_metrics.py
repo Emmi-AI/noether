@@ -41,6 +41,10 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
     """If True, compute drag/lift coefficients per sample and log errors."""
     measure_inference_time: bool = False
     """If True, record per-sample model inference wall time (ms) and log a summary at the end."""
+    inference_time_warmup_samples: int = 1
+    """Number of leading samples to drop from inference-time stats (CUDA autotune, kernel
+    compile, allocator growth on the first forward dominate the timing). Only used when
+    ``measure_inference_time`` is True. Set to 0 to keep every sample."""
 
     @model_validator(mode="after")
     def validate_config(self) -> AeroMetricsCallbackConfig:
@@ -122,6 +126,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self._predictions_path = callback_config.predictions_path
         self._prediction_counter: int = 0
         self._measure_inference_time = callback_config.measure_inference_time
+        self._inference_time_warmup_samples = callback_config.inference_time_warmup_samples
         self._compute_forces = callback_config.compute_forces
         if self._compute_forces:
             from scipy.spatial import cKDTree
@@ -489,6 +494,8 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             return
 
         for name, metric in results.items():
+            if name == "inference_time_ms":
+                continue  # handled below with warmup-sample trimming
             metric_key = f"{METRIC_PREFIX_LOSS}{self.dataset_key}/{name}"
             self.writer.add_scalar(
                 key=metric_key,
@@ -509,15 +516,44 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             self._prediction_counter = 0
 
     def _log_inference_time_summary(self, times_ms: torch.Tensor) -> None:
-        """Log count, mean/std/median/min/max inference time over all samples."""
-        n = times_ms.numel()
-        mean = float(times_ms.mean())
-        std = float(times_ms.std(unbiased=False)) if n > 1 else 0.0
-        median = float(times_ms.median())
-        tmin = float(times_ms.min())
-        tmax = float(times_ms.max())
-        self.logger.info(
+        """Log count, mean/std/median/min/max inference time over all samples.
+
+        Drops the first ``inference_time_warmup_samples`` values, which are
+        typically dominated by one-off setup cost (CUDA autotune, kernel compile,
+        allocator growth) on the initial forward pass.
+        """
+        warmup = min(self._inference_time_warmup_samples, times_ms.numel())
+        dropped = times_ms[:warmup]
+        kept = times_ms[warmup:]
+
+        if kept.numel() == 0:
+            self.logger.warning(
+                f"Inference-time summary skipped: all {times_ms.numel()} sample(s) dropped as warmup "
+                f"(inference_time_warmup_samples={self._inference_time_warmup_samples})."
+            )
+            return
+
+        n = kept.numel()
+        mean = float(kept.mean())
+        std = float(kept.std(unbiased=False)) if n > 1 else 0.0
+        median = float(kept.median())
+        tmin = float(kept.min())
+        tmax = float(kept.max())
+
+        warmup_note = ""
+        if warmup > 0:
+            warmup_note = f" (dropped {warmup} warmup sample(s): {', '.join(f'{float(x):.1f}ms' for x in dropped)})"
+
+        summary = (
             f"Inference time on '{self.dataset_key}' over {n} sample(s): "
             f"mean={mean:.2f}ms  std={std:.2f}ms  median={median:.2f}ms  "
-            f"min={tmin:.2f}ms  max={tmax:.2f}ms"
+            f"min={tmin:.2f}ms  max={tmax:.2f}ms{warmup_note}"
+        )
+        self.logger.info(summary)
+
+        self.writer.add_scalar(
+            key=f"{METRIC_PREFIX_LOSS}{self.dataset_key}/inference_time_ms",
+            value=torch.tensor(mean),
+            logger=self.logger,
+            format_str=".6f",
         )
