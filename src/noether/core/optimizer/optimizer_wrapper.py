@@ -100,6 +100,9 @@ class OptimizerWrapper:
         if self.config.clip_grad_value is not None or self.config.clip_grad_norm is not None:
             self.all_parameters = list(model.parameters())
 
+        # Pre-clip gradient norm from the most recent step() call; populated only when clip_grad_norm is set.
+        self.last_grad_norm: torch.Tensor | None = None
+
         self._apply_learning_rate_scaling()
 
         # create schedules
@@ -292,7 +295,7 @@ class OptimizerWrapper:
         if self.config.clip_grad_norm is not None:
             if self.all_parameters is None:
                 raise RuntimeError("all_parameters was not initialized")
-            torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
+            self.last_grad_norm = torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
         # torch optim step with grad scaler
         grad_scaler.step(self.torch_optim)
         grad_scaler.update()
