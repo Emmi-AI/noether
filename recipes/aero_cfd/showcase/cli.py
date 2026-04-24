@@ -317,6 +317,18 @@ def evaluate(
     if query_inference:
         num_sa = size_config.pipeline_overrides.get("num_surface_anchor_points", 512)
         num_va = size_config.pipeline_overrides.get("num_volume_anchor_points", 512)
+        if num_inference_surface_points <= num_sa or num_inference_volume_points <= num_va:
+            console.print(
+                "[red]--query-inference needs strictly more points than anchors in both domains "
+                "so that each domain gets at least one query point "
+                f"(surface anchors={num_sa}, volume anchors={num_va}), but got "
+                f"num_inference_surface_points={num_inference_surface_points}, "
+                f"num_inference_volume_points={num_inference_volume_points}.[/red]\n"
+                f"[yellow]For model-size '{model_size.value}', choose surface N > {num_sa} "
+                f"AND volume N > {num_va}. When sweeping both together, start around "
+                f"N ≥ {max(num_sa, num_va) + 8000}.[/yellow]"
+            )
+            raise typer.Exit(1)
         if query_chunk_size is None:
             query_chunk_size = num_sa
 
