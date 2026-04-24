@@ -1482,12 +1482,15 @@ class TestSkipRemainingBatches:
 class TestEval:
     def test_eval_calls_at_eval_on_periodic_callbacks(self):
         """eval() calls at_eval on each PeriodicCallback."""
-        from noether.core.callbacks import PeriodicCallback
+        from noether.core.callbacks import CallbackBase, PeriodicCallback
 
         trainer = _make_trainer()
 
         cb_periodic = MagicMock(spec=PeriodicCallback)
-        cb_non_periodic = MagicMock(spec=[])  # not a PeriodicCallback
+        cb_periodic.get_children.return_value = []
+        # not a PeriodicCallback, but still a CallbackBase so get_children() is available
+        cb_non_periodic = MagicMock(spec=CallbackBase)
+        cb_non_periodic.get_children.return_value = []
 
         with (
             patch.object(trainer, "get_user_callbacks", return_value=[cb_periodic, cb_non_periodic]),

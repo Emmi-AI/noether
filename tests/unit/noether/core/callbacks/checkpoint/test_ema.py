@@ -225,6 +225,85 @@ class TestEmaCallback:
 
         callback_deps["checkpoint_writer"].save_model_checkpoint.assert_not_called()
 
+    def test_eval_callbacks_see_ema_weights_and_live_is_restored(self, monkeypatch, callback_deps, base_config):
+        """``after_epoch`` forwards to children under swapped EMA weights, then restores the live model.
+
+        Also verifies that before_training forwards to children without swapping (so child init sees live
+        weights), that each child's writer is a PrefixedLogWriter namespaced by target_factor, and that
+        arbitrary kwargs passed by the trainer (e.g. ``data_iter``, ``trainer_model``) flow through to the
+        child.
+        """
+        monkeypatch.setattr(_MODULE_PATH + ".is_rank0", lambda: True)
+        monkeypatch.setattr(_MODULE_PATH + ".is_distributed", lambda: False)
+        monkeypatch.setattr(_MODULE_PATH + ".select_with_path", lambda *, obj, path: obj)
+
+        model = _TinyModel()
+        with torch.no_grad():
+            model.linear.weight.fill_(1.0)
+        base_config["target_factors"] = [0.9]
+
+        # Child records the weights it sees in each hook.
+        observed: dict[str, torch.Tensor] = {}
+
+        def record(hook_name: str):
+            def _cb(**_):
+                observed[hook_name] = model.linear.weight.detach().clone()
+
+            return _cb
+
+        child = Mock()
+        child.before_training.side_effect = record("before_training")
+        child.after_epoch.side_effect = record("after_epoch")
+        child.after_training.side_effect = record("after_training")
+
+        # Mock the Factory so ``eval_callbacks`` instantiates our stub instead of requiring a resolvable
+        # kind path. We capture the child_kwargs to assert the PrefixedLogWriter is installed.
+        captured_kwargs: dict = {}
+
+        def fake_create_list(_configs, **child_kwargs):
+            captured_kwargs.update(child_kwargs)
+            return [child]
+
+        fake_factory = Mock()
+        fake_factory.create_list.side_effect = fake_create_list
+        monkeypatch.setattr(_MODULE_PATH + ".Factory", Mock(return_value=fake_factory))
+
+        base_config["eval_callbacks"] = [object()]  # sentinel; Factory is mocked
+
+        cb = EmaCallback(callback_config=SimpleNamespace(**base_config), model=model, **callback_deps)
+
+        # Child's log_writer is a PrefixedLogWriter scoped to this target_factor.
+        from noether.core.writers import PrefixedLogWriter
+
+        assert isinstance(captured_kwargs["log_writer"], PrefixedLogWriter)
+        assert captured_kwargs["log_writer"]._prefix == "ema=0.9"
+
+        # Initialize EMA from live model (weight=1.0 by default init), then diverge live vs. EMA.
+        cb.before_training(extra_kwarg="forwarded")
+        child.before_training.assert_called_once()
+        assert child.before_training.call_args.kwargs["extra_kwarg"] == "forwarded"
+
+        with torch.no_grad():
+            model.linear.weight.fill_(5.0)
+            model.buf.fill_(2.0)
+            cb.parameters[(None, 0.9)]["linear.weight"].fill_(7.0)
+            cb.buffers[None]["buf"].fill_(3.0)
+
+        # Dispatch eval-time hook; child should observe EMA (=7.0), and the live model must be restored.
+        update_counter = SimpleNamespace(cur_iteration=SimpleNamespace(epoch=None, update=None, sample=None))
+        cb.after_epoch(update_counter=update_counter, trainer_model="dist_model")
+
+        assert torch.allclose(observed["after_epoch"], torch.full_like(observed["after_epoch"], 7.0))
+        assert torch.allclose(model.linear.weight, torch.full_like(model.linear.weight, 5.0))
+        assert torch.allclose(model.buf, torch.full_like(model.buf, 2.0))
+
+        # before_training must not swap: child should have seen the live weights at that point (=1.0).
+        assert torch.allclose(observed["before_training"], torch.ones_like(observed["before_training"]))
+
+        # after_training also doesn't swap.
+        cb.after_training()
+        assert torch.allclose(observed["after_training"], torch.full_like(observed["after_training"], 5.0))
+
     def test_apply_ema_modifies_in_place(self, monkeypatch, callback_deps, base_config):
         monkeypatch.setattr(_MODULE_PATH + ".is_rank0", lambda: True)
         monkeypatch.setattr(_MODULE_PATH + ".select_with_path", lambda *, obj, path: obj)

@@ -47,6 +47,21 @@ if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from noether.core.models import ModelBase
 
 
+def _iter_iterator_descendants(callback: CallbackBase) -> Iterator[PeriodicDataIteratorCallback]:
+    """Yield every ``PeriodicDataIteratorCallback`` reachable via ``get_children()``."""
+    for child in callback.get_children():
+        if isinstance(child, PeriodicDataIteratorCallback):
+            yield child
+        yield from _iter_iterator_descendants(child)
+
+
+def _needs_iterator_args(callback: CallbackBase) -> bool:
+    """True if ``callback`` itself or any descendant iterates a dataset and needs ``data_iter``."""
+    if isinstance(callback, PeriodicDataIteratorCallback):
+        return True
+    return any(True for _ in _iter_iterator_descendants(callback))
+
+
 class TrainingContextFilter(logging.Filter):
     def __init__(self, update_counter: UpdateCounter):
         super().__init__()
@@ -618,9 +633,11 @@ class BaseTrainer:
         """Train the model."""
 
         self.callbacks = self.get_all_callbacks(model)
-        iterator_callbacks = [
-            callback for callback in self.callbacks if isinstance(callback, PeriodicDataIteratorCallback)
-        ]
+        iterator_callbacks: list[PeriodicDataIteratorCallback] = []
+        for callback in self.callbacks:
+            if isinstance(callback, PeriodicDataIteratorCallback):
+                iterator_callbacks.append(callback)
+            iterator_callbacks.extend(_iter_iterator_descendants(callback))
 
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device)
@@ -718,16 +735,17 @@ class BaseTrainer:
         early_exit = False
         first_error = None
         for callback in periodic_callbacks:
+            needs_iter_args = _needs_iterator_args(callback)
             try:
                 if end_of_epoch:
                     callback.after_epoch(
                         update_counter=self.update_counter,
-                        **(iterator_callback_args if isinstance(callback, PeriodicDataIteratorCallback) else {}),
+                        **(iterator_callback_args if needs_iter_args else {}),
                     )
                 else:
                     callback.after_update(
                         update_counter=self.update_counter,
-                        **(iterator_callback_args if isinstance(callback, PeriodicDataIteratorCallback) else {}),
+                        **(iterator_callback_args if needs_iter_args else {}),
                     )
             except EarlyStopIteration:
                 self.logger.info(f"Callback {callback} requested early stop of training")
@@ -1067,7 +1085,11 @@ class BaseTrainer:
         callbacks = self.get_user_callbacks(model, evaluation=True)
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device).eval()
-        iterator_callbacks = [callback for callback in callbacks if isinstance(callback, PeriodicDataIteratorCallback)]
+        iterator_callbacks: list[PeriodicDataIteratorCallback] = []
+        for callback in callbacks:
+            if isinstance(callback, PeriodicDataIteratorCallback):
+                iterator_callbacks.append(callback)
+            iterator_callbacks.extend(_iter_iterator_descendants(callback))
         batch_size, _, _ = self._prepare_batch_size()
 
         data_loader = self.get_data_loader(
@@ -1085,7 +1107,7 @@ class BaseTrainer:
                     data_iter=map(BaseTrainer.drop_metadata, data_iter),
                     batch_size=batch_size,
                 )
-                if isinstance(callback, PeriodicDataIteratorCallback)
+                if _needs_iterator_args(callback)
                 else {}
             )
             callback.at_eval(self.update_counter, **iterator_callback_args)

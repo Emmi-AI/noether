@@ -172,11 +172,6 @@ class PeriodicCallback(CallbackBase):
         self.every_n_samples = callback_config.every_n_samples
         self.batch_size = callback_config.batch_size
 
-        if not (type(self).after_update == PeriodicCallback.after_update):
-            raise AssertionError("Children shouldn't override 'after_update'")
-        if not (type(self).after_epoch == PeriodicCallback.after_epoch):
-            raise AssertionError("Children shouldn't override 'after_epoch'")
-
     def __str__(self):
         return f"{type(self).__name__}({self.get_interval_string_verbose()})"
 
