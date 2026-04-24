@@ -269,6 +269,12 @@ def evaluate(
         int | None,
         typer.Option(help="Query points per chunk per domain. Default: num_surface_anchor_points from model size."),
     ] = None,
+    measure_inference_time: bool = typer.Option(
+        False,
+        "--measure-inference-time",
+        help="Record per-sample model inference time and log mean/std/median/min/max. "
+        "Useful when sweeping --num-inference-surface-points / --num-inference-volume-points.",
+    ),
 ) -> None:
     """Evaluate a trained AB-UPT model and save predictions.
 
@@ -325,6 +331,7 @@ def evaluate(
             num_volume_anchors=num_va,
             query_chunk_size=query_chunk_size,
             compute_forces=compute_forces,
+            measure_inference_time=measure_inference_time,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split} — query inference[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")
@@ -342,6 +349,7 @@ def evaluate(
             predictions_path=predictions_path,
             batch_properties_to_save=batch_props,
             compute_forces=compute_forces,
+            measure_inference_time=measure_inference_time,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split}[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")

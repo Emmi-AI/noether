@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -38,6 +39,8 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
     """Batch keys (e.g. position tensors) to save alongside predictions."""
     compute_forces: bool = False
     """If True, compute drag/lift coefficients per sample and log errors."""
+    measure_inference_time: bool = False
+    """If True, record per-sample model inference wall time (ms) and log a summary at the end."""
 
     @model_validator(mode="after")
     def validate_config(self) -> AeroMetricsCallbackConfig:
@@ -118,6 +121,7 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self._save_predictions = callback_config.save_predictions
         self._predictions_path = callback_config.predictions_path
         self._prediction_counter: int = 0
+        self._measure_inference_time = callback_config.measure_inference_time
         self._compute_forces = callback_config.compute_forces
         if self._compute_forces:
             from scipy.spatial import cKDTree
@@ -393,6 +397,27 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             "lift_error": torch.tensor(abs(gt_coeffs.cl - pred_coeffs.cl)),
         }
 
+    def _timed_model_inference(self, batch: dict[str, torch.Tensor]) -> tuple[dict[str, torch.Tensor], float]:
+        """Run ``_run_model_inference`` and return (outputs, elapsed_ms).
+
+        Uses CUDA events with an explicit synchronize when the trainer device is
+        CUDA, so the timing reflects actual device execution rather than kernel
+        launch cost. Falls back to ``time.perf_counter`` on CPU/MPS.
+        """
+        device = self.trainer.device
+        if isinstance(device, torch.device) and device.type == "cuda":
+            start_evt = torch.cuda.Event(enable_timing=True)
+            end_evt = torch.cuda.Event(enable_timing=True)
+            start_evt.record()
+            outputs = self._run_model_inference(batch)
+            end_evt.record()
+            torch.cuda.synchronize(device)
+            return outputs, float(start_evt.elapsed_time(end_evt))
+
+        t0 = time.perf_counter()
+        outputs = self._run_model_inference(batch)
+        return outputs, (time.perf_counter() - t0) * 1000.0
+
     def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
@@ -404,14 +429,21 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         Returns:
             Dictionary mapping metric names to computed values
         """
-        model_outputs = self._run_model_inference(batch)
+        if self._measure_inference_time:
+            model_outputs, elapsed_ms = self._timed_model_inference(batch)
+        else:
+            model_outputs = self._run_model_inference(batch)
+            elapsed_ms = None
 
-        metrics = {}
+        metrics: dict[str, torch.Tensor] = {}
         for mode in self.evaluation_modes:
             metrics.update(self._compute_mode_metrics(batch, model_outputs, mode))
 
         if self._compute_forces:
             metrics.update(self._compute_force_metrics(batch, model_outputs))
+
+        if elapsed_ms is not None:
+            metrics["inference_time_ms"] = torch.tensor(elapsed_ms)
 
         if self._save_predictions:
             self._collect_predictions(batch, model_outputs)
@@ -467,6 +499,25 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
 
         self.logger.debug(f"Logged {len(results)} metrics for dataset '{self.dataset_key}'")
 
+        if self._measure_inference_time:
+            times = results.get("inference_time_ms")
+            if times is not None and times.numel() > 0:
+                self._log_inference_time_summary(times.float())
+
         if self._save_predictions and self._prediction_counter > 0:
             self.logger.info(f"Saved {self._prediction_counter} prediction files to {self._predictions_path}")
             self._prediction_counter = 0
+
+    def _log_inference_time_summary(self, times_ms: torch.Tensor) -> None:
+        """Log count, mean/std/median/min/max inference time over all samples."""
+        n = times_ms.numel()
+        mean = float(times_ms.mean())
+        std = float(times_ms.std(unbiased=False)) if n > 1 else 0.0
+        median = float(times_ms.median())
+        tmin = float(times_ms.min())
+        tmax = float(times_ms.max())
+        self.logger.info(
+            f"Inference time on '{self.dataset_key}' over {n} sample(s): "
+            f"mean={mean:.2f}ms  std={std:.2f}ms  median={median:.2f}ms  "
+            f"min={tmin:.2f}ms  max={tmax:.2f}ms"
+        )
