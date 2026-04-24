@@ -99,13 +99,14 @@ def _build_eval_config(
     checkpoint: str,
     callbacks: list,
     extra_datasets: dict | None = None,
+    precision: str = "float32",
 ):
     """Build a ConfigSchema for evaluation (shared by standard and query modes)."""
     return preset.build_config(
         model_kind=ABUPT_MODEL_KIND,
         model_params=size_config.model_params,
         trainer_kind=TRAINER_KIND,
-        trainer_params=dict(field_weights=FIELD_WEIGHTS),
+        trainer_params=dict(field_weights=FIELD_WEIGHTS, precision=precision),
         dataset_root=dataset_root,
         output_path=output_path,
         datasets={split: split},
@@ -275,6 +276,13 @@ def evaluate(
         help="Record per-sample model inference time and log mean/std/median/min/max. "
         "Useful when sweeping --num-inference-surface-points / --num-inference-volume-points.",
     ),
+    precision: Annotated[
+        str,
+        typer.Option(
+            help="Inference precision: float32, float16, or bfloat16. bfloat16 enables Flash "
+            "Attention + Tensor Cores on H100/A100 (≈10-15× faster attention).",
+        ),
+    ] = "float32",
 ) -> None:
     """Evaluate a trained AB-UPT model and save predictions.
 
@@ -365,6 +373,7 @@ def evaluate(
         checkpoint=checkpoint,
         callbacks=[callback],
         extra_datasets=extra_datasets,
+        precision=precision,
     )
 
     if compute_forces:
