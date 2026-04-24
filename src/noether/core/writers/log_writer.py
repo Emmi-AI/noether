@@ -2,7 +2,8 @@
 
 import logging
 from collections import defaultdict
-from typing import Any
+from types import TracebackType
+from typing import Any, Self
 
 import numpy as np
 import torch
@@ -46,8 +47,22 @@ class LogWriter:
         """
         return [entry[key] for entry in self.log_entries if key in entry]
 
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        self.finish()
+
     def finish(self) -> None:
         """Stores all logs from the training to the disk."""
+
+        self.flush()
+
         if len(self.log_entries) == 0 or not is_rank0():
             return
         entries_uri = self.path_provider.basetracker_entries_uri

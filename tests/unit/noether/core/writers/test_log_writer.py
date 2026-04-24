@@ -266,3 +266,20 @@ class TestFinish:
         data = torch.load(lw.path_provider.basetracker_entries_uri, weights_only=False)
         # "update" key should not appear as a top-level metric:
         assert "update" not in data
+
+
+class TestContextManager:
+    def test_exit_calls_finish_on_normal_exit(self, tmp_path):
+        lw = _make_log_writer(tmp_path)
+        with patch.object(lw, "finish") as mock_finish:
+            with lw as entered:
+                assert entered is lw
+        mock_finish.assert_called_once()
+
+    def test_exit_calls_finish_on_exception(self, tmp_path):
+        lw = _make_log_writer(tmp_path)
+        with patch.object(lw, "finish") as mock_finish:
+            with pytest.raises(RuntimeError, match="boom"):
+                with lw:
+                    raise RuntimeError("boom")
+        mock_finish.assert_called_once()
