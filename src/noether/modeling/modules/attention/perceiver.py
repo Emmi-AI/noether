@@ -38,7 +38,8 @@ class PerceiverAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
 
-        self.kv = nn.Linear(config.kv_dim, config.hidden_dim * 2, bias=config.bias)  # type: ignore[arg-type]
+        self.k = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
+        self.v = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
         self.q = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.dropout = config.dropout
@@ -90,7 +91,10 @@ class PerceiverAttention(nn.Module):
             # Project K/V from input
             if kv is None:
                 raise ValueError("Either kv or kv_cache must be provided.")
-            kv_proj = self.kv(kv)
+            kv_weight = torch.cat([self.k.weight, self.v.weight], dim=0)
+            kv_bias = torch.cat([self.k.bias, self.v.bias], dim=0) if self.k.bias is not None else None
+            kv_proj = F.linear(kv, kv_weight, kv_bias)
+
             k, v = einops.rearrange(
                 kv_proj,
                 "bs seqlen_kv (two num_heads head_dim) -> two bs num_heads seqlen_kv head_dim",

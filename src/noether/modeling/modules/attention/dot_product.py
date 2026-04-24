@@ -38,7 +38,9 @@ class DotProductAttention(nn.Module):
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 
-        self.qkv = nn.Linear(config.hidden_dim, config.hidden_dim * 3, bias=config.bias)
+        self.q = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.k = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.v = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         apply_init_method(self, self.proj.weight, self.init_weights)
 
@@ -59,8 +61,12 @@ class DotProductAttention(nn.Module):
             Returns the output of the attention module.
         """
 
+        qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
+        qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
+        qkv = F.linear(x, qkv_weight, qkv_bias)
+
         q, k, v = einops.rearrange(
-            self.qkv(x),
+            qkv,
             "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
             three=3,
             num_heads=self.num_heads,

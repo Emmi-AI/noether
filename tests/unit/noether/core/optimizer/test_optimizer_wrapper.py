@@ -6,6 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
+from noether.core.optimizer.muon_composite import MuonComposite
 from noether.core.optimizer.optimizer_wrapper import OptimizerWrapper
 from noether.core.schemas.optimizers import OptimizerConfig
 from noether.core.utils.training.counter import UpdateCounter
@@ -246,6 +247,42 @@ class TestOptimizerWrapper:
             for group in optimizer.torch_optim.param_groups:
                 assert group["lr"] == 0.002
                 assert group["weight_decay"] == 0.05
+
+    def test_schedule_step_preserves_muon_primary_secondary_lr_ratio(self, update_counter):
+        """MuonComposite gives primary (2D) and secondary (<2D) param groups different
+        initial LRs. schedule_step must scale every group by the same ratio relative to
+        the reference (max) initial LR, so the primary/secondary relationship survives
+        scheduling instead of collapsing to a single schedule value.
+        """
+        # Muon only accepts strictly-2D params, so use Linear + BatchNorm1d
+        muon_compatible_model = nn.Sequential(nn.Linear(8, 4), nn.BatchNorm1d(4))
+
+        config = self._create_mock_config()
+        config.schedule_config = MagicMock()
+
+        primary_lr, secondary_lr = 2e-3, 5e-5
+        schedule_value = 1e-3  # half of primary (the reference lr)
+
+        mock_lr_sched = MagicMock()
+        mock_lr_sched.get_value.return_value = schedule_value
+
+        with patch("noether.core.factory.ScheduleFactory.create", return_value=mock_lr_sched):
+            optimizer = OptimizerWrapper(
+                model=muon_compatible_model,
+                torch_optim_ctor=lambda pg: MuonComposite(pg, lr=primary_lr, secondary={"lr": secondary_lr}),
+                optim_wrapper_config=config,
+                update_counter=update_counter,
+            )
+
+            # Sanity check: muon's split actually produced both LRs
+            initial_lrs = {pg["initial_lr"] for pg in optimizer.torch_optim.param_groups}
+            assert initial_lrs == {primary_lr, secondary_lr}
+
+            optimizer.schedule_step()
+
+            ratio = schedule_value / primary_lr
+            for pg in optimizer.torch_optim.param_groups:
+                assert pg["lr"] == pytest.approx(pg["initial_lr"] * ratio)
 
     def test_weight_decay_exclusion_logic_in_schedule(self, model, update_counter):
         config = self._create_mock_config()

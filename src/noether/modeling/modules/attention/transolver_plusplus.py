@@ -85,10 +85,26 @@ class TransolverPlusPlusAttention(nn.Module):
         if isinstance(self.in_project_slice.project, nn.Linear | nn.Conv1d | nn.Conv2d | nn.Conv3d):
             torch.nn.init.orthogonal_(self.in_project_slice.project.weight)  # use a principled initialization
 
-        self.qkv = LinearProjection(
+        self.q = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=self.dim_head,  # type: ignore[arg-type]
-                output_dim=self.dim_head * 3,  # type: ignore[operator]
+                output_dim=self.dim_head,  # type: ignore[arg-type]
+                init_weights=config.init_weights,
+                bias=config.bias,
+            )  # type: ignore[call-arg]
+        )
+        self.k = LinearProjection(
+            config=LinearProjectionConfig(
+                input_dim=self.dim_head,  # type: ignore[arg-type]
+                output_dim=self.dim_head,  # type: ignore[arg-type]
+                init_weights=config.init_weights,
+                bias=config.bias,
+            )  # type: ignore[call-arg]
+        )
+        self.v = LinearProjection(
+            config=LinearProjectionConfig(
+                input_dim=self.dim_head,  # type: ignore[arg-type]
+                output_dim=self.dim_head,  # type: ignore[arg-type]
                 init_weights=config.init_weights,
                 bias=config.bias,
             )  # type: ignore[call-arg]
@@ -133,7 +149,7 @@ class TransolverPlusPlusAttention(nn.Module):
         slice_token = torch.einsum("bhnc,bhng->bhgc", x_mid, slice_weights).contiguous()
         slice_token = slice_token / ((slice_norm + 1e-5)[:, :, :, None].repeat(1, 1, 1, self.dim_head))  # type: ignore[arg-type]
 
-        q_slice_token, k_slice_token, v_slice_token = self.qkv(slice_token).chunk(3, dim=-1)
+        q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
         out_slice_token = F.scaled_dot_product_attention(
             q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
         )

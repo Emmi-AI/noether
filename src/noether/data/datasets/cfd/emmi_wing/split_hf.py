@@ -4,7 +4,7 @@ from noether.core.schemas.dataset import DatasetSplitIDs
 
 # 248 cases (run_0 .. run_247), shuffled and split 200/24/24.
 # fmt: off
-_TRAIN: set[int] = {
+_TRAIN: list[int] = [
     0, 2, 3, 4, 5, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 24, 25,
     27, 29, 30, 31, 32, 33, 34, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51,
     52, 53, 54, 58, 60, 61, 63, 64, 65, 66, 67, 68, 69, 72, 73, 74, 75, 76, 77, 78,
@@ -15,21 +15,21 @@ _TRAIN: set[int] = {
     171, 172, 174, 175, 176, 177, 180, 181, 182, 184, 185, 186, 187, 190, 191, 192, 193, 196, 197, 198,
     199, 200, 201, 202, 203, 204, 205, 208, 209, 210, 211, 213, 214, 215, 216, 217, 218, 219, 220, 221,
     222, 223, 224, 225, 226, 229, 230, 232, 233, 235, 236, 237, 238, 239, 240, 241, 242, 243, 246, 247,
-}
+]
 
-_VAL: set[int] = {
+_VAL: list[int] = [
     1, 39, 40, 50, 56, 71, 87, 107, 114, 143, 150, 166, 178, 179, 183, 194, 195, 206, 207, 212, 227, 231, 234, 245,
-}
+]
 
-_TEST: set[int] = {
+_TEST: list[int] = [
     6, 7, 8, 22, 23, 26, 28, 35, 55, 57, 59, 62, 70, 108, 129, 139, 151, 154, 163, 173, 188, 189, 228, 244,
-}
+]
 # fmt: on
 
 
 class WingHFSplitIDs(DatasetSplitIDs):
     """Emmi-Wing HuggingFace subset splits (248 cases: 200 train / 24 val / 24 test)."""
 
-    train: set[int] = _TRAIN
-    val: set[int] = _VAL
-    test: set[int] = _TEST
+    train: list[int] = _TRAIN
+    val: list[int] = _VAL
+    test: list[int] = _TEST

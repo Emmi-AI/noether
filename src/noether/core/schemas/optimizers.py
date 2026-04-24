@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Self
+from typing import ClassVar, Literal, Self, Union
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -37,7 +37,30 @@ class ParamGroupModifierConfig(BaseModel):
         return self
 
 
+class MuonSecondaryOptimizerConfig(BaseModel):
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
+
+    model_config = {"extra": "forbid"}
+
+    kind: str | None = None
+    """The class path of the torch optimizer to use. E.g., 'torch.optim.Lion'."""
+    lr: float | None = Field(None, gt=0.0)
+    """The learning rate for the optimizer. Falls back to the primary lr if not set."""
+    weight_decay: float | None = Field(None, ge=0.0)
+    """The weight decay. Falls back to the primary weight_decay if not set."""
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for optimizers like SGD."""
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
+
+
 class OptimizerConfig(BaseModel):
+    """Base configuration for optimizers.
+
+    Holds fields common to all optimizers plus the wrapper-level options. Optimizer-specific
+    fields live on the dedicated subclasses.
+    """
+
     model_config = {"extra": "forbid"}
 
     kind: str | None = None
@@ -45,7 +68,7 @@ class OptimizerConfig(BaseModel):
     lr: float | None = Field(None, gt=0.0)
     """The learning rate for the optimizer."""
     weight_decay: float | None = Field(0.0, ge=0.0)
-    """The weight decay (L2 penalty) for the optimizer."""
+    """The weight decay. Falls back to the primary weight_decay if not set."""
 
     # these are the kwargs for the OptimWrapper
     clip_grad_value: float | None = Field(None, ge=0.0)
@@ -61,7 +84,7 @@ class OptimizerConfig(BaseModel):
     weight_decay_schedule: AnyScheduleConfig | None = Field(None, discriminator="kind")
     schedule_config: AnyScheduleConfig | None = Field(None, discriminator="kind")
 
-    _optim_wrapper_kwargs: set[str] = {
+    _optim_wrapper_kwargs: ClassVar[set[str]] = {
         "clip_grad_value",
         "clip_grad_norm",
         "param_group_modifiers_config",
@@ -73,3 +96,38 @@ class OptimizerConfig(BaseModel):
 
     def return_optim_wrapper_args(self) -> dict:
         return self.model_dump(include=self._optim_wrapper_kwargs)
+
+
+class AdamOptimizerConfig(OptimizerConfig):
+    """Configuration for Adam-family optimizers (AdamW, Lion)."""
+
+    kind: Literal["torch.optim.AdamW", "noether.core.optimizer.Lion"] = "torch.optim.AdamW"
+    betas: tuple[float, float] | None = None
+    """Beta coefficients for Adam-style optimizers."""
+
+
+class SGDOptimizerConfig(OptimizerConfig):
+    """Configuration for SGD."""
+
+    kind: Literal["torch.optim.SGD"] = "torch.optim.SGD"
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor."""
+
+
+class MuonOptimizerConfig(OptimizerConfig):
+    """Configuration for :class:`~noether.core.optimizer.MuonComposite`."""
+
+    kind: Literal["noether.core.optimizer.MuonComposite"] = "noether.core.optimizer.MuonComposite"
+    momentum: float | None = Field(None, ge=0.0, le=1.0)
+    """Momentum factor for the Muon optimizer."""
+    secondary: MuonSecondaryOptimizerConfig | None = None
+    """Configuration of the secondary optimizer in :class:`~noether.core.optimizer.MuonComposite`."""
+    nesterov: bool | None = None
+    """Enable Nesterov momentum in Muon. None uses Muon's default (True)."""
+    ns_steps: int | None = Field(None, ge=1, le=99)
+    """Number of Newton-Schulz iteration steps. None uses Muon's default (5)."""
+    adjust_lr_fn: Literal["original", "match_rms_adamw"] | None = None
+    """Per-matrix LR adjustment strategy. None uses Muon's default (``"original"``)."""
+
+
+AnyOptimizerConfig = Union[AdamOptimizerConfig, SGDOptimizerConfig, MuonOptimizerConfig]

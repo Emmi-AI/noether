@@ -18,7 +18,7 @@ class ShapeNetCarDefaultSplitIDs(DatasetSplitIDs):
     EXPECTED_TEST_SIZE = 100
     DATASET_NAME = "ShapeNet-Car"
 
-    train: set[str] = {
+    train: list[str] = [
         "param1/1dc58be25e1b6e5675cad724c63e222e",
         "param1/1dc757e77f3cfad0253c03b7df20edd5",
         "param1/1e2f9cb6b33c92ea82381b04bbe0ce6d",
@@ -808,9 +808,9 @@ class ShapeNetCarDefaultSplitIDs(DatasetSplitIDs):
         "param8/cf3a2894431c55f43b5ec9bc4ed9097",
         "param8/cf4c819d9deb6533108499aad0a89b28",
         "param8/cf698011f90ac05f253c03b7df20edd5",
-    }  # type: ignore[assignment]
-    val: set[str] = set()  # type: ignore[assignment]
-    test: set[str] = {
+    ]  # type: ignore[assignment]
+    val: list[str] = []  # type: ignore[assignment]
+    test: list[str] = [
         "param0/100715345ee54d7ae38b52b4ee9d36a3",
         "param0/10247b51a42b41603ffe0e5069bf1eb5",
         "param0/10555502fa7b3027283ffcfc40c29975",
@@ -911,4 +911,4 @@ class ShapeNetCarDefaultSplitIDs(DatasetSplitIDs):
         "param0/1d4066f8ae88a1ebec8ca19d7516cb42",
         "param0/1d4b2404a00ef4bb627014ff98c41eb1",
         "param0/1dbb02c20bb93af81c1b3b2ed8d13bf8",
-    }  # type: ignore[assignment]
+    ]  # type: ignore[assignment]

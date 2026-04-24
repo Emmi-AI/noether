@@ -1,118 +1,190 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 import os
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
-import hydra
+import submitit
 import yaml
+from hydra import compose, initialize_config_dir
+from hydra._internal.core_plugins.basic_sweeper import BasicSweeper
+from hydra.core.global_hydra import GlobalHydra
+from hydra.core.override_parser.overrides_parser import OverridesParser
 from omegaconf import DictConfig, OmegaConf
 
 from noether.core.factory import class_constructor_from_class_path
 from noether.core.schemas.schema import ConfigSchema
 from noether.core.schemas.slurm import SlurmConfig
-from noether.training.cli import setup_hydra
 
 _HELP_TEXT = """\
-noether-train-submit-job — validate a training config and submit it as a SLURM job
+noether-train-submit-job — validate a training config and submit it to SLURM via submitit
 
 USAGE
-  noether-train-submit-job --hp <config.yaml> [hydra overrides] [--dry-run]
-  noether-train-submit-job <config.yaml> [hydra overrides] [--dry-run]
+  noether-train-submit-job --hp <config.yaml> [hydra overrides] [-m] [--dry-run]
+  noether-train-submit-job <config.yaml> [hydra overrides] [-m] [--dry-run]
 
 ARGUMENTS
-  <config.yaml>         Path to the Hydra training configuration file.
-                        Can be passed as the first positional argument or
-                        via the --hp flag.
+  <config.yaml>     Path to the Hydra training configuration file. Can be passed as
+                    the first positional argument or via the --hp flag.
 
-  overrides             Hydra-style key=value overrides applied on top of
-                        the config file before validation and submission.
-                        Examples:
-                          seed=42
-                          trainer.max_epochs=100
-                          +slurm.job_name=my_experiment
-                          tracker=disabled
+  overrides         Hydra-style key=value overrides applied on top of the config
+                    before validation and submission. Examples:
+                      seed=42
+                      trainer.max_epochs=100
+                      tracker=disabled
+                      seed=1,2,3              (sweep — requires --multirun)
 
-  --dry-run             Print the sbatch command that would be executed
-                        without actually submitting the job.
+  -m, --multirun    Enumerate all sweep combinations (e.g. seed=1,2,3) and submit
+                    them as a single SLURM array job. The cross-product is
+                    validated upfront on the login node before anything is sent.
 
-  --help, -h            Show this help message and exit.
+  --dry-run         Print the submitit parameters and per-task command(s) without
+                    submitting anything.
+
+  --help, -h        Show this help message and exit.
 
 DESCRIPTION
-  1. Loads and resolves the Hydra config (config file + overrides).
-  2. Validates it against the schema declared by config_schema_kind.
-  3. Builds an sbatch command from the [slurm] section of the config.
-  4. Submits:  sbatch <slurm-flags> --wrap="uv run noether-train --hp <config> [overrides]"
+  1. Parses sweep overrides and, for --multirun, enumerates the cross-product.
+  2. For every combination, composes the Hydra config and validates it against
+     the schema declared by ``config_schema_kind`` (the ``slurm`` section is
+     required and must NOT vary across the sweep).
+  3. Builds a ``submitit.AutoExecutor`` from the validated [slurm] section and
+     submits the job(s). Multirun submissions are wrapped in
+     ``executor.batch()`` so SLURM sees a single array job.
 
-  A [slurm] section is required in the config. Set env_path to source a
-  virtual environment inside the job (e.g. env_path: .venv/bin/activate).
+LOG FILES
+  Submitit owns the job's stdout/stderr. They are written to:
+      <slurm.folder>/<job_id>_log.out
+      <slurm.folder>/<job_id>_log.err
+  For array jobs, ``<job_id>`` becomes ``<array_master_id>_<task_idx>``.
+  SLURM ``--output`` / ``--error`` are intentionally not exposed; if you must
+  override them, pass them via ``slurm.slurm_additional_parameters``.
 
 SLURM CONFIG (config.yaml → slurm:)
-  job_name        Job name shown in squeue (--job-name)
-  partition       Target partition, e.g. gpu  (--partition)
-  nodes           Number of nodes  (--nodes)
-  ntasks_per_node Tasks per node  (--ntasks-per-node)
-  cpus_per_task   CPUs per task  (--cpus-per-task)
-  gpus_per_node   GPUs per node, e.g. 4 or a100:4  (--gpus-per-node)
-  mem             Memory per node, e.g. 64G  (--mem)
-  time            Wall-clock limit, e.g. 12:00:00  (--time)
-  output          Stdout file path, supports %j %x %u  (--output)
-  error           Stderr file path  (--error)
-  chdir           Working directory inside the job  (--chdir)
-  env_path        Script to source before running, e.g. .venv/bin/activate
+  folder                       Submitit log/script directory (default ``submitit_logs``).
+                               Also used as the default ``output_path`` for training
+                               runs when ``output_path`` is omitted from the config.
+  name                         Job name (--job-name)
+  slurm_partition              Partition, e.g. ``gpu``
+  nodes                        Number of nodes
+  tasks_per_node               Tasks per node
+  cpus_per_task                CPUs per task
+  gpus_per_node                GPUs per node, e.g. 4 or ``a100:4``
+  mem_gb                       Memory per node in gigabytes (float)
+  timeout_min                  Wall-clock limit in minutes (int)
+  slurm_array_parallelism      Max concurrent array tasks
+  slurm_setup                  List of shell commands run before the main command,
+                               e.g. ``["source .venv/bin/activate"]``
+  slurm_additional_parameters  Dict for any other sbatch directive
+                               (``nice``, ``reservation``, ``chdir``, ``account``, ...)
 
 EXAMPLES
-  # Submit with default config
+  # Single submission
   noether-train-submit-job --hp configs/train_shapenet.yaml
 
   # Override seed and disable tracker
   noether-train-submit-job --hp configs/train_shapenet.yaml seed=1 tracker=disabled
 
-  # Preview the sbatch command without submitting
-  noether-train-submit-job --hp configs/train_shapenet.yaml --dry-run
+  # Sweep over 3 seeds and 2 learning rates → one 6-task SLURM array
+  noether-train-submit-job --hp configs/train_shapenet.yaml -m seed=1,2,3 trainer.lr=1e-3,1e-4
 
-  # Override a SLURM field on the fly
-  noether-train-submit-job --hp configs/train_shapenet.yaml +slurm.time=02:00:00
+  # Preview without submitting
+  noether-train-submit-job --hp configs/train_shapenet.yaml --dry-run
 """
 
-if "--help" in sys.argv or "-h" in sys.argv:
-    print(_HELP_TEXT)
-    sys.exit(0)
 
-# Strip --dry-run from sys.argv BEFORE setup_hydra() and Hydra see it —
-# Hydra errors on any unrecognised flags.
-_DRY_RUN: bool = "--dry-run" in sys.argv
-if _DRY_RUN:
-    sys.argv.remove("--dry-run")
+def _parse_argv(argv: list[str]) -> tuple[str, list[str], bool, bool]:
+    """Split argv into (config_path, hydra_overrides, multirun, dry_run).
 
-# Capture the config path from argv BEFORE setup_hydra() rewrites sys.argv.
-# setup_hydra() replaces --hp <path> with -cp <dir> -cn <name>, so parsing
-# must happen here at import time, not inside main().
-_RAW_CONFIG_PATH: str | None = None
+    Args:
+        argv: The argv list to parse, typically ``sys.argv``.
 
-for idx, arg in enumerate(sys.argv[:-1]):
-    if arg == "--hp":
-        _RAW_CONFIG_PATH = sys.argv[idx + 1]
-        break
+    Returns:
+        A tuple ``(config_path, overrides, multirun, dry_run)``.
 
-if _RAW_CONFIG_PATH is None and len(sys.argv) > 1 and sys.argv[1].endswith(".yaml"):
-    _RAW_CONFIG_PATH = sys.argv[1]
+    Raises:
+        SystemExit: If no config path was provided.
+    """
+    config_path: str | None = None
+    overrides: list[str] = []
+    multirun = False
+    dry_run = False
+
+    args = list(argv[1:])
+    i = 0
+    while i < len(args):
+        arg = args[i]
+        if arg in ("--multirun", "-m"):
+            multirun = True
+        elif arg == "--dry-run":
+            dry_run = True
+        elif arg == "--hp":
+            if i + 1 >= len(args):
+                print("Error: --hp requires a path argument", file=sys.stderr)
+                sys.exit(1)
+            config_path = args[i + 1]
+            i += 1
+        elif config_path is None and arg.endswith((".yaml", ".yml")) and not arg.startswith("-"):
+            config_path = arg
+        elif "=" in arg and not arg.startswith("-"):
+            overrides.append(arg)
+        else:
+            print(f"Error: unrecognised argument: {arg}", file=sys.stderr)
+            sys.exit(1)
+        i += 1
+
+    if config_path is None:
+        print("Error: no config file provided. Use --hp <path> or pass it as the first argument.", file=sys.stderr)
+        sys.exit(1)
+
+    return config_path, overrides, multirun, dry_run
+
+
+def _expand_sweeps(overrides: list[str], multirun: bool) -> list[list[str]]:
+    """Expand sweep overrides into the list of per-run override sets.
+
+    In multirun mode, ``a=1,2 b=x,y`` becomes 4 combinations. Otherwise the
+    overrides are returned as a single combination (sweep syntax raises).
+
+    Args:
+        overrides: Hydra-style override strings.
+        multirun: Whether to expand comma-separated sweeps.
+
+    Returns:
+        A list of override-lists, one per submitted task.
+    """
+    parser = OverridesParser.create()
+    parsed = parser.parse_overrides(overrides)
+
+    if not multirun:
+        for ov in parsed:
+            if ov.is_sweep_override():
+                raise ValueError(
+                    f"Sweep override '{ov.input_line}' requires --multirun (-m). "
+                    "Without --multirun, only single-value overrides are allowed."
+                )
+        return [overrides]
+
+    batches = BasicSweeper.split_arguments(parsed, max_batch_size=None)
+    # split_arguments returns a list of batches; with max_batch_size=None there is exactly one.
+    return batches[0]
 
 
 def validate_config(config: DictConfig) -> ConfigSchema:
-    """Validate the configuration using the specified schema.
+    """Validate the configuration using the schema declared by ``config_schema_kind``.
 
     Args:
-        config: The Hydra configuration to validate
+        config: The composed Hydra configuration to validate.
 
     Returns:
-        The validated configuration schema
+        The validated configuration schema instance.
 
     Raises:
-        ValueError: If the configuration is missing required fields
-        RuntimeError: If the schema class cannot be loaded
+        ImportError: If the schema class cannot be imported.
+        ValidationError: If the configuration does not satisfy the schema.
     """
     config_dict = yaml.safe_load(OmegaConf.to_yaml(config, resolve=True))
 
@@ -122,129 +194,140 @@ def validate_config(config: DictConfig) -> ConfigSchema:
         print(f"Validating configuration with schema: {config_schema_kind}")
         config_schema_class = class_constructor_from_class_path(config_schema_kind)
     validated_config: ConfigSchema = config_schema_class(**config_dict)
-    print("Configuration validated successfully")
     return validated_config
 
 
-def _find_config_path() -> str:
-    """Return the config file path, resolved to an absolute path.
+def _compose_config(config_path: Path, overrides: list[str]) -> DictConfig:
+    """Compose a Hydra config from a yaml file and a list of overrides.
 
-    Reads from the pre-captured _RAW_CONFIG_PATH (set before setup_hydra()
-    mutates sys.argv), or falls back to reconstructing from -cp/-cn.
+    Each call uses a fresh Hydra context, so this is safe to call repeatedly
+    in a loop over sweep combinations.
     """
-    if _RAW_CONFIG_PATH is not None:
-        return str(Path(_RAW_CONFIG_PATH).resolve())
-
-    # Fallback: reconstruct from -cp / -cn (post-setup_hydra argv)
-    config_dir = None
-    config_name = None
-
-    i = 0
-    while i < len(sys.argv):
-        arg = sys.argv[i]
-        if arg == "-cp" and i + 1 < len(sys.argv):
-            config_dir = sys.argv[i + 1]
-            i += 2
-            continue
-        if arg == "-cn" and i + 1 < len(sys.argv):
-            config_name = sys.argv[i + 1]
-            i += 2
-            continue
-        i += 1
-
-    if config_dir and config_name:
-        config_path = str(Path(config_dir) / config_name)
-        if not config_path.endswith((".yaml", ".yml")):
-            config_path += ".yaml"
-        return str(Path(config_path).resolve())
-
-    print(f"Error: Could not determine config path from arguments\nsys.argv: {sys.argv}")
-    sys.exit(1)
+    if GlobalHydra.instance().is_initialized():
+        GlobalHydra.instance().clear()
+    with initialize_config_dir(version_base="1.3", config_dir=str(config_path.parent)):
+        return compose(config_name=config_path.stem, overrides=overrides)
 
 
-def _collect_hydra_overrides() -> list[str]:
-    """Collect Hydra overrides from sys.argv (arguments that contain '=' and aren't flags)."""
-    overrides: list[str] = []
-    skip_next = False
-    for arg in sys.argv[1:]:
-        if skip_next:
-            skip_next = False
-            continue
-        if arg in ("--hp", "-cp", "-cn"):
-            skip_next = True
-            continue
-        if "=" in arg and not arg.startswith("-") and not arg.startswith("hydra"):
-            overrides.append(arg)
+def _validate_all_combos(config_path: Path, combos: list[list[str]]) -> SlurmConfig:
+    """Validate every sweep combination upfront and return the (shared) slurm config.
 
-    return overrides
+    Args:
+        config_path: Absolute path to the base config yaml.
+        combos: List of override-lists, one per sweep combination.
 
+    Returns:
+        The :class:`SlurmConfig` from the first combo. The slurm section must be
+        identical across combos; sweeping over slurm fields is rejected.
 
-setup_hydra()
-
-
-@hydra.main(
-    config_path=None,
-    config_name=None,
-    version_base="1.3",
-)
-def main(config: DictConfig):
-    """Main entry point for SLURM job submission.
-
-    Validates a Hydra config and submits a training job via ``sbatch``.
-
-    Example:
-    .. code-block:: bash
-
-       noether-train-submit-job --hp configs/train_shapenet.yaml +seed=1 tracker=disabled
-       noether-train-submit-job --hp configs/train_shapenet.yaml --dry-run
+    Raises:
+        SystemExit: On validation failure or if the slurm section varies.
     """
-    print("Starting job submission process")
+    first_slurm: SlurmConfig | None = None
+    for idx, combo in enumerate(combos, start=1):
+        label = f"[{idx}/{len(combos)}]"
+        print(f"{label} validating overrides: {combo if combo else '(none)'}")
+        try:
+            cfg = _compose_config(config_path, combo)
+            validated = validate_config(cfg)
+        except Exception as e:
+            print(f"{label} configuration validation failed: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        if validated.slurm is None:
+            print(
+                f"{label} Error: SLURM configuration is required. Please specify a 'slurm' section in your config.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+        if first_slurm is None:
+            first_slurm = validated.slurm
+        elif validated.slurm.model_dump() != first_slurm.model_dump():
+            print(
+                f"{label} Error: sweeping over fields under 'slurm' is not supported "
+                "(the SLURM allocation must be identical across all array tasks).",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
+    assert first_slurm is not None  # combos is guaranteed non-empty
+    print(f"All {len(combos)} configuration(s) validated successfully")
+    return first_slurm
+
+
+def _build_train_command(config_path: Path, combo: list[str]) -> list[str]:
+    """Build the ``noether-train`` invocation for one sweep combination."""
+    return ["uv", "run", "noether-train", "--hp", str(config_path), *combo]
+
+
+def _print_dry_run(folder: str, params: dict[str, Any], commands: list[list[str]]) -> None:
+    print("[dry-run] submitit AutoExecutor configuration:")
+    print(f"  folder: {folder}")
+    for key, value in params.items():
+        print(f"  {key}: {value}")
+    print(f"[dry-run] Would submit {len(commands)} task(s):")
+    for idx, cmd in enumerate(commands):
+        print(f"  [{idx}] {' '.join(cmd)}")
+
+
+def _submit(executor: submitit.AutoExecutor, commands: list[list[str]]) -> list[submitit.Job]:
+    """Submit one or more commands. Multiple commands go inside ``executor.batch()``
+    so SLURM sees a single array job."""
+    cmd_fns = [submitit.helpers.CommandFunction(cmd) for cmd in commands]
+    if len(cmd_fns) == 1:
+        return [executor.submit(cmd_fns[0])]
+    with executor.batch():
+        return [executor.submit(fn) for fn in cmd_fns]
+
+
+def main() -> None:
+    """Entry point for ``noether-train-submit-job``.
+
+    Validates a Hydra config (and every multirun combination thereof) and submits
+    a training job — or a SLURM array job — via :mod:`submitit`.
+    """
+    if "--help" in sys.argv or "-h" in sys.argv:
+        print(_HELP_TEXT)
+        sys.exit(0)
+
+    # Make user code importable for schemas referenced via ``config_schema_kind``.
     if os.getcwd() not in sys.path:
         sys.path.insert(0, os.getcwd())
 
-    try:
-        validated_config = validate_config(config)
-    except Exception as e:
-        print(f"Configuration validation failed: {e}", file=sys.stderr)
+    raw_config_path, overrides, multirun, dry_run = _parse_argv(sys.argv)
+    config_path = Path(raw_config_path).resolve()
+    if not config_path.exists():
+        print(f"Error: config file does not exist: {config_path}", file=sys.stderr)
         sys.exit(1)
 
-    if validated_config.slurm is None:
-        print(
-            "Error: SLURM configuration is required. Please specify the 'slurm' section in your config.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
-
-    slurm_config: SlurmConfig = validated_config.slurm
-
-    # Build the sbatch arguments from the SLURM config (chdir is included here)
-    sbatch_args = slurm_config.to_srun_args()
-    print(f"SLURM args: {sbatch_args}")
-
-    config_path = _find_config_path()
     print(f"Config path: {config_path}")
+    print(f"Multirun: {multirun}")
 
-    train_cmd = f"srun uv run noether-train --hp {config_path}"
-    hydra_overrides = _collect_hydra_overrides()
+    try:
+        combos = _expand_sweeps(overrides, multirun)
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
-    if hydra_overrides:
-        train_cmd += " " + " ".join(hydra_overrides)
-        print(f"Hydra overrides: {hydra_overrides}")
+    slurm_config = _validate_all_combos(config_path, combos)
+    folder, params = slurm_config.to_executor_kwargs()
+    commands = [_build_train_command(config_path, combo) for combo in combos]
 
-    source_cmd = ""
-    if slurm_config.env_path:
-        print(f"Sourcing environment from: {slurm_config.env_path}")
-        source_cmd = f"source {slurm_config.env_path};"
-
-    full_cmd = source_cmd + f'sbatch {sbatch_args} --wrap="{train_cmd}"'
-
-    if _DRY_RUN:
-        print(f"[dry-run] Would execute:\n  {full_cmd}")
+    if dry_run:
+        _print_dry_run(folder, params, commands)
         sys.exit(0)
 
-    print(f"Executing: {full_cmd}")
-    result = subprocess.run(full_cmd, shell=True)
-    sys.exit(result.returncode)
+    executor = submitit.AutoExecutor(folder=folder)
+    executor.update_parameters(**params)
+    jobs = _submit(executor, commands)
+
+    if len(jobs) == 1:
+        print(f"Submitted job {jobs[0].job_id}")
+    else:
+        print(f"Submitted SLURM array of {len(jobs)} tasks (master id {jobs[0].job_id.split('_')[0]}):")
+        for job in jobs:
+            print(f"  {job.job_id}")
 
 
 if __name__ == "__main__":

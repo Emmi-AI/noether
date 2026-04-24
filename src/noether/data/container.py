@@ -2,6 +2,7 @@
 
 import functools
 import logging
+from collections.abc import Callable
 
 import torch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sampler, SequentialSampler
@@ -10,6 +11,7 @@ from noether.core.distributed import is_distributed
 from noether.core.schemas.dataset import ShuffleWrapperConfig, SubsetWrapperConfig
 from noether.core.utils.common.stopwatch import Stopwatch
 from noether.core.utils.platform import get_fair_cpu_count, get_total_cpu_count
+from noether.core.utils.seed import seed_worker
 from noether.data import Dataset
 from noether.data.base.wrapper import DatasetWrapper
 from noether.data.base.wrappers import (
@@ -42,13 +44,23 @@ def _timing_collate_fn(collator, batch):
 class DataContainer:
     """Container that holds datasets and provides utilities for datasets and data loading."""
 
-    def __init__(self, datasets: dict[str, Dataset], num_workers: int | None = None, pin_memory: bool = True):
+    def __init__(
+        self,
+        datasets: dict[str, Dataset],
+        num_workers: int | None = None,
+        pin_memory: bool = True,
+        seed: int | None = None,
+    ):
         """
         Args:
             datasets: A dictionary with datasets for the training run.
             num_workers: Number of data loading workers to use. If None, will use (#CPUs / #GPUs - 1) workers.
                 The `-1` keeps 1 CPU free for the main process. Defaults to None.
             pin_memory: Is passed as `pin_memory` to `torch.utils.data.DataLoader`. Defaults to True.
+            seed: Optional seed used to initialize a ``torch.Generator`` for the ``DataLoader`` and
+                to reseed ``random``/``numpy`` inside each worker via ``worker_init_fn``. When None,
+                no generator is attached and workers are not explicitly reseeded (matches legacy behavior).
+                Typically the training seed (already rank-offset) should be passed here.
         """
         self.logger = logging.getLogger(type(self).__name__)
         if len(datasets) == 0:
@@ -56,6 +68,7 @@ class DataContainer:
         self.datasets = datasets
         self.num_workers = num_workers
         self.pin_memory = pin_memory
+        self.seed = seed
 
         # set first dataset as "train" dataset in place of an actual dataset
         # the "train" dataset is used to propagate shapes, so in evaluation runs if no train dataset is present,
@@ -182,6 +195,19 @@ class DataContainer:
         else:
             num_workers = self.num_workers
 
+        # Attach a seeded generator + worker_init_fn so that per-worker RNGs are deterministic given
+        # a training seed. The worker_init_fn reseeds `random` and `numpy.random` from the torch
+        # per-worker seed that PyTorch derives from the generator.
+        generator: torch.Generator | None
+        worker_init_fn: Callable[[int], None] | None
+        if self.seed is not None:
+            generator = torch.Generator()
+            generator.manual_seed(self.seed)
+            worker_init_fn = seed_worker
+        else:
+            generator = None
+            worker_init_fn = None
+
         loader = DataLoader(
             dataset=sampler.dataset,
             batch_sampler=sampler.batch_sampler,
@@ -189,11 +215,13 @@ class DataContainer:
             num_workers=num_workers,
             pin_memory=self.pin_memory,
             prefetch_factor=prefetch_factor,
+            worker_init_fn=worker_init_fn,
+            generator=generator,
         )
 
         self.logger.info(
             f"Created dataloader (batch_size={batch_size} num_workers={loader.num_workers} "
             f"pin_memory={loader.pin_memory} total_cpu_count={get_total_cpu_count()} "
-            f"prefetch_factor={loader.prefetch_factor})"
+            f"prefetch_factor={loader.prefetch_factor} seeded={self.seed is not None})"
         )
         return loader

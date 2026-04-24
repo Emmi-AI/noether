@@ -7,7 +7,7 @@ from pydantic import Field
 
 from noether.core.schemas.initializers import AnyInitializer
 from noether.core.schemas.lib import _RegistryBase
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.schemas.optimizers import AnyOptimizerConfig
 
 
 class ModelBaseConfig(_RegistryBase):
@@ -18,7 +18,7 @@ class ModelBaseConfig(_RegistryBase):
     """Kind of model to use, i.e. class path"""
     name: str
     """Name of the model. Needs to be unique"""
-    optimizer_config: OptimizerConfig | None = None
+    optimizer_config: AnyOptimizerConfig | None = Field(None, discriminator="kind")
     """The optimizer configuration to use for training the model. When a model is used for inference only, this can be left as None."""
     initializers: list[Annotated[AnyInitializer, Field(discriminator="kind")]] | None = None
     """List of initializers configs to use for the model."""

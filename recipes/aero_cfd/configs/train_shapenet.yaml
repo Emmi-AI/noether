@@ -5,6 +5,7 @@ dataset_root: <path to your shapenet dataset root>
 dataset_kind: noether.data.datasets.cfd.ShapeNetCarDataset
 excluded_properties: 
   - surface_friction
+  - surface_area
   - volume_pressure
   - volume_vorticity
 defaults:

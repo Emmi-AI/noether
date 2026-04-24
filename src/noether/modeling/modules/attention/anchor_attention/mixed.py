@@ -104,9 +104,7 @@ class MixedAttention(DotProductAttention):
             # Cached path: only compute Q (K/V come from cache)
             if not kv_cache:
                 raise ValueError("Cannot use cached tokens: kv_cache is empty.")
-            q_weight = self.qkv.weight[: self.qkv.weight.shape[0] // 3]
-            q_bias = self.qkv.bias[: self.qkv.bias.shape[0] // 3] if self.qkv.bias is not None else None
-            q = einops.rearrange(F.linear(x, q_weight, q_bias), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+            q = einops.rearrange(self.q(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
             if self.use_rope and freqs is not None:
                 q = rope(q, freqs=freqs)
 
@@ -123,9 +121,9 @@ class MixedAttention(DotProductAttention):
             new_cache = None
         else:
             # Normal path: compute Q, K, V for all input tokens
-            q, k, v = einops.rearrange(
-                self.qkv(x), "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
-            ).unbind(0)
+            q = einops.rearrange(self.q(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+            k = einops.rearrange(self.k(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+            v = einops.rearrange(self.v(x), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
             if self.use_rope and freqs is not None:
                 q, k = rope(q, freqs=freqs), rope(k, freqs=freqs)
 

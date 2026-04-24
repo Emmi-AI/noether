@@ -110,12 +110,12 @@ class DatasetSplitIDs(BaseModel, ABC):
     # EXPECTED_INTERP_SIZE: ClassVar[int | None] = None
     DATASET_NAME: ClassVar[str | None] = None
 
-    train: set[int]
-    val: set[int]
-    test: set[int]
-    extrap: set[int] = set()  # Optional OOD extrapolation set
-    interp: set[int] = set()  # Optional OOD interpolation set
-    train_subset: set[int] = set()  # Optional subset of training data for logging metrics
+    train: list[int]
+    val: list[int]
+    test: list[int]
+    extrap: list[int] = []  # Optional OOD extrapolation set
+    interp: list[int] = []  # Optional OOD interpolation set
+    train_subset: list[int] = []  # Optional subset of training data for logging metrics
 
     @model_validator(mode="after")
     def validate_splits(self):
@@ -150,8 +150,8 @@ class DatasetSplitIDs(BaseModel, ABC):
         split_fields = {}
         for field_name in self.__class__.model_fields.keys():
             field_value = getattr(self, field_name)
-            if isinstance(field_value, set) and field_value:  # Only check non-empty sets
-                split_fields[field_name] = field_value
+            if isinstance(field_value, list) and field_value:  # Only check non-empty splits
+                split_fields[field_name] = set(field_value)
 
         # Check all pairs of splits for overlaps. Exclude train_subset from this check.
         field_names = [field_name for field_name in split_fields.keys() if field_name != "train_subset"]
@@ -164,7 +164,7 @@ class DatasetSplitIDs(BaseModel, ABC):
                     )
         # Check that train_subset is a subset of training set
         if self.train_subset:
-            assert self.train_subset.issubset(self.train), "train_subset is not a subset of the training set"
+            assert set(self.train_subset).issubset(set(self.train)), "train_subset is not a subset of the training set"
 
 
 class FieldDimSpec(RootModel[OrderedDict[str, int]]):

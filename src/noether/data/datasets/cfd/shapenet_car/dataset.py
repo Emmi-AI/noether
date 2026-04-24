@@ -89,7 +89,7 @@ class ShapeNetCarDataset(AeroDataset):
         Note:
             Alternative approach would be to define splits via explicit file lists.
         """
-        self.design_ids = list(self.get_dataset_splits.model_dump()[self.split])
+        self.design_ids = list(getattr(self.get_dataset_splits, self.split))
 
     def _resolve_source_root_path(self) -> None:
         """

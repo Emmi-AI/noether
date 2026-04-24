@@ -1,3 +1,7 @@
+.. meta::
+   :description: Noether is a PyTorch-based framework for Engineering AI: models, datasets, training recipes, and tooling for physics-based ML research.
+   :keywords: Noether, Emmi AI, Engineering AI, PyTorch, machine learning, scientific ML, neural operators, physics-based ML, surrogate models, simulation, CFD, CAE
+
 Noether Framework Documentation
 ===============================
 

@@ -6,7 +6,7 @@ from unittest.mock import patch
 import numpy as np
 import torch
 
-from noether.core.utils.seed import set_seed
+from noether.core.utils.seed import seed_worker, set_seed
 
 
 def test_set_seed_calls_libraries_cpu():
@@ -85,3 +85,39 @@ def test_set_seed_reproducibility():
     val2_torch = torch.randn(5)
 
     assert torch.equal(val1_torch, val2_torch)
+
+
+def test_seed_worker_reseeds_random_and_numpy():
+    """seed_worker should derive its seed from torch.initial_seed() and reseed
+    `random` and `numpy.random` accordingly so workers are deterministic."""
+    fake_worker_seed = 424242
+
+    with (
+        patch("torch.initial_seed", return_value=fake_worker_seed),
+        patch("numpy.random.seed") as mock_np_seed,
+        patch("random.seed") as mock_random_seed,
+    ):
+        seed_worker(worker_id=0)
+
+        expected = fake_worker_seed % 2**32
+        mock_np_seed.assert_called_once_with(expected)
+        mock_random_seed.assert_called_once_with(expected)
+
+
+def test_seed_worker_different_workers_different_seeds():
+    """Different torch worker seeds should produce different random/numpy seeds."""
+    np_seeds: list[int] = []
+    random_seeds: list[int] = []
+
+    for fake_seed in [1, 2, 3]:
+        with (
+            patch("torch.initial_seed", return_value=fake_seed),
+            patch("numpy.random.seed") as mock_np_seed,
+            patch("random.seed") as mock_random_seed,
+        ):
+            seed_worker(worker_id=0)
+            np_seeds.append(mock_np_seed.call_args.args[0])
+            random_seeds.append(mock_random_seed.call_args.args[0])
+
+    assert len(set(np_seeds)) == 3
+    assert len(set(random_seeds)) == 3
