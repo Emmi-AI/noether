@@ -163,7 +163,17 @@ class SupernodePooling(nn.Module):
                 batch_y=batch_y,
             )
         else:
-            raise NotImplementedError
+            edges = knn(
+                x=input_pos[supernode_idx],
+                y=input_pos,
+                k=1,
+                batch_x=batch_y,
+                batch_y=batch_idx,
+            )
+            src_idx, local_dst_idx = edges.unbind()
+            dst_idx = supernode_idx[local_dst_idx]
+            return src_idx, dst_idx, local_dst_idx
+
         # remap dst indices
         local_dst_idx, src_idx = edges.unbind()
         dst_idx = supernode_idx[local_dst_idx]

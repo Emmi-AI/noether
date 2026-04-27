@@ -33,8 +33,6 @@ class SupernodePoolingConfig(BaseModel):
 
     @model_validator(mode="after")
     def validate_radius_and_k(self):
-        if (self.radius is None) and (self.k is None):
-            raise ValueError("Either radius or k has to be set.")
         if (self.radius is not None) and (self.k is not None):
             raise ValueError("Only one of radius or k can be set.")
         return self
