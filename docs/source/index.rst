@@ -11,7 +11,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :gutter: 2
    :class-container: sd-mb-4
 
-   .. grid-item-card:: 🚀 Start Here: Introduction to Noether
+   .. grid-item-card:: :ph:`rocket-launch` Start Here: Introduction to Noether
       :link: noether/introduction_to_noether_framework
       :link-type: doc
       :class-card: sd-bg-primary sd-text-white sd-shadow-lg
@@ -68,7 +68,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    :class-container: sd-equal-height
 
    .. grid-item::
-      .. card:: 🧠️ The Noether Framework
+      .. card:: :ph:`cube` The Noether Framework
         :class-card: sd-h-100
         :link: noether/index
         :link-type: doc
@@ -77,7 +77,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
         Go deep directly. Learn about our core architecture, key concepts, and the design principles behind the framework.
 
    .. grid-item::
-      .. card:: 🎓 Tutorials
+      .. card:: :ph:`graduation-cap` Tutorials
         :class-card: sd-h-100
         :link: tutorials/index
         :link-type: doc
@@ -86,7 +86,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
         Guided lessons to install the framework, run your first simulation, and understand the basics.
 
    .. grid-item::
-      .. card:: 🛠️ How-to Guides
+      .. card:: :ph:`toolbox` How-to Guides
         :class-card: sd-h-100
         :link: guides/index
         :link-type: doc
@@ -96,10 +96,71 @@ Welcome to the Noether Framework documentation. Here you will find available API
         own data collators.
 
    .. grid-item::
-      .. card:: 📚 Reference
+      .. card:: :ph:`book-open-text` Reference
         :class-card: sd-h-100
         :link: ../autoapi/noether/index
         :link-type: doc
         :shadow: md
 
         Technical lookup for complete API documentation
+
+
+Recipes
+-------
+
+End-to-end training and evaluation examples for specific engineering tasks.
+
+.. grid:: 1
+   :gutter: 3
+   :class-container: sd-mb-3
+
+   .. grid-item-card:: :ph:`car-profile` AB-UPT Showcase on DrivAerML
+      :link: tutorials/walkthrough/showcase
+      :link-type: doc
+      :class-card: sd-shadow-lg sd-rounded-3
+      :class-title: sd-fs-4 sd-fw-bold sd-text-primary
+      :class-body: sd-p-4
+
+      :bdg-success:`Featured`
+
+      Train AB-UPT on the DrivAerML dataset with a preset-based CLI.
+      Ready-to-use model sizes for CPU, GPU, and Apple Silicon.
+
+      +++
+
+      **Open the showcase walkthrough →**
+
+.. grid:: 1 2 2 2
+   :gutter: 2
+   :class-container: sd-equal-height
+
+   .. grid-item-card:: :ph:`wind` External Aerodynamics
+      :link: noether/aero_cfd_python
+      :link-type: doc
+      :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
+      :class-title: sd-fs-5 sd-fw-bold sd-text-primary
+      :class-body: sd-p-4
+
+      Multi-dataset aero CFD scripts (ShapeNet-Car, AhmedML, DrivAerML, DrivAerNet++, Emmi-Wing) across AB-UPT,
+      UPT, Transformer, and Transolver architectures.
+
+   .. grid-item-card:: :ph:`thermometer-hot` Fluid Heat Transfer
+      :link: noether/heat_transfer
+      :link-type: doc
+      :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
+      :class-title: sd-fs-5 sd-fw-bold sd-text-primary
+      :class-body: sd-p-4
+
+      Neural surrogates for heat transfer on the SIMSHIFT Heatsink benchmark - predict 3D velocity, temperature,
+      and pressure fields from heatsink geometry.
+
+.. grid:: 1
+   :gutter: 2
+   :class-container: sd-mt-2
+
+   .. grid-item-card:: :ph:`books` Browse the full Noether Recipe Zoo →
+      :link: noether/recipe_zoo
+      :link-type: doc
+      :class-card: sd-shadow-sm sd-rounded-3
+      :class-title: sd-fs-6 sd-fw-bold sd-text-primary sd-mb-0
+      :class-body: sd-py-3 sd-px-4
