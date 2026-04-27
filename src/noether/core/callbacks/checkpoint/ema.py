@@ -1,22 +1,39 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 import logging
 from collections import defaultdict
+from collections.abc import Iterator
+from contextlib import contextmanager
+from typing import Any
 
 import torch
+import torch.distributed as dist
 
+from noether.core.callbacks.base import CallbackBase
 from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
-from noether.core.distributed import is_rank0
+from noether.core.distributed import is_distributed, is_rank0
+from noether.core.factory import Factory
 from noether.core.models.base import ModelBase
 from noether.core.providers.path import PathProvider
 from noether.core.schemas.callbacks import EmaCallbackConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.common import select_with_path
+from noether.core.utils.training.counter import UpdateCounter
 from noether.core.utils.training.training_iteration import TrainingIteration
+from noether.core.writers import PrefixedLogWriter
 
 
 class EmaCallback(PeriodicCallback):
     """Callback for exponential moving average (EMA) of model weights.
+
+    In addition to maintaining and checkpointing EMA weights, this callback can optionally own a list of
+    child evaluation callbacks via ``eval_callbacks``. At each eval-time hook (``after_epoch``,
+    ``after_update``, ``at_eval``) the EMA weights are swapped into the live model, the children are
+    dispatched, and the live weights are restored. Children are dispatched once per ``target_factor`` and
+    their metric keys are automatically prefixed with ``ema=<factor>/`` to avoid collisions with live-model
+    metrics.
 
     Example config:
 
@@ -30,6 +47,10 @@ class EmaCallback(PeriodicCallback):
           target_factors:
             - 0.9999
           name: EmaCallback
+          eval_callbacks:
+            - kind: noether.training.callbacks.OfflineLossCallback
+              every_n_epochs: 1
+              dataset_key: val
     """
 
     def __init__(
@@ -54,6 +75,30 @@ class EmaCallback(PeriodicCallback):
         self.parameters: dict[tuple[str | None, float], dict[str, torch.Tensor]] = defaultdict(dict)
         self.buffers: dict[str | None, dict[str, torch.Tensor]] = defaultdict(dict)
         self._was_resumed = False
+
+        # Build nested eval callbacks (one set per target_factor). Each child gets a PrefixedLogWriter so its
+        # metric keys are namespaced as ``ema=<factor>/<original_key>``. Dispatch (including schedule gating)
+        # is still handled by each child's own ``after_epoch`` / ``after_update`` / ``at_eval`` methods.
+        self.eval_callbacks: dict[float, list[CallbackBase]] = {}
+        eval_callback_configs = getattr(callback_config, "eval_callbacks", None)
+        if eval_callback_configs:
+            base_kwargs = dict(kwargs)
+            for target_factor in self.target_factors:
+                prefix = f"ema={target_factor}"
+                child_kwargs = {
+                    **base_kwargs,
+                    "log_writer": PrefixedLogWriter(inner=kwargs["log_writer"], prefix=prefix),
+                }
+                self.eval_callbacks[target_factor] = Factory().create_list(eval_callback_configs, **child_kwargs)
+
+    def get_children(self) -> list[CallbackBase]:
+        """Flat list of child eval callbacks (across all ``target_factors``).
+
+        Exposed to the trainer so nested ``PeriodicDataIteratorCallback`` instances have their samplers
+        registered on the shared data loader. The EMA callback remains responsible for dispatching lifecycle
+        hooks to its children.
+        """
+        return [cb for cbs in self.eval_callbacks.values() for cb in cbs]
 
     def _load_ema_checkpoint(self, ema_path, cur_model, model_path, target_factor):
         """Load EMA state from a checkpoint file."""
@@ -111,17 +156,20 @@ class EmaCallback(PeriodicCallback):
                     self._init_ema_from_model(cur_model, model_path, target_factor)
         self._was_resumed = True
 
-    def before_training(self, **_) -> None:
-        if not is_rank0():
-            return
-        if self._was_resumed:
-            return
-        for model_path in self.model_paths:
-            cur_model = select_with_path(obj=self.model, path=model_path)
-            if not isinstance(cur_model, torch.nn.Module):
-                raise ValueError(f"Path {model_path} on model {self.model} did not resolve to a torch.nn.Module")
-            for target_factor in self.target_factors:
-                self._init_ema_from_model(cur_model, model_path, target_factor)
+    def before_training(self, **kwargs) -> None:
+        if is_rank0() and not self._was_resumed:
+            for model_path in self.model_paths:
+                cur_model = select_with_path(obj=self.model, path=model_path)
+                if not isinstance(cur_model, torch.nn.Module):
+                    raise ValueError(f"Path {model_path} on model {self.model} did not resolve to a torch.nn.Module")
+                for target_factor in self.target_factors:
+                    self._init_ema_from_model(cur_model, model_path, target_factor)
+
+        # Forward to children on all ranks (without swapping: children may initialize dataset readers,
+        # samplers, etc., against the live model).
+        for children in self.eval_callbacks.values():
+            for child in children:
+                child.before_training(**kwargs)
 
     def apply_ema(self, cur_model, model_path, target_factor):
         """fused in-place implementation"""
@@ -148,6 +196,72 @@ class EmaCallback(PeriodicCallback):
 
             for name, buffer in cur_model.named_buffers():
                 self.buffers[model_path][name].copy_(buffer)
+
+    @contextmanager
+    def _swapped_weights(self, target_factor: float) -> Iterator[None]:
+        """Temporarily replace live model params/buffers with EMA values for ``target_factor``.
+
+        EMA state is only maintained on rank 0 (see :meth:`track_after_update_step`). On non-rank-0 ranks
+        the local live weights are used as the broadcast destination, and rank 0 broadcasts its EMA-loaded
+        params/buffers to every rank so all ranks run evaluation against the same EMA weights.
+
+        The live weights are always restored on exit, even if the inner block raises. Iterates over all
+        configured ``model_paths``.
+        """
+        snapshots: list[tuple[torch.nn.Module, list[torch.Tensor], list[torch.Tensor], str | None]] = []
+        for model_path in self.model_paths:
+            cur_model = select_with_path(obj=self.model, path=model_path)
+            if not isinstance(cur_model, torch.nn.Module):
+                raise ValueError(f"Path {model_path} on model {self.model} did not resolve to a torch.nn.Module")
+            live_params = [p.detach().clone() for p in cur_model.parameters()]
+            live_buffers = [b.detach().clone() for b in cur_model.buffers()]
+            snapshots.append((cur_model, live_params, live_buffers, model_path))
+
+        try:
+            for cur_model, _live_params, _live_buffers, model_path in snapshots:
+                if is_rank0():
+                    key = (model_path, target_factor)
+                    for name, param in cur_model.named_parameters():
+                        param.data.copy_(self.parameters[key][name])
+                    for name, buffer in cur_model.named_buffers():
+                        buffer.data.copy_(self.buffers[model_path][name])
+                if is_distributed():
+                    for param in cur_model.parameters():
+                        dist.broadcast(param.data, src=0)
+                    for buffer in cur_model.buffers():
+                        dist.broadcast(buffer.data, src=0)
+            yield
+        finally:
+            for cur_model, live_params, live_buffers, _model_path in snapshots:
+                for param, snap in zip(cur_model.parameters(), live_params, strict=True):
+                    param.data.copy_(snap)
+                for buffer, snap in zip(cur_model.buffers(), live_buffers, strict=True):
+                    buffer.data.copy_(snap)
+
+    def _dispatch_to_children(self, hook: str, *, update_counter: UpdateCounter, **kwargs: Any) -> None:
+        """Call ``hook`` on every child, wrapped in the EMA weight swap for its target_factor."""
+        if not self.eval_callbacks:
+            return
+        for target_factor, children in self.eval_callbacks.items():
+            with self._swapped_weights(target_factor):
+                for child in children:
+                    getattr(child, hook)(update_counter=update_counter, **kwargs)
+
+    def after_epoch(self, update_counter: UpdateCounter, **kwargs) -> None:
+        # Own periodic save (EMA-cadence gated).
+        super().after_epoch(update_counter=update_counter, **kwargs)
+        # Children run under EMA weights; each child self-gates on its own schedule.
+        self._dispatch_to_children("after_epoch", update_counter=update_counter, **kwargs)
+
+    def after_update(self, update_counter: UpdateCounter, **kwargs) -> None:
+        super().after_update(update_counter=update_counter, **kwargs)
+        self._dispatch_to_children("after_update", update_counter=update_counter, **kwargs)
+
+    def at_eval(self, update_counter: UpdateCounter, **kwargs) -> None:
+        # ``super().at_eval`` calls ``periodic_callback(interval_type="eval")`` which short-circuits for
+        # this callback (no EMA save during eval). Still call it for consistency / future hooks.
+        super().at_eval(update_counter=update_counter, **kwargs)
+        self._dispatch_to_children("at_eval", update_counter=update_counter, **kwargs)
 
     def _save(self, training_iteration: str | TrainingIteration, model: ModelBase) -> None:
         if not is_rank0():
@@ -188,6 +302,12 @@ class EmaCallback(PeriodicCallback):
         checkpoint = update_counter.cur_iteration
         self._save(checkpoint, model=self.model)
 
-    def after_training(self, **_) -> None:
+    def after_training(self, **kwargs) -> None:
         if self.save_last_weights:
             self._save(training_iteration="last", model=self.model)
+
+        # Forward to children on all ranks (without swapping: children may finalize trackers, flush state,
+        # etc., and should not observe EMA-swapped weights after training).
+        for children in self.eval_callbacks.values():
+            for child in children:
+                child.after_training(**kwargs)

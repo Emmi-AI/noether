@@ -61,11 +61,30 @@ Noether includes many pre-defined callbacks organized by their purpose:
    * - **Monitoring**
      - :class:`~noether.core.callbacks.default.ProgressCallback`, :class:`~noether.core.callbacks.default.DatasetStatsCallback`, :class:`~noether.core.callbacks.default.LrCallback`, :class:`~noether.core.callbacks.default.PeakMemoryCallback`, :class:`~noether.core.callbacks.default.OnlineLossCallback`, :class:`~noether.core.callbacks.default.ParamCountCallback`, :class:`~noether.core.callbacks.default.EtaCallback`, :class:`~noether.core.callbacks.default.TrainTimeCallback`. Used for real-time tracking of training progress and hardware usage. These callbacks are all initialized by default by the :class:`~noether.training.trainers.BaseTrainer`, the user does not need to add them manually.
    * - **Checkpointing**
-     - :class:`~noether.core.callbacks.checkpoint.best_checkpoint.BestCheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.checkpoint.CheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.ema.EMACallback`. Used to save model weights periodically or when a new best metric is achieved.
+     - :class:`~noether.core.callbacks.checkpoint.best_checkpoint.BestCheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.checkpoint.CheckpointCallback`, :class:`~noether.core.callbacks.checkpoint.ema.EmaCallback`. Used to save model weights periodically or when a new best metric is achieved.
    * - **Early Stopping**
      - :class:`~noether.core.callbacks.early_stoppers.metric.MetricEarlyStopper`, :class:`~noether.core.callbacks.early_stoppers.fixed.FixedEarlyStopper`. Used to stop training automatically if progress plateaus.
    * - **Evaluation**
      - :class:`~noether.core.callbacks.online.best_metric.BestMetricCallback`, :class:`~noether.core.callbacks.online.track_outputs. TrackOutputsCallback`. Specialized monitoring for tracked metrics.
+
+Evaluating Against EMA Weights
+------------------------------
+
+:class:`~noether.core.callbacks.checkpoint.ema.EmaCallback` maintains exponential moving averages of the model weights and checkpoints them to disk. It can also own a list of nested periodic callbacks via the ``eval_callbacks`` field. At each eval-time hook the EMA weights are swapped into the live model, the nested callbacks are dispatched (so they run against EMA weights), and the live weights are restored.
+
+Children keep their own schedule (``every_n_epochs`` etc.), run once per ``target_factor``, and have their logged metric keys auto-prefixed with ``ema=<factor>/`` to avoid collisions with live-model metrics.
+
+.. code-block:: yaml
+
+   - kind: noether.core.callbacks.EmaCallback
+     every_n_epochs: 10
+     target_factors: [0.9999]
+     save_latest_weights: true
+     eval_callbacks:
+       - kind: noether.training.callbacks.OfflineLossCallback
+         every_n_epochs: 1
+         dataset_key: val
+       # logs as ``ema=0.9999/loss/val/total``
 
 When to Use What?
 -----------------

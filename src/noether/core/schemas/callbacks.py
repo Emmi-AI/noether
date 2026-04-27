@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC
-from typing import TYPE_CHECKING, ClassVar, Literal, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Literal, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from noether.core.schemas.lib import _RegistryBase
+from noether.core.schemas.lib import Discriminated, _RegistryBase
 
 
 class CallBackBaseConfig(_RegistryBase):
@@ -128,6 +128,14 @@ class EmaCallbackConfig(CallBackBaseConfig):
     """Save the weights of the model when training is over (i.e., at the end of training, save the EMA weights)."""
     save_latest_weights: bool = Field(False)
     """Save the latest EMA weights. Note that the latest weights are always overwritten on the next invocation of this callback."""
+    eval_callbacks: list[Annotated[Any, Discriminated(CallBackBaseConfig)]] | None = Field(None)
+    """Optional nested periodic callbacks to run against EMA weights. Each child retains its own schedule
+    (``every_n_epochs`` etc.); the EMA callback swaps its stored EMA parameters into the live model around
+    eval-time hooks (``after_epoch``, ``after_update``, ``at_eval``) and restores the live weights on exit.
+    Children are dispatched once per ``target_factor`` and their metric keys are automatically prefixed with
+    ``ema=<factor>/`` to avoid collisions with live-model metrics. Note: ``before_training`` and
+    ``after_training`` are forwarded without swapping, so EMA initialization and the final save see live
+    weights."""
 
 
 class OnlineLossCallbackConfig(CallBackBaseConfig):

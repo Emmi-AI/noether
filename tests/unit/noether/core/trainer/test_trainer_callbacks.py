@@ -12,7 +12,7 @@ import torch.nn.functional as F
 from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.models.model import Model
 from noether.core.schemas import DatasetBaseConfig
-from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+from noether.core.schemas.callbacks import CallBackBaseConfig, PeriodicDataIteratorCallbackConfig
 from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.data.base.dataset import Dataset
 from noether.data.container import DataContainer
@@ -82,6 +82,31 @@ class DummyIteratorCallback(PeriodicDataIteratorCallback):
 
     def process_results(self, results, **_):
         pass
+
+
+class NestedCompositeCallback(PeriodicCallback):
+    """Minimal composite callback: owns children via ``get_children`` and forwards eval-time hooks.
+
+    Stands in for any composite (e.g. ``EmaCallback`` with ``eval_callbacks``) to exercise the trainer's
+    child-flattening and iterator-args routing without pulling in EMA-specific logic.
+    """
+
+    def __init__(self, *args, children=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._children = children or []
+
+    def get_children(self):
+        return self._children
+
+    def after_epoch(self, update_counter, **kwargs):
+        super().after_epoch(update_counter=update_counter, **kwargs)
+        for child in self._children:
+            child.after_epoch(update_counter=update_counter, **kwargs)
+
+    def after_update(self, update_counter, **kwargs):
+        super().after_update(update_counter=update_counter, **kwargs)
+        for child in self._children:
+            child.after_update(update_counter=update_counter, **kwargs)
 
 
 @pytest.mark.filterwarnings("ignore:Batch contains additional keys")
@@ -246,3 +271,87 @@ def test_periodic_iterator_callback_with_gradient_accumulation():
     assert len(callback.received_batches) == num_samples_test
     for i in range(num_samples_test):
         assert callback.received_batches[i]["id"].item() == 100 + i
+
+
+@pytest.mark.filterwarnings("ignore:Batch contains additional keys")
+def test_nested_iterator_callback_receives_batches_through_composite_parent():
+    """Iterator children owned by a composite parent still get their batches.
+
+    Verifies that the trainer (a) flattens ``get_children()`` when building ``iterator_callbacks`` so the
+    nested callback's sampler_config is registered on the shared data loader, and (b) routes
+    ``iterator_callback_args`` (including ``data_iter``) to the parent because it has an iterator
+    descendant, so the parent can forward the args to its child.
+    """
+    num_samples_train, num_samples_test, num_epochs = 3, 2, 2
+    train_dataset = DummyDataset(size=num_samples_train)
+    test_dataset = DummyDataset(size=num_samples_test)
+    data_container = DataContainer(datasets={"train": train_dataset, "test": test_dataset})
+
+    trainer = DummyTrainer(
+        config=BaseTrainerConfig(
+            kind="base",
+            max_epochs=num_epochs,
+            effective_batch_size=1,
+            callbacks=[],
+            forward_properties=["x"],
+            target_properties=["y"],
+        ),
+        data_container=data_container,
+        device="cpu",
+        tracker=None,
+        path_provider=None,
+    )
+
+    # Interleave train + test batches the way the real data loader would.
+    batches = []
+    for epoch in range(num_epochs):
+        for i in range(num_samples_train):
+            batches.append(
+                {"x": torch.randn(1, 10), "y": torch.randint(0, 2, (1,)), "id": torch.tensor([epoch * 100 + i])}
+            )
+        for i in range(num_samples_test):
+            batches.append(
+                {"x": torch.randn(1, 10), "y": torch.randint(0, 2, (1,)), "id": torch.tensor([(epoch + 10) * 100 + i])}
+            )
+    trainer.get_data_loader = Mock(return_value=iter(batches))
+
+    model = DummyModel()
+    callback_deps = dict(
+        trainer=trainer,
+        model=model,
+        data_container=data_container,
+        tracker=Mock(),
+        log_writer=Mock(flush=Mock(), finish=Mock()),
+        checkpoint_writer=Mock(),
+        metric_property_provider=Mock(),
+    )
+    child = DummyIteratorCallback(
+        callback_config=PeriodicDataIteratorCallbackConfig.model_validate(dict(every_n_epochs=1, dataset_key="train")),
+        **callback_deps,
+    )
+    # Parent itself has no data dependency; it only exists to own the child and demonstrate that nesting
+    # does not break iterator wiring.
+    parent = NestedCompositeCallback(
+        callback_config=CallBackBaseConfig.model_validate(dict(every_n_epochs=1)),
+        children=[child],
+        **callback_deps,
+    )
+
+    # Only the parent is registered with the trainer; the child is reachable via ``get_children()``.
+    trainer.get_all_callbacks = lambda _: [parent]
+
+    # Sanity-check that the trainer would discover the child via the same helper it uses internally.
+    from noether.training.trainers.base import _iter_iterator_descendants, _needs_iterator_args
+
+    assert list(_iter_iterator_descendants(parent)) == [child]
+    assert _needs_iterator_args(parent) is True
+
+    trainer.train(model)
+
+    # Child received the right batches even though it was never registered directly as a top-level
+    # callback — exactly the batches the interleaved loader produced for the test dataset.
+    assert len(child.received_batches) == num_samples_test * num_epochs
+    for epoch in range(num_epochs):
+        for i in range(num_samples_test):
+            batch = child.received_batches[epoch * num_samples_test + i]
+            assert batch["id"].item() == (epoch + 10) * 100 + i
