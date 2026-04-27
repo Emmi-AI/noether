@@ -677,7 +677,12 @@ class PeriodicDataIteratorCallback(PeriodicCallback, metaclass=ABCMeta):
         # iterate
         data_times = []
         results = []
-        pbar_ctor = NoopTqdm if not sys.stdout.isatty() or not is_rank0() else tqdm
+        pbar_ctor: type[tqdm | NoopTqdm] = tqdm
+        if not sys.stdout.isatty() or not is_rank0():
+            self.logger.info(
+                f"{self} is iterating over {local_dataset_len} samples ({num_batches} batches) from {self.dataset_key}"
+            )
+            pbar_ctor = NoopTqdm
         for _ in pbar_ctor(iterable=range(num_batches), desc=f"{self} on {self.dataset_key}", unit="b"):
             with Stopwatch() as data_sw:
                 batch = next(data_iter)
