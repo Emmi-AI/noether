@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import ExitStack
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -1214,12 +1215,11 @@ class TestTrainingHooks:
         cb1.before_training.assert_called_once_with(update_counter=trainer.update_counter)
         cb2.before_training.assert_called_once_with(update_counter=trainer.update_counter)
 
-    def test_call_after_training_invokes_callbacks_and_flushes(self):
+    def test_call_after_training_invokes_callbacks(self):
         trainer = _make_trainer()
         cb = MagicMock()
         trainer.call_after_training([cb])
         cb.after_training.assert_called_once_with(update_counter=trainer.update_counter)
-        trainer.log_writer.flush.assert_called_once()
 
 
 class TestApplyResumeInitializer:
@@ -1477,6 +1477,91 @@ class TestSkipRemainingBatches:
         data_iter = MagicMock(spec=[])  # no batch_sampler attribute
         # Should not raise
         trainer._skip_remaining_batches(data_iter, remaining_batches=5, accumulation_steps_total=2, batch_size=4)
+
+
+class _FakeLogWriter:
+    """Mimics the ``LogWriter`` context-manager contract: ``__exit__`` calls ``finish``."""
+
+    def __init__(self):
+        self.finish = MagicMock()
+        self.flush = MagicMock()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.finish()
+        return None
+
+
+class TestLogWriterFinishedInTrainAndEval:
+    """``train`` and ``eval`` must call ``log_writer.finish`` even when the body raises."""
+
+    @staticmethod
+    def _enter_train_patches(stack, trainer, _train_side_effect=None):
+        model = MagicMock()
+        model.device = torch.device("cpu")
+        model.to.return_value = model
+        stack.enter_context(patch.object(trainer, "get_all_callbacks", return_value=[]))
+        stack.enter_context(patch.object(trainer, "_prepare_model", return_value=model))
+        stack.enter_context(patch.object(trainer, "wrap_model", return_value=model))
+        stack.enter_context(patch.object(trainer, "_prepare_batch_size", return_value=(4, 1, 25)))
+        stack.enter_context(patch.object(trainer, "get_data_loader", return_value=iter([])))
+        stack.enter_context(patch.object(trainer, "call_before_training"))
+        stack.enter_context(patch.object(trainer, "call_after_training"))
+        stack.enter_context(patch.object(trainer, "_train", side_effect=_train_side_effect))
+        return model
+
+    @staticmethod
+    def _enter_eval_patches(stack, trainer, callbacks=None):
+        model = MagicMock()
+        model.device = torch.device("cpu")
+        model.to.return_value = model
+        model.eval.return_value = model
+        stack.enter_context(patch.object(trainer, "get_user_callbacks", return_value=callbacks or []))
+        stack.enter_context(patch.object(trainer, "_prepare_model", return_value=model))
+        stack.enter_context(patch.object(trainer, "wrap_model", return_value=model))
+        stack.enter_context(patch.object(trainer, "_prepare_batch_size", return_value=(4, 1, 25)))
+        stack.enter_context(patch.object(trainer, "get_data_loader", return_value=iter([])))
+        return model
+
+    def test_train_calls_finish_on_success(self):
+        trainer = _make_trainer()
+        trainer.log_writer = _FakeLogWriter()
+        with ExitStack() as stack:
+            model = self._enter_train_patches(stack, trainer)
+            trainer.train(model)
+        trainer.log_writer.finish.assert_called_once()
+
+    def test_train_calls_finish_on_exception(self):
+        trainer = _make_trainer()
+        trainer.log_writer = _FakeLogWriter()
+        with ExitStack() as stack:
+            model = self._enter_train_patches(stack, trainer, _train_side_effect=RuntimeError("boom"))
+            with pytest.raises(RuntimeError, match="boom"):
+                trainer.train(model)
+        trainer.log_writer.finish.assert_called_once()
+
+    def test_eval_calls_finish_on_success(self):
+        trainer = _make_trainer()
+        trainer.log_writer = _FakeLogWriter()
+        with ExitStack() as stack:
+            model = self._enter_eval_patches(stack, trainer)
+            trainer.eval(model)
+        trainer.log_writer.finish.assert_called_once()
+
+    def test_eval_calls_finish_on_exception(self):
+        from noether.core.callbacks import PeriodicCallback
+
+        trainer = _make_trainer()
+        trainer.log_writer = _FakeLogWriter()
+        cb = MagicMock(spec=PeriodicCallback)
+        cb.at_eval.side_effect = RuntimeError("boom")
+        with ExitStack() as stack:
+            model = self._enter_eval_patches(stack, trainer, callbacks=[cb])
+            with pytest.raises(RuntimeError, match="boom"):
+                trainer.eval(model)
+        trainer.log_writer.finish.assert_called_once()
 
 
 class TestEval:
