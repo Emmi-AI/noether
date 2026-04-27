@@ -4,7 +4,7 @@ surface_position:
   stat_keys:
     min: raw_pos_min
     max: raw_pos_max
-  scale: 1000
+  scale: 100000
 surface_pressure:
   kind: noether.data.preprocessors.normalizers.FieldNormalizer
   strategy: mean_std
@@ -17,7 +17,7 @@ volume_position:
   stat_keys:
     min: raw_pos_min
     max: raw_pos_max
-  scale: 1000
+  scale: 100000
 volume_vorticity:
   kind: noether.data.preprocessors.normalizers.FieldNormalizer
   strategy: mean_std

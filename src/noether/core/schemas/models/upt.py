@@ -61,6 +61,7 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
             hidden_dim=self.hidden_dim // self.num_heads,
             input_dim=self.data_specs.position_dim,
             implementation="complex",
+            max_wavelength=self.approximator_config.max_wavelength,
         )
 
     @model_validator(mode="after")
@@ -78,6 +79,7 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
         return ContinuousSincosEmbeddingConfig(
             hidden_dim=self.hidden_dim,
             input_dim=self.data_specs.position_dim,
+            max_wavelength=self.approximator_config.max_wavelength,
         )
 
     @model_validator(mode="after")

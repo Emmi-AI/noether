@@ -6,6 +6,7 @@ excluded_properties:
   - surface_sdf
   - volume_normals
   - surface_normals
+  - surface_area
 defaults:
   - data_specs: caeml
   - dataset_normalizers: caeml_dataset_normalizers
