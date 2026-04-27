@@ -3,6 +3,7 @@
 import logging
 import os
 import platform
+import typing
 from collections.abc import Iterator
 from functools import partial
 from pathlib import Path
@@ -169,6 +170,7 @@ class HydraRunner:
                 logger.warning("disabled cudnn benchmark")
                 if config.cudnn_deterministic:
                     torch.backends.cudnn.deterministic = True
+                    torch.use_deterministic_algorithms(True, warn_only=False)
                     os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
                     logger.warning("enabled cudnn deterministic")
 
@@ -178,11 +180,12 @@ class HydraRunner:
             if is_distributed():
                 object_list = [run_id] if is_rank0() else [0]  # type: ignore
                 broadcast_object_list(object_list, src=0)
-                run_id = object_list[0]
+                run_id = typing.cast("str", object_list[0])
                 assert run_id is not None, "run_id should have been broadcasted to all ranks"
 
         # initialize path where to store logs/checkpoints/...
         output_path = config.output_path
+        assert output_path is not None, "output_path must be specified in the config"
 
         # initialize logging
         path_provider = PathProvider(
@@ -300,7 +303,12 @@ class HydraRunner:
             dataset.pipeline = pipeline
             datasets[dataset_key] = dataset
 
-        data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=device == "cuda")
+        data_container = DataContainer(
+            datasets=datasets,
+            num_workers=config.num_workers,
+            pin_memory=device == "cuda",
+            seed=seed,
+        )
 
         # init trainer
         trainer = Factory().create(
