@@ -8,7 +8,7 @@ All recipe source code lives under the `recipes/ <https://github.com/Emmi-AI/noe
    :class-container: sd-mb-3
 
    .. grid-item-card:: :ph:`car-profile` AB-UPT Showcase on DrivAerML
-      :img-top: /_static/showcase/surface_losses.png
+      :img-top: /_static/showcase/inference_scaling.png
       :class-card: sd-shadow-lg sd-rounded-3
       :class-title: sd-fs-4 sd-fw-bold sd-text-primary
       :class-body: sd-p-4
@@ -22,14 +22,14 @@ All recipe source code lives under the `recipes/ <https://github.com/Emmi-AI/noe
       - `Source code <https://github.com/Emmi-AI/noether/tree/main/recipes/aero_cfd/showcase>`_
 
 .. grid:: 1 2 2 2
-   :gutter: 3
    :class-container: sd-equal-height
 
    .. grid-item-card:: :ph:`wind` External Aerodynamics
-      :img-top: /_static/shapenet_car_models_data_flow.png
+      :img-top: /_static/showcase/750k_points_inference_drivaerml_sample_0000.png
       :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
       :class-title: sd-fs-5 sd-fw-bold sd-text-primary
       :class-body: sd-p-4
+      :class-img-top: recipe-card-thumb
 
       Multi-dataset aero CFD (ShapeNet-Car, AhmedML, DrivAerML, DrivAerNet++, Emmi-Wing) across AB-UPT, UPT,
       Transformer, and Transolver architectures.
@@ -43,6 +43,7 @@ All recipe source code lives under the `recipes/ <https://github.com/Emmi-AI/noe
       :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
       :class-title: sd-fs-5 sd-fw-bold sd-text-primary
       :class-body: sd-p-4
+      :class-img-top: recipe-card-thumb
 
       Neural surrogates for heat transfer on the SIMSHIFT Heatsink benchmark -- predicts 3D velocity,
       temperature, and pressure fields from heatsink geometry.
