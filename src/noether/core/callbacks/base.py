@@ -107,6 +107,20 @@ class CallbackBase:
         self.metric_property_provider = metric_property_provider
         self.checkpoint_writer = checkpoint_writer
 
+    def get_children(self) -> list[CallbackBase]:
+        """Return nested callbacks owned by this callback, if any.
+
+        Composite callbacks (e.g. :class:`~noether.core.callbacks.checkpoint.ema.EmaCallback` when it owns
+        ``eval_callbacks``) use this to expose their children to the trainer so nested
+        :class:`~noether.core.callbacks.periodic.PeriodicDataIteratorCallback` instances still get their
+        samplers registered on the shared data loader. Dispatch of lifecycle hooks on the children remains
+        the responsibility of the owning callback.
+
+        Returns:
+            List of child callbacks (empty by default).
+        """
+        return []
+
     @property
     def checkpoint_key(self) -> str:
         """Key used to identify this callback's state in checkpoints.

@@ -256,29 +256,71 @@ def _validate_all_combos(config_path: Path, combos: list[list[str]]) -> SlurmCon
     return first_slurm
 
 
-def _build_train_command(config_path: Path, combo: list[str]) -> list[str]:
-    """Build the ``noether-train`` invocation for one sweep combination."""
-    return ["uv", "run", "noether-train", "--hp", str(config_path), *combo]
+def _train_entrypoint(config_path: str, overrides: list[str], cwd: str) -> None:
+    """In-process training entrypoint executed by the submitit worker.
+
+    Replaces the previous ``submitit.helpers.CommandFunction`` approach (shelling
+    out via ``subprocess.Popen``). With the subprocess approach, a SLURM cgroup
+    OOM kill targets the largest memory consumer (the trainer or one of its
+    multiprocessing children); the submitit wrapper survives, sits in
+    ``copy_process_streams`` reading broken pipes, and ignores any SIGTERM SLURM
+    sends to clean up (see ``submitit.core.job_environment.SignalHandler.bypass``)
+    — so the step lingers until walltime. Running training in-process means the
+    wrapper dies with the trainer, ``srun`` exits, and the step ends.
+
+    ``main_train.main`` is invoked (rather than ``HydraRunner().run`` directly) so
+    that ``@hydra.main`` populates ``HydraConfig`` — ``HydraRunner.derive_run_name``
+    reads ``HydraConfig.get().overrides.task`` to append the sweep suffix to the
+    run name.
+
+    Args:
+        config_path: Absolute path to the training config yaml.
+        overrides: Hydra-style overrides for this sweep combination.
+        cwd: Working directory at submission time. Restored so user code referenced
+            via ``config_schema_kind`` is importable.
+    """
+    if cwd not in sys.path:
+        sys.path.insert(0, cwd)
+    os.chdir(cwd)
+
+    sys.argv = [sys.argv[0], "--hp", config_path, *overrides]
+
+    # Imported lazily: ``main_train`` calls ``setup_hydra()`` at import time, which
+    # inspects ``sys.argv`` — so argv must be set up first.
+    from noether.training.cli.main_train import main as train_main
+
+    train_main()
 
 
-def _print_dry_run(folder: str, params: dict[str, Any], commands: list[list[str]]) -> None:
+def _format_task_preview(config_path: Path, combo: list[str]) -> str:
+    """Render a one-line preview of the (in-process) training invocation."""
+    return f"noether-train --hp {config_path} {' '.join(combo)}".rstrip()
+
+
+def _print_dry_run(folder: str, params: dict[str, Any], previews: list[str]) -> None:
     print("[dry-run] submitit AutoExecutor configuration:")
     print(f"  folder: {folder}")
     for key, value in params.items():
         print(f"  {key}: {value}")
-    print(f"[dry-run] Would submit {len(commands)} task(s):")
-    for idx, cmd in enumerate(commands):
-        print(f"  [{idx}] {' '.join(cmd)}")
+    print(f"[dry-run] Would submit {len(previews)} task(s) in-process via main_train.main:")
+    for idx, preview in enumerate(previews):
+        print(f"  [{idx}] {preview}")
 
 
-def _submit(executor: submitit.AutoExecutor, commands: list[list[str]]) -> list[submitit.Job]:
-    """Submit one or more commands. Multiple commands go inside ``executor.batch()``
-    so SLURM sees a single array job."""
-    cmd_fns = [submitit.helpers.CommandFunction(cmd) for cmd in commands]
-    if len(cmd_fns) == 1:
-        return [executor.submit(cmd_fns[0])]
+def _submit(
+    executor: submitit.AutoExecutor,
+    config_path: Path,
+    combos: list[list[str]],
+    cwd: str,
+) -> list[submitit.Job]:
+    """Submit one or more in-process training tasks.
+
+    Multiple combos go inside ``executor.batch()`` so SLURM sees a single array job.
+    """
+    if len(combos) == 1:
+        return [executor.submit(_train_entrypoint, str(config_path), combos[0], cwd)]
     with executor.batch():
-        return [executor.submit(fn) for fn in cmd_fns]
+        return [executor.submit(_train_entrypoint, str(config_path), combo, cwd) for combo in combos]
 
 
 def main() -> None:
@@ -312,15 +354,16 @@ def main() -> None:
 
     slurm_config = _validate_all_combos(config_path, combos)
     folder, params = slurm_config.to_executor_kwargs()
-    commands = [_build_train_command(config_path, combo) for combo in combos]
+    cwd = os.getcwd()
 
     if dry_run:
-        _print_dry_run(folder, params, commands)
+        previews = [_format_task_preview(config_path, combo) for combo in combos]
+        _print_dry_run(folder, params, previews)
         sys.exit(0)
 
     executor = submitit.AutoExecutor(folder=folder)
     executor.update_parameters(**params)
-    jobs = _submit(executor, commands)
+    jobs = _submit(executor, config_path, combos, cwd)
 
     if len(jobs) == 1:
         print(f"Submitted job {jobs[0].job_id}")
