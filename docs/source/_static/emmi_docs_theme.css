@@ -102,3 +102,10 @@ body {
 .sidebar-tree + .sidebar-tree {
     margin-top: 2rem;
 }
+
+/* --- RECIPE ZOO: keep non-featured card thumbnails at a uniform height --- */
+.recipe-card-thumb {
+    height: 200px;
+    width: 100%;
+    object-fit: cover;
+}

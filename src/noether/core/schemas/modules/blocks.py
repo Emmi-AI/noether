@@ -54,6 +54,9 @@ class TransformerBlockConfig(BaseModel):
     use_rope: bool = Field(False)
     """Whether to use Rotary Positional Embeddings (RoPE)."""
 
+    max_wavelength: int | None = Field(10_000)
+    """Theta parameter for the transformer sine/cosine embedding. Default: 10_000"""
+
     attention_arguments: dict = {}
     """Additional arguments for the attention module that are only needed for a specific attention implementation."""
 
@@ -67,6 +70,12 @@ class TransformerBlockConfig(BaseModel):
             if self.mlp_expansion_factor is None:
                 raise ValueError("Either 'mlp_hidden_dim' or 'mlp_expansion_factor' must be provided.")
             self.mlp_hidden_dim = self.hidden_dim * self.mlp_expansion_factor
+        return self
+
+    @model_validator(mode="after")
+    def set_wavelength_for_rope(self):
+        if self.use_rope and self.max_wavelength is None:
+            raise ValueError("max_wavelength must be provided when use_rope is True.")
         return self
 
     @computed_field

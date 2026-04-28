@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import TypeAdapter
 
 from noether.core.presets.model_defaults import MODEL_DEFAULTS
 from noether.core.schemas.callbacks import (
@@ -20,12 +21,14 @@ from noether.core.schemas.callbacks import (
 from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
 from noether.core.schemas.lib import resolve_config_class
 from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.schemas.optimizers import AnyOptimizerConfig, OptimizerConfig
 from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
 from noether.core.schemas.schema import ConfigSchema
 
 logger = logging.getLogger(__name__)
 
+
+_OPTIMIZER_CONFIG_ADAPTER: TypeAdapter[AnyOptimizerConfig] = TypeAdapter(AnyOptimizerConfig)
 
 CHECKPOINT_CALLBACK = "noether.core.callbacks.CheckpointCallback"
 BEST_CHECKPOINT_CALLBACK = "noether.core.callbacks.BestCheckpointCallback"
@@ -270,12 +273,14 @@ class DomainPreset(ABC):
                 max_value=lr,
             )
 
-        return OptimizerConfig(
-            kind=kind,
-            lr=lr,
-            weight_decay=weight_decay,
-            clip_grad_norm=clip_grad_norm,
-            schedule_config=schedule,
+        return _OPTIMIZER_CONFIG_ADAPTER.validate_python(
+            {
+                "kind": kind,
+                "lr": lr,
+                "weight_decay": weight_decay,
+                "clip_grad_norm": clip_grad_norm,
+                "schedule_config": schedule,
+            }
         )
 
     def build_model(

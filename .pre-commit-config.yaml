@@ -19,10 +19,9 @@ repos:
   hooks:
     - id: mypy
       name: mypy (via uv)
-      entry: uv run mypy
+      entry: uv run mypy --show-traceback
       language: system
       types: [python]
-      # Only check files in src/noether, exclude template files due to placeholders
-      files: ^src/noether/
-      exclude: template_files/
+      pass_filenames: false
+      require_serial: true
       args: []

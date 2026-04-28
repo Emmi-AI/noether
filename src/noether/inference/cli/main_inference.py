@@ -56,10 +56,9 @@ def main(inference_config: DictConfig):
     input_dir = Path(inference_config.input_dir).resolve()
     run_id = inference_config.run_id
     stage_name = inference_config.get("stage_name", "")
-
-    hp_resolved_path = input_dir / run_id / stage_name / "hp_resolved.yaml"
+    hp_resolved_path = input_dir / str(run_id) / stage_name / "hp_resolved.yaml"
     if not hp_resolved_path.exists():
-        raise FileNotFoundError(f"hp_resolved.yaml not found in {input_dir / run_id / stage_name}")
+        raise FileNotFoundError(f"hp_resolved.yaml not found in {input_dir / str(run_id) / stage_name}")
 
     # Load training config as base
     with open(hp_resolved_path) as f:

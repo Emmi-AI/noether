@@ -33,7 +33,15 @@
   save_latest_weights: true
   target_factors:
     - 0.9999
-  # example of how to save/load only specific submodules of a composite model
-  # model_paths:
-  #    - low_level_blocks
-  #    - high_level_blocks
+  # nested eval callbacks: run validation with EMA weights swapped in. Metric keys are auto-prefixed
+  # with ``ema=<factor>/`` (e.g. ``ema=0.9999/loss/val/total``).
+  eval_callbacks:
+    - kind: noether.training.callbacks.OfflineLossCallback
+      batch_size: 1
+      every_n_epochs: 1
+      dataset_key: val
+    - kind: callbacks.AeroMetricsCallback
+      batch_size: 1
+      every_n_epochs: ${trainer.max_epochs}
+      dataset_key: chunked_test
+      forward_properties: ${model.forward_properties}

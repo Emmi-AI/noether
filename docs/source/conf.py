@@ -221,7 +221,10 @@ exclude_patterns = [
     "**/*.md",
 ]
 html_static_path = ["_static"]
-html_css_files = ["emmi_docs_theme.css"]
+html_css_files = [
+    "emmi_docs_theme.css",
+    "https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css",
+]
 html_js_files = ["force_light_theme.js"]
 html_logo = "_static/Emmi_AI_logo_black.svg"  # this works
 
@@ -304,7 +307,24 @@ def skip_handler(app, what, name, obj, skip, options):
     return skip
 
 
+def phosphor_role(name, rawtext, text, lineno, inliner, options=None, content=None):
+    """Inline role for Phosphor icons: ``:ph:`icon-name```.
+
+    Renders ``<i class="ph ph-icon-name" aria-hidden="true"></i>``. The Phosphor CSS is
+    loaded via ``html_css_files`` above. See https://phosphoricons.com for the icon list.
+    """
+    from docutils import nodes
+
+    icon_name = text.strip()
+    html = f'<i class="ph ph-{icon_name}" aria-hidden="true"></i>'
+    return [nodes.raw("", html, format="html")], []
+
+
 def setup(app):
+    from docutils.parsers.rst import roles
+
+    roles.register_local_role("ph", phosphor_role)
+
     # Only connect the skip handler if AutoAPI is enabled (i.e. not for doctest builds)
     if "autoapi.extension" in extensions:
         app.connect("autoapi-skip-member", skip_handler)

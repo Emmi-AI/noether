@@ -95,7 +95,7 @@ class CheckpointWriter:
 
         if model_config is not None:
             try:
-                output_dict[CheckpointKeys.MODEL_CONFIG] = model_config.model_dump()
+                output_dict[CheckpointKeys.MODEL_CONFIG] = model_config.model_dump(exclude_computed_fields=True)
             except Exception as e:
                 raise RuntimeError(f"An unexpected error occurred during model_dump: {e}") from e
             output_dict[CheckpointKeys.CONFIG_KIND] = model_config.config_kind

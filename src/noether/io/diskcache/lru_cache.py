@@ -196,7 +196,7 @@ class LRUCacheFileSystem(CachingFileSystem):
 
         def _strip_protocol(path):
             # acts as a method, since each instance has a difference target
-            return self.fs._strip_protocol(type(self)._strip_protocol(path))
+            return self.fs._strip_protocol(type(self)._strip_protocol(path))  # type: ignore
 
         self._strip_protocol = _strip_protocol
 
