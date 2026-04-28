@@ -260,7 +260,7 @@ class InterleavedSampler:
             start_update = updates_per_epoch * config.start_epoch
             start_sample = start_update * config.batch_size
             start_epoch = config.start_epoch
-        elif config.start_update is not None:
+        elif config.start_update is not None and updates_per_epoch > 0:
             start_update = config.start_update
             start_epoch = start_update // updates_per_epoch
             start_sample = start_update * config.batch_size
