@@ -99,13 +99,14 @@ def _build_eval_config(
     checkpoint: str,
     callbacks: list,
     extra_datasets: dict | None = None,
+    precision: str = "float32",
 ):
     """Build a ConfigSchema for evaluation (shared by standard and query modes)."""
     return preset.build_config(
         model_kind=ABUPT_MODEL_KIND,
         model_params=size_config.model_params,
         trainer_kind=TRAINER_KIND,
-        trainer_params=dict(field_weights=FIELD_WEIGHTS),
+        trainer_params=dict(field_weights=FIELD_WEIGHTS, precision=precision),
         dataset_root=dataset_root,
         output_path=output_path,
         datasets={split: split},
@@ -269,6 +270,19 @@ def evaluate(
         int | None,
         typer.Option(help="Query points per chunk per domain. Default: num_surface_anchor_points from model size."),
     ] = None,
+    measure_inference_time: bool = typer.Option(
+        False,
+        "--measure-inference-time",
+        help="Record per-sample model inference time and log mean/std/median/min/max. "
+        "Useful when sweeping --num-inference-surface-points / --num-inference-volume-points.",
+    ),
+    precision: Annotated[
+        str,
+        typer.Option(
+            help="Inference precision: float32, float16, or bfloat16. bfloat16 enables Flash "
+            "Attention + Tensor Cores on H100/A100 (≈10-15× faster attention).",
+        ),
+    ] = "float32",
 ) -> None:
     """Evaluate a trained AB-UPT model and save predictions.
 
@@ -303,6 +317,18 @@ def evaluate(
     if query_inference:
         num_sa = size_config.pipeline_overrides.get("num_surface_anchor_points", 512)
         num_va = size_config.pipeline_overrides.get("num_volume_anchor_points", 512)
+        if num_inference_surface_points <= num_sa or num_inference_volume_points <= num_va:
+            console.print(
+                "[red]--query-inference needs strictly more points than anchors in both domains "
+                "so that each domain gets at least one query point "
+                f"(surface anchors={num_sa}, volume anchors={num_va}), but got "
+                f"num_inference_surface_points={num_inference_surface_points}, "
+                f"num_inference_volume_points={num_inference_volume_points}.[/red]\n"
+                f"[yellow]For model-size '{model_size.value}', choose surface N > {num_sa} "
+                f"AND volume N > {num_va}. When sweeping both together, start around "
+                f"N ≥ {max(num_sa, num_va) + 8000}.[/yellow]"
+            )
+            raise typer.Exit(1)
         if query_chunk_size is None:
             query_chunk_size = num_sa
 
@@ -325,6 +351,7 @@ def evaluate(
             num_volume_anchors=num_va,
             query_chunk_size=query_chunk_size,
             compute_forces=compute_forces,
+            measure_inference_time=measure_inference_time,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split} — query inference[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")
@@ -342,6 +369,7 @@ def evaluate(
             predictions_path=predictions_path,
             batch_properties_to_save=batch_props,
             compute_forces=compute_forces,
+            measure_inference_time=measure_inference_time,
         )
         console.print(f"[bold]Evaluating AB-UPT ({model_size.value}) on DrivAerML/{split}[/bold]")
         console.print(f"\tRun: {run_id}  Checkpoint: {checkpoint}")
@@ -357,6 +385,7 @@ def evaluate(
         checkpoint=checkpoint,
         callbacks=[callback],
         extra_datasets=extra_datasets,
+        precision=precision,
     )
 
     if compute_forces:

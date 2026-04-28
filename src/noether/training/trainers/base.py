@@ -645,27 +645,28 @@ class BaseTrainer:
         batch_size, accumulation_steps_total, train_batches_per_epoch = self._prepare_batch_size()
 
         data_loader = self.get_data_loader(iterator_callbacks=iterator_callbacks, batch_size=batch_size)
-        dist_model.eval()
-        self.call_before_training(self.callbacks)
-        dist_model.train()
 
-        self._train(
-            model=model,
-            dist_model=dist_model,
-            batch_size=batch_size,
-            accumulation_steps_total=accumulation_steps_total,
-            data_loader=data_loader,
-            train_batches_per_epoch=train_batches_per_epoch,
-            periodic_callbacks=[
-                callback_instance
-                for callback_instance in self.callbacks
-                if isinstance(callback_instance, PeriodicCallback)
-            ],
-        )
+        with self.log_writer:
+            dist_model.eval()
+            self.call_before_training(self.callbacks)
+            dist_model.train()
 
-        dist_model.eval()
-        self.call_after_training(callbacks=self.callbacks)
-        self.log_writer.finish()
+            self._train(
+                model=model,
+                dist_model=dist_model,
+                batch_size=batch_size,
+                accumulation_steps_total=accumulation_steps_total,
+                data_loader=data_loader,
+                train_batches_per_epoch=train_batches_per_epoch,
+                periodic_callbacks=[
+                    callback_instance
+                    for callback_instance in self.callbacks
+                    if isinstance(callback_instance, PeriodicCallback)
+                ],
+            )
+
+            dist_model.eval()
+            self.call_after_training(callbacks=self.callbacks)
 
     def _train(
         self,
@@ -1077,7 +1078,6 @@ class BaseTrainer:
         for callback in callbacks:
             callback.after_training(update_counter=self.update_counter)
             self.logger.debug(f"Executing {callback}")
-        self.log_writer.flush()
 
     def eval(self, model: ModelBase) -> None:
         """Run evaluation by executing all configured callbacks."""
@@ -1097,20 +1097,21 @@ class BaseTrainer:
         )
         data_iter = iter(data_loader)
 
-        for callback in callbacks:
-            if not isinstance(callback, PeriodicCallback):
-                continue
-            self.logger.info(f"Running periodic callback: {callback}")
-            iterator_callback_args = (
-                dict(
-                    trainer_model=dist_model,
-                    data_iter=map(BaseTrainer.drop_metadata, data_iter),
-                    batch_size=batch_size,
+        with self.log_writer:
+            for callback in callbacks:
+                if not isinstance(callback, PeriodicCallback):
+                    continue
+                self.logger.info(f"Running periodic callback: {callback}")
+                iterator_callback_args = (
+                    dict(
+                        trainer_model=dist_model,
+                        data_iter=map(BaseTrainer.drop_metadata, data_iter),
+                        batch_size=batch_size,
+                    )
+                    if _needs_iterator_args(callback)
+                    else {}
                 )
-                if _needs_iterator_args(callback)
-                else {}
-            )
-            callback.at_eval(self.update_counter, **iterator_callback_args)
+                callback.at_eval(self.update_counter, **iterator_callback_args)
 
     @property
     def total_training_updates(self) -> int:

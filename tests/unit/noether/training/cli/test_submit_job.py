@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import pickle
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -10,9 +13,10 @@ from omegaconf import OmegaConf
 
 from noether.core.schemas.slurm import SlurmConfig
 from noether.training.cli.submit_job import (
-    _build_train_command,
     _expand_sweeps,
+    _format_task_preview,
     _parse_argv,
+    _train_entrypoint,
     _validate_all_combos,
     main,
     validate_config,
@@ -180,17 +184,54 @@ class TestValidateAllCombos:
 
 
 # --------------------------------------------------------------------------- #
-# _build_train_command
+# _format_task_preview
 # --------------------------------------------------------------------------- #
-class TestBuildTrainCommand:
-    def test_includes_uv_run_noether_train_and_hp(self):
-        cmd = _build_train_command(Path("/abs/cfg.yaml"), ["a=1", "b=2"])
-        assert cmd == ["uv", "run", "noether-train", "--hp", "/abs/cfg.yaml", "a=1", "b=2"]
+class TestFormatTaskPreview:
+    def test_no_overrides(self):
+        assert _format_task_preview(Path("/abs/cfg.yaml"), []) == "noether-train --hp /abs/cfg.yaml"
+
+    def test_with_overrides(self):
+        assert _format_task_preview(Path("/abs/cfg.yaml"), ["a=1", "b=2"]) == "noether-train --hp /abs/cfg.yaml a=1 b=2"
 
     def test_handles_path_with_spaces(self):
-        # The command is a list (no shell), so spaces in paths require no quoting.
-        cmd = _build_train_command(Path("/my projects/cfg.yaml"), [])
-        assert cmd == ["uv", "run", "noether-train", "--hp", "/my projects/cfg.yaml"]
+        assert _format_task_preview(Path("/my projects/cfg.yaml"), []) == "noether-train --hp /my projects/cfg.yaml"
+
+
+# --------------------------------------------------------------------------- #
+# _train_entrypoint
+# --------------------------------------------------------------------------- #
+class TestTrainEntrypoint:
+    def test_is_picklable(self):
+        # submitit serialises the submitted function to disk for the worker to load.
+        assert pickle.loads(pickle.dumps(_train_entrypoint)) is _train_entrypoint
+
+    def test_sets_up_argv_and_cwd_then_calls_main_train(self, tmp_path: Path, monkeypatch):
+        # main_train calls setup_hydra() at import time, which inspects sys.argv.
+        # _train_entrypoint must therefore set up sys.argv *before* importing main_train.
+        # We assert this by capturing sys.argv at the moment our fake main() is called.
+        captured: dict = {}
+
+        def _record_state():
+            captured["argv"] = list(sys.argv)
+            captured["cwd"] = os.getcwd()
+
+        fake_main_train = MagicMock()
+        fake_main_train.main = MagicMock(side_effect=_record_state)
+        monkeypatch.setitem(sys.modules, "noether.training.cli.main_train", fake_main_train)
+
+        original_cwd = os.getcwd()
+        original_argv = list(sys.argv)
+        try:
+            cfg_path = tmp_path / "cfg.yaml"
+            _train_entrypoint(str(cfg_path), ["a=1", "b=2"], str(tmp_path))
+        finally:
+            os.chdir(original_cwd)
+            sys.argv[:] = original_argv
+
+        fake_main_train.main.assert_called_once_with()
+        assert captured["argv"][1:] == ["--hp", str(cfg_path), "a=1", "b=2"]
+        assert captured["cwd"] == str(tmp_path)
+        assert str(tmp_path) in sys.path
 
 
 # --------------------------------------------------------------------------- #
@@ -213,7 +254,7 @@ class TestMain:
         executor.batch.return_value.__enter__ = MagicMock(return_value=None)
         executor.batch.return_value.__exit__ = MagicMock(return_value=False)
         if mock_jobs is None:
-            executor.submit.side_effect = lambda fn: MagicMock(job_id="42_0")
+            executor.submit.side_effect = lambda *args, **kwargs: MagicMock(job_id="42_0")
         else:
             executor.submit.side_effect = mock_jobs
 
@@ -256,6 +297,12 @@ class TestMain:
         assert params["timeout_min"] == 60
         executor.submit.assert_called_once()
         executor.batch.assert_not_called()  # batch() only used for arrays
+        # submit(_train_entrypoint, str(config_path), overrides, cwd)
+        fn, submitted_path, overrides, cwd = executor.submit.call_args.args
+        assert fn is _train_entrypoint
+        assert submitted_path == str(cfg_path)
+        assert overrides == []
+        assert cwd == os.getcwd()
 
     def test_multirun_uses_batch_and_submits_n_times(self, slurm, cfg_path):
         argv = ["prog", "--hp", str(cfg_path), "-m", "+seed=1,2,3"]
@@ -264,14 +311,12 @@ class TestMain:
 
         executor.batch.assert_called_once()
         assert executor.submit.call_count == 3
-        # Verify each submit got a distinct seed in its CommandFunction args.
-        seeds_seen = set()
+        seeds_seen: set[str] = set()
         for call in executor.submit.call_args_list:
-            cmd_fn = call.args[0]
-            cmd = " ".join(cmd_fn.command)
-            for s in ("+seed=1", "+seed=2", "+seed=3"):
-                if s in cmd:
-                    seeds_seen.add(s)
+            fn, submitted_path, overrides, _cwd = call.args
+            assert fn is _train_entrypoint
+            assert submitted_path == str(cfg_path)
+            seeds_seen.update(o for o in overrides if o.startswith("+seed="))
         assert seeds_seen == {"+seed=1", "+seed=2", "+seed=3"}
 
     def test_dry_run_does_not_construct_executor(self, slurm, cfg_path, capsys):

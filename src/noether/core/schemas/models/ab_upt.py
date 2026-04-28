@@ -86,6 +86,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             hidden_dim=self.transformer_block_config.hidden_dim // self.transformer_block_config.num_heads,
             input_dim=self.data_specs.position_dim,
             implementation="complex",
+            max_wavelength=self.transformer_block_config.max_wavelength,
         )
 
     @computed_field
@@ -93,6 +94,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
         return ContinuousSincosEmbeddingConfig(
             hidden_dim=self.hidden_dim,
             input_dim=self.data_specs.position_dim,
+            max_wavelength=self.transformer_block_config.max_wavelength,
         )
 
     @computed_field
