@@ -3,99 +3,83 @@ name: Create and Publish Release
 on:
   workflow_dispatch:
 
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 permissions:
+  id-token: write
   contents: write
-  pull-requests: write
 
 jobs:
-  release-please:
-    name: Release Please
+  release:
+    name: CalVer Release
     runs-on: ubuntu-latest
-    outputs:
-      releases_created: ${{ steps.release.outputs.releases_created }}
-      release_created: ${{ steps.release.outputs.release_created }}
-      prs_created: ${{ steps.release.outputs.prs_created }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      version: ${{ steps.release.outputs.version }}
-      pr: ${{ steps.release.outputs.pr }}
-    steps:
-      - name: Run Release Please
-        id: release
-        uses: googleapis/release-please-action@v4
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
-          target-branch: ${{ github.ref_name }}
-          config-file: .github/release-please-config.json
-          manifest-file: .github/.release-please-manifest.json
-  
-  uv-sync:
-    name: UV Sync PRs
-    needs: release-please
-    if: needs.release-please.outputs.prs_created == 'true' && needs.release-please.outputs.pr != ''
-    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
 
-      - name: Setup uv (with cache)
-        id: setup-uv
+      - name: Compute CalVer version
+        id: calver
+        run: |
+          COMMIT_MSG=$(git log -1 --format=%B)
+          if echo "$COMMIT_MSG" | grep -qF "[skip release]"; then
+            echo "Skipping release — [skip release] found in commit message"
+            exit 0
+          fi
+          YEAR=$(date +%Y)
+          MONTH=$(date +%-m)
+          PATCH=$(git tag --list "v${YEAR}.${MONTH}.*" \
+            | grep -oP "(?<=v${YEAR}\.${MONTH}\.)\d+" \
+            | sort -n | tail -1)
+          NEXT=$(( ${PATCH:-"-1"} + 1 ))
+          VERSION="v${YEAR}.${MONTH}.${NEXT}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push git tag
+        if: steps.calver.outputs.version
+        run: |
+          git tag "${{ steps.calver.outputs.version }}"
+          git push origin "${{ steps.calver.outputs.version }}"
+
+      - name: Setup uv
+        if: steps.calver.outputs.version
         uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
 
-      - name: Sync UV
+      - name: Bump version in pyproject.toml and sync lock file
+        if: steps.calver.outputs.version
         run: |
-          uv venv
-          uv pip install setuptools torch==2.8.0
-          uv lock --upgrade-package emmiai-noether
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "chore: update uv.lock" || echo "No changes to commit"
-          git push
-
-  build-and-publish:
-    name: Build and Publish Release
-    needs: release-please
-    if: needs.release-please.outputs.release_created == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      id-token: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install uv
-        run: pip install uv
+          uv version ${{ steps.calver.outputs.version }}
+          uv sync
 
       - name: Build package
-        run: |
-          echo "Building noether v${{ needs.release-please.outputs.version }}"
-          uv build --out-dir dist .
+        if: steps.calver.outputs.version
+        run: uv build
 
-      - name: Upload wheel to GitHub Release
+      - name: Create GitHub Release and attach wheel
+        if: steps.calver.outputs.version
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
+          tag_name: ${{ steps.calver.outputs.version }}
+          generate_release_notes: true
           files: dist/*.whl
 
       - name: Publish to PyPI
+        if: steps.calver.outputs.version
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: dist/
+
+      - name: Commit bumped pyproject.toml and uv.lock back to main
+        if: steps.calver.outputs.version
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add pyproject.toml uv.lock
+          git commit -m "chore(release): ${{ steps.calver.outputs.version }} [skip ci]"
+          git push origin HEAD:${{ github.ref_name }}
