@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-import time
 from collections import defaultdict
 from pathlib import Path
 
@@ -12,6 +11,7 @@ from pydantic import Field, model_validator
 
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+from noether.core.utils.common.stopwatch import Stopwatch
 
 
 class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
@@ -403,25 +403,11 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         }
 
     def _timed_model_inference(self, batch: dict[str, torch.Tensor]) -> tuple[dict[str, torch.Tensor], float]:
-        """Run ``_run_model_inference`` and return (outputs, elapsed_ms).
-
-        Uses CUDA events with an explicit synchronize when the trainer device is
-        CUDA, so the timing reflects actual device execution rather than kernel
-        launch cost. Falls back to ``time.perf_counter`` on CPU/MPS.
-        """
-        device = self.trainer.device
-        if isinstance(device, torch.device) and device.type == "cuda":
-            start_evt = torch.cuda.Event(enable_timing=True)
-            end_evt = torch.cuda.Event(enable_timing=True)
-            start_evt.record()
+        """Run ``_run_model_inference`` and return (outputs, elapsed_ms)."""
+        device = self.trainer.device if isinstance(self.trainer.device, torch.device) else None
+        with Stopwatch(device=device) as sw:
             outputs = self._run_model_inference(batch)
-            end_evt.record()
-            torch.cuda.synchronize(device)
-            return outputs, float(start_evt.elapsed_time(end_evt))
-
-        t0 = time.perf_counter()
-        outputs = self._run_model_inference(batch)
-        return outputs, (time.perf_counter() - t0) * 1000.0
+        return outputs, sw.elapsed_milliseconds
 
     def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
