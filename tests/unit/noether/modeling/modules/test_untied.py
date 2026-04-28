@@ -106,9 +106,11 @@ class TestUntiedLinear:
         cfg = _linear_cfg(num_types=3, in_dim=8, out_dim=16)
         layer = UntiedLinear(cfg)
         assert layer.num_types == 3
-        assert layer.weight.shape == (3, 16, 8)
+        assert len(layer.weight) == 3
+        assert all(w.shape == (16, 8) for w in layer.weight)
         assert layer.bias is not None
-        assert layer.bias.shape == (3, 16)
+        assert len(layer.bias) == 3
+        assert all(b.shape == (16,) for b in layer.bias)
 
     def test_init_no_bias(self):
         cfg = _linear_cfg(num_types=2, in_dim=4, out_dim=4, bias=False)
@@ -120,22 +122,23 @@ class TestUntiedLinear:
         """Supported ``init_weights`` modes run without error and produce non-zero weights."""
         cfg = _linear_cfg(num_types=2, in_dim=8, out_dim=8, init_weights=init_weights)
         layer = UntiedLinear(cfg)
-        assert not torch.all(layer.weight == 0)
+        assert not all(torch.all(w == 0) for w in layer.weight)
 
     def test_init_weights_zeros(self):
         """``"zeros"`` mode produces zero weight and zero bias."""
         cfg = _linear_cfg(num_types=2, in_dim=4, out_dim=4, init_weights="zeros")
         layer = UntiedLinear(cfg)
-        assert torch.all(layer.weight == 0)
-        assert torch.all(layer.bias == 0)
+        assert all(torch.all(w == 0) for w in layer.weight)
+        assert all(torch.all(b == 0) for b in layer.bias)
 
     def test_init_weights_truncnormal_std(self):
         """``truncnormal002`` produces weights with std ≈ 0.02 and zero bias."""
         torch.manual_seed(0)
         cfg = _linear_cfg(num_types=2, in_dim=16, out_dim=16, init_weights="truncnormal002")
         layer = UntiedLinear(cfg)
-        assert 0.01 < layer.weight.std().item() < 0.04
-        assert torch.all(layer.bias == 0)
+        stacked = torch.stack(list(layer.weight))
+        assert 0.01 < stacked.std().item() < 0.04
+        assert all(torch.all(b == 0) for b in layer.bias)
 
     def test_init_weights_unknown_raises(self):
         """Unsupported ``init_weights`` values raise ``NotImplementedError`` at build time."""
@@ -164,8 +167,8 @@ class TestUntiedLinear:
         layer = UntiedLinear(cfg)
         # Make type 0's weight the identity, type 1's the zero map — easy to check.
         with torch.no_grad():
-            layer.weight[0] = torch.eye(4)
-            layer.weight[1] = torch.zeros(4, 4)
+            layer.weight[0].copy_(torch.eye(4))
+            layer.weight[1].copy_(torch.zeros(4, 4))
 
         specs = [TokenSpec(name="a", size=2), TokenSpec(name="b", size=3)]
         x = torch.randn(1, 5, 4)
@@ -197,19 +200,21 @@ class TestUntiedLinear:
         specs = [TokenSpec(name="a", size=3), TokenSpec(name="b", size=2)]
         out = layer(torch.randn(2, 5, 4), specs)
         out.sum().backward()
-        assert layer.weight.grad is not None
-        assert layer.weight.grad.shape == layer.weight.shape
+        # Each per-type weight Parameter (2D) has its own grad of shape (D_out, D_in).
+        for w in layer.weight:
+            assert w.grad is not None
+            assert w.grad.shape == w.shape
         # Both type banks receive gradients (neither is all zero).
-        assert torch.any(layer.weight.grad[0] != 0)
-        assert torch.any(layer.weight.grad[1] != 0)
+        assert torch.any(layer.weight[0].grad != 0)
+        assert torch.any(layer.weight[1].grad != 0)
 
     def test_forward_multi_spec_per_domain(self):
         """Multiple specs sharing a domain are grouped and share one weight bank."""
         cfg = _linear_cfg(num_types=2, in_dim=4, out_dim=4, bias=False)
         layer = UntiedLinear(cfg)
         with torch.no_grad():
-            layer.weight[0] = torch.eye(4)  # "surface" domain → identity
-            layer.weight[1] = torch.zeros(4, 4)  # "volume" domain → zero
+            layer.weight[0].copy_(torch.eye(4))  # "surface" domain → identity
+            layer.weight[1].copy_(torch.zeros(4, 4))  # "volume" domain → zero
 
         specs = [
             TokenSpec(name="surface_anchors", size=2),
@@ -266,7 +271,7 @@ class TestUntiedLinearStrategies:
 
         sizes = _domain_group_sizes(specs)
         B, S, D_in = x.shape
-        D_out = layer.weight.shape[1]
+        D_out = layer.output_dim
         T = len(sizes)
 
         out_loop = layer._split_loop_forward(x, sizes, D_out)
@@ -286,7 +291,7 @@ class TestUntiedLinearStrategies:
 
         sizes = _domain_group_sizes(specs)
         B, S, D_in = x.shape
-        D_out = layer.weight.shape[1]
+        D_out = layer.output_dim
         T = len(sizes)
 
         out_loop = layer._split_loop_forward(x, sizes, D_out)
@@ -301,7 +306,7 @@ class TestUntiedLinearStrategies:
         out = layer(torch.randn(2, 5, 4), specs)
         assert out.shape == (2, 5, 4)
         out.sum().backward()
-        assert layer.weight.grad is not None
+        assert all(w.grad is not None for w in layer.weight)
 
 
 # ---------------------------------------------------------------------------
@@ -336,11 +341,12 @@ def _all_to_all_patterns(specs: Sequence[TokenSpec]) -> list[AttentionPattern]:
 
 class TestUntiedMixedAttention:
     def test_init_uses_untied_projections(self):
-        """Q, K, V, and output projections are ``UntiedLinear`` with shape ``(num_types, hidden_dim, hidden_dim)``."""
+        """Q, K, V, and output projections are ``UntiedLinear`` with one ``(hidden_dim, hidden_dim)`` Parameter per type."""
         attn = _make_attn(hidden_dim=32, num_types=3)
         for proj in (attn.q, attn.k, attn.v, attn.proj):
             assert isinstance(proj, UntiedLinear)
-            assert proj.weight.shape == (3, 32, 32)
+            assert len(proj.weight) == 3
+            assert all(w.shape == (32, 32) for w in proj.weight)
 
     def test_forward_shape(self):
         attn = _make_attn()
@@ -373,10 +379,46 @@ class TestUntiedMixedAttention:
         out.sum().backward()
         # Per-type q/k/v weight banks all receive gradient signal.
         for proj in (attn.q, attn.k, attn.v):
-            assert proj.weight.grad is not None
-            assert proj.weight.grad.shape == (2, 32, 32)
-            assert torch.any(proj.weight.grad[0] != 0)
-            assert torch.any(proj.weight.grad[1] != 0)
+            for w in proj.weight:
+                assert w.grad is not None
+                assert w.grad.shape == (32, 32)
+            assert torch.any(proj.weight[0].grad != 0)
+            assert torch.any(proj.weight[1].grad != 0)
+
+    def test_cross_attention_actually_cross_attends(self):
+        """With a cross pattern (``a→b``, ``b→a``), ``a``'s output must depend on ``b``'s input.
+
+        Validates that ``AttentionPattern`` is honored end-to-end: when type ``a``
+        queries *only* type ``b``'s key/values, varying ``b``'s input must shift
+        ``a``'s output (b provides the K/V). Conversely, under a self-only pattern
+        (``a→a``, ``b→b``) ``a``'s output is invariant to ``b``. Together these
+        prove the module isn't silently collapsing to self-attention.
+        """
+        torch.manual_seed(0)
+        attn = _make_attn(num_types=2)
+        specs = [TokenSpec(name="a", size=4), TokenSpec(name="b", size=6)]
+        cross = [
+            AttentionPattern(query_tokens=["a"], key_value_tokens=["b"]),
+            AttentionPattern(query_tokens=["b"], key_value_tokens=["a"]),
+        ]
+        self_only = [
+            AttentionPattern(query_tokens=["a"], key_value_tokens=["a"]),
+            AttentionPattern(query_tokens=["b"], key_value_tokens=["b"]),
+        ]
+
+        x_a = torch.randn(1, 4, 32)
+        x_b1 = torch.randn(1, 6, 32)
+        x_b2 = torch.randn(1, 6, 32)
+
+        # Cross pattern: a queries b → changing b changes a's output.
+        out1_cross = attn(torch.cat([x_a, x_b1], dim=1), specs, cross)
+        out2_cross = attn(torch.cat([x_a, x_b2], dim=1), specs, cross)
+        assert not torch.allclose(out1_cross[:, :4], out2_cross[:, :4])
+
+        # Self-only pattern: a attends only to a → a's output is invariant to b.
+        out1_self = attn(torch.cat([x_a, x_b1], dim=1), specs, self_only)
+        out2_self = attn(torch.cat([x_a, x_b2], dim=1), specs, self_only)
+        assert torch.allclose(out1_self[:, :4], out2_self[:, :4], atol=1e-6)
 
     def test_no_cross_talk_between_types_in_projection(self):
         """Changing type ``b`` inputs shouldn't shift type ``a`` tokens' *projections*.
@@ -417,8 +459,12 @@ class TestUntiedMLP:
         """``num_layers=0`` produces the canonical up→act→down topology (2 linears)."""
         mlp = UntiedMLP(self._cfg(num_layers=0))
         assert len(mlp.layers) == 2
-        assert mlp.layers[0].weight.shape == (2, 32, 16)  # up: 16 → 32
-        assert mlp.layers[1].weight.shape == (2, 16, 32)  # down: 32 → 16
+        # up: 16 → 32
+        assert len(mlp.layers[0].weight) == 2
+        assert all(w.shape == (32, 16) for w in mlp.layers[0].weight)
+        # down: 32 → 16
+        assert len(mlp.layers[1].weight) == 2
+        assert all(w.shape == (16, 32) for w in mlp.layers[1].weight)
 
     def test_init_num_layers_two_gives_four_projections(self):
         """``num_layers=2`` produces input + 2 hidden + output (4 linears total)."""
@@ -438,7 +484,7 @@ class TestUntiedMLP:
         out = mlp(torch.randn(2, 5, 16), specs)
         out.sum().backward()
         for layer in mlp.layers:
-            assert layer.weight.grad is not None
+            assert all(w.grad is not None for w in layer.weight)
 
     def test_all_layers_are_untied_linear(self):
         """Every linear layer in the MLP is a :class:`UntiedLinear`."""
@@ -545,10 +591,11 @@ class TestUntiedTransformerBlock:
         out.sum().backward()
         # Both attention and MLP have gradient signal in their per-type weight banks.
         for proj in (tb.attention_block.q, tb.attention_block.k, tb.attention_block.v):
-            assert proj.weight.grad is not None
-            assert torch.any(proj.weight.grad != 0)
+            for w in proj.weight:
+                assert w.grad is not None
+                assert torch.any(w.grad != 0)
         for layer in tb.mlp.layers:
-            assert layer.weight.grad is not None
+            assert all(w.grad is not None for w in layer.weight)
 
     def test_forward_with_multi_spec_per_domain(self):
         """Multiple specs per domain (anchors + queries) use the same weight bank."""

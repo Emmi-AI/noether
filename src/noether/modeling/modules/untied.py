@@ -83,19 +83,34 @@ class UntiedLinear(nn.Module):
     3. Padded ``torch.bmm`` (moderate skew)
     4. Split + ``F.linear`` loop (heavy skew or very few groups)
 
+    Per-type weights are stored as independent 2D :class:`nn.Parameter` entries
+    in an :class:`nn.ParameterList` (one matrix per type). The bmm-based fast
+    paths stack them into a 3D tensor on the fly. Storing them as 2D is what
+    lets :class:`torch.optim.Muon` (which rejects non-2D parameters) update each
+    type's weight matrix independently.
+
     Domains must be strictly consecutive in ``token_specs``.
 
     Args:
         config: Number of types and shared linear-projection geometry.
     """
 
+    bias: nn.ParameterList | None
+
     def __init__(self, config: UntiedLinearConfig) -> None:
         super().__init__()
         self.num_types = config.num_types
         proj = config.linear_projection
         self.init_weights = proj.init_weights
-        self.weight = nn.Parameter(torch.empty(config.num_types, proj.output_dim, proj.input_dim))
-        self.bias = nn.Parameter(torch.zeros(config.num_types, proj.output_dim)) if proj.bias else None
+        self.input_dim = proj.input_dim
+        self.output_dim = proj.output_dim
+        self.weight = nn.ParameterList(
+            [nn.Parameter(torch.empty(proj.output_dim, proj.input_dim)) for _ in range(config.num_types)]
+        )
+        if proj.bias:
+            self.bias = nn.ParameterList([nn.Parameter(torch.zeros(proj.output_dim)) for _ in range(config.num_types)])
+        else:
+            self.bias = None
         self.reset_parameters()
 
     def reset_parameters(self) -> None:
@@ -110,18 +125,32 @@ class UntiedLinear(nn.Module):
             for i in range(self.num_types):
                 nn.init.kaiming_uniform_(self.weight[i], a=math.sqrt(5))
                 if self.bias is not None:
-                    bound = 1 / math.sqrt(self.weight.shape[2])
+                    bound = 1 / math.sqrt(self.input_dim)
                     nn.init.uniform_(self.bias[i], -bound, bound)
         elif self.init_weights in ("truncnormal", "truncnormal002"):
-            nn.init.trunc_normal_(self.weight, std=0.02)
+            for i in range(self.num_types):
+                nn.init.trunc_normal_(self.weight[i], std=0.02)
             if self.bias is not None:
-                nn.init.zeros_(self.bias)
+                for i in range(self.num_types):
+                    nn.init.zeros_(self.bias[i])
         elif self.init_weights == "zeros":
-            nn.init.zeros_(self.weight)
+            for i in range(self.num_types):
+                nn.init.zeros_(self.weight[i])
             if self.bias is not None:
-                nn.init.zeros_(self.bias)
+                for i in range(self.num_types):
+                    nn.init.zeros_(self.bias[i])
         else:
             raise NotImplementedError(f"Initialization method {self.init_weights!r} not implemented for UntiedLinear.")
+
+    def _stacked_weight(self) -> torch.Tensor:
+        """Per-type weights stacked into a single ``(num_types, output_dim, input_dim)`` tensor."""
+        return torch.stack(list(self.weight))
+
+    def _stacked_bias(self) -> torch.Tensor | None:
+        """Per-type biases stacked into ``(num_types, output_dim)``, or ``None``."""
+        if self.bias is None:
+            return None
+        return torch.stack(list(self.bias))
 
     # ------------------------------------------------------------------
     # Forward — auto-selects the fastest code path
@@ -140,7 +169,7 @@ class UntiedLinear(nn.Module):
         """
         sizes = _domain_group_sizes(token_specs)
         B, S, D_in = x.shape
-        D_out = self.weight.shape[1]
+        D_out = self.output_dim
         T = len(sizes)
 
         if T == 0:
@@ -183,9 +212,10 @@ class UntiedLinear(nn.Module):
 
         Skips the transpose when ``D_in == D_out`` (square weight matrices).
         """
-        if self.weight.shape[-2] == self.weight.shape[-1]:
-            return self.weight
-        return self.weight.transpose(-2, -1).contiguous()
+        w = self._stacked_weight()
+        if w.shape[-2] == w.shape[-1]:
+            return w
+        return w.transpose(-2, -1).contiguous()
 
     def _equal_size_bmm_forward(
         self, x: torch.Tensor, n: int, B: int, S: int, D_in: int, D_out: int, T: int
@@ -194,8 +224,9 @@ class UntiedLinear(nn.Module):
         x_r = x.view(B, T, n, D_in).transpose(0, 1).contiguous()
         out = torch.bmm(x_r.view(T, B * n, D_in), self._weight_for_bmm())
         out = out.view(T, B, n, D_out).transpose(0, 1).contiguous().view(B, S, D_out)
-        if self.bias is not None:
-            out = out + self.bias.repeat_interleave(n, dim=0).view(1, S, D_out)
+        bias = self._stacked_bias()
+        if bias is not None:
+            out = out + bias.repeat_interleave(n, dim=0).view(1, S, D_out)
         return out
 
     def _padded_bmm_forward(
@@ -215,9 +246,10 @@ class UntiedLinear(nn.Module):
         out = torch.bmm(padded.view(T, B * max_n, D_in), self._weight_for_bmm())
         out = out.view(T, B, max_n, D_out)
         result = torch.cat([out[t, :, : sizes[t]] for t in range(T)], dim=1)
-        if self.bias is not None:
+        bias = self._stacked_bias()
+        if bias is not None:
             type_ids = torch.cat([torch.full((s,), t, dtype=torch.long, device=x.device) for t, s in enumerate(sizes)])
-            result = result + self.bias[type_ids].view(1, S, D_out)
+            result = result + bias[type_ids].view(1, S, D_out)
         return result
 
     def _grouped_mm_forward(
@@ -236,12 +268,13 @@ class UntiedLinear(nn.Module):
                 path only supports ``B=1``).
         """
         w = self._weight_for_bmm()
+        bias = self._stacked_bias()
         if all(s == sizes[0] for s in sizes):
             # Equal-size: use 3D mat_a → no offs, cleanest path.
             n = sizes[0]
             # (B, S, D_in) → (B, T, n, D_in) → (T, B, n, D_in) → (T, B*n, D_in)
             mat_a = x.view(B, T, n, D_in).transpose(0, 1).contiguous().view(T, B * n, D_in)
-            out = F.grouped_mm(mat_a, w, bias=self.bias)  # (T, B*n, D_out)
+            out = F.grouped_mm(mat_a, w, bias=bias)  # (T, B*n, D_out)
             return out.view(T, B, n, D_out).transpose(0, 1).contiguous().view(B, S, D_out)
         else:
             # Unequal-size: 2D mat_a + offs. Requires per-batch flattening
@@ -253,7 +286,7 @@ class UntiedLinear(nn.Module):
                 raise ValueError("grouped_mm with unequal domain sizes requires B=1")
             mat_a = x.view(S, D_in)
             offs = torch.tensor(sizes, dtype=torch.int32, device=x.device).cumsum(0, dtype=torch.int32)
-            out = F.grouped_mm(mat_a, w, offs=offs, bias=self.bias)  # (S, D_out)
+            out = F.grouped_mm(mat_a, w, offs=offs, bias=bias)  # (S, D_out)
             return out.view(1, S, D_out)
 
 

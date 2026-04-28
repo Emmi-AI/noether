@@ -617,7 +617,7 @@ class TestAnchoredBranchedUPTUntied:
         for cfg in constructor_configs:
             assert cfg.num_types == num_domains
             # The nested TransformerBlockConfig should be carried through intact.
-            assert cfg.transformer_block_config.hidden_dim == untied_config.hidden_dim
+            assert cfg.transformer_block.hidden_dim == untied_config.hidden_dim
 
     def test_untied_blocks_have_independent_parameters(self, untied_config):
         """Each ``UntiedTransformerBlock`` contributes its own distinct parameters.
@@ -636,7 +636,7 @@ class TestAnchoredBranchedUPTUntied:
         ):
             model = AnchoredBranchedUPT(config=untied_config)
 
-        # Each untied block's q/k/v weight banks have shape (num_types, H, H);
+        # Each untied block's q/k/v weight banks hold one 2D Parameter per type;
         # disjoint parameter tensors across blocks means no accidental sharing.
         # For AB-UPT, ``attention_block`` is a MultiBranchAnchorAttention wrapper
         # (Self/Cross/JointAnchorAttention); its inner ``mixed_attention`` is the
@@ -648,7 +648,7 @@ class TestAnchoredBranchedUPTUntied:
             proj_ids = {id(getattr(b.attention_block.mixed_attention, proj_name).weight) for b in untied_blocks}
             assert len(proj_ids) == 3, f"each UntiedTransformerBlock must hold its own {proj_name} weight tensor"
             for b in untied_blocks:
-                assert getattr(b.attention_block.mixed_attention, proj_name).weight.shape[0] == num_types
+                assert len(getattr(b.attention_block.mixed_attention, proj_name).weight) == num_types
 
     def test_untied_block_uses_configured_attention_constructor(self, untied_config):
         """``*_untied`` blocks must honor the configured ``attention_constructor``.

@@ -67,7 +67,7 @@ def _run_strategy(
     """Dispatch to a specific forward strategy (or ``auto`` for the default)."""
     sizes = _domain_group_sizes(token_specs)
     B, S, D_in = x.shape
-    D_out = layer.weight.shape[1]
+    D_out = layer.output_dim
     T = len(sizes)
 
     if strategy == "split_loop":
