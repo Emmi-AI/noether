@@ -11,6 +11,7 @@ from pydantic import Field, model_validator
 
 from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
 from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+from noether.core.utils.common.stopwatch import Stopwatch
 
 
 class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
@@ -38,6 +39,12 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
     """Batch keys (e.g. position tensors) to save alongside predictions."""
     compute_forces: bool = False
     """If True, compute drag/lift coefficients per sample and log errors."""
+    measure_inference_time: bool = False
+    """If True, record per-sample model inference wall time (ms) and log a summary at the end."""
+    inference_time_warmup_samples: int = 1
+    """Number of leading samples to drop from inference-time stats (CUDA autotune, kernel
+    compile, allocator growth on the first forward dominate the timing). Only used when
+    ``measure_inference_time`` is True. Set to 0 to keep every sample."""
 
     @model_validator(mode="after")
     def validate_config(self) -> AeroMetricsCallbackConfig:
@@ -118,6 +125,8 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         self._save_predictions = callback_config.save_predictions
         self._predictions_path = callback_config.predictions_path
         self._prediction_counter: int = 0
+        self._measure_inference_time = callback_config.measure_inference_time
+        self._inference_time_warmup_samples = callback_config.inference_time_warmup_samples
         self._compute_forces = callback_config.compute_forces
         if self._compute_forces:
             from scipy.spatial import cKDTree
@@ -393,6 +402,13 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             "lift_error": torch.tensor(abs(gt_coeffs.cl - pred_coeffs.cl)),
         }
 
+    def _timed_model_inference(self, batch: dict[str, torch.Tensor]) -> tuple[dict[str, torch.Tensor], float]:
+        """Run ``_run_model_inference`` and return (outputs, elapsed_ms)."""
+        device = self.trainer.device if isinstance(self.trainer.device, torch.device) else None
+        with Stopwatch(device=device) as sw:
+            outputs = self._run_model_inference(batch)
+        return outputs, sw.elapsed_milliseconds
+
     def process_data(self, batch: dict[str, torch.Tensor], **_) -> dict[str, torch.Tensor]:
         """
         Execute forward pass and compute metrics.
@@ -404,14 +420,21 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
         Returns:
             Dictionary mapping metric names to computed values
         """
-        model_outputs = self._run_model_inference(batch)
+        if self._measure_inference_time:
+            model_outputs, elapsed_ms = self._timed_model_inference(batch)
+        else:
+            model_outputs = self._run_model_inference(batch)
+            elapsed_ms = None
 
-        metrics = {}
+        metrics: dict[str, torch.Tensor] = {}
         for mode in self.evaluation_modes:
             metrics.update(self._compute_mode_metrics(batch, model_outputs, mode))
 
         if self._compute_forces:
             metrics.update(self._compute_force_metrics(batch, model_outputs))
+
+        if elapsed_ms is not None:
+            metrics["inference_time_ms"] = torch.tensor(elapsed_ms)
 
         if self._save_predictions:
             self._collect_predictions(batch, model_outputs)
@@ -457,6 +480,8 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
             return
 
         for name, metric in results.items():
+            if name == "inference_time_ms":
+                continue  # handled below with warmup-sample trimming
             metric_key = f"{METRIC_PREFIX_LOSS}{self.dataset_key}/{name}"
             self.writer.add_scalar(
                 key=metric_key,
@@ -467,6 +492,54 @@ class AeroMetricsCallback(PeriodicDataIteratorCallback):
 
         self.logger.debug(f"Logged {len(results)} metrics for dataset '{self.dataset_key}'")
 
+        if self._measure_inference_time:
+            times = results.get("inference_time_ms")
+            if times is not None and times.numel() > 0:
+                self._log_inference_time_summary(times.float())
+
         if self._save_predictions and self._prediction_counter > 0:
             self.logger.info(f"Saved {self._prediction_counter} prediction files to {self._predictions_path}")
             self._prediction_counter = 0
+
+    def _log_inference_time_summary(self, times_ms: torch.Tensor) -> None:
+        """Log count, mean/std/median/min/max inference time over all samples.
+
+        Drops the first ``inference_time_warmup_samples`` values, which are
+        typically dominated by one-off setup cost (CUDA autotune, kernel compile,
+        allocator growth) on the initial forward pass.
+        """
+        warmup = min(self._inference_time_warmup_samples, times_ms.numel())
+        dropped = times_ms[:warmup]
+        kept = times_ms[warmup:]
+
+        if kept.numel() == 0:
+            self.logger.warning(
+                f"Inference-time summary skipped: all {times_ms.numel()} sample(s) dropped as warmup "
+                f"(inference_time_warmup_samples={self._inference_time_warmup_samples})."
+            )
+            return
+
+        n = kept.numel()
+        mean = float(kept.mean())
+        std = float(kept.std(unbiased=False)) if n > 1 else 0.0
+        median = float(kept.median())
+        tmin = float(kept.min())
+        tmax = float(kept.max())
+
+        warmup_note = ""
+        if warmup > 0:
+            warmup_note = f" (dropped {warmup} warmup sample(s): {', '.join(f'{float(x):.1f}ms' for x in dropped)})"
+
+        summary = (
+            f"Inference time on '{self.dataset_key}' over {n} sample(s): "
+            f"mean={mean:.2f}ms  std={std:.2f}ms  median={median:.2f}ms  "
+            f"min={tmin:.2f}ms  max={tmax:.2f}ms{warmup_note}"
+        )
+        self.logger.info(summary)
+
+        self.writer.add_scalar(
+            key=f"{METRIC_PREFIX_LOSS}{self.dataset_key}/inference_time_ms",
+            value=torch.tensor(mean),
+            logger=self.logger,
+            format_str=".6f",
+        )
