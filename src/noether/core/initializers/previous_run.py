@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from noether.core.callbacks.base import CallbackBase
 from noether.core.initializers import CheckpointInitializer
 from noether.core.models import CompositeModel, Model, ModelBase
 from noether.core.schemas.initializers import PreviousRunInitializerConfig
@@ -105,3 +106,17 @@ class PreviousRunInitializer(CheckpointInitializer):
                 self.init_weights(model=submodel, model_name=f"{model.name}.{submodule_name}")
         else:
             self._init_weights(model=model, model_name=model_name)
+
+    def init_callbacks(self, callbacks: list[CallbackBase], model: ModelBase) -> None:
+        """Initialize the callbacks from the checkpoint.
+
+        Args:
+            callbacks: the callbacks to initialize.
+            model: the model to initialize the callbacks for.
+        """
+
+        for callback in callbacks:
+            callback.resume_from_checkpoint(
+                resumption_paths=self.init_run_path_provider,
+                model=model,
+            )

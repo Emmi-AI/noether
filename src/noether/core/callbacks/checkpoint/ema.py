@@ -154,6 +154,7 @@ class EmaCallback(PeriodicCallback):
                         "initializing EMA from current model weights"
                     )
                     self._init_ema_from_model(cur_model, model_path, target_factor)
+                logger.debug(f"EMA state for model path '{model_path}' and target_factor={target_factor} initialized")
         self._was_resumed = True
 
     def before_training(self, **kwargs) -> None:

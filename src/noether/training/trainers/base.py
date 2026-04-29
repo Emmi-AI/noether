@@ -1082,11 +1082,11 @@ class BaseTrainer:
     def eval(self, model: ModelBase) -> None:
         """Run evaluation by executing all configured callbacks."""
         self.logger.info("Starting evaluation")
-        callbacks = self.get_user_callbacks(model, evaluation=True)
+        self.callbacks = self.get_user_callbacks(model, evaluation=True)
         model = self._prepare_model(model)
         dist_model = self.wrap_model(model).to(model.device).eval()
         iterator_callbacks: list[PeriodicDataIteratorCallback] = []
-        for callback in callbacks:
+        for callback in self.callbacks:
             if isinstance(callback, PeriodicDataIteratorCallback):
                 iterator_callbacks.append(callback)
             iterator_callbacks.extend(_iter_iterator_descendants(callback))
@@ -1098,7 +1098,7 @@ class BaseTrainer:
         data_iter = iter(data_loader)
 
         with self.log_writer:
-            for callback in callbacks:
+            for callback in self.callbacks:
                 if not isinstance(callback, PeriodicCallback):
                     continue
                 self.logger.info(f"Running periodic callback: {callback}")
