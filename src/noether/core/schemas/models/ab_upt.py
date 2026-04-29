@@ -21,6 +21,8 @@ from .base import ModelBaseConfig
 
 
 class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
+    kind: str | None = "noether.core.schemas.models.AnchorBranchedUPTConfig"
+
     model_config = ConfigDict(extra="forbid")
 
     supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared] | None = None
@@ -33,13 +35,29 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     hidden_dim: int = Field(..., ge=1)
     """Hidden dimension of the model."""
 
-    physics_blocks: list[Literal["self", "shared", "cross", "joint", "perceiver"]]
+    physics_blocks: list[
+        Literal[
+            "self",
+            "shared",
+            "cross",
+            "joint",
+            "perceiver",
+            "self_untied",
+            "cross_untied",
+            "joint_untied",
+            "perceiver_untied",
+        ]
+    ]
     """Types of physics blocks to use in the model.
-    Options are "self", "cross", "joint", and "perceiver".
-    Self: Self-attention within a branch. Attention weights are shared between all domains.
-    Cross: Cross-attention between domains. Each domain attends to all other domains' anchors.
-    Joint: Joint attention over all domain points. Full self-attention over all points.
-    Perceiver: Perceiver-style cross-attention to geometry encoding.
+
+    self/shared: Self-attention within a branch/domain. Weights are shared between all domains.
+    cross: Cross-attention between domains. Each domain attends to all other domains' anchors, weights are shared.
+    joint: Joint attention over all domain points. Full self-attention over all points, weights are shared.
+    perceiver: Perceiver-style cross-attention to geometry encoding.
+    self_untied: Self-attention within a branch with untied weights for each domain.
+    cross_untied: Cross-attention between domains with untied weights for each domain.
+    joint_untied: Joint attention over all domain points with untied weights for each domain.
+    perceiver_untied: Perceiver cross-attention with geometry encoding and untied weights per domain.
 
     Note: "shared" is a deprecated alias for "self" and will be removed in a future release."""
 

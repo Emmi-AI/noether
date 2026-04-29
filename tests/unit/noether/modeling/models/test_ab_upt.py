@@ -33,6 +33,16 @@ class FakeTransformerBlock(nn.Module):
         return x, None
 
 
+class FakeUntiedTransformerBlock(nn.Module):
+    """Fake drop-in for UntiedTransformerBlock. Matches (x, kv_cache) return shape."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__()
+
+    def forward(self, x, *args, **kwargs):
+        return x, None
+
+
 class FakeGenericModule(nn.Module):
     """Generic replacement for other modules."""
 
@@ -382,3 +392,336 @@ class TestThreeDomainABUPT:
         assert "query_wake_turbulence" in predictions
         assert predictions["query_wake_turbulence"].shape == (batch_size, 5, 2)
         assert "query_surface_pressure" not in predictions
+
+
+@pytest.fixture
+def untied_config():
+    """Two-domain config using the three ``*_untied`` physics block variants."""
+    data_specs = ModelDataSpecs(
+        position_dim=3,
+        conditioning_dims=FieldDimSpec({"mach_number": 1, "alpha": 1}),
+        domains={
+            "surface": DomainDataSpec(
+                output_dims=FieldDimSpec({"pressure": 1, "shear_stress": 3}),
+                feature_dim=FieldDimSpec({"area": 1}),
+            ),
+            "volume": DomainDataSpec(
+                output_dims=FieldDimSpec({"velocity": 3, "pressure": 1}),
+                feature_dim=FieldDimSpec({"sdf": 1}),
+            ),
+        },
+    )
+
+    tf_config = TransformerBlockConfig(
+        hidden_dim=64,
+        num_heads=4,
+        mlp_expansion_factor=4.0,
+        use_bias=True,
+        use_rope=True,
+        dropout=0.0,
+    )
+
+    pool_config = SupernodePoolingConfig(
+        hidden_dim=64,
+        input_dim=3,
+        radius=0.1,
+        k=None,
+    )
+
+    return AnchorBranchedUPTConfig(
+        kind="AnchoredBranchedUPT",
+        name="ab_upt_untied_test",
+        hidden_dim=64,
+        geometry_depth=1,
+        physics_blocks=["perceiver", "self_untied", "cross_untied", "joint_untied"],
+        num_domain_decoder_blocks={"surface": 1, "volume": 1},
+        transformer_block_config=tf_config,
+        supernode_pooling_config=pool_config,
+        init_weights="truncnormal002",
+        data_specs=data_specs,
+    )
+
+
+@pytest.fixture
+def untied_model(untied_config):
+    """Model with every real block (including ``UntiedTransformerBlock``) replaced by a fake."""
+    with (
+        patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".TransformerBlock", new=FakeTransformerBlock),
+        patch(_MODULE_PATH + ".UntiedTransformerBlock", new=FakeUntiedTransformerBlock),
+        patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+        patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+    ):
+        model = AnchoredBranchedUPT(config=untied_config)
+        model.domain_decoder_projections["surface"] = nn.Linear(
+            64, untied_config.data_specs.domains["surface"].output_dims.total_dim
+        )
+        model.domain_decoder_projections["volume"] = nn.Linear(
+            64, untied_config.data_specs.domains["volume"].output_dims.total_dim
+        )
+        yield model
+
+
+@pytest.fixture
+def untied_mixed_config():
+    """Config with a mix of shared (``self``) and untied (``cross_untied``) physics blocks."""
+    data_specs = ModelDataSpecs(
+        position_dim=3,
+        domains={
+            "surface": DomainDataSpec(output_dims=FieldDimSpec({"pressure": 1})),
+            "volume": DomainDataSpec(output_dims=FieldDimSpec({"velocity": 3})),
+        },
+    )
+    tf_config = TransformerBlockConfig(
+        hidden_dim=32,
+        num_heads=4,
+        mlp_expansion_factor=2.0,
+        use_bias=True,
+        use_rope=True,
+        dropout=0.0,
+    )
+    pool_config = SupernodePoolingConfig(hidden_dim=32, input_dim=3, radius=0.1, k=None)
+
+    return AnchorBranchedUPTConfig(
+        kind="AnchoredBranchedUPT",
+        name="ab_upt_mixed_untied",
+        hidden_dim=32,
+        geometry_depth=1,
+        physics_blocks=["perceiver", "self", "cross_untied"],
+        num_domain_decoder_blocks={"surface": 1, "volume": 1},
+        transformer_block_config=tf_config,
+        supernode_pooling_config=pool_config,
+        init_weights="truncnormal002",
+        data_specs=data_specs,
+    )
+
+
+@pytest.fixture
+def untied_mixed_model(untied_mixed_config):
+    with (
+        patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".TransformerBlock", new=FakeTransformerBlock),
+        patch(_MODULE_PATH + ".UntiedTransformerBlock", new=FakeUntiedTransformerBlock),
+        patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+        patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+    ):
+        model = AnchoredBranchedUPT(config=untied_mixed_config)
+        for name in model.domain_names:
+            model.domain_decoder_projections[name] = nn.Linear(
+                32, untied_mixed_config.data_specs.domains[name].output_dims.total_dim
+            )
+        yield model
+
+
+class TestAnchoredBranchedUPTUntied:
+    """Tests exercising the ``*_untied`` physics block variants.
+
+    ``FakeUntiedTransformerBlock`` stands in for the real module so these tests
+    focus on the model's wiring (suffix parsing, block dispatch, forward shapes)
+    rather than the untied block's internal mechanics.
+    """
+
+    def test_init_dispatches_to_untied_blocks(self, untied_model):
+        """``*_untied`` suffix builds ``UntiedTransformerBlock`` for every attention variant."""
+        # perceiver is unaffected; the three untied entries each produce an untied block.
+        assert len(untied_model.physics_blocks) == 4
+        assert isinstance(untied_model.physics_blocks[0], FakePerceiverBlock)
+        assert all(isinstance(b, FakeUntiedTransformerBlock) for b in untied_model.physics_blocks[1:]), (
+            "self_untied / cross_untied / joint_untied should all instantiate UntiedTransformerBlock"
+        )
+        # No shared TransformerBlock should be constructed for the untied physics entries.
+        physics_tf = [b for b in untied_model.physics_blocks if isinstance(b, FakeTransformerBlock)]
+        assert physics_tf == []
+
+    def test_forward_shape_with_untied_blocks(self, untied_model, untied_config):
+        """Forward pass through untied physics blocks produces the same prediction keys/shapes."""
+        batch_size = 2
+        num_surface, num_volume = 20, 15
+
+        untied_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 128, 64)
+        untied_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        untied_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = untied_model(
+            geometry_position=torch.randn(50, 3),
+            geometry_supernode_idx=torch.zeros(50, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(50, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, num_surface, 3),
+                "volume": torch.randn(batch_size, num_volume, 3),
+            },
+        )
+
+        expected_keys = set()
+        for name, spec in untied_config.data_specs.domains.items():
+            expected_keys.update(f"{name}_{field}" for field in spec.output_dims.keys())
+        assert expected_keys.issubset(predictions.keys())
+
+        assert predictions["surface_pressure"].shape == (batch_size, num_surface, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, num_volume, 3)
+
+    def test_forward_with_queries_untied(self, untied_model):
+        """Queries route through untied physics blocks and emerge under ``query_*`` keys."""
+        batch_size = 1
+
+        untied_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        untied_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        untied_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = untied_model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 10, 3),
+            },
+            domain_query_positions={"surface": torch.randn(batch_size, 5, 3)},
+        )
+
+        assert predictions["query_surface_pressure"].shape == (batch_size, 5, 1)
+        # Volume has no queries → no query key for volume.
+        assert "query_volume_velocity" not in predictions
+
+    def test_untied_block_receives_correct_num_types(self, untied_config):
+        """``num_types`` passed into ``UntiedTransformerBlockConfig`` equals the number of domains."""
+        # Capture the configs that each UntiedTransformerBlock is constructed with.
+        constructor_configs: list = []
+
+        class RecordingFakeUntied(FakeUntiedTransformerBlock):
+            def __init__(self, *args, **kwargs):
+                super().__init__()
+                constructor_configs.append(kwargs.get("config"))
+
+        with (
+            patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".TransformerBlock", new=FakeTransformerBlock),
+            patch(_MODULE_PATH + ".UntiedTransformerBlock", new=RecordingFakeUntied),
+            patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+            patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+        ):
+            AnchoredBranchedUPT(config=untied_config)
+
+        # 3 physics entries are *_untied → 3 UntiedTransformerBlock instantiations
+        assert len(constructor_configs) == 3
+        num_domains = len(untied_config.data_specs.domains)  # surface + volume → 2
+        for cfg in constructor_configs:
+            assert cfg.num_types == num_domains
+            # The nested TransformerBlockConfig should be carried through intact.
+            assert cfg.transformer_block.hidden_dim == untied_config.hidden_dim
+
+    def test_untied_blocks_have_independent_parameters(self, untied_config):
+        """Each ``UntiedTransformerBlock`` contributes its own distinct parameters.
+
+        Uses the *real* UntiedTransformerBlock (via patches only on the non-attention
+        periphery) so that parameter counting is meaningful.
+        """
+        # Patch peripheral modules only; leave TransformerBlock / UntiedTransformerBlock real.
+        with (
+            patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+            patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+        ):
+            model = AnchoredBranchedUPT(config=untied_config)
+
+        # Each untied block's q/k/v weight banks hold one 2D Parameter per type;
+        # disjoint parameter tensors across blocks means no accidental sharing.
+        # For AB-UPT, ``attention_block`` is a MultiBranchAnchorAttention wrapper
+        # (Self/Cross/JointAnchorAttention); its inner ``mixed_attention`` is the
+        # UntiedMixedAttention that owns the per-type q/k/v weights.
+        untied_blocks = [b for b in model.physics_blocks if b.__class__.__name__ == "UntiedTransformerBlock"]
+        assert len(untied_blocks) == 3
+        num_types = len(untied_config.data_specs.domains)
+        for proj_name in ("q", "k", "v"):
+            proj_ids = {id(getattr(b.attention_block.mixed_attention, proj_name).weight) for b in untied_blocks}
+            assert len(proj_ids) == 3, f"each UntiedTransformerBlock must hold its own {proj_name} weight tensor"
+            for b in untied_blocks:
+                assert len(getattr(b.attention_block.mixed_attention, proj_name).weight) == num_types
+
+    def test_untied_block_uses_configured_attention_constructor(self, untied_config):
+        """``*_untied`` blocks must honor the configured ``attention_constructor``.
+
+        Pins the fix for a bug where ``UntiedTransformerBlock`` previously
+        replaced ``self.attention_block`` wholesale with ``UntiedMixedAttention``,
+        silently discarding the per-branch attention pattern (``self`` / ``cross``
+        / ``joint``). Post-fix, ``attention_block`` is the configured
+        ``MultiBranchAnchorAttention`` subclass and only its inner
+        ``mixed_attention`` is the untied workhorse — so ``self_untied`` really
+        emits per-branch self-attention patterns, not joint attention.
+        """
+        from noether.modeling.modules.attention.anchor_attention import (
+            CrossAnchorAttention,
+            JointAnchorAttention,
+            SelfAnchorAttention,
+        )
+        from noether.modeling.modules.untied import UntiedMixedAttention
+
+        with (
+            patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+            patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+            patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+        ):
+            model = AnchoredBranchedUPT(config=untied_config)
+
+        expected = {
+            "self_untied": SelfAnchorAttention,
+            "cross_untied": CrossAnchorAttention,
+            "joint_untied": JointAnchorAttention,
+        }
+        # untied_config.physics_blocks is ["perceiver", "self_untied", "cross_untied", "joint_untied"].
+        for block, block_type in zip(
+            model.physics_blocks[1:], ["self_untied", "cross_untied", "joint_untied"], strict=True
+        ):
+            assert isinstance(block.attention_block, expected[block_type]), (
+                f"{block_type} should build {expected[block_type].__name__}, got {type(block.attention_block).__name__}"
+            )
+            # The inner mixed_attention is the per-type workhorse.
+            assert isinstance(block.attention_block.mixed_attention, UntiedMixedAttention)
+
+
+class TestMixedTiedAndUntiedBlocks:
+    """Models can mix shared (``self``) and untied (``cross_untied``) blocks in one list."""
+
+    def test_init_mixed_blocks(self, untied_mixed_model):
+        """Mixed physics_blocks yields the expected concrete block types in order."""
+        blocks = untied_mixed_model.physics_blocks
+        assert len(blocks) == 3
+        assert isinstance(blocks[0], FakePerceiverBlock)
+        assert isinstance(blocks[1], FakeTransformerBlock)  # "self" → shared TransformerBlock
+        assert isinstance(blocks[2], FakeUntiedTransformerBlock)  # "cross_untied" → untied
+
+    def test_forward_mixed_blocks(self, untied_mixed_model):
+        """Mixing tied and untied physics blocks runs end-to-end without errors."""
+        batch_size = 1
+
+        untied_mixed_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 32)
+        untied_mixed_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 32)
+        untied_mixed_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 1000, 8)
+
+        predictions, _ = untied_mixed_model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 8, 3),
+                "volume": torch.randn(batch_size, 6, 3),
+            },
+        )
+
+        assert predictions["surface_pressure"].shape == (batch_size, 8, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, 6, 3)

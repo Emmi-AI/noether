@@ -23,6 +23,13 @@ from .layers import (
     UnquantizedDropPathConfig,
 )
 from .mlp import MLPConfig, UpActDownMLPConfig
+from .untied import (
+    UntiedLinearConfig,
+    UntiedMixedAttentionConfig,
+    UntiedMLPConfig,
+    UntiedPerceiverBlockConfig,
+    UntiedTransformerBlockConfig,
+)
 
 __all__ = [
     "AttentionConfig",
@@ -35,6 +42,11 @@ __all__ = [
     "PerceiverAttentionConfig",
     "TransolverAttentionConfig",
     "TransolverPlusPlusAttentionConfig",
+    "UntiedLinearConfig",
+    "UntiedMLPConfig",
+    "UntiedMixedAttentionConfig",
+    "UntiedPerceiverBlockConfig",
+    "UntiedTransformerBlockConfig",
     "PerceiverBlockConfig",
     "TransformerBlockConfig",
     "DeepPerceiverDecoderConfig",

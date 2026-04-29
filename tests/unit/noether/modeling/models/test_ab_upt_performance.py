@@ -164,6 +164,9 @@ HIDDEN_DIM_GRID = [64, 128, 256]
 PHYSICS_BLOCKS_GRID: dict[str, list[str]] = {
     "perceiver_self": ["perceiver", "self"],
     "perceiver_joint": ["perceiver", "joint"],
+    "perceiver_self_untied": ["perceiver", "self_untied"],
+    "perceiver_joint_untied": ["perceiver", "joint_untied"],
+    "perceiver_cross_untied": ["perceiver", "cross_untied"],
 }
 
 
@@ -264,3 +267,49 @@ def test_ab_upt_forward_backward_vs_physics_blocks(benchmark, device, cache_flus
     )
     step = _forward_backward_closure(model, inputs, device)
     benchmark.pedantic(step, setup=cache_flush, rounds=_ROUNDS, warmup_rounds=_WARMUP_ROUNDS, iterations=1)
+
+
+@pytest.mark.benchmark(group="ab_upt_untied_vs_decoder_blocks_forward_backward")
+@pytest.mark.parametrize("anchor_ratio", [1, 1.5, 2, 3])
+@pytest.mark.parametrize("untied", [False, True])
+def test_ab_upt_untied_vs_decoder(benchmark, device, cache_flush, anchor_ratio, untied):
+    """Forward+backward — compare physics blocks with untied weights to final domain-specific decoder blocks."""
+    torch.manual_seed(0)
+    if untied:
+        config = _make_config(
+            hidden_dim=256,
+            num_heads=4,
+            physics_blocks=["perceiver", "self_untied", "self_untied", "self_untied", "self_untied"],
+            decoder_blocks_per_domain=0,
+        )
+    else:
+        config = _make_config(
+            hidden_dim=256,
+            num_heads=4,
+            physics_blocks=["perceiver"],
+            decoder_blocks_per_domain=4,
+        )
+    model = AnchoredBranchedUPT(config).to(device).train()
+
+    total_anchors = 10_000
+    num_surface_anchors = int(total_anchors / (anchor_ratio + 1))
+    num_volume_anchors = total_anchors - num_surface_anchors
+
+    inputs = _make_inputs(
+        device,
+        batch_size=1,
+        num_geometry_points=512,
+        num_supernodes=128,
+        num_surface_anchors=num_surface_anchors,
+        num_volume_anchors=num_volume_anchors,
+    )
+
+    step_untied = _forward_backward_closure(model, inputs, device)
+
+    benchmark.pedantic(
+        step_untied,
+        setup=cache_flush,
+        rounds=_ROUNDS,
+        warmup_rounds=_WARMUP_ROUNDS,
+        iterations=1,
+    )
