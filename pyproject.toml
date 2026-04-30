@@ -173,6 +173,10 @@ module = [
 testpaths = ["tests"]
 pythonpath = [".", "src"]
 addopts = ["--import-mode=importlib", "-m", "not benchmark"]
+markers = [
+    "benchmark: micro-benchmarks; excluded from default runs",
+    "gpu: requires CUDA; tests use this marker to opt into the GPU-only suite",
+]
 
 
 [tool.ruff]
