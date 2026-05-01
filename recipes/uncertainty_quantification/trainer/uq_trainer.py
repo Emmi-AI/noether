@@ -18,10 +18,12 @@ class UQTrainerConfig(BaseTrainerConfig):
         ..., description="Per-field loss weights, e.g. {'surface_pressure': 1.0, 'volume_velocity': 1.0}"
     )
     nll_loss_weight: float = Field(1.0, ge=0.0, description="Weight for Gaussian NLL loss component")
-    mse_loss_weight: float = Field(0.1, ge=0.0, description="Weight for MSE loss on mean predictions (stability)")
     variance_regularization: float = Field(0.01, ge=0.0, description="Regularization weight on log-variance")
     warmup_epochs_mse_only: int = Field(0, ge=0, description="Train with MSE only for this many epochs before NLL")
     use_physics_features: bool = Field(False, description="Whether to use physics features as model input")
+    beta_nll: float = Field(
+        0.0, ge=0.0, le=1.0, description="β-NLL weighting (Seitzer 2022). 0=NLL, 1=MSE-like gradient"
+    )
 
 
 class UQTrainer(BaseTrainer):
@@ -35,45 +37,39 @@ class UQTrainer(BaseTrainer):
         super().__init__(config=trainer_config, **kwargs)
 
     def loss_compute(self, forward_output: dict[str, Tensor], targets: dict[str, Tensor]) -> LossResult:
-        config: UQTrainerConfig = self.config  # type: ignore[assignment]
         current_epoch = self.update_counter.cur_iteration.epoch if self.update_counter.cur_iteration else 0
-        use_nll = current_epoch >= config.warmup_epochs_mse_only
+        use_nll = current_epoch >= self.config.warmup_epochs_mse_only
 
         losses: dict[str, Tensor] = {}
 
-        for field_name, weight in config.field_weights.items():
-            if weight <= 0:
-                continue
+        for field_name, weight in self.config.field_weights.items():
+            if weight > 0 and f"{field_name}_mean" in forward_output and f"{field_name}_target" in targets:
+                mean_key = f"{field_name}_mean"
+                log_var_key = f"{field_name}_log_var"
+                target_key = f"{field_name}_target"
 
-            # Match field_weights key (e.g. "surface_pressure") to model output key
-            # Model outputs: "surface_pressure_mean", "surface_pressure_log_var"
-            mean_key = f"{field_name}_mean"
-            if mean_key not in forward_output:
-                continue
+                mean = forward_output[mean_key]
+                target = targets[target_key]
 
-            log_var_key = f"{field_name}_log_var"
-            target_key = f"{field_name}_target"
+                if not use_nll or log_var_key not in forward_output:
+                    # Warmup phase, or no log-variance head: train mean with MSE only.
+                    mse = torch.nn.functional.mse_loss(mean, target)
+                    losses[f"{field_name}_mse"] = mse * weight
+                else:
+                    log_var = forward_output[log_var_key]
+                    nll = 0.5 * (log_var + (target - mean).pow(2) * torch.exp(-log_var))
 
-            if target_key not in targets:
-                continue
+                    if self.config.beta_nll > 0:
+                        # σ^(2β) = exp(β · log_var), detached so it only reweights the loss
+                        beta_weight = torch.exp(self.config.beta_nll * log_var).detach()
+                        nll = nll * beta_weight
 
-            mean = forward_output[mean_key]
-            target = targets[target_key]
+                    losses[f"{field_name}_nll"] = nll.mean() * weight
 
-            # MSE on mean predictions (named _loss to match baseline for comparison)
-            mse = torch.nn.functional.mse_loss(mean, target)
-            losses[f"{field_name}_loss"] = mse * weight * config.mse_loss_weight
-
-            # Gaussian NLL (only after warmup)
-            if use_nll and log_var_key in forward_output:
-                log_var = forward_output[log_var_key]
-                # NLL = 0.5 * (log_var + (target - mean)^2 / exp(log_var))
-                nll = 0.5 * (log_var + (target - mean).pow(2) * torch.exp(-log_var))
-                losses[f"{field_name}_nll"] = nll.mean() * weight * config.nll_loss_weight
-
-                # Variance regularization: penalize extreme log-variances
-                if config.variance_regularization > 0:
-                    var_reg = log_var.pow(2).mean()
-                    losses[f"{field_name}_var_reg"] = var_reg * config.variance_regularization
+                    # One-sided: penalize overconfidence (log_var < 0) only.
+                    # A symmetric log_var.pow(2) would also pull σ² → 1 regardless of data scale.
+                    if self.config.variance_regularization > 0:
+                        var_reg = log_var.clamp(max=0).pow(2).mean()
+                        losses[f"{field_name}_var_reg"] = var_reg * weight * self.config.variance_regularization
 
         return losses

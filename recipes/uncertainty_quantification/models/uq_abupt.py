@@ -21,11 +21,16 @@ class UQABUPTConfig(AnchorBranchedUPTConfig, InjectSharedFieldFromParentMixin):
     """Config for UQ-wrapped AB-UPT model with heteroscedastic output and anchor subsampling."""
 
     # --- UQ-specific fields ---
-    enable_heteroscedastic: bool = Field(True, description="Enable aleatoric uncertainty via heteroscedastic output")
-    num_anchor_subsamples: int = Field(10, ge=1, description="Number of anchor subsamples for epistemic estimation")
-    anchor_subsample_ratio: float = Field(0.8, gt=0.0, le=1.0, description="Fraction of anchors to keep per subsample")
-    min_log_variance: float = Field(-10.0, description="Min clamp for predicted log-variance")
-    max_log_variance: float = Field(10.0, description="Max clamp for predicted log-variance")
+    enable_heteroscedastic: bool = True
+    """Enable aleatoric uncertainty via heteroscedastic output"""
+    num_anchor_subsamples: int = Field(10, ge=1)
+    """Number of anchor subsamples for epistemic estimation"""
+    anchor_subsample_ratio: float = Field(0.8, gt=0.0, le=1.0)
+    """Fraction of anchors to keep in each subsample"""
+    min_log_variance: float = Field(-10.0)
+    """Min clamp for predicted log-variance"""
+    max_log_variance: float = Field(10.0)
+    """Max clamp for predicted log-variance"""
 
     @computed_field
     def effective_data_specs(self) -> ModelDataSpecs:
@@ -48,6 +53,15 @@ class UQABUPTConfig(AnchorBranchedUPTConfig, InjectSharedFieldFromParentMixin):
             use_physics_features=self.data_specs.use_physics_features,
         )
 
+    @computed_field
+    def parent_config(self) -> AnchorBranchedUPTConfig:
+        """Parent config for shared fields."""
+        data_specs = self.effective_data_specs if self.enable_heteroscedastic else self.data_specs
+        return AnchorBranchedUPTConfig(
+            data_specs=data_specs,
+            **self.model_dump(include=set(AnchorBranchedUPTConfig.model_fields), exclude={"data_specs"}),
+        )
+
 
 class UQAnchoredBranchedUPT(Model):
     """AB-UPT model wrapped with uncertainty quantification.
@@ -59,7 +73,8 @@ class UQAnchoredBranchedUPT(Model):
 
     def __init__(self, model_config: UQABUPTConfig, **kwargs):
         super().__init__(model_config=model_config, **kwargs)
-        self.backbone = AeroABUPT(model_config=model_config)
+
+        self.backbone = AeroABUPT(model_config=model_config.parent_config)
 
         self.enable_heteroscedastic = model_config.enable_heteroscedastic
         self.original_data_specs = model_config.data_specs  # non-doubled specs
