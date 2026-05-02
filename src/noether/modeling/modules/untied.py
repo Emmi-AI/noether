@@ -21,6 +21,7 @@ from noether.core.schemas.modules.untied import (
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
 from noether.modeling.functional.rope import rope
 from noether.modeling.modules.activations import Activation
+from noether.modeling.modules.attention._fa3 import sdpa
 from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention
 from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
 from noether.modeling.modules.attention.perceiver import PerceiverAttention
@@ -479,7 +480,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
 
-        x = F.scaled_dot_product_attention(
+        x = sdpa(
             q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")

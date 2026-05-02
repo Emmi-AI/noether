@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from noether.core.schemas.modules.attention import AttentionPattern, MixedAttentionConfig, TokenSpec
 from noether.modeling.functional.rope import rope
 from noether.modeling.modules.attention import DotProductAttention
+from noether.modeling.modules.attention._fa3 import sdpa
 
 
 class MixedAttention(DotProductAttention):
@@ -288,7 +289,7 @@ class MixedAttention(DotProductAttention):
                     per_pattern_masks.append(kv_bool[:, None, None, :])
                 attn_mask_batched = torch.cat(per_pattern_masks, dim=0)
 
-            output_batched = F.scaled_dot_product_attention(
+            output_batched = sdpa(
                 q_batched,
                 k_batched,
                 v_batched,

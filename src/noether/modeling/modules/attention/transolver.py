@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverAttentionConfig
+from noether.modeling.modules.attention._fa3 import sdpa
 from noether.modeling.modules.layers import LinearProjection
 
 
@@ -147,7 +148,7 @@ class TransolverAttention(nn.Module):
 
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        out_slice_token = F.scaled_dot_product_attention(
+        out_slice_token = sdpa(
             q_slice_token,
             k_slice_token,
             v_slice_token,

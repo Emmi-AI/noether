@@ -7,6 +7,7 @@ from einops import rearrange
 
 from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverPlusPlusAttentionConfig
 from noether.modeling.modules.activations import Activation
+from noether.modeling.modules.attention._fa3 import sdpa
 from noether.modeling.modules.layers import LinearProjection
 
 
@@ -150,7 +151,7 @@ class TransolverPlusPlusAttention(nn.Module):
         slice_token = slice_token / ((slice_norm + 1e-5)[:, :, :, None].repeat(1, 1, 1, self.dim_head))  # type: ignore[arg-type]
 
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        out_slice_token = F.scaled_dot_product_attention(
+        out_slice_token = sdpa(
             q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
         )
 
