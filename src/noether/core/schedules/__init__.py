@@ -19,6 +19,7 @@ from .linear_warmup_cosine_decay import LinearWarmupCosineDecaySchedule
 from .polynomial import PolynomialDecreasingSchedule, PolynomialIncreasingSchedule
 from .sqrt import SqrtDecreasingSchedule
 from .step import StepDecreasingSchedule, StepFixedSchedule, StepIntervalSchedule
+from .warmup_stable_decay import WarmupStableDecaySchedule
 
 __all__ = [
     # --- from base:
@@ -50,4 +51,5 @@ __all__ = [
     "StepDecreasingSchedule",
     "StepFixedSchedule",
     "StepIntervalSchedule",
+    "WarmupStableDecaySchedule",
 ]

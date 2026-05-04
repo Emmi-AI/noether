@@ -25,7 +25,7 @@ class TestSqrtDecreasingSchedule(unittest.TestCase):
     def test_strictly_decreasing(self):
         sched = SqrtDecreasingSchedule(config=DecreasingProgressScheduleConfig(max_value=1.0, end_value=0.0))
         values = [sched.get_value(step, total_steps=21) for step in range(21)]
-        for prev, curr in zip(values[:-1], values[1:]):
+        for prev, curr in zip(values[:-1], values[1:], strict=True):
             self.assertGreater(prev, curr)
 
     def test_fast_initial_drop(self):
