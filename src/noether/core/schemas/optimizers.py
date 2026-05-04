@@ -104,6 +104,10 @@ class AdamOptimizerConfig(OptimizerConfig):
     kind: Literal["torch.optim.AdamW", "noether.core.optimizer.Lion"] = "torch.optim.AdamW"
     betas: tuple[float, float] | None = None
     """Beta coefficients for Adam-style optimizers."""
+    caution: bool | None = None
+    """Apply 'Cautious Optimizers' masking (Liang et al. 2024, arxiv 2411.16085).
+    Only honored by ``noether.core.optimizer.Lion``; AdamW will reject it.
+    ``None`` defers to the optimizer's own default (Lion: ``False``)."""
 
 
 class SGDOptimizerConfig(OptimizerConfig):
