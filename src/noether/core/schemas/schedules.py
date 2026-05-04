@@ -246,6 +246,10 @@ class CosineIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
     kind: Literal["noether.core.schedules.CosineIncreasingSchedule"] = "noether.core.schedules.CosineIncreasingSchedule"  # type: ignore[assignment]
 
 
+class SqrtDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.SqrtDecreasingSchedule"] = "noether.core.schedules.SqrtDecreasingSchedule"  # type: ignore[assignment]
+
+
 AnyScheduleConfig = Union[
     SchedulerConfig,
     DecreasingProgressScheduleConfig,
@@ -262,6 +266,7 @@ AnyScheduleConfig = Union[
     StepIntervalScheduleConfig,
     CosineDecreasingScheduleConfig,
     CosineIncreasingScheduleConfig,
+    SqrtDecreasingScheduleConfig,
     LinearIncreasingScheduleConfig,
     LinearDecreasingScheduleConfig,
 ]

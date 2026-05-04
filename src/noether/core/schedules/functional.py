@@ -19,3 +19,11 @@ def polynomial(step: int, total_steps: int, power: float) -> float:
     https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.PolynomialLR.html"""
     progress = step / max(1, total_steps - 1)
     return float(1 - (1 - progress) ** power)
+
+
+def sqrt_decay(step: int, total_steps: int) -> float:
+    """sqrt schedule from [0 to 1]; rapid initial change, slow tail.
+
+    Used as the cooldown phase of the WSD schedule (Hägele et al. 2024)."""
+    progress = step / max(1, total_steps - 1)
+    return math.sqrt(progress)

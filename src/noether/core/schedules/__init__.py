@@ -13,10 +13,11 @@ from .base import (
 from .constant import ConstantSchedule, ConstantScheduleConfig
 from .cosine import CosineDecreasingSchedule, CosineIncreasingSchedule
 from .custom import CustomSchedule, CustomScheduleConfig
-from .functional import cosine, linear, polynomial
+from .functional import cosine, linear, polynomial, sqrt_decay
 from .linear import LinearDecreasingSchedule, LinearIncreasingSchedule
 from .linear_warmup_cosine_decay import LinearWarmupCosineDecaySchedule
 from .polynomial import PolynomialDecreasingSchedule, PolynomialIncreasingSchedule
+from .sqrt import SqrtDecreasingSchedule
 from .step import StepDecreasingSchedule, StepFixedSchedule, StepIntervalSchedule
 
 __all__ = [
@@ -33,6 +34,7 @@ __all__ = [
     "cosine",
     "linear",
     "polynomial",
+    "sqrt_decay",
     # ---:
     "ConstantSchedule",
     "ConstantScheduleConfig",
@@ -44,6 +46,7 @@ __all__ = [
     "LinearIncreasingSchedule",
     "LinearWarmupCosineDecaySchedule",
     "PolynomialDecreasingSchedule",
+    "SqrtDecreasingSchedule",
     "StepDecreasingSchedule",
     "StepFixedSchedule",
     "StepIntervalSchedule",
