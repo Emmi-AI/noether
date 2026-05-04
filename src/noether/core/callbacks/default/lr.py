@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+import torch
+
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.models import CompositeModel
 
@@ -43,6 +45,13 @@ class LrCallback(PeriodicCallback):
                     self.writer.add_scalar(f"optim/wd/{cur_name}{group_name}", wd)
             if cur_model.optimizer.last_grad_norm is not None:
                 self.writer.add_scalar(f"optim/grad_norm/{cur_name}", cur_model.optimizer.last_grad_norm.item())
+            with torch.no_grad():
+                trainable = [p.detach() for p in cur_model.parameters() if p.requires_grad]
+                if trainable:
+                    weight_norm = torch.linalg.vector_norm(
+                        torch.stack([torch.linalg.vector_norm(p) for p in trainable])
+                    ).item()
+                    self.writer.add_scalar(f"optim/weight_norm/{cur_name}", weight_norm)
 
     def track_after_update_step(self, *, update_counter: UpdateCounter, times: dict[str, float]) -> None:
         del update_counter, times
