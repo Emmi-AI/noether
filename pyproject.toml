@@ -172,10 +172,11 @@ module = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "src"]
-addopts = ["--import-mode=importlib", "-m", "not benchmark"]
+addopts = ["--import-mode=importlib", "-m", "not benchmark and not integration"]
 markers = [
     "benchmark: micro-benchmarks; excluded from default runs",
     "gpu: requires CUDA; tests use this marker to opt into the GPU-only suite",
+    "integration: end-to-end pipeline tests; auto-applied to anything under tests/integration/",
 ]
 
 
