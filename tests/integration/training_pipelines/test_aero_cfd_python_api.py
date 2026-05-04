@@ -68,10 +68,13 @@ def _patch_for_test(config: ConfigSchema, *, extra_excluded_properties: set[str]
 
 def _run_and_assert_weights_changed(config: ConfigSchema, device: str, label: str) -> None:
     trainer, model, _tracker, _mc = HydraRunner.setup_experiment(device=device, config=config)
-    initial = {k: v.detach().clone() for k, v in model.state_dict().items() if v.is_floating_point()}
+    # Snapshot on CPU: trainer.train moves the model to self.device, so the
+    # post-train state lives on the accelerator. CPU comparison stays
+    # device-agnostic.
+    initial = {k: v.detach().cpu().clone() for k, v in model.state_dict().items() if v.is_floating_point()}
     trainer.train(model)
     after = model.state_dict()
-    changed = any(not torch.equal(initial[k], after[k].detach()) for k in initial)
+    changed = any(not torch.equal(initial[k], after[k].detach().cpu()) for k in initial)
     assert changed, f"no parameter changed during python-api {label} training"
 
 

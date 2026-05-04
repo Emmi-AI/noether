@@ -27,11 +27,15 @@ def _instantiate_schema(runner_dict: dict) -> ConfigSchema:
 
 
 def _floating_state(model: torch.nn.Module) -> dict[str, torch.Tensor]:
-    return {k: v.detach().clone() for k, v in model.state_dict().items() if v.is_floating_point()}
+    # Snapshot on CPU: setup_experiment returns a CPU model, but trainer.train
+    # moves it to self.device, so post-train state lives on the accelerator.
+    # Comparing across devices via torch.equal raises; staying on CPU keeps
+    # the assertion device-agnostic.
+    return {k: v.detach().cpu().clone() for k, v in model.state_dict().items() if v.is_floating_point()}
 
 
 def _any_changed(before: dict[str, torch.Tensor], after_state: dict) -> bool:
-    return any(not torch.equal(before[k], after_state[k].detach()) for k in before)
+    return any(not torch.equal(before[k], after_state[k].detach().cpu()) for k in before)
 
 
 def _run_recipe(
