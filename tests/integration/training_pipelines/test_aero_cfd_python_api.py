@@ -6,10 +6,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-import torch
 
 from noether.core.schemas.schema import ConfigSchema
-from noether.training.runners import HydraRunner
+from tests.integration.training_pipelines.fixtures.helpers import (
+    make_run_dirs,
+    train_and_assert_weights_changed,
+)
 from tests.integration.training_pipelines.fixtures.synthetic_datasets import StubShapeNetCarDataset
 
 _TRAINER_KIND = "noether.training.trainers.WeightedLossTrainer"
@@ -66,18 +68,6 @@ def _patch_for_test(config: ConfigSchema, *, extra_excluded_properties: set[str]
         train_ds_cfg.excluded_properties = (train_ds_cfg.excluded_properties or set()) | extra_excluded_properties
 
 
-def _run_and_assert_weights_changed(config: ConfigSchema, device: str, label: str) -> None:
-    trainer, model, _tracker, _mc = HydraRunner.setup_experiment(device=device, config=config)
-    # Snapshot on CPU: trainer.train moves the model to self.device, so the
-    # post-train state lives on the accelerator. CPU comparison stays
-    # device-agnostic.
-    initial = {k: v.detach().cpu().clone() for k, v in model.state_dict().items() if v.is_floating_point()}
-    trainer.train(model)
-    after = model.state_dict()
-    changed = any(not torch.equal(initial[k], after[k].detach().cpu()) for k in initial)
-    assert changed, f"no parameter changed during python-api {label} training"
-
-
 def _build_kwargs(
     *,
     model_kind: str,
@@ -115,10 +105,7 @@ def test_shapenet_python_api_pipeline(
     device: str,
 ) -> None:
     """End-to-end ShapeNetCar run via the preset API."""
-    output_path = tmp_path / "out"
-    dataset_root = tmp_path / "data"
-    output_path.mkdir()
-    dataset_root.mkdir()
+    output_path, dataset_root = make_run_dirs(tmp_path)
 
     config = stubbed_shapenet_preset.build_config(
         include_evaluation=False,
@@ -140,7 +127,7 @@ def test_shapenet_python_api_pipeline(
     # path adds it to excluded_properties). Exclude it here so the test doesn't
     # trip over a recipe inconsistency unrelated to the pipeline.
     _patch_for_test(config, extra_excluded_properties={"surface_area"})
-    _run_and_assert_weights_changed(config, device=device, label=model_kind)
+    train_and_assert_weights_changed(config, device=device, label=f"python-api shapenet/{model_kind}")
 
 
 @pytest.mark.parametrize(
@@ -158,10 +145,7 @@ def test_drivaerml_python_api_pipeline(
     device: str,
 ) -> None:
     """End-to-end DrivAerML run via the preset API."""
-    output_path = tmp_path / "out"
-    dataset_root = tmp_path / "data"
-    output_path.mkdir()
-    dataset_root.mkdir()
+    output_path, dataset_root = make_run_dirs(tmp_path)
 
     config = stubbed_drivaerml_preset.build_config(
         **_build_kwargs(
@@ -176,7 +160,7 @@ def test_drivaerml_python_api_pipeline(
     assert config.datasets["train"].kind.endswith("StubDrivAerMLDataset")
 
     _patch_for_test(config)
-    _run_and_assert_weights_changed(config, device=device, label=model_kind)
+    train_and_assert_weights_changed(config, device=device, label=f"python-api drivaerml/{model_kind}")
 
 
 def test_stub_dataset_class_path_is_importable() -> None:
