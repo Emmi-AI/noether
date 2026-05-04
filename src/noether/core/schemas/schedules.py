@@ -141,6 +141,51 @@ class LinearWarmupCosineDecayScheduleConfig(ScheduleBaseConfig):
         return self
 
 
+class WarmupStableDecayScheduleConfig(ScheduleBaseConfig):
+    """Warmup-Stable-Decay (WSD) schedule (Hägele et al. 2024).
+
+    Three phases:
+      1. Linear warmup ``start_value -> max_value`` over ``warmup_percent`` (or ``warmup_steps``).
+      2. Constant ``max_value`` plateau.
+      3. Decay ``max_value -> end_value`` over the final ``cooldown_percent`` (or ``cooldown_steps``).
+
+    Both warmup and cooldown must use the same anchoring units (both percent or both steps).
+    """
+
+    kind: Literal["noether.core.schedules.WarmupStableDecaySchedule"] = (
+        "noether.core.schedules.WarmupStableDecaySchedule"
+    )
+    max_value: float = Field(..., ge=0.0)
+    """Peak learning rate. Typically ``${model.optim.lr}``."""
+    start_value: float = Field(0.0, ge=0.0)
+    """Warmup start value."""
+    end_value: float = Field(0.0, ge=0.0)
+    """Cooldown end value. WSD literature uses 0; LWCD legacy uses 1e-6."""
+    warmup_steps: int | None = Field(None, ge=0)
+    """Number of warmup updates. Mutually exclusive with ``warmup_percent``."""
+    warmup_percent: float | None = Field(None, ge=0.0, le=1.0)
+    """Fraction of total updates spent in warmup. Mutually exclusive with ``warmup_steps``."""
+    cooldown_steps: int | None = Field(None, gt=0)
+    """Number of cooldown updates. Mutually exclusive with ``cooldown_percent``."""
+    cooldown_percent: float | None = Field(None, gt=0.0, le=1.0)
+    """Fraction of total updates spent in cooldown. Mutually exclusive with ``cooldown_steps``."""
+    cooldown_shape: Literal["sqrt", "linear", "cosine"] = "sqrt"
+    """Cooldown curvature. ``sqrt`` is the SOTA (Hägele 2024) default."""
+
+    @model_validator(mode="after")
+    def validate_warmup_cooldown(self) -> "WarmupStableDecayScheduleConfig":
+        if (self.warmup_steps is None) == (self.warmup_percent is None):
+            raise ValueError("Define exactly one of warmup_steps or warmup_percent")
+        if (self.cooldown_steps is None) == (self.cooldown_percent is None):
+            raise ValueError("Define exactly one of cooldown_steps or cooldown_percent")
+        if (self.warmup_percent is None) != (self.cooldown_percent is None):
+            raise ValueError("warmup and cooldown must both use percent or both use steps")
+        if self.warmup_percent is not None and self.cooldown_percent is not None:
+            if self.warmup_percent + self.cooldown_percent > 1.0:
+                raise ValueError("warmup_percent + cooldown_percent must be <= 1.0")
+        return self
+
+
 class LinearIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
     kind: Literal["noether.core.schedules.LinearIncreasingSchedule"] = "noether.core.schedules.LinearIncreasingSchedule"  # type: ignore[assignment]
 
@@ -258,6 +303,7 @@ AnyScheduleConfig = Union[
     ConstantScheduleConfig,
     CustomScheduleConfig,
     LinearWarmupCosineDecayScheduleConfig,
+    WarmupStableDecayScheduleConfig,
     PeriodicBoolScheduleConfig,
     PolynomialDecreasingScheduleConfig,
     PolynomialIncreasingScheduleConfig,
