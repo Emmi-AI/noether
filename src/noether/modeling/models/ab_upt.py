@@ -7,7 +7,10 @@ from typing import Any, cast
 import torch
 from torch import Tensor, nn
 
+from noether.core.schemas.modules.layers.linear_projection import LinearProjectionConfig
 from noether.core.schemas.modules.untied import UntiedPerceiverBlockConfig, UntiedTransformerBlockConfig
+from noether.modeling.functional.modulation import modulate_scale_shift
+from noether.modeling.modules.layers.vectors_conditioner import VectorsConditioner
 from noether.modeling.modules.untied import UntiedPerceiverBlock, UntiedTransformerBlock
 
 KVPair = dict[str, Tensor]  # {"k": tensor, "v": tensor}
@@ -26,6 +29,32 @@ from noether.modeling.modules.blocks import PerceiverBlock, TransformerBlock
 from noether.modeling.modules.encoders import SupernodePooling
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
 from noether.modeling.modules.mlp import MLP
+
+
+class ReadoutLayer(nn.Module):
+    """
+    The final readout layer for AB-UPT, which applies an AdaLN-style modulation followed by a linear projection to the desired output dimension.
+    """
+
+    def __init__(self, decoder_config: LinearProjectionConfig, hidden_dim: int, condition_dim: int | None = None):
+        super().__init__()
+        self.norm_final = nn.LayerNorm(hidden_dim, elementwise_affine=condition_dim is None, eps=1e-6)
+        self.linear = LinearProjection(config=decoder_config)
+        self.modulation = None
+        if condition_dim is not None:
+            self.modulation = LinearProjection(
+                config=LinearProjectionConfig(
+                    input_dim=condition_dim, output_dim=hidden_dim * 2, init_weights="zeros", bias=True
+                )
+            )
+
+    def forward(self, x: torch.Tensor, condition: torch.Tensor | None) -> torch.Tensor:
+        x = self.norm_final(x)
+        if self.modulation is not None and condition is not None:
+            shift, scale = self.modulation(condition).chunk(2, dim=1)
+            x = modulate_scale_shift(x, shift, scale)
+        x = self.linear(x)
+        return x
 
 
 class AnchoredBranchedUPT(nn.Module):
@@ -120,7 +149,10 @@ class AnchoredBranchedUPT(nn.Module):
             # geometry
             self.encoder = SupernodePooling(config=config.supernode_pooling_config)  # type: ignore[arg-type]
             self.geometry_blocks = nn.ModuleList(
-                [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
+                [
+                    TransformerBlock(config=config.geometry_transformer_block_config)  # type: ignore[arg-type]
+                    for _ in range(config.geometry_depth)
+                ],
             )
 
         # Per-domain physics-feature projections (e.g. noisy fields for diffusion).
@@ -157,9 +189,30 @@ class AnchoredBranchedUPT(nn.Module):
         # per-domain output projection
         self.domain_decoder_projections = nn.ModuleDict(
             {
-                name: LinearProjection(config=decoder_config)  # type: ignore[arg-type]
+                name: ReadoutLayer(
+                    decoder_config=decoder_config,
+                    hidden_dim=self.hidden_dim,
+                    condition_dim=config.transformer_block_config.condition_dim,
+                )  # type: ignore[arg-type]
                 for name, decoder_config in config.domain_decoder_configs.items()  # type: ignore[attr-defined]
             }
+        )
+
+        if config.data_specs.conditioning_dims is not None:
+            self.conditioner = VectorsConditioner(
+                config=config.conditioner_config,  # type: ignore[arg-type]
+            )
+
+        geom_dims = config.geometry_conditioning_dims
+        if geom_dims is not None and geom_dims != config.data_specs.conditioning_dims:
+            self.geometry_conditioner = VectorsConditioner(
+                config=config.geometry_conditioner_config,  # type: ignore[arg-type]
+            )
+
+        self._geometry_inherits_conditioning: bool = (
+            geom_dims is not None
+            and config.data_specs.conditioning_dims is not None
+            and geom_dims == config.data_specs.conditioning_dims
         )
 
     def _slice_predictions(
@@ -188,17 +241,6 @@ class AnchoredBranchedUPT(nn.Module):
                 results[f"{domain_name}_{field}"] = preds[:, :num_anchors, slc]
                 results[f"query_{domain_name}_{field}"] = preds[:, num_anchors:, slc]
         return results
-
-    def _prepare_condition(
-        self,
-        conditioning_inputs: dict[str, torch.Tensor] | None,
-    ) -> torch.Tensor | None:
-        """Prepare the condition tensor by concatenating all conditioning inputs."""
-        if not conditioning_inputs:
-            return None
-
-        parts = [v.squeeze(1) if v.ndim == 3 and v.shape[1] == 1 else v for v in conditioning_inputs.values()]
-        return torch.cat(parts, dim=-1) if len(parts) > 1 else parts[0]
 
     def _create_token_specs(
         self,
@@ -444,7 +486,7 @@ class AnchoredBranchedUPT(nn.Module):
             if block_cache is not None:
                 new_cache.append(block_cache)
 
-        return self.domain_decoder_projections[domain_name](x), new_cache
+        return self.domain_decoder_projections[domain_name](x, condition=condition), new_cache
 
     def decoder_blocks_forward(
         self,
@@ -544,6 +586,7 @@ class AnchoredBranchedUPT(nn.Module):
         domain_anchor_features: dict[str, Tensor] | None = None,
         domain_query_features: dict[str, Tensor] | None = None,
         conditioning_inputs: dict[str, Tensor] | None = None,
+        geometry_conditioning_inputs: dict[str, Tensor] | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
     ) -> tuple[dict[str, Tensor], ModelKVCache]:
@@ -557,6 +600,8 @@ class AnchoredBranchedUPT(nn.Module):
                 geometry_batch_idx=...,
                 domain_anchor_positions={"surface": surface_pos, "volume": volume_pos},
                 domain_query_positions={"surface": query_pos},
+                domain_anchor_features={"surface": surface_features, "volume": volume_features},
+                domain_query_features={"surface": query_features},
                 conditioning_inputs={"geometry_design_parameters": design_params},
             )
 
@@ -568,7 +613,15 @@ class AnchoredBranchedUPT(nn.Module):
             domain_query_positions: Per-domain query positions (optional).
             domain_anchor_features: Per-domain anchor input features (optional), matching the shape of ``domain_anchor_positions``.
             domain_query_features: Per-domain query input features (optional), matching the shape of ``domain_query_positions``.
-            conditioning_inputs: Conditioning tensors, e.g. ``{"geometry_design_parameters": (B, D)}``.
+            conditioning_inputs: Conditioning tensors for physics + decoder blocks,
+                e.g. ``{"geometry_design_parameters": (B, D)}``.
+            geometry_conditioning_inputs: Conditioning tensors for the geometry
+                branch. When ``None`` and ``conditioning_inputs`` is set, the
+                geometry branch automatically reuses ``conditioning_inputs``
+                if the configured ``geometry_conditioning_dims`` matches
+                ``data_specs.conditioning_dims`` (the common case). Pass an
+                explicit dict to feed a different conditioning to geometry,
+                or leave it ``None`` when the geometry branch is unconditioned.
             kv_cache: KV cache from a previous forward call.
 
         Returns:
@@ -599,7 +652,15 @@ class AnchoredBranchedUPT(nn.Module):
                 )
                 assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
 
-        condition = self._prepare_condition(conditioning_inputs)
+        condition = None
+        if conditioning_inputs is not None:
+            condition = self.conditioner(**conditioning_inputs)
+
+        geometry_condition = None
+        if geometry_conditioning_inputs is not None:
+            geometry_condition = self.geometry_conditioner(**geometry_conditioning_inputs)
+        elif self._geometry_inherits_conditioning:
+            geometry_condition = condition
 
         # Create token specifications
         physics_token_specs, per_domain_token_specs = self._create_all_token_specs(
@@ -635,11 +696,10 @@ class AnchoredBranchedUPT(nn.Module):
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
                 geometry_batch_idx=geometry_batch_idx,
-                condition=condition,
+                condition=geometry_condition,
                 geometry_attn_kwargs=geometry_attn_kwargs,
             )
 
-        # Physics blocks
         x_physics, new_physics_cache = self.physics_blocks_forward(
             x_physics=x_physics,
             geometry_encoding=geometry_encoding,

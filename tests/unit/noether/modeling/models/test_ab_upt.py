@@ -53,6 +53,17 @@ class FakeGenericModule(nn.Module):
         return x
 
 
+class LinearReadout(nn.Module):
+    """Minimal stand-in for ``ReadoutLayer`` — projects to ``out_features`` and ignores ``condition``."""
+
+    def __init__(self, in_features: int, out_features: int):
+        super().__init__()
+        self.linear = nn.Linear(in_features, out_features)
+
+    def forward(self, x, condition=None):
+        return self.linear(x)
+
+
 @pytest.fixture
 def real_config():
     data_specs = ModelDataSpecs(
@@ -119,10 +130,10 @@ def model(real_config):
         model = AnchoredBranchedUPT(config=real_config)
 
         # Manually set decoders to real Linear layers for correct output shapes:
-        model.domain_decoder_projections["surface"] = nn.Linear(
+        model.domain_decoder_projections["surface"] = LinearReadout(
             64, real_config.data_specs.domains["surface"].output_dims.total_dim
         )
-        model.domain_decoder_projections["volume"] = nn.Linear(
+        model.domain_decoder_projections["volume"] = LinearReadout(
             64, real_config.data_specs.domains["volume"].output_dims.total_dim
         )
 
@@ -177,7 +188,7 @@ def three_domain_model(three_domain_config):
     ):
         model = AnchoredBranchedUPT(config=three_domain_config)
         for name in model.domain_names:
-            model.domain_decoder_projections[name] = nn.Linear(
+            model.domain_decoder_projections[name] = LinearReadout(
                 64, three_domain_config.data_specs.domains[name].output_dims.total_dim
             )
         yield model
@@ -188,16 +199,6 @@ class TestAnchoredBranchedUPT:
         assert isinstance(model, AnchoredBranchedUPT)
         assert model.use_geometry_branch is True
         assert len(model.physics_blocks) == 2
-
-    def test_prepare_condition(self, model):
-        assert model._prepare_condition(None) is None
-        assert model._prepare_condition({}) is None
-
-        res = model._prepare_condition({"geometry": torch.randn(2, 1, 2)})
-        assert res.shape == (2, 2)
-
-        res = model._prepare_condition({"geometry": torch.randn(2, 1, 2), "inflow": torch.randn(2, 5)})
-        assert res.shape == (2, 7)
 
     def test_create_all_token_specs(self, model):
         batch_size = 1
@@ -456,10 +457,10 @@ def untied_model(untied_config):
         patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
     ):
         model = AnchoredBranchedUPT(config=untied_config)
-        model.domain_decoder_projections["surface"] = nn.Linear(
+        model.domain_decoder_projections["surface"] = LinearReadout(
             64, untied_config.data_specs.domains["surface"].output_dims.total_dim
         )
-        model.domain_decoder_projections["volume"] = nn.Linear(
+        model.domain_decoder_projections["volume"] = LinearReadout(
             64, untied_config.data_specs.domains["volume"].output_dims.total_dim
         )
         yield model
@@ -513,7 +514,7 @@ def untied_mixed_model(untied_mixed_config):
     ):
         model = AnchoredBranchedUPT(config=untied_mixed_config)
         for name in model.domain_names:
-            model.domain_decoder_projections[name] = nn.Linear(
+            model.domain_decoder_projections[name] = LinearReadout(
                 32, untied_mixed_config.data_specs.domains[name].output_dims.total_dim
             )
         yield model

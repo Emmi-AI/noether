@@ -80,5 +80,5 @@ class Hyperparameters:
         Returns:
             None
         """
-        yaml_str = yaml.dump(stage_hyperparameters.model_dump()).rstrip("\n")
+        yaml_str = yaml.dump(stage_hyperparameters.model_dump(exclude_computed_fields=True)).rstrip("\n")
         _logger.debug(yaml_str)

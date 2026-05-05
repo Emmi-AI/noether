@@ -262,7 +262,7 @@ class HydraRunner:
         tracker.init(
             accelerator=str(config.accelerator),
             run_name=run_name,
-            stage_hp=config.model_dump(),
+            stage_hp=config.model_dump(exclude_computed_fields=True),
             stage_name=config.stage_name,
             run_id=run_id,
             output_uri=path_provider.run_output_path.as_posix(),

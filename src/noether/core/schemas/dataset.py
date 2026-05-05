@@ -213,6 +213,9 @@ class FieldDimSpec(RootModel[OrderedDict[str, int]]):
     def items(self):
         return self.root.items()
 
+    def __len__(self):
+        return len(self.root)
+
 
 class DomainDataSpec(BaseModel):
     """Data specification for a single domain (e.g., surface, volume, wake)."""

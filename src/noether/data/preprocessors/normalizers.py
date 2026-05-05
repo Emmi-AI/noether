@@ -109,7 +109,9 @@ class MeanStdNormalization(ShiftAndScaleNormalizer):
 
 
 class PositionNormalizer(ShiftAndScaleNormalizer):
-    """Normalizes position data to a range of [0, scale]. It inherits from ShiftAndScaleNormalizer and applies a shift and scale based on the provided raw position min and max values."""
+    """Normalizes position data to a range of [0, scale], or [-scale, scale] when ``zero_center`` is True. It inherits from ShiftAndScaleNormalizer and applies a shift and scale based on the provided raw position min and max values."""
+
+    EPSILON = 1e-6  # Small value to check bounds with some tolerance
 
     def __init__(
         self,
@@ -119,7 +121,7 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
         """
 
         Args:
-            normalizer_config: Configuration containing raw position min, max, and scale values. See :class:`~noether.core.schemas.normalizers.PositionNormalizerConfig` for details.
+            normalizer_config: Configuration containing raw position min, max, scale, and zero_center values. See :class:`~noether.core.schemas.normalizers.PositionNormalizerConfig` for details.
             **kwargs: Additional arguments passed to the parent class.
 
         Raises:
@@ -130,14 +132,20 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
 
         self.raw_pos_min = normalizer_config.raw_pos_min
         self.raw_pos_max = normalizer_config.raw_pos_max
+        self.zero_center = normalizer_config.zero_center
         # Do not remove this. The scale variable is not the same as we pass to the ShiftAndScaleNormalizer.
-        # It is used to scale the coordinates to a range of [0, scale]. However, we need to recompute the scale based on the raw position min and max values.
+        # It is used to scale the coordinates to a range of [0, scale] (or [-scale, scale] if zero_center is True).
+        # However, we need to recompute the scale based on the raw position min and max values.
         scale = to_tensor(normalizer_config.scale)
 
         self.resizing_scale = scale  # this is a reference to the input scale, not the computed scale
 
-        scale = scale / (self.raw_pos_max - self.raw_pos_min)
-        shift = -self.raw_pos_min
+        if self.zero_center:
+            shift = -(self.raw_pos_max + self.raw_pos_min) / 2
+            scale = 2 * scale / (self.raw_pos_max - self.raw_pos_min)
+        else:
+            shift = -self.raw_pos_min
+            scale = scale / (self.raw_pos_max - self.raw_pos_min)
 
         super().__init__(
             normalizer_config=ShiftAndScaleNormalizerConfig(
@@ -157,8 +165,11 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
         if not isinstance(x, torch.Tensor):
             raise TypeError("Input must be a torch.Tensor.")
         output = super().__call__(x)  # type: ignore[return-value]
-        if torch.any(output < 0) or torch.any(output > self.resizing_scale.to(x.device)):
-            raise ValueError("Normalized positions are out of bounds [0, scale].")
+        upper = self.resizing_scale.to(x.device)
+        lower = -upper if self.zero_center else torch.zeros_like(upper)
+        if torch.any(output < lower - self.EPSILON) or torch.any(output > upper + self.EPSILON):
+            bounds = "[-scale, scale]" if self.zero_center else "[0, scale]"
+            raise ValueError(f"Normalized values are out of bounds {bounds}.")
 
         return output
 
@@ -209,7 +220,7 @@ class FieldNormalizer(PreProcessor):
                 ),
                 normalization_key=self.normalization_key,
             )
-        elif normalizer_config.strategy == "position":
+        elif normalizer_config.strategy == "position" or normalizer_config.strategy == "min_max":
             min_key = stat_keys.get("min", f"{self.normalization_key}_min")
             max_key = stat_keys.get("max", f"{self.normalization_key}_max")
             if min_key not in statistics:
@@ -225,6 +236,7 @@ class FieldNormalizer(PreProcessor):
                     raw_pos_min=statistics[min_key],
                     raw_pos_max=statistics[max_key],
                     scale=normalizer_config.scale,
+                    zero_center=normalizer_config.zero_center,
                 ),
                 normalization_key=self.normalization_key,
             )
