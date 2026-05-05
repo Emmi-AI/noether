@@ -28,8 +28,18 @@ from noether.modeling.modules.mlp import MLP
 
 
 class AnchoredBranchedUPT(nn.Module):
-    """
-    Implementation of the Anchored Branched UPT model. Including input embedding and output projection, so this is an off-the-shelf model that can be used directly by providing the appropriate input tensors.
+    """Implementation of the Anchored Branched UPT (AB-UPT) model.
+
+    This is an off-the-shelf model — it includes input embedding and output projection,
+    so it can be used directly by providing the appropriate input tensors. See
+    :meth:`forward` for the expected inputs.
+
+    The architecture is fully driven by
+    :class:`~noether.core.schemas.models.AnchorBranchedUPTConfig`: the geometry encoder
+    depth, the ordering and type of physics blocks, and the per-domain decoder depths
+    are all configured there. For a walkthrough of how to assemble a config (and
+    concrete YAML examples from the ``aero_cfd`` and ``heat_transfer`` recipes), see
+    :doc:`/guides/training/configuring_ab_upt`.
     """
 
     def __init__(
@@ -114,8 +124,7 @@ class AnchoredBranchedUPT(nn.Module):
 
         # per-domain decoder blocks (separate weights per domain)
         self.domain_decoder_blocks = nn.ModuleDict()
-        for name in self.domain_names:
-            num_blocks = config.num_domain_decoder_blocks[name]
+        for name, num_blocks in config.num_domain_decoder_blocks.items():
             decoder_block_config = copy.deepcopy(config.transformer_block_config)
             decoder_block_config.attention_constructor = SelfAnchorAttention  # type: ignore[assignment]
             decoder_block_config.attention_arguments = {"branches": (name,)}
@@ -323,15 +332,19 @@ class AnchoredBranchedUPT(nn.Module):
         Returns:
             Tuple of (predictions, new_cache). Predictions is None if x has no tokens.
         """
-        decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks[domain_name])
+        new_cache: list[LayerCache] = []
+
+        if x.size(1) == 0:
+            return None, new_cache
+
+        if domain_name not in self.domain_decoder_blocks:
+            decoder_blocks = nn.ModuleList()
+        else:
+            decoder_blocks = cast("nn.ModuleList", self.domain_decoder_blocks[domain_name])
         if cache is not None:
             assert len(cache) in (0, len(decoder_blocks)), (
                 f"{domain_name} cache length ({len(cache)}) must match number of decoder blocks ({len(decoder_blocks)})"
             )
-
-        new_cache: list[LayerCache] = []
-        if x.size(1) == 0:
-            return None, new_cache
 
         for i, block in enumerate(decoder_blocks):
             x, block_cache = block(

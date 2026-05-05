@@ -22,6 +22,8 @@ class WandBTrackerSchema(BaseTrackerConfig):
     """The project name for the W&B project."""
     mode: Literal["disabled", "online", "offline"] | None = Field(default="online")
     """Tracking mode. Can be 'disabled', 'online', or 'offline'."""
+    tags: list[str] | None = Field(None)
+    """Optional tags for the W&B run."""
 
 
 class TrackioTrackerSchema(BaseTrackerConfig):

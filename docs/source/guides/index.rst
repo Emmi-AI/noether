@@ -24,7 +24,9 @@ Customizing Training
 * :doc:`training/implement_a_custom_model`: Defining new model architectures and layers.
 * :doc:`training/implement_a_custom_trainer`: Tailoring the training loop for specific research or production needs.
 * :doc:`training/use_callbacks`: Extending the framework with custom training callbacks.
+* :doc:`training/distributed_training`: Running data-parallel training on multiple GPUs and nodes, managed (SLURM) or unmanaged.
 * :doc:`training/development_cli`: How to develop individual components using Noether's CLI tools.
+* :doc:`training/configuring_ab_upt`: Composing physics blocks and per-domain decoders for AB-UPT.
 
 Inference & Evaluation
 ----------------------
@@ -49,6 +51,8 @@ Inference & Evaluation
    training/experiment_tracking
    training/launch_job
    training/how_to_initialize
+   training/distributed_training
    training/development_cli
+   training/configuring_ab_upt
 
    inference/how_to_run_evaluation_on_trained_models

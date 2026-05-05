@@ -50,6 +50,7 @@ class WandBTracker(BaseTracker):
         self.mode = tracker_config.mode
         self.entity = tracker_config.entity
         self.project = tracker_config.project
+        self.tags = tracker_config.tags
 
     def _init(self, config: dict, output_uri: str, run_id: str):
         self.logger.info("------------------")
@@ -73,7 +74,7 @@ class WandBTracker(BaseTracker):
                 config=config,
                 mode=self.mode,
                 id=run_id,
-                tags=["new"],
+                tags=self.tags or [],
             )
 
     def _log(self, data: dict):
