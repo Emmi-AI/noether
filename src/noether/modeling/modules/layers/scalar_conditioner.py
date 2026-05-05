@@ -82,7 +82,7 @@ class ScalarsConditioner(nn.Module):
                     hidden_dim=64,
                     num_scalars=2,
                     condition_dim=128,
-                    init_weights="gaussian",
+                    init_weights="truncnormal002",
                 )
             )
             geometry_angle = torch.tensor([75.3, 80.1])  # shape (batch_size,)

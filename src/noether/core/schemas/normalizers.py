@@ -65,7 +65,9 @@ class PositionNormalizerConfig(NormalizerConfig):
     raw_pos_max: TorchTensor
     """Maximum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
     scale: float = Field(default=1000.0, gt=0.0)
-    """Scaling factor, the coordinates will be scaled linearly between [0, scale]. Defaults to 1000."""
+    """Scaling factor, the coordinates will be scaled linearly between [0, scale] (or [-scale, scale] if ``zero_center`` is True). Defaults to 1000."""
+    zero_center: bool = False
+    """If True, coordinates are scaled to [-scale, scale] instead of [0, scale]."""
 
     @model_validator(mode="after")
     def check_min_max(self) -> Self:
@@ -118,21 +120,23 @@ class FieldNormalizerConfig(NormalizerConfig):
     For ``"mean_std"`` normalization, the builder looks up ``{field}_mean`` and
     ``{field}_std`` in the dataset statistics (customizable via ``stat_keys``).
 
-    For ``"position"`` normalization, the builder looks up ``raw_pos_min`` and
-    ``raw_pos_max`` (customizable via ``stat_keys``).
+    For ``"min_max"`` normalization, the builder looks up ``{field}_min`` and
+    ``{field}_max`` (customizable via ``stat_keys``).
     """
 
     kind: str | None = "noether.data.preprocessors.normalizers.FieldNormalizer"
 
-    strategy: Literal["mean_std", "position"] = "mean_std"  # type: ignore[assignment]
-    """Normalization strategy. ``"mean_std"`` for mean/std normalization, ``"position"`` for position normalization."""
+    strategy: Literal["mean_std", "position", "min_max"] = "mean_std"  # type: ignore[assignment]
+    """Normalization strategy. ``"mean_std"`` for mean/std normalization, ``"min_max"`` for min/max normalization.``"position"`` is an alias for min_max, """
     logscale: bool = False
     """If true, the input data is converted to log scale before normalization. Only used for ``"mean_std"``."""
     stat_keys: dict[str, str] | None = None
     """Optional overrides for statistic key lookup. For ``"mean_std"``: ``{"mean": "custom_mean_key", "std": "custom_std_key"}``.
-    For ``"position"``: ``{"min": "custom_min_key", "max": "custom_max_key"}``."""
+    For ``"min_max/position"``: ``{"min": "custom_min_key", "max": "custom_max_key"}``."""
     scale: float = Field(default=1000.0, gt=0.0)
     """Scaling factor for position normalization. Coordinates are scaled to [0, scale]. Only used for ``"position"``."""
+    zero_center: bool = False
+    """If True, position normalization is zero-centered (scaled to [-scale, scale]) instead of [0, scale]. Only used for ``"position"``."""
 
 
 AnyNormalizer = Union[
