@@ -23,7 +23,6 @@ forward_properties:
   - surface_position_batch_idx
   - surface_position_supernode_idx
   - surface_position
-  - surface_features
   - surface_query_position
   - surface_query_features
   - volume_query_position

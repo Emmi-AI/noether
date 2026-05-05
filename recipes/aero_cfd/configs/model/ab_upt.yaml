@@ -30,4 +30,7 @@ forward_properties:
   - geometry_batch_idx
   - surface_anchor_position
   - volume_anchor_position
+  # Following properties are only used if `use_physics_features` is true
+  - surface_anchor_features
+  - volume_anchor_features
 data_specs: ${data_specs}

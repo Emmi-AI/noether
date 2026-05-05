@@ -314,8 +314,8 @@ class AeroUPT(Model):
         surface_position: torch.Tensor,
         surface_query_position: torch.Tensor,
         volume_query_position: torch.Tensor,
-        surface_features: torch.Tensor | None = None,
-        volume_features: torch.Tensor | None = None,
+        surface_query_features: torch.Tensor | None = None,
+        volume_query_features: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         num_surface = surface_query_position.shape[1]
         query_position = torch.cat([surface_query_position, volume_query_position], dim=1)
@@ -344,10 +344,10 @@ class AeroUPT(Model):
 
         if self.use_physics_features:
             parts: list[torch.Tensor] = []
-            if surface_features is not None and hasattr(self, "project_surface_features"):
-                parts.append(self.project_surface_features(surface_features))
-            if volume_features is not None and hasattr(self, "project_volume_features"):
-                parts.append(self.project_volume_features(volume_features))
+            if surface_query_features is not None and hasattr(self, "project_surface_features"):
+                parts.append(self.project_surface_features(surface_query_features))
+            if volume_query_features is not None and hasattr(self, "project_volume_features"):
+                parts.append(self.project_volume_features(volume_query_features))
             if parts:
                 queries = queries + torch.cat(parts, dim=1)
 
@@ -380,12 +380,18 @@ class AeroABUPT(Model):
         domain_anchor_positions: dict[str, torch.Tensor] = {}
         domain_query_positions: dict[str, torch.Tensor] = {}
         conditioning_inputs: dict[str, torch.Tensor] = {}
+        domain_anchor_features: dict[str, torch.Tensor] = {}
+        domain_query_features: dict[str, torch.Tensor] = {}
 
         for name in self._domain_names:
             if f"{name}_anchor_position" in kwargs:
                 domain_anchor_positions[name] = kwargs[f"{name}_anchor_position"]
             if f"query_{name}_position" in kwargs:
                 domain_query_positions[name] = kwargs[f"query_{name}_position"]
+            if f"{name}_anchor_features" in kwargs:
+                domain_anchor_features[name] = kwargs[f"{name}_anchor_features"]
+            if f"{name}_query_features" in kwargs:
+                domain_query_features[name] = kwargs[f"{name}_query_features"]
 
         for key in self._conditioning_keys:
             if key in kwargs:
@@ -398,5 +404,7 @@ class AeroABUPT(Model):
             domain_anchor_positions=domain_anchor_positions or None,
             domain_query_positions=domain_query_positions or None,
             conditioning_inputs=conditioning_inputs or None,
+            domain_anchor_features=domain_anchor_features or None,
+            domain_query_features=domain_query_features or None,
         )
         return predictions  # type: ignore[no-any-return]

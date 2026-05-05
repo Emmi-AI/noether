@@ -16,6 +16,7 @@ ModelKVCache = dict[str, list[LayerCache]]  # {branch_name: [LayerCache, ...]}
 
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 from noether.core.schemas.modules.attention import TokenSpec
+from noether.core.schemas.modules.mlp import MLPConfig
 from noether.modeling.modules.attention.anchor_attention import (
     CrossAnchorAttention,
     JointAnchorAttention,
@@ -120,6 +121,27 @@ class AnchoredBranchedUPT(nn.Module):
             self.encoder = SupernodePooling(config=config.supernode_pooling_config)  # type: ignore[arg-type]
             self.geometry_blocks = nn.ModuleList(
                 [TransformerBlock(config=config.transformer_block_config) for _ in range(config.geometry_depth)],
+            )
+
+        # Per-domain physics-feature projections (e.g. noisy fields for diffusion).
+        # Driven by ``data_specs.domains[name].feature_dim``: when a domain
+        # declares input feature dims, the backbone builds an MLP that projects
+        # ``domain_anchor_features[name]`` and/or ``domain_query_features[name]``
+        # to ``hidden_dim`` and adds them to the corresponding position
+        # embeddings inside ``physics_blocks_forward``. Sides without features
+        # are zero-padded.
+        self.domain_feature_projs: nn.ModuleDict | None = None
+        for name, spec in config.data_specs.domains.items():
+            if spec.feature_dim is None or spec.feature_dim.total_dim == 0:
+                continue
+            if self.domain_feature_projs is None:
+                self.domain_feature_projs = nn.ModuleDict()
+            self.domain_feature_projs[name] = MLP(
+                config=MLPConfig(
+                    input_dim=spec.feature_dim.total_dim,
+                    hidden_dim=self.hidden_dim,
+                    output_dim=self.hidden_dim,
+                ),
             )
 
         # per-domain decoder blocks (separate weights per domain)
@@ -254,9 +276,90 @@ class AnchoredBranchedUPT(nn.Module):
             )
         return geometry_encoding
 
+    def _build_domain_segment(
+        self,
+        name: str,
+        anchor_position: torch.Tensor | None,
+        query_position: torch.Tensor | None,
+        anchor_feature: torch.Tensor | None,
+        query_feature: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Build the physics-block input segment and combined positions for a single domain.
+
+        Concatenates ``[anchor | query]`` along the token dim. Each segment is
+        ``bias(pos_embed(pos)) + (proj(features) or 0)``; the returned position
+        is the concatenation of anchor and query positions in token order.
+        """
+        if anchor_position is None and query_position is None:
+            raise ValueError(f"domain {name!r} has neither anchor nor query positions")
+
+        proj: torch.nn.Module | None = (
+            self.domain_feature_projs[name] if self.domain_feature_projs and name in self.domain_feature_projs else None
+        )
+
+        def _segment(pos: torch.Tensor, feat: torch.Tensor | None) -> torch.Tensor:
+            if pos.ndim != 3:
+                raise ValueError(f"Position tensor for domain '{name}' must be 3-dimensional, got {pos.ndim}.")
+            seg: torch.Tensor = self.domain_biases[name](self.pos_embed(pos))
+            if proj is not None and feat is not None:
+                seg = seg + proj(feat)
+            return seg
+
+        seg_parts: list[torch.Tensor] = []
+        pos_parts: list[torch.Tensor] = []
+        if anchor_position is not None:
+            seg_parts.append(_segment(anchor_position, anchor_feature))
+            pos_parts.append(anchor_position)
+        if query_position is not None:
+            seg_parts.append(_segment(query_position, query_feature))
+            pos_parts.append(query_position)
+
+        segment = torch.cat(seg_parts, dim=1) if len(seg_parts) > 1 else seg_parts[0]
+        position = torch.cat(pos_parts, dim=1) if len(pos_parts) > 1 else pos_parts[0]
+        return segment, position
+
+    def build_physics_input(
+        self,
+        domain_anchor_positions: dict[str, torch.Tensor] | None = None,
+        domain_query_positions: dict[str, torch.Tensor] | None = None,
+        domain_anchor_features: dict[str, torch.Tensor] | None = None,
+        domain_query_features: dict[str, torch.Tensor] | None = None,
+    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+        """Build the physics-block input tensor and combined per-domain positions.
+
+        Each per-domain segment is ``[anchors | queries]`` with positional
+        biases plus projected features (when ``data_specs.domains[name].feature_dim``
+        was set on the config). Domains are concatenated in ``self.domain_names``
+        order.
+
+        Returns:
+            Tuple of (x_physics, physics_positions). ``x_physics`` has shape
+            ``(B, total_tokens, hidden_dim)``. ``physics_positions`` maps each
+            domain name to its concatenated ``[anchors | queries]`` positions
+            and can be passed directly to :meth:`create_rope_frequencies`.
+        """
+        domain_anchor_positions = domain_anchor_positions or {}
+        domain_query_positions = domain_query_positions or {}
+        domain_anchor_features = domain_anchor_features or {}
+        domain_query_features = domain_query_features or {}
+
+        segments: list[torch.Tensor] = []
+        physics_positions: dict[str, torch.Tensor] = {}
+        for name in self.domain_names:
+            segment, position = self._build_domain_segment(
+                name,
+                anchor_position=domain_anchor_positions.get(name),
+                query_position=domain_query_positions.get(name),
+                anchor_feature=domain_anchor_features.get(name),
+                query_feature=domain_query_features.get(name),
+            )
+            segments.append(segment)
+            physics_positions[name] = position
+        return torch.cat(segments, dim=1), physics_positions
+
     def physics_blocks_forward(
         self,
-        domain_positions_all: dict[str, torch.Tensor],
+        x_physics: torch.Tensor,
         geometry_encoding: torch.Tensor | None,
         physics_token_specs: list[TokenSpec],
         physics_attn_kwargs: dict[str, Any],
@@ -264,26 +367,12 @@ class AnchoredBranchedUPT(nn.Module):
         condition: torch.Tensor | None,
         kv_cache: ModelKVCache | None = None,
     ) -> tuple[torch.Tensor, list[LayerCache]]:
-        """Forward pass through the physics blocks of the model."""
+        """Run the physics-block stack on a pre-built input tensor."""
         physics_cache = kv_cache.get("physics", []) if kv_cache else []
         assert len(physics_cache) in (0, len(self.physics_blocks)), (
             f"physics_cache length ({len(physics_cache)}) must match number of physics blocks ({len(self.physics_blocks)})"
         )
 
-        # Per-domain position embedding + bias, then concatenate in domain order
-        # Preallocate tensor for per-domain position embedding + bias, then fill in domain order
-        batch_size = next(iter(domain_positions_all.values())).size(0)
-        total_tokens = sum(domain_positions_all[name].size(1) for name in self.domain_names)
-        x_physics = torch.empty(batch_size, total_tokens, self.hidden_dim, device=next(self.parameters()).device)
-        start = 0
-        for name in self.domain_names:
-            pos = domain_positions_all[name]
-            if pos.ndim != 3:
-                raise ValueError(f"Position tensor for domain '{name}' must be 3-dimensional, got {pos.ndim}.")
-            emb = self.domain_biases[name](self.pos_embed(pos))
-            end = start + emb.size(1)
-            x_physics[:, start:end, :] = emb
-            start = end
         new_physics_cache: list[LayerCache] = []
         for i, block in enumerate(self.physics_blocks):
             if isinstance(block, TransformerBlock | UntiedTransformerBlock):
@@ -365,7 +454,6 @@ class AnchoredBranchedUPT(nn.Module):
         decoder_attn_kwargs: dict[str, dict[str, Any]],
         condition: torch.Tensor | None,
         kv_cache: ModelKVCache | None = None,
-        domain_positions_all: dict[str, torch.Tensor] | None = None,
     ) -> tuple[dict[str, Tensor], dict[str, list[LayerCache]]]:
         """Forward pass through the per-domain decoder blocks.
 
@@ -380,10 +468,10 @@ class AnchoredBranchedUPT(nn.Module):
         for name in self.domain_names:
             x_domain = domain_tensors[name]
 
-            # Validate sizes
-            if domain_positions_all is not None and name in domain_positions_all:
-                assert x_domain.size(1) == domain_positions_all[name].size(1), (
-                    f"{name} tensor size does not match {name} position size."
+            expected_size = sum(spec.size for spec in per_domain_token_specs[name] if spec.size is not None)
+            if x_domain.size(1) != expected_size:
+                raise ValueError(
+                    f"{name} tensor size ({x_domain.size(1)}) does not match expected size ({expected_size})."
                 )
 
             preds, new_cache = self._decode_domain(
@@ -402,17 +490,23 @@ class AnchoredBranchedUPT(nn.Module):
 
     def create_rope_frequencies(
         self,
-        domain_positions_all: dict[str, torch.Tensor],
+        physics_positions: dict[str, torch.Tensor],
         geometry_position: torch.Tensor | None = None,
         geometry_supernode_idx: torch.Tensor | None = None,
     ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
         """Create RoPE frequencies for all relevant positions.
 
+        Args:
+            physics_positions: Per-domain combined ``[anchors | queries]``
+                positions, as returned by :meth:`build_physics_input`.
+            geometry_position: Geometry mesh coordinates (optional).
+            geometry_supernode_idx: Geometry supernode indices (optional).
+
         Returns:
             Tuple of (geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs).
             decoder_attn_kwargs is keyed by domain name.
         """
-        first_pos = next(iter(domain_positions_all.values()))
+        first_pos = next(iter(physics_positions.values()))
         batch_size = first_pos.size(0)
 
         geometry_attn_kwargs: dict[str, Any] = {}
@@ -427,7 +521,7 @@ class AnchoredBranchedUPT(nn.Module):
             physics_perceiver_attn_kwargs["k_freqs"] = geometry_rope
 
         # Per-domain rope + concatenated physics rope
-        domain_rope = {name: self.rope(domain_positions_all[name]) for name in self.domain_names}
+        domain_rope = {name: self.rope(physics_positions[name]) for name in self.domain_names}
         rope_all = torch.cat([domain_rope[name] for name in self.domain_names], dim=1)
 
         physics_perceiver_attn_kwargs["q_freqs"] = rope_all
@@ -446,7 +540,9 @@ class AnchoredBranchedUPT(nn.Module):
         # domain positions
         domain_anchor_positions: dict[str, Tensor] | None = None,
         domain_query_positions: dict[str, Tensor] | None = None,
-        domain_features: dict[str, Tensor] | None = None,
+        # domain features (per-token inputs in addition to positions)
+        domain_anchor_features: dict[str, Tensor] | None = None,
+        domain_query_features: dict[str, Tensor] | None = None,
         conditioning_inputs: dict[str, Tensor] | None = None,
         # KV cache
         kv_cache: ModelKVCache | None = None,
@@ -470,6 +566,8 @@ class AnchoredBranchedUPT(nn.Module):
             geometry_batch_idx: Batch indices for the geometry points.
             domain_anchor_positions: Per-domain anchor positions, e.g. ``{"surface": (B, N, D), "volume": (B, M, D)}``.
             domain_query_positions: Per-domain query positions (optional).
+            domain_anchor_features: Per-domain anchor input features (optional), matching the shape of ``domain_anchor_positions``.
+            domain_query_features: Per-domain query input features (optional), matching the shape of ``domain_query_positions``.
             conditioning_inputs: Conditioning tensors, e.g. ``{"geometry_design_parameters": (B, D)}``.
             kv_cache: KV cache from a previous forward call.
 
@@ -510,30 +608,18 @@ class AnchoredBranchedUPT(nn.Module):
             use_cached_kv=use_cached_kv,
         )
 
-        # Combine anchor + query positions per domain (or just queries when using cached KV)
-        domain_positions_all: dict[str, torch.Tensor] = {}
-        for name in self.domain_names:
-            anchor = domain_anchor_positions.get(name)
-            query = domain_query_positions.get(name)
-            if anchor is not None and query is not None:
-                domain_positions_all[name] = torch.cat([anchor, query], dim=1)
-            elif anchor is not None:
-                domain_positions_all[name] = anchor
-            elif query is not None:
-                domain_positions_all[name] = query
-            else:
-                # Empty placeholder — infer shape from any available tensor
-                ref = (
-                    next(iter(domain_anchor_positions.values()))
-                    if domain_anchor_positions
-                    else next(iter(domain_query_positions.values()))
-                )
-                domain_positions_all[name] = ref[:, :0]
+        # Physics blocks: build the per-domain input tensor, then run the block stack.
+        x_physics, physics_positions = self.build_physics_input(
+            domain_anchor_positions=domain_anchor_positions,
+            domain_query_positions=domain_query_positions,
+            domain_anchor_features=domain_anchor_features,
+            domain_query_features=domain_query_features,
+        )
 
         # RoPE frequencies
         geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs = (
             self.create_rope_frequencies(
-                domain_positions_all=domain_positions_all,
+                physics_positions=physics_positions,
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
             )
@@ -555,7 +641,7 @@ class AnchoredBranchedUPT(nn.Module):
 
         # Physics blocks
         x_physics, new_physics_cache = self.physics_blocks_forward(
-            domain_positions_all=domain_positions_all,
+            x_physics=x_physics,
             geometry_encoding=geometry_encoding,
             physics_token_specs=physics_token_specs,
             physics_attn_kwargs=physics_attn_kwargs,
@@ -572,7 +658,6 @@ class AnchoredBranchedUPT(nn.Module):
             decoder_attn_kwargs=decoder_attn_kwargs,
             condition=condition,
             kv_cache=kv_cache,
-            domain_positions_all=domain_positions_all,
         )
 
         # Slice predictions into named fields

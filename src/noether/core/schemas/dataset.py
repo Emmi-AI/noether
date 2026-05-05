@@ -236,7 +236,7 @@ class ModelDataSpecs(BaseModel):
     """Available conditioning features and their dimensions."""
     domains: dict[str, DomainDataSpec] = Field(default_factory=dict)
     """Per-domain data specifications keyed by domain name."""
-    use_physics_features: bool = False
+    use_physics_features: bool = True
     """Whether physics features are used as input."""
 
     @property
@@ -260,3 +260,10 @@ class ModelDataSpecs(BaseModel):
             if spec.feature_dim:
                 features |= set(spec.feature_dim.keys())
         return features
+
+    @model_validator(mode="after")
+    def remove_feature_fields(self):
+        if not self.use_physics_features:
+            for spec in self.domains.values():
+                spec.feature_dim = None
+        return self
