@@ -51,69 +51,48 @@ jobs:
 
       - name: Notify codeowners on failure
         if: failure()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const { owner, repo } = context.repo;
-            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
-            const title = 'Weekly integration tests are failing';
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # MENTIONS may include team handles in @org/team form.
+          ASSIGNEES: 'Ndles,MauritsBleeker,HennerM,kinggongzilla'
+          MENTIONS: '@Ndles @MauritsBleeker @HennerM @kinggongzilla'
+          TITLE: 'Weekly integration tests are failing'
+          LABEL: 'integration-test-failure'
+        run: |
+          set -euo pipefail
 
-            // Parse the wildcard owners from .github/CODEOWNERS so the list stays in one place.
-            // Match either @user or @org/team. The team form must be kept as
-            // a single token (e.g. ``myorg/platform-team``) for both notification
-            // and routing.
-            const handleRe = /@([A-Za-z0-9-]+(?:\/[A-Za-z0-9_-]+)?)/g;
-            const codeowners = fs.readFileSync('.github/CODEOWNERS', 'utf8')
-              .split('\n')
-              .map(l => l.trim())
-              .filter(l => l && !l.startsWith('#') && l.startsWith('*'))
-              .flatMap(l => Array.from(l.matchAll(handleRe), m => m[1]));
+          BODY=$(cat <<EOF
+          The weekly scheduled integration test run failed.
 
-            // Split: GitHub's issue ``assignees`` field rejects teams (and any
-            // login that isn't a collaborator with push access). Mentions in
-            // the body work for both forms.
-            const individuals = codeowners.filter(h => !h.includes('/'));
-            const teams = codeowners.filter(h => h.includes('/'));
+          **Run:** $RUN_URL
+          **Commit:** \`${{ github.sha }}\`
+          **Triggered by:** ${{ github.event_name }}
 
-            const mentions = codeowners.map(h => `@${h}`).join(' ') || '_no codeowners parsed_';
-            const body = [
-              `The weekly scheduled integration test run failed.`,
-              ``,
-              `**Run:** ${runUrl}`,
-              `**Commit:** \`${context.sha}\``,
-              `**Triggered by:** ${context.eventName}`,
-              ``,
-              `${mentions} — please investigate.`,
-              ``,
-              `<sub>This issue is auto-managed by \`.github/workflows/weekly-integration-tests.yml\`. ` +
-              `If a tracking issue with this title is already open, the workflow comments on it instead of opening a new one.</sub>`,
-            ].join('\n');
+          $MENTIONS — please investigate.
 
-            // Reuse a single tracking issue to avoid spam when failures persist for multiple weeks.
-            const existing = await github.rest.search.issuesAndPullRequests({
-              q: `repo:${owner}/${repo} is:issue is:open in:title "${title}"`,
-            });
+          <sub>Auto-managed by \`.github/workflows/weekly-integration-tests.yml\`. Subsequent failures comment on this issue rather than opening a new one.</sub>
+          EOF
+          )
 
-            if (existing.data.total_count > 0) {
-              const issue_number = existing.data.items[0].number;
-              await github.rest.issues.createComment({ owner, repo, issue_number, body });
-              core.info(`Commented on existing tracking issue #${issue_number}`);
-              return;
-            }
+          # Find an existing open tracking issue by label + exact title:
+          NUM=$(gh issue list \
+            --state open --label "$LABEL" \
+            --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" \
+            | head -n1)
 
-            // Try to open with assignees; fall back to no assignees if the API
-            // rejects the list (e.g. an individual without push access). The
-            // mentions in the body still notify everyone either way.
-            const issuePayload = { owner, repo, title, body, labels: ['integration-test-failure'] };
-            try {
-              const created = await github.rest.issues.create({
-                ...issuePayload,
-                assignees: individuals,
-              });
-              core.info(`Opened tracking issue #${created.data.number} (assignees: ${individuals.join(', ') || 'none'}; teams mentioned: ${teams.join(', ') || 'none'})`);
-            } catch (err) {
-              core.warning(`issues.create with assignees failed (${err.status} ${err.message}); retrying without assignees`);
-              const created = await github.rest.issues.create(issuePayload);
-              core.info(`Opened tracking issue #${created.data.number} without assignees`);
-            }
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body "$BODY"
+            echo "Commented on existing tracking issue #$NUM"
+          else
+            # Try with assignees; if the API rejects the list (e.g. a stale
+            # CODEOWNER without push access) fall back to no assignees so the
+            # body mentions still route notifications.
+            if ! gh issue create \
+                --title "$TITLE" --body "$BODY" \
+                --label "$LABEL" --assignee "$ASSIGNEES"; then
+              echo "::warning::issue create with assignees failed; retrying without assignees"
+              gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL"
+            fi
+          fi
