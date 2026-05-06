@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import pytest
 import torch
 
 from noether.data.stats import RunningMoments
@@ -57,3 +58,36 @@ def test_push_tensor_minibatch_3d_dim2():
         stats.push_tensor(chunk, dim=2)
     assert torch.allclose(expected_mean, stats.mean, atol=1e-5)
     assert torch.allclose(expected_std, stats.std, atol=1e-5)
+
+
+def test_merge_inplace_two_nonempty():
+    """Combined moments must equal a single-pass over the concatenated data."""
+    g = torch.Generator().manual_seed(0)
+    data_a = torch.rand(40, 3, generator=g)
+    data_b = torch.rand(60, 3, generator=g)
+    full = torch.cat([data_a, data_b], dim=0)
+
+    full_stats = RunningMoments()
+    full_stats.push_tensor(full)
+
+    a = RunningMoments()
+    a.push_tensor(data_a)
+    b = RunningMoments()
+    b.push_tensor(data_b)
+    a.merge_(b)
+
+    assert a.count == full_stats.count
+    assert torch.allclose(a.mean, full_stats.mean, atol=1e-12)
+    assert torch.allclose(a.std, full_stats.std, atol=1e-12)
+    assert torch.allclose(a._min, full_stats._min, atol=1e-12)
+    assert torch.allclose(a._max, full_stats._max, atol=1e-12)
+
+
+def test_merge_inplace_log_scale_consistent():
+    """log_scale flag must match between merger and mergee."""
+    a = RunningMoments(log_scale=False)
+    a.push_tensor(torch.rand(10, 2))
+    b = RunningMoments(log_scale=True)
+    b.push_tensor(torch.rand(10, 2))
+    with pytest.raises(ValueError, match="log_scale"):
+        a.merge_(b)
