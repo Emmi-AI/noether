@@ -2,7 +2,6 @@
 
 import os
 import sys
-from functools import partial
 
 import pytest
 import torch
