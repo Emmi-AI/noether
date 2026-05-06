@@ -21,6 +21,43 @@ from .base import ModelBaseConfig
 
 
 class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
+    """Configuration for the Anchored Branched UPT (AB-UPT) model.
+
+    AB-UPT is built from three configurable stages:
+
+    1. **Geometry encoder** (optional): a :class:`SupernodePooling` encoder followed by
+       ``geometry_depth`` standard transformer blocks. Only instantiated when at least
+       one ``perceiver`` / ``perceiver_untied`` block is present in ``physics_blocks``
+       and ``supernode_pooling_config`` is provided.
+    2. **Physics trunk**: a stack of blocks listed in ``physics_blocks`` operating on
+       per-domain anchor (and optionally query) tokens. The block string controls the
+       attention pattern and weight sharing — see ``physics_blocks`` below.
+    3. **Per-domain decoder** (optional): ``num_domain_decoder_blocks[name]``
+       self-attention blocks with **untied weights per domain**, followed by a linear
+       projection to that domain's output fields.
+
+    ``hidden_dim`` is a shared field — it is auto-injected into
+    ``transformer_block_config`` and ``supernode_pooling_config`` via
+    :class:`InjectSharedFieldFromParentMixin`, so it only needs to be set once at the top
+    level. See :doc:`/reference/config_inheritance`.
+
+    Configuration guide
+    -------------------
+
+    See :doc:`/guides/training/configuring_ab_upt` for a step-by-step walkthrough of how
+    to compose physics blocks, choose between tied and ``_untied`` variants, and wire up
+    the per-domain decoder.
+
+    Concrete examples (YAML):
+
+    - Aerodynamics (multi-domain, surface + volume):
+      `recipes/aero_cfd/configs/model/ab_upt.yaml
+      <https://github.com/Emmi-AI/noether/blob/main/recipes/aero_cfd/configs/model/ab_upt.yaml>`_
+    - Heat transfer (single-domain, volume only with parameter conditioning):
+      `recipes/heat_transfer/configs/model/ab_upt.yaml
+      <https://github.com/Emmi-AI/noether/blob/main/recipes/heat_transfer/configs/model/ab_upt.yaml>`_
+    """
+
     kind: str | None = "noether.core.schemas.models.AnchorBranchedUPTConfig"
 
     model_config = ConfigDict(extra="forbid")
@@ -61,7 +98,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
 
     Note: "shared" is a deprecated alias for "self" and will be removed in a future release."""
 
-    num_domain_decoder_blocks: dict[str, int]
+    num_domain_decoder_blocks: dict[str, int] = Field(default_factory=dict)
     """Number of final domain-specific decoder blocks with self attention and no weight sharing, e.g. {"surface": 2, "volume": 2}."""
 
     init_weights: InitWeightsMode = Field("truncnormal002")

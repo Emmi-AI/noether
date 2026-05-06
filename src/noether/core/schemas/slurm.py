@@ -6,7 +6,7 @@ import getpass
 import re
 from typing import Any
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 # SLURM patterns that require a running job and cannot be resolved at submission time.
 _UNSUPPORTED_FOLDER_PATTERNS: frozenset[str] = frozenset({"%j", "%J", "%A", "%a", "%N", "%x"})
@@ -107,6 +107,14 @@ class SlurmConfig(BaseModel):
                 f"Invalid gpus_per_node spec: '{value}'. Expected a count or 'type:count' (e.g. '2', 'a100:4')."
             )
         return value
+
+    @model_validator(mode="after")
+    def _set_tasks_per_node_if_gpus_set(self):
+        """If gpus_per_node is set but tasks_per_node isn't, set tasks_per_node = gpus_per_node."""
+        if self.gpus_per_node is not None and self.tasks_per_node is None:
+            gpus = self.gpus_per_node if isinstance(self.gpus_per_node, int) else int(self.gpus_per_node.split(":")[-1])
+            self.tasks_per_node = gpus
+        return self
 
     def to_executor_kwargs(self) -> tuple[str, dict[str, Any]]:
         """Return ``(folder, update_parameters_kwargs)`` for :class:`submitit.AutoExecutor`.

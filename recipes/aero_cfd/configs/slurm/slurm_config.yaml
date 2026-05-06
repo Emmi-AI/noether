@@ -1,11 +1,10 @@
-name: ${name}
-slurm_partition: compute
-nodes: 1
-tasks_per_node: 1
 cpus_per_task: 28
+folder: /home/%u/logs/${name}
 gpus_per_node: 1
 mem_gb: 128
-folder: /home/%u/logs/${name}
+name: ${name}
+nodes: 1
+slurm_partition: compute
 slurm_setup:
   - source .venv/bin/activate
 slurm_additional_parameters:
