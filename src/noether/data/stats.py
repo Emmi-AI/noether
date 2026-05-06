@@ -131,6 +131,70 @@ class RunningMoments(torch.nn.Module):
 
         self.push_tensor(torch.tensor([x], dtype=torch.float64, device=self._m.device), dim=1, log_scale=log_scale)
 
+    def merge_(self, other: "RunningMoments") -> None:
+        """Merge another RunningMoments into self in place (parallel Welford).
+
+        Closed-form combine: given two batches with counts ``n_a, n_b``, means
+        ``m_a, m_b``, and sum-of-squared-deviations ``s_a, s_b``::
+
+            n   = n_a + n_b
+            δ   = m_b - m_a
+            m   = m_a + δ * n_b / n
+            s   = s_a + s_b + δ² * n_a * n_b / n
+
+        Element-wise min/max combine via min/max. ``self`` and ``other`` must
+        agree on ``log_scale``; differing flags imply different data
+        transformations and cannot be combined.
+
+        Empty operands are handled cleanly: empty-merged-into-self is a no-op,
+        non-empty-merged-into-empty becomes a copy.
+
+        Args:
+            other: The RunningMoments to fold into self.
+
+        Raises:
+            ValueError: If ``log_scale`` flags differ or feature shapes mismatch.
+        """
+        if self.log_scale != other.log_scale:
+            raise ValueError(
+                f"Cannot merge RunningMoments with log_scale={self.log_scale} "
+                f"into one with log_scale={other.log_scale}"
+            )
+
+        if other._n == 0:
+            return
+        if self._n == 0:
+            # Adopt other's state. _m must be a tensor of the right shape;
+            # _s/_min/_max may be None on a freshly constructed self.
+            self._n = other._n
+            self._m = other._m.clone()
+            self._s = other._s.clone() if other._s is not None else None
+            self._min = other._min.clone() if other._min is not None else None
+            self._max = other._max.clone() if other._max is not None else None
+            return
+
+        if self._m.shape != other._m.shape:
+            raise ValueError(
+                f"Incompatible feature shapes: self._m.shape={self._m.shape}, "
+                f"other._m.shape={other._m.shape}"
+            )
+
+        n_a = self._n
+        n_b = other._n
+        n = n_a + n_b
+        delta = other._m - self._m
+
+        # Order matters: update _s using the OLD _m (via delta) before _m mutates.
+        assert self._s is not None and other._s is not None  # guaranteed by _n > 0
+        self._s = self._s + other._s + delta.pow(2) * (n_a * n_b / n)
+        self._m = self._m + delta * (n_b / n)
+        self._n = n
+
+        assert self._min is not None and other._min is not None
+        assert self._max is not None and other._max is not None
+        self._min = torch.minimum(self._min, other._min)
+        self._max = torch.maximum(self._max, other._max)
+
     @property
     def mean(self) -> Union[float, torch.Tensor]:
         if self._n <= 0:
