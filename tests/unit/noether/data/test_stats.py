@@ -91,3 +91,39 @@ def test_merge_inplace_log_scale_consistent():
     b.push_tensor(torch.rand(10, 2))
     with pytest.raises(ValueError, match="log_scale"):
         a.merge_(b)
+
+
+def test_merge_empty_into_nonempty_is_noop():
+    a = RunningMoments()
+    a.push_tensor(torch.rand(10, 2, generator=torch.Generator().manual_seed(0)))
+    snapshot = (a.count, a.mean.clone(), a.std.clone(), a._min.clone(), a._max.clone())
+
+    empty = RunningMoments()
+    a.merge_(empty)
+
+    assert a.count == snapshot[0]
+    assert torch.equal(a.mean, snapshot[1])
+    assert torch.equal(a.std, snapshot[2])
+    assert torch.equal(a._min, snapshot[3])
+    assert torch.equal(a._max, snapshot[4])
+
+
+def test_merge_nonempty_into_empty_is_copy():
+    src = RunningMoments()
+    src.push_tensor(torch.rand(10, 2, generator=torch.Generator().manual_seed(0)))
+
+    dst = RunningMoments()
+    dst.merge_(src)
+
+    assert dst.count == src.count
+    assert torch.allclose(dst.mean, src.mean)
+    assert torch.allclose(dst.std, src.std)
+    assert torch.allclose(dst._min, src._min)
+    assert torch.allclose(dst._max, src._max)
+
+
+def test_merge_two_empty_stays_empty():
+    a = RunningMoments()
+    b = RunningMoments()
+    a.merge_(b)
+    assert a.is_empty()
