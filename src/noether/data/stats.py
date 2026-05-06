@@ -157,8 +157,7 @@ class RunningMoments(torch.nn.Module):
         """
         if self.log_scale != other.log_scale:
             raise ValueError(
-                f"Cannot merge RunningMoments with log_scale={self.log_scale} "
-                f"into one with log_scale={other.log_scale}"
+                f"Cannot merge RunningMoments with log_scale={self.log_scale} into one with log_scale={other.log_scale}"
             )
 
         if other._n == 0:
@@ -175,8 +174,7 @@ class RunningMoments(torch.nn.Module):
 
         if self._m.shape != other._m.shape:
             raise ValueError(
-                f"Incompatible feature shapes: self._m.shape={self._m.shape}, "
-                f"other._m.shape={other._m.shape}"
+                f"Incompatible feature shapes: self._m.shape={self._m.shape}, other._m.shape={other._m.shape}"
             )
 
         n_a = self._n
@@ -194,6 +192,64 @@ class RunningMoments(torch.nn.Module):
         assert self._max is not None and other._max is not None
         self._min = torch.minimum(self._min, other._min)
         self._max = torch.maximum(self._max, other._max)
+
+    def all_reduce_(self) -> None:
+        """Combine RunningMoments across all distributed ranks in place.
+
+        After return, every rank holds the same merged state as if a single
+        process had observed the concatenation of every rank's pushed data.
+
+        Implementation gathers serialized state via ``all_gather_object`` and
+        sequentially folds with ``merge_``. The payload is small (≤ four
+        ``(F,)`` float64 tensors per rank), so the pickling cost is negligible
+        compared to a tensor-level all-reduce that would require pre-broadcast
+        of buffer shapes to handle empty ranks.
+
+        No-op when distributed is not initialized.
+        """
+        import torch.distributed as dist
+
+        if not (dist.is_available() and dist.is_initialized()):
+            return
+
+        world = dist.get_world_size()
+        if world == 1:
+            return
+
+        # Detach buffers to plain CPU tensors for pickling; restore on the
+        # original device after the merge.
+        device = self._m.device
+        local_state = {
+            "log_scale": self.log_scale,
+            "n": self._n,
+            "m": self._m.detach().cpu(),
+            "s": self._s.detach().cpu() if self._s is not None else None,
+            "min": self._min.detach().cpu() if self._min is not None else None,
+            "max": self._max.detach().cpu() if self._max is not None else None,
+        }
+        gathered: list[dict | None] = [None] * world
+        dist.all_gather_object(gathered, local_state)
+
+        # Reset and re-fold every rank's state, including our own, in rank order.
+        # This produces bit-identical output across all ranks.
+        self.reset()
+        for state in gathered:
+            assert state is not None  # all_gather_object populates every slot
+            if state["log_scale"] != self.log_scale:
+                raise ValueError(
+                    "all_reduce_ found rank with mismatched log_scale "
+                    f"({state['log_scale']} vs {self.log_scale}) — every rank must "
+                    "construct RunningMoments with the same log_scale flag"
+                )
+            if state["n"] == 0:
+                continue
+            tmp = RunningMoments(log_scale=self.log_scale)
+            tmp._n = int(state["n"])
+            tmp._m = state["m"].to(device)
+            tmp._s = state["s"].to(device) if state["s"] is not None else None
+            tmp._min = state["min"].to(device) if state["min"] is not None else None
+            tmp._max = state["max"].to(device) if state["max"] is not None else None
+            self.merge_(tmp)
 
     @property
     def mean(self) -> Union[float, torch.Tensor]:
