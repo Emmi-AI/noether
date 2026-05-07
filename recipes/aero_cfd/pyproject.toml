@@ -1,3 +1,7 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "aero-cfd-recipe"
 version = "0.1.0"
@@ -8,6 +12,9 @@ dependencies = [
     "scipy>=1.13.0",
     "wandb>=0.25.1",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/aero_cfd"]
 
 # Remove the following if you are outside the Noether repo
 [tool.uv.sources]
