@@ -8,6 +8,7 @@ from torch import Tensor
 
 from noether.core.initializers.base import InitializerBase
 from noether.core.models import Model, ModelBase
+from noether.core.providers import PathProvider
 from noether.core.schemas.initializers import CheckpointInitializerConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.training.training_iteration import TrainingIteration
@@ -38,10 +39,21 @@ class CheckpointInitializer(InitializerBase):
         self.model_info = initializer_config.model_info
         self.pop_ckpt_kwargs_keys = initializer_config.pop_ckpt_kwargs_keys or []
         self.stage_name = initializer_config.stage_name
-        self.init_run_path_provider = self.path_provider.with_run(
-            run_id=self.run_id,
-            stage_name=self.stage_name,
-        )
+        # When ``output_path`` is set, the source run lives under a different
+        # output root than this run — use it directly instead of inheriting
+        # this run's path provider (which would look in the wrong place).
+        if initializer_config.output_path is not None:
+            self.init_run_path_provider = PathProvider(
+                output_root_path=initializer_config.output_path,
+                run_id=self.run_id,
+                stage_name=self.stage_name,
+                debug=self.path_provider.debug,
+            )
+        else:
+            self.init_run_path_provider = self.path_provider.with_run(
+                run_id=self.run_id,
+                stage_name=self.stage_name,
+            )
         # checkpoint can be a string (e.g. "best_accuracy" for initializing from a model saved by BestModelLogger)
         # or dictionary with epoch/update/sample values
         if isinstance(initializer_config.checkpoint_tag, str):

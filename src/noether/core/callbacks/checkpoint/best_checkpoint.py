@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.schemas.callbacks import BestCheckpointCallbackConfig
 
 
@@ -105,7 +105,7 @@ class BestCheckpointCallback(PeriodicCallback):
         return metric_value < self.best_metric_value
 
     # noinspection PyMethodOverriding
-    def periodic_callback(self, **_) -> None:
+    def periodic_callback(self, *, interval_type: IntervalType, **_) -> None:
         """Execute the periodic callback to check and save best model.
 
         This method is called at the configured frequency (e.g., every N epochs).
@@ -115,6 +115,8 @@ class BestCheckpointCallback(PeriodicCallback):
         Raises:
             KeyError: If the log cache is empty or the metric key is not found.
         """
+        if interval_type == "eval":
+            return  # checkpoints are only saved during training
         if self.writer.log_cache is None:
             raise KeyError("Log cache is empty, can't retrieve metric value.")
         if self.metric_key not in self.writer.log_cache:

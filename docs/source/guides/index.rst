@@ -31,7 +31,7 @@ Customizing Training
 Inference & Evaluation
 ----------------------
 
-* :doc:`inference/how_to_run_evaluation_on_trained_models`: Running pre-trained models on evaluation sets.
+* :doc:`inference/how_to_run_evaluation_on_trained_models`: Running pre-trained models for evaluation, prediction generation, or visualization.
 
 .. toctree::
    :maxdepth: 1

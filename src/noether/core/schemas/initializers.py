@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from pathlib import Path
 from typing import Any, Literal, Union
 
 from pydantic import BaseModel, Field
@@ -33,6 +34,8 @@ class CheckpointInitializerConfig(InitializerConfig):
     """Whether or not to load the optimizer state from the checkpoint. Default is True, as this is usually used to resume a training run"""
     pop_ckpt_kwargs_keys: list[str] | None = Field(None)
     """which checkpoint to load. If a string is provided, must be one of ("latest", "best_loss"). If a dictionary is provided, must contain keys "epoch", "update", "sample" to identify the checkpoint."""
+    output_path: Path | None = Field(None)
+    """Output root where the source run (identified by ``run_id``/``stage_name``) lives. When ``None``, the current run's path provider is used to locate it, which assumes the source shares this run's ``output_path``. Set explicitly by ``noether-eval`` so that overriding ``output_path`` for the eval run doesn't redirect source-checkpoint lookup."""
 
 
 class ResumeInitializerConfig(CheckpointInitializerConfig):

@@ -69,6 +69,8 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """Stage name to resume from. If None, resume from the default stage."""
     resume_checkpoint: str | None = None
     """Path to checkpoint to resume from. If None, the 'latest' checkpoint will be used."""
+    resume_output_path: Path | None = None
+    """Output root where the resume source run lives, when different from this run's ``output_path``. Set automatically by ``noether-eval`` (read from the source ``hp_resolved.yaml``) so that overriding ``output_path`` for the eval run does not break source-checkpoint lookup. Leave unset for ordinary training resume, which keeps writing alongside the original run."""
     seed: int = Field(0)
     """Random seed for reproducibility."""
     dataset_statistics: dict[str, list[float | int]] | None = None

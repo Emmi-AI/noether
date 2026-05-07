@@ -61,11 +61,26 @@ class TestBestCheckpointCallback:
         callback_deps["log_writer"].log_cache = {"val/acc": 0.9}
 
         cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
 
         assert callback_deps["checkpoint_writer"].save.call_count == 1
         checkpoint = [call.kwargs["checkpoint_tag"] for call in callback_deps["checkpoint_writer"].save.call_args_list]
         assert "best_model.val.acc" in checkpoint
+
+    def test_no_save_during_eval(self, callback_deps, base_config):
+        """During post-training eval, the callback must not save a checkpoint —
+        it would otherwise re-save the loaded model under a "best" filename
+        because the in-memory `best_metric_value` starts at +/- inf in a fresh
+        eval process (callback state is not restored from the source run)."""
+        callback_deps["metric_property_provider"].higher_is_better.return_value = True
+        # Even with a metric value that would be a "new best", the eval guard
+        # must short-circuit before the metric is read.
+        callback_deps["log_writer"].log_cache = {"val/acc": 0.9}
+
+        cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
+        cb.periodic_callback(interval_type="eval")
+
+        callback_deps["checkpoint_writer"].save.assert_not_called()
 
     def test_tolerance_counter_increments_and_triggers_save(self, callback_deps, base_config):
         """
@@ -84,17 +99,17 @@ class TestBestCheckpointCallback:
 
         # 1. First Failure:
         callback_deps["log_writer"].log_cache = {"val/acc": 0.85}
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
         assert cb.tolerance_counter == 1
         assert cb.tolerances_is_exceeded.get(2, False) is False
 
         # 2. Second Failure (Tolerance limit reached, but not exceeded):
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
         assert cb.tolerance_counter == 2
         assert cb.tolerances_is_exceeded.get(2, False) is False
 
         # 3. Third Failure (Exceeded):
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
         assert cb.tolerance_counter == 3
         assert cb.tolerances_is_exceeded[2] is True
         assert cb.metric_at_exceeded_tolerance[2] == 0.85
@@ -113,17 +128,17 @@ class TestBestCheckpointCallback:
         cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
 
         callback_deps["log_writer"].log_cache = {"val/acc": 0.9}
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
 
         # Fail a few times:
         callback_deps["log_writer"].log_cache = {"val/acc": 0.85}
-        cb.periodic_callback()
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
+        cb.periodic_callback(interval_type="epoch")
         assert cb.tolerance_counter == 2
 
         # New best:
         callback_deps["log_writer"].log_cache = {"val/acc": 0.95}
-        cb.periodic_callback()
+        cb.periodic_callback(interval_type="epoch")
 
         assert cb.tolerance_counter == 0
         # Important: Ensure the state dict for exceeded is also reset:
@@ -135,11 +150,11 @@ class TestBestCheckpointCallback:
         callback_deps["log_writer"].log_cache = {"val/acc": 0.9}
 
         cb1 = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
-        cb1.periodic_callback()
+        cb1.periodic_callback(interval_type="epoch")
 
         callback_deps["log_writer"].log_cache = {"val/acc": 0.85}
-        cb1.periodic_callback()  # Counter 1
-        cb1.periodic_callback()  # Counter 2 (Exceeded for tolerance 1)
+        cb1.periodic_callback(interval_type="epoch")  # Counter 1
+        cb1.periodic_callback(interval_type="epoch")  # Counter 2 (Exceeded for tolerance 1)
 
         state = cb1.state_dict()
         cb2 = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
@@ -153,13 +168,13 @@ class TestBestCheckpointCallback:
         callback_deps["log_writer"].log_cache = None
         cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
         with pytest.raises(KeyError, match="Log cache is empty"):
-            cb.periodic_callback()
+            cb.periodic_callback(interval_type="epoch")
 
     def test_raises_on_missing_metric_key(self, callback_deps, base_config):
         callback_deps["log_writer"].log_cache = {"other": 0.5}
         cb = BestCheckpointCallback(callback_config=SimpleNamespace(**base_config), **callback_deps)
         with pytest.raises(KeyError, match="couldn't find metric_key"):
-            cb.periodic_callback()
+            cb.periodic_callback(interval_type="epoch")
 
     def test_after_training_logs_tolerance_metrics(self, callback_deps, base_config):
         callback_deps["metric_property_provider"].higher_is_better.return_value = True
@@ -174,11 +189,11 @@ class TestBestCheckpointCallback:
             mock_logger.return_value = mock_log_instance
 
             callback_deps["log_writer"].log_cache = {"val/acc": 0.9}
-            cb.periodic_callback()
+            cb.periodic_callback(interval_type="epoch")
 
             callback_deps["log_writer"].log_cache = {"val/acc": 0.85}
-            cb.periodic_callback()  # Counter 1
-            cb.periodic_callback()  # Counter 2 (Exceeds 1)
+            cb.periodic_callback(interval_type="epoch")  # Counter 1
+            cb.periodic_callback(interval_type="epoch")  # Counter 2 (Exceeds 1)
 
             cb.after_training()
 
