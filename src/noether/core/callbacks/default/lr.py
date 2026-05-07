@@ -8,7 +8,6 @@ from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.models import CompositeModel
 
 if TYPE_CHECKING:
-    from noether.core.utils.training.counter import UpdateCounter
     from noether.core.utils.training.training_iteration import TrainingIteration
 
 
@@ -41,17 +40,3 @@ class LrCallback(PeriodicCallback):
                 if cur_model.optimizer.weight_decay_schedule is not None:
                     wd = param_group["weight_decay"]
                     self.writer.add_scalar(f"optim/wd/{cur_name}{group_name}", wd)
-            if cur_model.optimizer.last_grad_norm is not None:
-                self.writer.add_scalar(f"optim/grad_norm/{cur_name}", cur_model.optimizer.last_grad_norm.item())
-
-    def track_after_update_step(self, *, update_counter: UpdateCounter, times: dict[str, float]) -> None:
-        del update_counter, times
-        # GradScaler.update() can change the scale every optimizer step. Log on the step the change occurs
-        # (rather than the periodic cadence) so the scale timeline reflects when backoffs actually happened.
-        grad_scaler = self.trainer.grad_scaler
-        if not grad_scaler.is_enabled():
-            return
-        scale = grad_scaler.get_scale()
-        if scale != self._last_logged_grad_scaler_scale:
-            self.writer.add_scalar("optim/grad_scaler_scale", scale)
-            self._last_logged_grad_scaler_scale = scale

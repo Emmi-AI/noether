@@ -30,6 +30,8 @@ class SupernodePoolingConfig(BaseModel):
     """How messages are created. "mlp" (2 layer MLP), "linear" (nn.Linear), "identity" (nn.Identity). Defaults to "mlp"."""
     input_features_dim: int | None = Field(None, ge=0)
     """Number of input features per point. None will fall back to a version without features. Defaults to None, which means no input features."""
+    bias: bool = Field(True)
+    """Whether to use bias in the linear layers. Defaults to True."""
 
     @model_validator(mode="after")
     def validate_radius_and_k(self):
