@@ -2,7 +2,7 @@
 
 import copy
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 import torch
 from torch import Tensor, nn
@@ -15,7 +15,32 @@ from noether.modeling.modules.untied import UntiedPerceiverBlock, UntiedTransfor
 
 KVPair = dict[str, Tensor]  # {"k": tensor, "v": tensor}
 LayerCache = dict[str, KVPair]  # {token_name: KVPair}
-ModelKVCache = dict[str, list[LayerCache]]  # {branch_name: [LayerCache, ...]}
+
+
+class ModelKVCache(TypedDict, total=False):
+    """Caches that let a forward call skip work it has already done.
+
+    All keys are independent — pass any subset. ``geometry_encoding`` and
+    ``geometry_rope`` travel together (both depend only on the geometry mesh)
+    and are what diffusion sampling reuses across Euler steps.
+
+    * ``geometry_encoding`` — output of :meth:`AnchoredBranchedUPT.geometry_branch_forward`.
+      When present, the geometry encoder + transformer stack are skipped.
+    * ``geometry_rope`` — RoPE of the geometry supernode positions, used by
+      perceiver blocks as ``k_freqs``. Cached alongside ``geometry_encoding``
+      so subsequent calls don't need ``geometry_position``.
+    * ``physics_blocks`` — per-block anchor self-attention K/V (``None`` for
+      perceiver blocks, which always re-project from ``geometry_encoding``).
+      When present, anchors are not re-encoded; the call is decode-only.
+    * ``decoders`` — per-domain anchor K/V for each decoder block. Symmetric
+      with ``physics_blocks`` for the per-domain decoder stage.
+    """
+
+    geometry_encoding: Tensor
+    geometry_rope: Tensor
+    physics_blocks: list[LayerCache | None]
+    decoders: dict[str, list[LayerCache]]
+
 
 from noether.core.schemas.models import AnchorBranchedUPTConfig
 from noether.core.schemas.modules.attention import TokenSpec
@@ -408,43 +433,44 @@ class AnchoredBranchedUPT(nn.Module):
         physics_attn_kwargs: dict[str, Any],
         physics_perceiver_attn_kwargs: dict[str, Any],
         condition: torch.Tensor | None,
-        kv_cache: ModelKVCache | None = None,
-    ) -> tuple[torch.Tensor, list[LayerCache]]:
-        """Run the physics-block stack on a pre-built input tensor."""
-        physics_cache = kv_cache.get("physics", []) if kv_cache else []
-        assert len(physics_cache) in (0, len(self.physics_blocks)), (
-            f"physics_cache length ({len(physics_cache)}) must match number of physics blocks ({len(self.physics_blocks)})"
-        )
+        physics_blocks_cache: list[LayerCache | None] | None = None,
+    ) -> tuple[torch.Tensor, list[LayerCache | None]]:
+        """Run the physics-block stack on a pre-built input tensor.
 
-        new_physics_cache: list[LayerCache] = []
+        Perceiver blocks always re-project K/V from ``geometry_encoding`` and
+        contribute ``None`` to the returned cache; only transformer blocks
+        cache their anchor self-attention K/V.
+        """
+        if physics_blocks_cache is not None:
+            assert len(physics_blocks_cache) == len(self.physics_blocks), (
+                f"physics_blocks_cache length ({len(physics_blocks_cache)}) must match "
+                f"number of physics blocks ({len(self.physics_blocks)})"
+            )
+
+        new_physics_cache: list[LayerCache | None] = []
         for i, block in enumerate(self.physics_blocks):
             if isinstance(block, TransformerBlock | UntiedTransformerBlock):
                 x_physics, block_cache = block(
                     x_physics,
                     attn_kwargs=dict(
                         token_specs=physics_token_specs,
-                        kv_cache=physics_cache[i] if physics_cache else None,
+                        kv_cache=physics_blocks_cache[i] if physics_blocks_cache else None,
                         **physics_attn_kwargs,
                     ),
                     condition=condition,
                 )
-                if block_cache is not None:
-                    new_physics_cache.append(block_cache)
+                new_physics_cache.append(block_cache)
             elif isinstance(block, PerceiverBlock):
-                perceiver_attn_kwargs: dict[str, Any] = dict(
-                    kv_cache=physics_cache[i]["geometry_encoding"] if physics_cache else None,
-                    **physics_perceiver_attn_kwargs,
-                )
+                perceiver_attn_kwargs: dict[str, Any] = dict(**physics_perceiver_attn_kwargs)
                 if isinstance(block, UntiedPerceiverBlock):
                     perceiver_attn_kwargs["token_specs"] = physics_token_specs
-                x_physics, block_cache = block(
+                x_physics, _ = block(
                     q=x_physics,
                     kv=geometry_encoding,
                     attn_kwargs=perceiver_attn_kwargs,
                     condition=condition,
                 )
-                if block_cache is not None:
-                    new_physics_cache.append({"geometry_encoding": block_cache})
+                new_physics_cache.append(None)
             else:
                 raise NotImplementedError(f"Unknown block type: {type(block)}")
 
@@ -496,7 +522,7 @@ class AnchoredBranchedUPT(nn.Module):
         per_domain_token_specs: dict[str, list[TokenSpec]],
         decoder_attn_kwargs: dict[str, dict[str, Any]],
         condition: torch.Tensor | None,
-        kv_cache: ModelKVCache | None = None,
+        decoders_cache: dict[str, list[LayerCache]] | None = None,
     ) -> tuple[dict[str, Tensor], dict[str, list[LayerCache]]]:
         """Forward pass through the per-domain decoder blocks.
 
@@ -523,7 +549,7 @@ class AnchoredBranchedUPT(nn.Module):
                 per_domain_token_specs[name],
                 decoder_attn_kwargs[name],
                 condition,
-                cache=kv_cache.get(name, []) if kv_cache else None,
+                cache=decoders_cache.get(name) if decoders_cache else None,
             )
             if preds is not None:
                 domain_predictions[name] = preds
@@ -536,7 +562,8 @@ class AnchoredBranchedUPT(nn.Module):
         physics_positions: dict[str, torch.Tensor],
         geometry_position: torch.Tensor | None = None,
         geometry_supernode_idx: torch.Tensor | None = None,
-    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], dict[str, Any], dict[str, Any]]:
+        geometry_rope: torch.Tensor | None = None,
+    ) -> tuple[dict[str, Any], dict[str, dict[str, Any]], dict[str, Any], dict[str, Any], torch.Tensor | None]:
         """Create RoPE frequencies for all relevant positions.
 
         Args:
@@ -544,10 +571,16 @@ class AnchoredBranchedUPT(nn.Module):
                 positions, as returned by :meth:`build_physics_input`.
             geometry_position: Geometry mesh coordinates (optional).
             geometry_supernode_idx: Geometry supernode indices (optional).
+            geometry_rope: Precomputed geometry-supernode RoPE. When provided,
+                bypasses ``geometry_position`` / ``geometry_supernode_idx`` for
+                the perceiver ``k_freqs`` (needed in queries-only mode where
+                geometry inputs aren't available).
 
         Returns:
-            Tuple of (geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs).
-            decoder_attn_kwargs is keyed by domain name.
+            Tuple of (geometry_attn_kwargs, decoder_attn_kwargs,
+            physics_perceiver_attn_kwargs, physics_attn_kwargs, geometry_rope).
+            ``geometry_rope`` is the rope tensor used / computed (or ``None``
+            when there's no geometry branch).
         """
         first_pos = next(iter(physics_positions.values()))
         batch_size = first_pos.size(0)
@@ -556,10 +589,11 @@ class AnchoredBranchedUPT(nn.Module):
         physics_perceiver_attn_kwargs: dict[str, Any] = {}
         physics_attn_kwargs: dict[str, Any] = {}
 
-        if geometry_position is not None and geometry_supernode_idx is not None:
+        if geometry_rope is None and geometry_position is not None and geometry_supernode_idx is not None:
             geometry_rope = self.rope(geometry_position[geometry_supernode_idx].unsqueeze(0))
             channels = geometry_rope.shape[-1]
             geometry_rope = geometry_rope.view(batch_size, -1, channels)
+        if geometry_rope is not None:
             geometry_attn_kwargs["freqs"] = geometry_rope
             physics_perceiver_attn_kwargs["k_freqs"] = geometry_rope
 
@@ -572,7 +606,13 @@ class AnchoredBranchedUPT(nn.Module):
 
         decoder_attn_kwargs = {name: {"freqs": domain_rope[name]} for name in self.domain_names}
 
-        return geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs
+        return (
+            geometry_attn_kwargs,
+            decoder_attn_kwargs,
+            physics_perceiver_attn_kwargs,
+            physics_attn_kwargs,
+            geometry_rope,
+        )
 
     def forward(
         self,
@@ -630,28 +670,32 @@ class AnchoredBranchedUPT(nn.Module):
         """
         domain_anchor_positions = domain_anchor_positions or {}
         domain_query_positions = domain_query_positions or {}
+        kv_cache = kv_cache if kv_cache is not None else {}
 
-        use_cached_kv = kv_cache is not None
+        # The "physics_blocks" cache, when present, holds anchor self-attention
+        # K/V — i.e. anchors are already encoded and this call is decode-only.
+        # When absent, anchors are re-encoded (so anchor features can change).
+        anchors_cached = "physics_blocks" in kv_cache
         has_anchors = bool(domain_anchor_positions)
+        use_cached_geometry = "geometry_encoding" in kv_cache
 
-        # Validate: either anchors or kv_cache, not both, not neither
-        if has_anchors == (kv_cache is not None):
+        if has_anchors == anchors_cached:
             raise ValueError(
-                "Either domain anchor positions must be provided (no KV cache) or kv_cache must be provided, but not both."
+                "Either domain anchor positions must be provided (no anchor KV cache) "
+                "or a kv_cache containing 'physics_blocks' must be provided, but not both."
             )
 
-        if use_cached_kv:
-            assert geometry_position is None, "geometry_position must be None when using KV cache"
-            assert geometry_supernode_idx is None, "geometry_supernode_idx must be None when using KV cache"
-            assert geometry_batch_idx is None, "geometry_batch_idx must be None when using KV cache"
-            assert domain_query_positions, "At least one domain query position must be provided when using KV cache"
-        else:
-            if self.use_geometry_branch:
-                assert geometry_position is not None, "geometry_position is required when using geometry branch"
-                assert geometry_supernode_idx is not None, (
-                    "geometry_supernode_idx is required when using geometry branch"
-                )
-                assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
+        if anchors_cached:
+            assert geometry_position is None, "geometry_position must be None when reusing anchor KV cache"
+            assert geometry_supernode_idx is None, "geometry_supernode_idx must be None when reusing anchor KV cache"
+            assert geometry_batch_idx is None, "geometry_batch_idx must be None when reusing anchor KV cache"
+            assert domain_query_positions, (
+                "At least one domain query position must be provided when reusing anchor KV cache"
+            )
+        elif self.use_geometry_branch and not use_cached_geometry:
+            assert geometry_position is not None, "geometry_position is required when using geometry branch"
+            assert geometry_supernode_idx is not None, "geometry_supernode_idx is required when using geometry branch"
+            assert geometry_batch_idx is not None, "geometry_batch_idx is required when using geometry branch"
 
         condition = None
         if conditioning_inputs is not None:
@@ -667,7 +711,7 @@ class AnchoredBranchedUPT(nn.Module):
         physics_token_specs, per_domain_token_specs = self._create_all_token_specs(
             domain_anchor_positions=domain_anchor_positions,
             domain_query_positions=domain_query_positions,
-            use_cached_kv=use_cached_kv,
+            use_cached_kv=anchors_cached,
         )
 
         # Physics blocks: build the per-domain input tensor, then run the block stack.
@@ -678,18 +722,20 @@ class AnchoredBranchedUPT(nn.Module):
             domain_query_features=domain_query_features,
         )
 
-        # RoPE frequencies
-        geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs = (
+        # RoPE frequencies. ``geometry_rope`` is reused from the cache when
+        # available so queries-only inference works without geometry_position.
+        geometry_attn_kwargs, decoder_attn_kwargs, physics_perceiver_attn_kwargs, physics_attn_kwargs, geometry_rope = (
             self.create_rope_frequencies(
                 physics_positions=physics_positions,
                 geometry_position=geometry_position,
                 geometry_supernode_idx=geometry_supernode_idx,
+                geometry_rope=kv_cache.get("geometry_rope"),
             )
         )
 
-        # Geometry branch (skipped in cached mode)
-        geometry_encoding = None
-        if not use_cached_kv and self.use_geometry_branch:
+        # Geometry branch: reuse cached encoding when available, otherwise encode.
+        geometry_encoding: Tensor | None = kv_cache.get("geometry_encoding")
+        if geometry_encoding is None and self.use_geometry_branch:
             assert geometry_position is not None
             assert geometry_supernode_idx is not None
             assert geometry_batch_idx is not None
@@ -708,7 +754,7 @@ class AnchoredBranchedUPT(nn.Module):
             physics_attn_kwargs=physics_attn_kwargs,
             physics_perceiver_attn_kwargs=physics_perceiver_attn_kwargs,
             condition=condition,
-            kv_cache=kv_cache,
+            physics_blocks_cache=kv_cache.get("physics_blocks"),
         )
 
         # Decoder blocks
@@ -718,24 +764,29 @@ class AnchoredBranchedUPT(nn.Module):
             per_domain_token_specs=per_domain_token_specs,
             decoder_attn_kwargs=decoder_attn_kwargs,
             condition=condition,
-            kv_cache=kv_cache,
+            decoders_cache=kv_cache.get("decoders"),
         )
 
         # Slice predictions into named fields
         predictions: dict[str, Tensor] = {}
         for name, preds in domain_predictions.items():
             num_anchors = domain_anchor_positions[name].size(1) if name in domain_anchor_positions else 0
-            predictions.update(self._slice_predictions(preds, name, num_anchors, use_cached_kv))
+            predictions.update(self._slice_predictions(preds, name, num_anchors, anchors_cached))
 
-        # Return KV cache
-        if kv_cache is None:
-            new_kv_cache: ModelKVCache = {}
-            if new_physics_cache:
-                new_kv_cache["physics"] = new_physics_cache
-            for name, cache in new_domain_caches.items():
-                if cache:
-                    new_kv_cache[name] = cache
+        # Build / refresh the cache. When anchors were re-encoded, replace the
+        # physics_blocks and decoders entries; the geometry_encoding entry (if
+        # cached) is preserved by passthrough.
+        new_kv_cache: ModelKVCache = {}
+        if geometry_encoding is not None:
+            new_kv_cache["geometry_encoding"] = geometry_encoding
+        if geometry_rope is not None:
+            new_kv_cache["geometry_rope"] = geometry_rope
+        if anchors_cached:
+            new_kv_cache["physics_blocks"] = kv_cache["physics_blocks"]
+            if "decoders" in kv_cache:
+                new_kv_cache["decoders"] = kv_cache["decoders"]
         else:
-            new_kv_cache = kv_cache
+            new_kv_cache["physics_blocks"] = new_physics_cache
+            new_kv_cache["decoders"] = new_domain_caches
 
         return predictions, new_kv_cache
