@@ -3,13 +3,11 @@
 import math
 from typing import Any
 
-import torch.nn as nn
-
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.utils.model import compute_model_norm
 
 
-class TrainingStabilityCallback(PeriodicCallback):
+class TrainingDiagnosticsCallback(PeriodicCallback):
     """
     A callback that logs the norm of the gradients, the grad scaler scale and the model norm, additionally all the losses after the accumulation step are logged. This can be useful for monitoring
     training and diagnosing issues with exploding or vanishing gradients.
@@ -20,22 +18,6 @@ class TrainingStabilityCallback(PeriodicCallback):
         super().__init__(*args, **kwargs)
         self._last_logged_grad_scaler_scale: float | None = None
 
-    def _zero_grad_ratio(self, model: nn.Module | None, eps=1e-8) -> float:
-        """Computes the ratio of gradients that are near zero to the total number of gradients."""
-
-        if model is None or not isinstance(model, nn.Module):
-            return 0.0
-
-        total = 0
-        near_zero = 0
-        for p in model.parameters():
-            if p.grad is None:
-                continue
-            total += 1
-            if p.grad.norm() < eps:
-                near_zero += 1
-        return near_zero / total if total > 0 else 0.0
-
     # noinspection PyMethodOverriding
     def periodic_callback(self, **_) -> None:
         grad_scaler = self.trainer.grad_scaler
@@ -43,7 +25,7 @@ class TrainingStabilityCallback(PeriodicCallback):
             return
         scale = grad_scaler.get_scale()
         if scale != self._last_logged_grad_scaler_scale:
-            self.writer.add_scalar("profiling/optim/grad_scaler_scale", scale)
+            self.writer.add_scalar("training_diagnostics/optim/grad_scaler_scale", scale)
             self._last_logged_grad_scaler_scale = scale
 
         for cur_name, cur_model in self.model.get_named_models().items():
@@ -52,11 +34,10 @@ class TrainingStabilityCallback(PeriodicCallback):
                 continue
             norm = optimizer.last_grad_norm.item()
             if math.isfinite(norm):
-                self.writer.add_scalar(f"profiling/optim/grad_norm/{cur_name}", norm)
+                self.writer.add_scalar(f"training_diagnostics/optim/grad_norm/{cur_name}", norm)
         model_norm = compute_model_norm(self.model).item()
-        self.writer.add_scalar("profiling/optim/model_norm", model_norm)
-        self.writer.add_scalar("profiling/optim/zero_grad_ratio", self._zero_grad_ratio(self.model))
+        self.writer.add_scalar("training_diagnostics/optim/model_norm", model_norm)
 
     def track_after_accumulation_step(self, *, losses, **_) -> None:
         for loss, value in losses.items():
-            self.writer.add_scalar(f"profiling/accumulation_step/loss/{loss}", value.item())
+            self.writer.add_scalar(f"training_diagnostics/accumulation_step/loss/{loss}", value.item())
