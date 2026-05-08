@@ -7,8 +7,10 @@
 #SBATCH --mem=64GB
 #SBATCH --output=/home/%u/logs/shapenet/%x_%j.out
 #SBATCH --nice=0
-#SBATCH --array=1-20%5
+#SBATCH --array=26-30%5
 
-EXPERIMENT_FILE=$(dirname "$0")/experiments/shapenet_experiments.txt
+cd /home/mbleeker/projects/emmi.ai/noether/recipes/aero_cfd 
+
+EXPERIMENT_FILE=/home/mbleeker/projects/emmi.ai/noether/recipes/aero_cfd/jobs/experiments/shapenet_experiments.txt
 # run
-srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp recipes/aero_cfd/configs/train_shapenet.yaml $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 
+srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp configs/train_shapenet.yaml $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 

@@ -51,13 +51,12 @@ class UQTrainer(BaseTrainer):
                 mean = forward_output[mean_key]
                 target = targets[target_key]
 
-                if not use_nll or log_var_key not in forward_output:
+                mse = torch.nn.functional.mse_loss(mean, target)
+
+                if use_nll and log_var_key in forward_output:
                     # Warmup phase, or no log-variance head: train mean with MSE only.
-                    mse = torch.nn.functional.mse_loss(mean, target)
-                    losses[f"{field_name}_mse"] = mse * weight
-                else:
                     log_var = forward_output[log_var_key]
-                    nll = 0.5 * (log_var + (target - mean).pow(2) * torch.exp(-log_var))
+                    nll = 0.5 * (log_var + mse * torch.exp(-log_var))
 
                     if self.config.beta_nll > 0:
                         # σ^(2β) = exp(β · log_var), detached so it only reweights the loss
@@ -71,5 +70,7 @@ class UQTrainer(BaseTrainer):
                     if self.config.variance_regularization > 0:
                         var_reg = log_var.clamp(max=0).pow(2).mean()
                         losses[f"{field_name}_var_reg"] = var_reg * weight * self.config.variance_regularization
+                else:
+                    losses[f"{field_name}_mse"] = mse * weight
 
         return losses

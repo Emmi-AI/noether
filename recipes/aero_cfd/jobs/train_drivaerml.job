@@ -7,8 +7,11 @@
 #SBATCH --mem=64GB
 #SBATCH --output=/home/%u/logs/drivaerml/%x_%j.out
 #SBATCH --nice=0
-#SBATCH --array=1-20%10
+#SBATCH --array=21-30%10
 
-EXPERIMENT_FILE=$(dirname "$0")/experiments/drivaerml_experiments.txt
+
+cd /home/mbleeker/projects/emmi.ai/noether/recipes/aero_cfd 
+
+EXPERIMENT_FILE=/home/mbleeker/projects/emmi.ai/noether/recipes/aero_cfd/jobs/experiments/drivaerml_experiments.txt
 # run
-srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp recipes/aero_cfd/configs/train_drivaerml.yaml $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 
+srun --kill-on-bad-exit=1 --cpus-per-task=28 uv run noether-train --hp configs/train_drivaerml.yaml $(head -$SLURM_ARRAY_TASK_ID $EXPERIMENT_FILE | tail -1) 

@@ -1,0 +1,14 @@
+[project]
+name = "uncertainty-quantification-recipe"
+version = "0.1.0"
+description = ""
+requires-python = ">=3.12"
+dependencies = [
+    "emmiai-noether",
+    "aero-cfd-recipe",
+]
+
+# Remove the following if you are outside the Noether repo
+[tool.uv.sources]
+emmiai-noether = { path = "../../", editable = true }
+aero-cfd-recipe = { path = "../aero_cfd", editable = true }

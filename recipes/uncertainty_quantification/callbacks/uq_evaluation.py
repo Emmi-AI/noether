@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 import torch
-
-from .aero_metrics import AeroMetricsCallback, AeroMetricsCallbackConfig
+from aero_cfd.callbacks import AeroMetricsCallback, AeroMetricsCallbackConfig
 
 
 class UQSurfaceVolumeEvaluationMetricsCallback(AeroMetricsCallback):

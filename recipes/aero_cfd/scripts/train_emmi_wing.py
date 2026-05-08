@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from aero_cfd.presets import EmmiWingPreset
+
 from noether.core.distributed.utils import accelerator_to_device
 from noether.data.datasets.cfd.emmi_wing.dataset_hf import EmmiWingHFDataset
 from noether.training.runners import HydraRunner

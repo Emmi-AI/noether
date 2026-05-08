@@ -8,7 +8,6 @@ import csv
 from pathlib import Path
 
 import torch
-
 from aero_cfd.utils.drag_lift import FlowConditions, compute_force_coefficients
 
 
