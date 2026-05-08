@@ -98,6 +98,12 @@ class BaseTrainerConfig[TCallbackConfig: CallBackBaseConfig](_RegistryBase):
     dataloader_prefetch_factor: int | None = Field(None, ge=1)
     """The `prefetch_factor` to use for the training dataloader. This controls how many batches are prefetched by each worker process in the dataloader. Increasing this can speed up training if data loading is a bottleneck, but also increases memory usage."""
 
+    monitor_training_stability: bool = Field(False)
+    """Whether to monitor training stability by logging gradient norms, model norms and grad scaler scale at regular intervals using the TrainingStabilityCallback. This can be useful for diagnosing issues with exploding or vanishing gradients."""
+
+    monitor_interval: int | None = Field(1, ge=1)
+    """The interval (in updates) at which to monitor training stability when `monitor_training_stability` is True. This controls how often the TrainingStabilityCallback logs gradient norms, model norms and grad scaler scale."""
+
     @model_validator(mode="after")
     def validate_callback_frequency(self) -> BaseTrainerConfig:
         """

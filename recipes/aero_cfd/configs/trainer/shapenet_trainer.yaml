@@ -1,6 +1,6 @@
 
 #BaseTrainerConfig
-kind: trainers.AerodynamicsCFDTrainer
+kind: aero_cfd.trainers.AerodynamicsCFDTrainer
 precision: bfloat16
 max_epochs: 500
 effective_batch_size: 1

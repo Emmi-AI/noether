@@ -272,9 +272,11 @@ import doctest
 
 # Imports packages for doctest setup, so they don't have to be imported in every code snippet
 # Add repo root to import path for doctest, so that imports from the tutorial code snippets work without needing to install the package
+AERO_CFD_SRC = os.path.join(ROOT, "recipes", "aero_cfd", "src")
 doctest_global_setup = f"""
 import sys
 sys.path.insert(0, r'{ROOT}')
+sys.path.insert(0, r'{AERO_CFD_SRC}')
 import torch
 """
 

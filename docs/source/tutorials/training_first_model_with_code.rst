@@ -88,11 +88,11 @@ runtime. These configs are Pydantic models, so if something is wrong you will ge
     from noether.core.schemas.statistics import AeroStatsSchema
     from noether.core.schemas.models.upt import UPTConfig
     from noether.training.runners import HydraRunner
-    from recipes.aero_cfd.callbacks import (
+    from aero_cfd.callbacks import (
         AeroMetricsCallbackConfig,
     )
-    from recipes.aero_cfd.pipeline import AeroCFDPipelineConfig
-    from recipes.aero_cfd.trainers import AerodynamicsCfdTrainerConfig
+    from aero_cfd.pipeline import AeroCFDPipelineConfig
+    from aero_cfd.trainers import AerodynamicsCfdTrainerConfig
 
 Let's go over each group to better understand the outline:
 

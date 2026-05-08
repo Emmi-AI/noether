@@ -20,6 +20,8 @@ class MLPConfig(BaseModel):
     """Activation function to use between layers."""
     init_weights: InitWeightsMode = "truncnormal002"
     """Weight initialization method."""
+    bias: bool = Field(True)
+    """Whether to use bias in the linear layers."""
 
 
 class UpActDownMLPConfig(BaseModel):

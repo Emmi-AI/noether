@@ -725,3 +725,274 @@ class TestMixedTiedAndUntiedBlocks:
 
         assert predictions["surface_pressure"].shape == (batch_size, 8, 1)
         assert predictions["volume_velocity"].shape == (batch_size, 6, 3)
+
+
+@pytest.fixture
+def partial_feature_config():
+    """Config where only one domain (``surface``) declares ``feature_dim``."""
+    data_specs = ModelDataSpecs(
+        position_dim=3,
+        domains={
+            "surface": DomainDataSpec(
+                output_dims=FieldDimSpec({"pressure": 1}),
+                feature_dim=FieldDimSpec({"area": 1}),
+            ),
+            "volume": DomainDataSpec(
+                output_dims=FieldDimSpec({"velocity": 3}),
+            ),
+        },
+    )
+    tf_config = TransformerBlockConfig(
+        hidden_dim=32,
+        num_heads=4,
+        mlp_expansion_factor=2.0,
+        use_bias=True,
+        use_rope=True,
+        dropout=0.0,
+    )
+    pool_config = SupernodePoolingConfig(hidden_dim=32, input_dim=3, radius=0.1, k=None)
+
+    return AnchorBranchedUPTConfig(
+        kind="AnchoredBranchedUPT",
+        name="ab_upt_partial_feat",
+        hidden_dim=32,
+        geometry_depth=1,
+        physics_blocks=["perceiver", "self"],
+        num_domain_decoder_blocks={"surface": 1, "volume": 1},
+        transformer_block_config=tf_config,
+        supernode_pooling_config=pool_config,
+        init_weights="truncnormal002",
+        data_specs=data_specs,
+    )
+
+
+@pytest.fixture
+def partial_feature_model(partial_feature_config):
+    with (
+        patch(_MODULE_PATH + ".RopeFrequency", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".SupernodePooling", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".TransformerBlock", new=FakeTransformerBlock),
+        patch(_MODULE_PATH + ".ContinuousSincosEmbed", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".MLP", new=FakeGenericModule),
+        patch(_MODULE_PATH + ".PerceiverBlock", new=FakePerceiverBlock),
+        patch(_MODULE_PATH + ".LinearProjection", new=FakeGenericModule),
+    ):
+        model = AnchoredBranchedUPT(config=partial_feature_config)
+        for name in model.domain_names:
+            model.domain_decoder_projections[name] = nn.Linear(
+                32, partial_feature_config.data_specs.domains[name].output_dims.total_dim
+            )
+        yield model
+
+
+class TestAnchoredBranchedUPTFeatures:
+    """Tests for per-domain anchor/query input features.
+
+    Per-domain feature MLPs are built only when
+    ``data_specs.domains[name].feature_dim`` is set; the projected features
+    are added to the position-bias output inside ``build_physics_input``.
+    These tests cover the wiring (which projections get built), forward
+    shapes when features are passed, and that features actually contribute
+    to the physics input.
+    """
+
+    def test_feature_projs_built_for_each_configured_domain(self, model):
+        """Both surface and volume declare ``feature_dim`` → projections built for both."""
+        assert model.domain_feature_projs is not None
+        assert set(model.domain_feature_projs.keys()) == {"surface", "volume"}
+
+    def test_feature_projs_none_when_no_domain_has_feature_dim(self, three_domain_model):
+        """No domain declares ``feature_dim`` → ``domain_feature_projs`` stays ``None``."""
+        assert three_domain_model.domain_feature_projs is None
+
+    def test_feature_projs_only_for_configured_domains(self, partial_feature_model):
+        """Only ``surface`` declares ``feature_dim`` → only ``surface`` gets a projection."""
+        assert partial_feature_model.domain_feature_projs is not None
+        assert "surface" in partial_feature_model.domain_feature_projs
+        assert "volume" not in partial_feature_model.domain_feature_projs
+
+    def test_forward_with_anchor_features(self, model):
+        """Anchor features for every configured domain run end-to-end with correct shapes."""
+        batch_size = 2
+        num_surface, num_volume = 20, 15
+
+        model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = model(
+            geometry_position=torch.randn(50, 3),
+            geometry_supernode_idx=torch.zeros(50, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(50, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, num_surface, 3),
+                "volume": torch.randn(batch_size, num_volume, 3),
+            },
+            domain_anchor_features={
+                "surface": torch.randn(batch_size, num_surface, 1),  # area
+                "volume": torch.randn(batch_size, num_volume, 1),  # sdf
+            },
+        )
+
+        assert predictions["surface_pressure"].shape == (batch_size, num_surface, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, num_volume, 3)
+
+    def test_forward_with_anchor_and_query_features(self, model):
+        """Anchor and query features coexist; query side emerges under ``query_*`` keys."""
+        batch_size = 1
+
+        model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 8, 3),
+            },
+            domain_query_positions={
+                "surface": torch.randn(batch_size, 5, 3),
+            },
+            domain_anchor_features={
+                "surface": torch.randn(batch_size, 10, 1),
+                "volume": torch.randn(batch_size, 8, 1),
+            },
+            domain_query_features={
+                "surface": torch.randn(batch_size, 5, 1),
+            },
+        )
+
+        assert predictions["surface_pressure"].shape == (batch_size, 10, 1)
+        assert predictions["volume_velocity"].shape == (batch_size, 8, 3)
+        assert predictions["query_surface_pressure"].shape == (batch_size, 5, 1)
+
+    def test_forward_with_query_features_only(self, model):
+        """Query-only features (no anchor features supplied) still flow through."""
+        batch_size = 1
+        model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 8, 3),
+            },
+            domain_query_positions={
+                "surface": torch.randn(batch_size, 5, 3),
+            },
+            domain_query_features={
+                "surface": torch.randn(batch_size, 5, 1),
+            },
+        )
+
+        assert predictions["query_surface_pressure"].shape == (batch_size, 5, 1)
+
+    def test_features_contribute_to_physics_input(self, model):
+        """Anchor features actually contribute to ``x_physics`` — output differs with vs. without."""
+        batch_size = 1
+        # Force pos_embed to a constant so the only source of variation is the feature path.
+        model.pos_embed.forward = lambda x, *a, **k: torch.zeros(x.shape[0], x.shape[1], 64)
+
+        anchor_pos = {
+            "surface": torch.randn(batch_size, 4, 3),
+            "volume": torch.randn(batch_size, 3, 3),
+        }
+        anchor_feat = {
+            "surface": torch.ones(batch_size, 4, 1),
+            "volume": torch.ones(batch_size, 3, 1),
+        }
+
+        x_no_feat, _ = model.build_physics_input(domain_anchor_positions=anchor_pos)
+        x_with_feat, _ = model.build_physics_input(
+            domain_anchor_positions=anchor_pos,
+            domain_anchor_features=anchor_feat,
+        )
+
+        assert x_no_feat.shape == x_with_feat.shape
+        assert not torch.allclose(x_no_feat, x_with_feat)
+
+    def test_query_features_contribute_to_physics_input(self, model):
+        """Query features change the query segment of ``x_physics`` independently of anchors."""
+        batch_size = 1
+        model.pos_embed.forward = lambda x, *a, **k: torch.zeros(x.shape[0], x.shape[1], 64)
+
+        anchor_pos = {
+            "surface": torch.randn(batch_size, 4, 3),
+            "volume": torch.randn(batch_size, 3, 3),
+        }
+        query_pos = {"surface": torch.randn(batch_size, 2, 3)}
+        query_feat = {"surface": torch.ones(batch_size, 2, 1)}
+
+        x_no_query_feat, _ = model.build_physics_input(
+            domain_anchor_positions=anchor_pos,
+            domain_query_positions=query_pos,
+        )
+        x_with_query_feat, _ = model.build_physics_input(
+            domain_anchor_positions=anchor_pos,
+            domain_query_positions=query_pos,
+            domain_query_features=query_feat,
+        )
+
+        assert x_no_query_feat.shape == x_with_query_feat.shape
+        # Anchor segment for surface is the first 4 tokens — must remain unchanged.
+        assert torch.allclose(x_no_query_feat[:, :4], x_with_query_feat[:, :4])
+        # Query segment for surface (tokens 4:6) must differ.
+        assert not torch.allclose(x_no_query_feat[:, 4:6], x_with_query_feat[:, 4:6])
+
+    def test_features_silently_ignored_without_projection(self, three_domain_model):
+        """Features supplied for domains without ``feature_dim`` are dropped, not raised."""
+        batch_size = 1
+        three_domain_model.encoder.forward = lambda *a, **k: torch.randn(batch_size, 64, 64)
+        three_domain_model.pos_embed.forward = lambda x, *a, **k: torch.randn(x.shape[0], x.shape[1], 64)
+        three_domain_model.rope.forward = lambda *a, **k: torch.randn(batch_size, 2000, 16)
+
+        predictions, _ = three_domain_model(
+            geometry_position=torch.randn(10, 3),
+            geometry_supernode_idx=torch.zeros(10, dtype=torch.long),
+            geometry_batch_idx=torch.zeros(10, dtype=torch.long),
+            domain_anchor_positions={
+                "surface": torch.randn(batch_size, 10, 3),
+                "volume": torch.randn(batch_size, 8, 3),
+                "wake": torch.randn(batch_size, 6, 3),
+            },
+            domain_anchor_features={
+                "surface": torch.randn(batch_size, 10, 1),
+                "volume": torch.randn(batch_size, 8, 1),
+                "wake": torch.randn(batch_size, 6, 1),
+            },
+        )
+
+        assert predictions["surface_pressure"].shape == (batch_size, 10, 1)
+        assert predictions["wake_turbulence"].shape == (batch_size, 6, 2)
+
+    def test_features_applied_only_for_configured_domain(self, partial_feature_model):
+        """Mixed config: surface features change ``x_physics`` but volume features are ignored."""
+        batch_size = 1
+        partial_feature_model.pos_embed.forward = lambda x, *a, **k: torch.zeros(x.shape[0], x.shape[1], 32)
+
+        anchor_pos = {
+            "surface": torch.randn(batch_size, 4, 3),
+            "volume": torch.randn(batch_size, 3, 3),
+        }
+
+        x_baseline, _ = partial_feature_model.build_physics_input(domain_anchor_positions=anchor_pos)
+        x_volume_feat, _ = partial_feature_model.build_physics_input(
+            domain_anchor_positions=anchor_pos,
+            domain_anchor_features={"volume": torch.ones(batch_size, 3, 1)},
+        )
+        x_surface_feat, _ = partial_feature_model.build_physics_input(
+            domain_anchor_positions=anchor_pos,
+            domain_anchor_features={"surface": torch.ones(batch_size, 4, 1)},
+        )
+
+        # Volume has no projection → its features are dropped, output matches baseline.
+        assert torch.allclose(x_baseline, x_volume_feat)
+        # Surface has a projection → its features change the output.
+        assert not torch.allclose(x_baseline, x_surface_feat)

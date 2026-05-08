@@ -75,16 +75,30 @@ def _stabilize_benchmark_environment() -> Iterator[None]:
             subprocess.run(["nvidia-smi", "--reset-gpu-clocks"], capture_output=True, timeout=5, check=False)
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    """Inject ``_stabilize_benchmark_environment`` into every ``@pytest.mark.benchmark`` test.
+_INTEGRATION_DIR = "tests/integration/"
 
-    Prepending the fixture to ``fixturenames`` ensures it is resolved before any
-    function-scoped fixtures (including ``cache_flush``) that the benchmark relies on.
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Per-item collection tweaks.
+
+    1. Inject ``_stabilize_benchmark_environment`` into every
+       ``@pytest.mark.benchmark`` test (prepending it ensures it is resolved
+       before any function-scoped fixtures the benchmark relies on).
+    2. Auto-apply ``@pytest.mark.integration`` to anything collected from
+       ``tests/integration/`` so the suite can be filtered as
+       ``pytest -m "not integration"`` (or run in isolation as
+       ``pytest -m integration``) without per-file boilerplate.
     """
+    rootpath = config.rootpath
     for item in items:
-        if item.get_closest_marker("benchmark") is None:
+        if item.get_closest_marker("benchmark") is not None:
+            fixturenames = getattr(item, "fixturenames", None)
+            if fixturenames is not None and "_stabilize_benchmark_environment" not in fixturenames:
+                fixturenames.insert(0, "_stabilize_benchmark_environment")
+
+        try:
+            rel = item.path.relative_to(rootpath).as_posix()
+        except ValueError:
             continue
-        fixturenames = getattr(item, "fixturenames", None)
-        if fixturenames is None or "_stabilize_benchmark_environment" in fixturenames:
-            continue
-        fixturenames.insert(0, "_stabilize_benchmark_environment")
+        if rel.startswith(_INTEGRATION_DIR) and item.get_closest_marker("integration") is None:
+            item.add_marker(pytest.mark.integration)

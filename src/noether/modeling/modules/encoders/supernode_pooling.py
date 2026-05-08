@@ -49,19 +49,28 @@ class SupernodePooling(nn.Module):
         if self.input_features_dim is not None:
             self.feature_projection: LinearProjection | None = LinearProjection(
                 config=LinearProjectionConfig(
-                    input_dim=self.input_features_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
+                    input_dim=self.input_features_dim,
+                    output_dim=config.hidden_dim,
+                    init_weights=config.init_weights,
+                    bias=config.bias,
                 )  # type: ignore[call-arg]
             )
             if self.spool_pos_mode == "relpos":
                 self.feature_down_projection: LinearProjection | None = LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=config.hidden_dim * 3, output_dim=config.hidden_dim, init_weights=config.init_weights
+                        input_dim=config.hidden_dim * 3,
+                        output_dim=config.hidden_dim,
+                        init_weights=config.init_weights,
+                        bias=config.bias,
                     )  # type: ignore[call-arg]
                 )
             else:
                 self.feature_down_projection = LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=config.hidden_dim * 2, output_dim=config.hidden_dim, init_weights=config.init_weights
+                        input_dim=config.hidden_dim * 2,
+                        output_dim=config.hidden_dim,
+                        init_weights=config.init_weights,
+                        bias=config.bias,
                     )  # type: ignore[call-arg,arg-type]
                 )
         else:
@@ -90,20 +99,29 @@ class SupernodePooling(nn.Module):
             self.message: nn.Sequential | LinearProjection | nn.Identity = nn.Sequential(
                 LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=message_input_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
+                        input_dim=message_input_dim,
+                        output_dim=config.hidden_dim,
+                        init_weights=config.init_weights,
+                        bias=config.bias,
                     )  # type: ignore[call-arg]
                 ),
                 Activation.GELU.build(),
                 LinearProjection(
                     config=LinearProjectionConfig(
-                        input_dim=config.hidden_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
+                        input_dim=config.hidden_dim,
+                        output_dim=config.hidden_dim,
+                        init_weights=config.init_weights,
+                        bias=config.bias,
                     )  # type: ignore[call-arg]
                 ),
             )
         elif config.message_mode == "linear":
             self.message = LinearProjection(
                 config=LinearProjectionConfig(
-                    input_dim=message_input_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
+                    input_dim=message_input_dim,
+                    output_dim=config.hidden_dim,
+                    init_weights=config.init_weights,
+                    bias=config.bias,
                 )  # type: ignore[call-arg]
             )
         elif config.message_mode == "identity":
@@ -113,7 +131,10 @@ class SupernodePooling(nn.Module):
         if config.readd_supernode_pos:
             self.proj: LinearProjection | None = LinearProjection(
                 config=LinearProjectionConfig(
-                    input_dim=2 * config.hidden_dim, output_dim=config.hidden_dim, init_weights=config.init_weights
+                    input_dim=2 * config.hidden_dim,
+                    output_dim=config.hidden_dim,
+                    init_weights=config.init_weights,
+                    bias=config.bias,
                 )  # type: ignore[call-arg]
             )
         else:

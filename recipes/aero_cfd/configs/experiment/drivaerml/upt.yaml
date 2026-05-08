@@ -13,7 +13,7 @@ trainer:
 model:
   supernode_pooling_config:
     radius: 0.25
-  transformer_block_config:
+  approximator_config:
     max_wavelength: 40_000
     
     

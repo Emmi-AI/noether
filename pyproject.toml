@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "emmiai-noether"
-version = "2.0.0"
+version = "2026.4.0"
 description = "Noether: A PyTorch-based Framework for Engineering AI"
 authors = [{ name = "Emmi AI", email = "contact@emmi.ai" }]
 license-files = ["LICENSE.txt"]
@@ -172,7 +172,12 @@ module = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = [".", "src"]
-addopts = ["--import-mode=importlib", "-m", "not benchmark"]
+addopts = ["--import-mode=importlib", "-m", "not benchmark and not integration"]
+markers = [
+    "benchmark: micro-benchmarks; excluded from default runs",
+    "gpu: requires CUDA; tests use this marker to opt into the GPU-only suite",
+    "integration: end-to-end pipeline tests; auto-applied to anything under tests/integration/",
+]
 
 
 [tool.ruff]

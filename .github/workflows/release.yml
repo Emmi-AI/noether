@@ -75,11 +75,16 @@ jobs:
         with:
           packages-dir: dist/
 
-      - name: Commit bumped pyproject.toml and uv.lock back to main
+      - name: Create Pull Request with version bump
         if: steps.calver.outputs.version
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add pyproject.toml uv.lock
-          git commit -m "chore(release): ${{ steps.calver.outputs.version }} [skip ci]"
-          git push origin HEAD:${{ github.ref_name }}
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(release): ${{ steps.calver.outputs.version }} [skip ci]"
+          title: "chore(release): Version ${{ steps.calver.outputs.version }}"
+          body: "Update version to ${{ steps.calver.outputs.version }} and sync lockfile."
+          branch: "chore/release-${{ steps.calver.outputs.version }}"
+          base: "${{ github.ref_name }}"
+          add-paths: |
+            pyproject.toml
+            uv.lock
