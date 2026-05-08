@@ -1,5 +1,5 @@
 # Based on tutorial/configs/trainer/caeml_trainer.yaml
-kind: trainer.UQTrainer
+kind: aero_cfd.trainers.AerodynamicsCFDTrainer
 precision: float16
 max_epochs: 500
 effective_batch_size: 1
@@ -15,16 +15,12 @@ target_properties:
   - volume_vorticity_target
 
 # UQ loss configuration
-field_weights: 
-  surface_pressure: 1.0
-  surface_friction: 1.0
-  volume_pressure: 1.0
-  volume_velocity: 1.0
-  volume_vorticity: 1.0
-
-
-variance_regularization: 0.01
-warmup_epochs_mse_only: 10
-beta_nll: 0.1
+surface_weight: 1.0
+volume_weight: 1.0 
+surface_pressure_weight: 1.0
+surface_friction_weight: 1.0
+volume_pressure_weight: 1.0
+volume_velocity_weight: 1.0
+volume_vorticity_weight: 1.0
 use_physics_features: false
 monitor_training_stability: true

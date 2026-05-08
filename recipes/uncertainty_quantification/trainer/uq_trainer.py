@@ -34,8 +34,10 @@ class UQTrainer(BaseTrainer):
     """
 
     def __init__(self, trainer_config: UQTrainerConfig, **kwargs):
+        
         super().__init__(config=trainer_config, **kwargs)
-
+        self.config: UQTrainerConfig  # type hint for self.config
+        
     def loss_compute(self, forward_output: dict[str, Tensor], targets: dict[str, Tensor]) -> LossResult:
         current_epoch = self.update_counter.cur_iteration.epoch if self.update_counter.cur_iteration else 0
         use_nll = current_epoch >= self.config.warmup_epochs_mse_only
@@ -44,6 +46,7 @@ class UQTrainer(BaseTrainer):
 
         for field_name, weight in self.config.field_weights.items():
             if weight > 0 and f"{field_name}_mean" in forward_output and f"{field_name}_target" in targets:
+                
                 mean_key = f"{field_name}_mean"
                 log_var_key = f"{field_name}_log_var"
                 target_key = f"{field_name}_target"
@@ -71,6 +74,6 @@ class UQTrainer(BaseTrainer):
                         var_reg = log_var.clamp(max=0).pow(2).mean()
                         losses[f"{field_name}_var_reg"] = var_reg * weight * self.config.variance_regularization
                 else:
-                    losses[f"{field_name}_mse"] = mse * weight
+                    losses[f"{field_name}_regression"] = mse * weight
 
         return losses
