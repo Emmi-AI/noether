@@ -13,13 +13,13 @@
   every_n_epochs: 1
   metric_key: loss/val/total
 # test loss
-- kind: callbacks.AeroMetricsCallback
+- kind: aero_cfd.callbacks.AeroMetricsCallback
   batch_size: 1
   every_n_epochs: 1
   dataset_key: val
   forward_properties: ${model.forward_properties}
 - &chunked_test_metrics
-  kind: callbacks.AeroMetricsCallback
+  kind: aero_cfd.callbacks.AeroMetricsCallback
   batch_size: 1
   every_n_epochs: ${trainer.max_epochs}
   dataset_key: chunked_test

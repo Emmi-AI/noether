@@ -1,0 +1,98 @@
+name: weekly-integration-tests
+
+on:
+  schedule:
+    # 05:00 UTC every Monday — i.e. 06:00 CET (winter) / 07:00 CEST (summer).
+    # GitHub cron is fixed UTC and does not observe DST, so the local-time slot
+    # shifts by an hour twice a year. The job typically completes in well under
+    # 30 minutes, so failure notifications still land before the start of the
+    # work day in either season.
+    - cron: '0 5 * * 1'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write   # needed to open / comment on the tracking issue on failure
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup uv (with cache)
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Run integration tests (CPU only)
+        id: pytest
+        run: |
+          uv run --no-sync pytest \
+            -m "integration and not gpu" \
+            --junitxml=pytest-integration.xml \
+            -v
+
+      - name: Upload junit on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-integration
+          path: pytest-integration.xml
+
+      - name: Notify codeowners on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          # MENTIONS may include team handles in @org/team form.
+          ASSIGNEES: 'Ndles,MauritsBleeker,HennerM,kinggongzilla'
+          MENTIONS: '@Ndles @MauritsBleeker @HennerM @kinggongzilla'
+          TITLE: 'Weekly integration tests are failing'
+          LABEL: 'integration-test-failure'
+        run: |
+          set -euo pipefail
+
+          BODY=$(cat <<EOF
+          The weekly scheduled integration test run failed.
+
+          **Run:** $RUN_URL
+          **Commit:** \`${{ github.sha }}\`
+          **Triggered by:** ${{ github.event_name }}
+
+          $MENTIONS — please investigate.
+
+          <sub>Auto-managed by \`.github/workflows/weekly-integration-tests.yml\`. Subsequent failures comment on this issue rather than opening a new one.</sub>
+          EOF
+          )
+
+          # Find an existing open tracking issue by label + exact title:
+          NUM=$(gh issue list \
+            --state open --label "$LABEL" \
+            --json number,title \
+            --jq ".[] | select(.title == \"$TITLE\") | .number" \
+            | head -n1)
+
+          if [ -n "$NUM" ]; then
+            gh issue comment "$NUM" --body "$BODY"
+            echo "Commented on existing tracking issue #$NUM"
+          else
+            # Try with assignees; if the API rejects the list (e.g. a stale
+            # CODEOWNER without push access) fall back to no assignees so the
+            # body mentions still route notifications.
+            if ! gh issue create \
+                --title "$TITLE" --body "$BODY" \
+                --label "$LABEL" --assignee "$ASSIGNEES"; then
+              echo "::warning::issue create with assignees failed; retrying without assignees"
+              gh issue create --title "$TITLE" --body "$BODY" --label "$LABEL"
+            fi
+          fi

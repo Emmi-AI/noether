@@ -318,16 +318,20 @@ class AeroMultistagePipeline(MultiStagePipeline):
         )
         sample_processors = [
             PointSamplingSampleProcessor(
-                items=self.volume_sampling_items,
-                num_points=self.num_volume_points,
-                seed=self.seed,
-            ),
-            PointSamplingSampleProcessor(
                 items=self.surface_sampling_items,
                 num_points=self.num_surface_points,
                 seed=self.seed,
             ),
         ]
+        if self.num_volume_points > 0:
+            sample_processors.append(
+                PointSamplingSampleProcessor(
+                    items=self.volume_sampling_items,
+                    num_points=self.num_volume_points,
+                    seed=self.seed,
+                ),
+            )
+
         if self.has_query_points and not self.sample_query_points:
             # we use the same sampling items for the query points as for the surface and volume points
             sample_processors.extend(
@@ -437,48 +441,70 @@ class AeroMultistagePipeline(MultiStagePipeline):
 
     def _get_anchor_point_sampling_sample_processor(self) -> list[SampleProcessor]:
         """Get the anchor point sampling sample processor."""
-        if self.num_volume_anchor_points > 0 and self.num_surface_anchor_points > 0:
-            # make sure defa
-            self.default_collator_items += [
-                "surface_anchor_position",
-                "volume_anchor_position",
-            ]
-            return [
-                DuplicateKeysSampleProcessor(key_map={"surface_position": "geometry_position"}),
-                PointSamplingSampleProcessor(
-                    items={"geometry_position"},
-                    num_points=self.num_geometry_points,
-                    seed=None if self.seed is None else self.seed + 1,
-                ),
-                SupernodeSamplingSampleProcessor(
-                    item="geometry_position",
-                    num_supernodes=self.num_geometry_supernodes,
-                    supernode_idx_key="geometry_supernode_idx",
-                    seed=None if self.seed is None else self.seed + 2,
-                ),
-                # subsample surface data
-                AnchorPointSamplingSampleProcessor(
-                    items={"surface_position"} | set(self.surface_targets),
-                    num_points=self.num_surface_anchor_points,
-                    keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=_split_by_underscore,
-                    to_prefix_midfix_postfix=_split_three_or_none,
-                    seed=None if self.seed is None else self.seed + 3,
-                ),
-                # subsample volume data
-                AnchorPointSamplingSampleProcessor(
-                    items={"volume_position"} | set(self.volume_targets),
-                    num_points=self.num_volume_anchor_points,
-                    keep_queries=self.use_query_positions,
-                    to_prefix_and_postfix=_split_by_underscore,
-                    to_prefix_midfix_postfix=_split_three_or_none,
-                    seed=None if self.seed is None else self.seed + 4,
-                ),
-                RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.volume_targets}),
-                RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.surface_targets}),
-            ]
-
-        else:
+        if self.num_volume_anchor_points == 0 or self.num_surface_anchor_points == 0:
             raise ValueError(
                 "Anchor point sampling requires both num_volume_anchor_points and num_surface_anchor_points to be greater than 0."
             )
+        # make sure default collator items are set
+        self.default_collator_items += [
+            "surface_anchor_position",
+            "volume_anchor_position",
+        ]
+        processors = [
+            DuplicateKeysSampleProcessor(key_map={"surface_position": "geometry_position"}),
+            PointSamplingSampleProcessor(
+                items={"geometry_position"},
+                num_points=self.num_geometry_points,
+                seed=None if self.seed is None else self.seed + 1,
+            ),
+            SupernodeSamplingSampleProcessor(
+                item="geometry_position",
+                num_supernodes=self.num_geometry_supernodes,
+                supernode_idx_key="geometry_supernode_idx",
+                seed=None if self.seed is None else self.seed + 2,
+            ),
+            # subsample surface data
+            AnchorPointSamplingSampleProcessor(
+                items={"surface_position"}
+                | set(self.surface_targets)
+                | (self.surface_features if self.use_physics_features else set()),
+                num_points=self.num_surface_anchor_points,
+                keep_queries=self.use_query_positions,
+                to_prefix_and_postfix=_split_by_underscore,
+                to_prefix_midfix_postfix=_split_three_or_none,
+                seed=None if self.seed is None else self.seed + 3,
+            ),
+            # subsample volume data
+            AnchorPointSamplingSampleProcessor(
+                items={"volume_position"}
+                | set(self.volume_targets)
+                | (self.volume_features if self.use_physics_features else set()),
+                num_points=self.num_volume_anchor_points,
+                keep_queries=self.use_query_positions,
+                to_prefix_and_postfix=_split_by_underscore,
+                to_prefix_midfix_postfix=_split_three_or_none,
+                seed=None if self.seed is None else self.seed + 4,
+            ),
+            RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.volume_targets}),
+            RenameKeysSampleProcessor(key_map={DataKeys.as_anchor(key): key for key in self.surface_targets}),
+        ]
+        if self.use_physics_features:
+            processors.extend(
+                [
+                    ConcatTensorSampleProcessor(
+                        items=[DataKeys.as_anchor(key) for key in self.volume_features],
+                        target_key="volume_anchor_features",
+                        dim=1,
+                    ),
+                    ConcatTensorSampleProcessor(
+                        items=[DataKeys.as_anchor(key) for key in self.surface_features],
+                        target_key="surface_anchor_features",
+                        dim=1,
+                    ),
+                ]
+            )
+            self.default_collator_items += [
+                "volume_anchor_features",
+                "surface_anchor_features",
+            ]
+        return processors

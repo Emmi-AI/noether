@@ -10,13 +10,13 @@ from noether.core.schemas.models.base import ModelBaseConfig
 from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, RopeFrequency
-from recipes.aero_cfd.model.composite_components.composite_transformer_block import CompositeTransformerBlockConfig
 
 from .composite_components import CompositeTransformerBlock
+from .composite_components.composite_transformer_block import CompositeTransformerBlockConfig
 
 
 class CompositeTransformerConfig(ModelBaseConfig):
-    kind: str = "recipes.aero_cfd.model.composite_transformer.CompositeTransformer"
+    kind: str = "aero_cfd.model.composite_transformer.CompositeTransformer"
     name: Literal["composite_transformer"] = "composite_transformer"
     use_rope: bool = True
     low_level_blocks: CompositeTransformerBlockConfig
