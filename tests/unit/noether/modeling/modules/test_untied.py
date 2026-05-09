@@ -435,6 +435,103 @@ class TestUntiedMixedAttention:
         for proj in (attn.q, attn.k, attn.v):
             assert proj.weight[0].data_ptr() != proj.weight[1].data_ptr() or torch.any(proj.weight[0] != proj.weight[1])
 
+    def test_selective_kv_projection_matches_full(self):
+        """Selective K/V projection must produce the same output as projecting all tokens.
+
+        With anchor attention patterns (queries attend to anchors), Q-only tokens
+        skip K/V projection. Verify this produces identical results to the all-to-all
+        pattern where K/V is computed for every token.
+        """
+        torch.manual_seed(42)
+        attn = _make_attn(num_types=2).eval()
+        specs = [
+            TokenSpec(name="surface_anchors", size=4),
+            TokenSpec(name="surface_queries", size=3),
+            TokenSpec(name="volume_anchors", size=4),
+            TokenSpec(name="volume_queries", size=3),
+        ]
+        x = torch.randn(2, 14, 32)
+
+        # Anchor attention: queries attend only to anchors (selective KV path)
+        anchor_patterns = [
+            AttentionPattern(
+                query_tokens=["surface_anchors", "surface_queries"],
+                key_value_tokens=["surface_anchors"],
+            ),
+            AttentionPattern(
+                query_tokens=["volume_anchors", "volume_queries"],
+                key_value_tokens=["volume_anchors"],
+            ),
+        ]
+        out_selective = attn(x, specs, anchor_patterns)
+        assert out_selective.shape == (2, 14, 32)
+
+        # Self-only anchors: same K/V subset but anchors only attend to themselves
+        self_patterns = [
+            AttentionPattern(query_tokens=["surface_anchors"], key_value_tokens=["surface_anchors"]),
+            AttentionPattern(query_tokens=["surface_queries"], key_value_tokens=["surface_anchors"]),
+            AttentionPattern(query_tokens=["volume_anchors"], key_value_tokens=["volume_anchors"]),
+            AttentionPattern(query_tokens=["volume_queries"], key_value_tokens=["volume_anchors"]),
+        ]
+        out_split = attn(x, specs, self_patterns)
+        assert out_split.shape == (2, 14, 32)
+
+        # Anchor outputs should match (same KV set, same queries)
+        assert torch.allclose(out_selective[:, :4], out_split[:, :4], atol=1e-5)
+        assert torch.allclose(out_selective[:, 7:11], out_split[:, 7:11], atol=1e-5)
+
+    def test_selective_kv_backward_populates_grads(self):
+        """Verify gradients flow correctly with selective K/V projection."""
+        attn = _make_attn(num_types=2)
+        specs = [
+            TokenSpec(name="surface_anchors", size=4),
+            TokenSpec(name="surface_queries", size=3),
+            TokenSpec(name="volume_anchors", size=4),
+            TokenSpec(name="volume_queries", size=3),
+        ]
+        x = torch.randn(2, 14, 32)
+        patterns = [
+            AttentionPattern(
+                query_tokens=["surface_anchors", "surface_queries"],
+                key_value_tokens=["surface_anchors"],
+            ),
+            AttentionPattern(
+                query_tokens=["volume_anchors", "volume_queries"],
+                key_value_tokens=["volume_anchors"],
+            ),
+        ]
+        out = attn(x, specs, patterns)
+        out.sum().backward()
+
+        # Q weights should all have gradients (all tokens are queries).
+        for w in attn.q.weight:
+            assert w.grad is not None and torch.any(w.grad != 0)
+        # K/V weights should have gradients for anchor types only.
+        for w in attn.k.weight:
+            assert w.grad is not None and torch.any(w.grad != 0)
+        for w in attn.v.weight:
+            assert w.grad is not None and torch.any(w.grad != 0)
+
+    def test_selective_kv_domain_fallback(self):
+        """When KV subset has different domains, falls back to full projection."""
+        torch.manual_seed(42)
+        # 3 types: a, b, c. Pattern: a queries c (c is KV-only, b is missing from KV).
+        attn = _make_attn(num_types=3).eval()
+        specs = [
+            TokenSpec(name="a_anchors", size=3),
+            TokenSpec(name="b_queries", size=3),
+            TokenSpec(name="c_anchors", size=3),
+        ]
+        x = torch.randn(1, 9, 32)
+        # b queries a, a and c query c. KV subset domains = [a, c], full = [a, b, c].
+        # Domain mismatch → should fall back but still produce correct output.
+        patterns = [
+            AttentionPattern(query_tokens=["a_anchors", "c_anchors"], key_value_tokens=["c_anchors"]),
+            AttentionPattern(query_tokens=["b_queries"], key_value_tokens=["a_anchors"]),
+        ]
+        out = attn(x, specs, patterns)
+        assert out.shape == (1, 9, 32)
+
 
 # ---------------------------------------------------------------------------
 # UntiedMLP

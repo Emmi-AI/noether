@@ -357,19 +357,49 @@ class UntiedMixedAttention(MixedAttention):
         input_specs = [s for s in token_specs if s.size is not None]
         self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs)
 
-        q = einops.rearrange(self.q(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-        k = einops.rearrange(self.k(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-        v = einops.rearrange(self.v(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+        # Determine which specs need K/V projections.
+        needs_kv = {name for p in attention_patterns for name in p.key_value_tokens}
+        kv_specs = [s for s in input_specs if s.name in needs_kv]
 
-        output, _, _ = self._attend(
-            q,
-            k,
-            v,
-            input_specs=input_specs,
+        # Validate that the KV subset preserves the original domain-to-weight mapping.
+        # UntiedLinear maps the n-th unique domain to weight[n]. If a domain is absent
+        # from kv_specs, subsequent domains shift to wrong weight indices.
+        full_domains = list(dict.fromkeys(s.domain for s in input_specs))
+        kv_domains = list(dict.fromkeys(s.domain for s in kv_specs))
+        if kv_domains != full_domains:
+            kv_specs = input_specs
+
+        x_dict = self._split_per_token_spec(x, input_specs, split_dim=1)
+
+        # Q projection for all tokens (all are queries in typical anchor attention).
+        q = einops.rearrange(self.q(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+
+        # K/V projection only for tokens that appear in key_value_tokens.
+        x_kv = torch.cat([x_dict[s.name] for s in kv_specs], dim=1)
+        k = einops.rearrange(self.k(x_kv, kv_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+        v = einops.rearrange(self.v(x_kv, kv_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+
+        if self.use_rope and freqs is not None:
+            freqs_dict = self._split_per_token_spec(freqs, input_specs, split_dim=-2)
+            freqs_kv = torch.cat([freqs_dict[s.name] for s in kv_specs], dim=-2)
+            q, k = rope(q, freqs=freqs), rope(k, freqs=freqs_kv)
+
+        q_dict = self._split_per_token_spec(q, input_specs, split_dim=2)
+        k_dict = self._split_per_token_spec(k, kv_specs, split_dim=2)
+        v_dict = self._split_per_token_spec(v, kv_specs, split_dim=2)
+
+        mask_dict: dict[str, torch.Tensor] | None = None
+        if key_padding_mask is not None:
+            mask_dict = self._split_per_token_spec(key_padding_mask, input_specs, split_dim=1)
+
+        token_outputs = self._process_pattern_batched(
             attention_patterns=attention_patterns,
-            key_padding_mask=key_padding_mask,
-            freqs=freqs,
+            q_dict=q_dict,
+            k_dict=k_dict,
+            v_dict=v_dict,
+            mask_dict=mask_dict,
         )
+        output = self._assemble_per_token_spec(token_outputs, input_specs)
 
         # Per-type output projection.
         projected: torch.Tensor = self.proj(output, token_specs)

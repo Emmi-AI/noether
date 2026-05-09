@@ -108,6 +108,53 @@ class TestMixedAttention:
         output, _ = module(x, token_specs, patterns)
         assert output.shape == (1, 15, 64)
 
+    def test_selective_projection_skips_kv_for_query_only_tokens(self, module):
+        """Q-only tokens should not have K/V computed; only QKV tokens appear in the cache."""
+        x = torch.randn(1, 15, 64)
+        token_specs = [
+            TokenSpec(name="surface_anchors", size=10),
+            TokenSpec(name="surface_queries", size=5),
+        ]
+        patterns = [
+            AttentionPattern(
+                query_tokens=["surface_anchors", "surface_queries"],
+                key_value_tokens=["surface_anchors"],
+            ),
+        ]
+
+        output, cache = module(x, token_specs, patterns)
+        assert output.shape == (1, 15, 64)
+
+        # Cache should only contain K/V for tokens that had K/V computed (QKV group).
+        # surface_queries is Q-only, so it must NOT appear in the cache.
+        assert cache is not None
+        assert "surface_anchors" in cache
+        assert "surface_queries" not in cache
+
+    def test_classify_specs(self, module):
+        """Verify _classify_specs correctly classifies token specs."""
+        specs = [
+            TokenSpec(name="surface_anchors", size=10),
+            TokenSpec(name="surface_queries", size=5),
+            TokenSpec(name="volume_anchors", size=8),
+        ]
+        patterns = [
+            AttentionPattern(
+                query_tokens=["surface_anchors", "surface_queries"],
+                key_value_tokens=["surface_anchors"],
+            ),
+            AttentionPattern(
+                query_tokens=["volume_anchors"],
+                key_value_tokens=["volume_anchors"],
+            ),
+        ]
+
+        qkv, q_only, kv_only = MixedAttention._classify_specs(specs, patterns)
+
+        assert [s.name for s in qkv] == ["surface_anchors", "volume_anchors"]
+        assert [s.name for s in q_only] == ["surface_queries"]
+        assert kv_only == []
+
     def test_process_pattern_batched_optimization(self, module):
         """
         Verify that patterns with identical shapes are batched together.

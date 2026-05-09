@@ -269,6 +269,43 @@ def test_ab_upt_forward_backward_vs_physics_blocks(benchmark, device, cache_flus
     benchmark.pedantic(step, setup=cache_flush, rounds=_ROUNDS, warmup_rounds=_WARMUP_ROUNDS, iterations=1)
 
 
+@pytest.mark.benchmark(group="ab_upt_selective_projection_forward")
+@pytest.mark.parametrize("num_queries_per_domain", [0, 2048, 8192])
+@pytest.mark.parametrize("physics_block", ["self", "self_untied"])
+def test_ab_upt_forward_selective_projection(benchmark, device, cache_flush, num_queries_per_domain, physics_block):
+    """Forward-only — impact of selective K/V projection as query-to-anchor ratio grows.
+
+    With ``self`` / ``self_untied`` physics blocks, anchor tokens need Q, K, V
+    (they appear in both ``query_tokens`` and ``key_value_tokens``), while query
+    tokens need only Q (they attend to anchors but are never attended to). The
+    selective projection optimization skips K/V for these Q-only tokens.
+
+    ``num_queries_per_domain=0`` is the baseline with no Q-only tokens (all anchors,
+    no savings). As query count grows, the fraction of skipped projections increases.
+
+    Fixed: 512 anchors per domain, ``hidden_dim=128``, ``num_heads=4``.
+    """
+    torch.manual_seed(0)
+    config = _make_config(hidden_dim=1024, num_heads=4, physics_blocks=["perceiver", physics_block])
+    model = AnchoredBranchedUPT(config).to(device).eval()
+    inputs = _make_inputs(
+        device,
+        batch_size=1,
+        num_geometry_points=512,
+        num_supernodes=128,
+        num_surface_anchors=512,
+        num_volume_anchors=512,
+    )
+    if num_queries_per_domain > 0:
+        gen = torch.Generator(device="cpu").manual_seed(1)
+        inputs["domain_query_positions"] = {
+            "surface": torch.randn(1, num_queries_per_domain, 3, generator=gen).to(device),
+            "volume": torch.randn(1, num_queries_per_domain, 3, generator=gen).to(device),
+        }
+    step = _forward_closure(model, inputs, device)
+    benchmark.pedantic(step, setup=cache_flush, rounds=_ROUNDS, warmup_rounds=_WARMUP_ROUNDS, iterations=1)
+
+
 @pytest.mark.benchmark(group="ab_upt_untied_vs_decoder_blocks_forward_backward")
 @pytest.mark.parametrize("anchor_ratio", [1, 1.5, 2, 3])
 @pytest.mark.parametrize("untied", [False, True])
