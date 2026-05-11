@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from noether.core.schemas.modules.mlp import UpActDownMLPConfig
-from noether.modeling.functional.init import init_trunc_normal_zero_bias
+from noether.modeling.functional.init import init_trunc_normal_zero_bias, init_xavier_uniform_zero_bias
 from noether.modeling.modules.activations import Activation
 
 
@@ -48,6 +48,8 @@ class UpActDownMlp(nn.Module):
         elif self.init_weights == "truncnormal002-identity":
             self.apply(init_trunc_normal_zero_bias)
             nn.init.zeros_(self.fc2.weight)
+        elif self.init_weights == "xavier":
+            self.apply(init_xavier_uniform_zero_bias)
         else:
             raise NotImplementedError(
                 f"Initialization method {self.init_weights} not implemented. "

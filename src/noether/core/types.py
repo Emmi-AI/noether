@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-InitWeightsMode = Literal["truncnormal002", "torch", "truncnormal", "truncnormal002-identity", "torchs", "zeros"]
+InitWeightsMode = Literal[
+    "truncnormal002", "torch", "truncnormal", "truncnormal002-identity", "torchs", "zeros", "xavier"
+]
 
 ActivationTypes = Literal["GELU", "TANH", "SIGMOID", "RELU", "LEAKY_RELU", "SOFTPLUS", "ELU", "SILU"]
 
