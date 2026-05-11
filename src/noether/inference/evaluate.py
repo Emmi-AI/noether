@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from noether.core.configs.hyperparameters import Hyperparameters
@@ -51,6 +52,7 @@ def evaluate(
     resume_checkpoint: str = "latest",
     stage_name: str | None = None,
     callbacks: list[CallBackBaseConfig] | None = None,
+    config_overrides: Callable[[ConfigSchema], None] | None = None,
     device: str = "cuda",
     disable_tracker: bool = False,
 ) -> None:
@@ -79,6 +81,10 @@ def evaluate(
             eval run. Pass the exact callbacks that should execute (e.g. a
             single sampling/rollout callback) — nothing from the training
             config's callback list is kept.
+        config_overrides: Optional callable invoked on the loaded
+            :class:`ConfigSchema` after resume / callbacks wiring and before
+            dispatch. Use it to toggle dataset settings that the training
+            config baked out.
         device: Device string passed to the trainer (default ``"cuda"``).
             For multi-GPU eval use the ``noether-eval`` CLI; this function
             is single-process.
@@ -127,6 +133,8 @@ def evaluate(
         config.tracker = None
     if callbacks is not None:
         config.trainer.callbacks = callbacks
+    if config_overrides is not None:
+        config_overrides(config)
 
     logger.info(
         f"evaluating run_id={config.run_id!r} stage_name={config.stage_name!r} resume_checkpoint={resume_checkpoint!r}"

@@ -201,7 +201,9 @@ def process_run(
     vtp_pressure = vtp.get_array(data_field_keymap.vtp_pressure)
     vtp_position = vtp.cell_centers().points
     vtp_wallshearstress = vtp.get_array(data_field_keymap.vtp_wallshearstress).astype(np.float32)
-    assert_same_length(vtp_position, vtp_pressure, vtp_wallshearstress)
+    # Per-cell surface areas, aligned with the cell centers used as positions.
+    vtp_cell_area = vtp.compute_cell_sizes(length=False, area=True, volume=False).cell_data["Area"]
+    assert_same_length(vtp_position, vtp_pressure, vtp_wallshearstress, vtp_cell_area)
 
     # Downsampling with a seeded permutation
     vtp_perm = torch.randperm(len(vtp_position), generator=torch.Generator().manual_seed(run_id))
@@ -211,6 +213,7 @@ def process_run(
     torch.save(torch.Tensor(vtp_position)[vtp_perm], run_dst_path / "surface_position_vtp.pt")
     torch.save(torch.Tensor(vtp_pressure)[vtp_perm], run_dst_path / "surface_pressure.pt")
     torch.save(torch.Tensor(vtp_wallshearstress)[vtp_perm], run_dst_path / "surface_wallshearstress.pt")
+    torch.save(torch.Tensor(vtp_cell_area)[vtp_perm], run_dst_path / "surface_area_vtp.pt")
 
     # --- Process VTU file (Volume Data) ---
     with time_block(run_folder, "Load vtu file"):

@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class SubsetWrapperConfig(DatasetWrapperConfig):
+    kind: str = "noether.data.base.wrappers.SubsetWrapper"
+
     indices: Sequence | None = None
     start_index: int | None = None
     end_index: int | None = None

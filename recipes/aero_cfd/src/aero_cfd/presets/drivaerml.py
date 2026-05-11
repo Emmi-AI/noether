@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from aero_cfd.callbacks.aero_metrics import AeroMetricsCallbackConfig
+from noether.core.schemas.schema import ConfigSchema
 from noether.data.preprocessors.normalizers import FieldNormalizerConfig
 from noether.data.schemas import DomainDataSpec, ModelDataSpecs
 
@@ -67,6 +69,57 @@ class DrivAerMLPreset(AeroCFDPreset):
                 strategy="position", scale=1000, stat_keys={"min": "raw_pos_min", "max": "raw_pos_max"}
             ),
         }
+
+    def evaluation_callbacks(
+        self, model_kind: str, *, every_n_epochs: int = 1, max_epochs: int = 1, chunk_size: int = 1
+    ) -> list:
+        """Domain-specific evaluation callbacks for surface/volume metrics."""
+        return [
+            AeroMetricsCallbackConfig(
+                batch_size=1,
+                every_n_epochs=every_n_epochs,
+                dataset_key="test",
+                forward_properties=self.forward_properties(model_kind),
+            ),
+            AeroMetricsCallbackConfig(
+                batch_size=1,
+                every_n_epochs=max_epochs,  # Run at the end of training
+                dataset_key="chunked_test",
+                forward_properties=self.forward_properties(model_kind),
+                chunked_inference=True,
+                chunk_properties=["surface_anchor_position", "volume_anchor_position"],
+                sample_size_property="surface_anchor_position",
+                chunk_size=chunk_size,
+            ),
+        ]
+
+    def build_config(
+        self,
+        *,
+        model_kind: str,
+        dataset_root: str,
+        include_evaluation: bool = True,
+        **kwargs,
+    ) -> ConfigSchema:
+        """Build config with optional domain-specific evaluation callbacks and test_repeat dataset."""
+        max_epochs = kwargs.get("max_epochs", 1)
+        chunk_size = kwargs.get("chunk_size", 1)
+
+        extra_callbacks = kwargs.pop("extra_callbacks", None) or []
+        extra_datasets = kwargs.pop("extra_datasets", None) or {}
+
+        if include_evaluation:
+            extra_callbacks = (
+                self.evaluation_callbacks(model_kind, max_epochs=max_epochs, chunk_size=chunk_size) + extra_callbacks
+            )
+
+        return super().build_config(
+            model_kind=model_kind,
+            dataset_root=dataset_root,
+            extra_callbacks=extra_callbacks,
+            extra_datasets=extra_datasets,
+            **kwargs,
+        )
 
     @property
     def excluded_properties(self) -> set[str]:

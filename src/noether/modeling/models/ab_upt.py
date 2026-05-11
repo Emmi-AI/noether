@@ -237,7 +237,11 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
         geo_block_config = self.transformer_block_config.model_copy(deep=True)
         if self.condition_dim is None:
             self.condition_dim = self.hidden_dim
-        geo_block_config.condition_dim = self.condition_dim if self.geometry_conditioning_dims is not None else None  # type: ignore
+        geo_block_config.condition_dim = (
+            self.condition_dim
+            if self.geometry_conditioning_dims is not None and self.geometry_conditioning_dims.total_dim > 0
+            else None
+        )  # type: ignore
         return geo_block_config
 
     @computed_field
@@ -481,7 +485,7 @@ class AnchoredBranchedUPT(nn.Module):
             )
 
         geom_dims = config.geometry_conditioning_dims
-        if geom_dims is not None and geom_dims != config.data_specs.conditioning_dims:
+        if geom_dims is not None and geom_dims.total_dim > 0 and geom_dims != config.data_specs.conditioning_dims:
             self.geometry_conditioner = VectorsConditioner(
                 config=config.geometry_conditioner_config,  # type: ignore[arg-type]
             )

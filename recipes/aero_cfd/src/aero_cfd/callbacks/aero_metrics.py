@@ -58,6 +58,8 @@ class AeroMetricsCallbackConfig(PeriodicDataIteratorCallbackConfig):
                 raise ValueError("forward_properties must be specified when chunked_inference is True")
             if not self.chunk_properties:
                 raise ValueError("chunk_properties must be specified when chunked_inference is True")
+            if self.sample_size_property is None:
+                raise ValueError("sample_size_property must be specified when chunked_inference is True")
         return self
 
 

@@ -63,9 +63,23 @@ All recipe source code lives under the `recipes/ <https://github.com/Emmi-AI/noe
       - :doc:`Documentation <uncertainty_quantification>`
       - `Source code <https://github.com/Emmi-AI/noether/tree/main/recipes/uncertainty_quantification>`_
 
+   .. grid-item-card:: :ph:`waveform` Diffusion UQ on DrivAerML
+      :img-top: /_static/diffusion_uq/surface_pressure_uq_vs_error_plot.png
+      :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
+      :class-title: sd-fs-5 sd-fw-bold sd-text-primary
+      :class-body: sd-p-4
+      :class-img-top: recipe-card-thumb
+
+      Generative uncertainty quantification on top of AB-UPT via data-space flow matching. Ensemble
+      draws yield per-point std calibrated to the absolute error, plus Cd / Cl coverage metrics.
+
+      - :doc:`Documentation <diffusion_uq>`
+      - `Source code <https://github.com/Emmi-AI/noether/tree/main/recipes/diffusion_uq>`_
+
 .. toctree::
    :hidden:
 
    aero_cfd_python
    heat_transfer
    uncertainty_quantification
+   diffusion_uq
