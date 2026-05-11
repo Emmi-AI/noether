@@ -173,6 +173,7 @@ class AnchoredBranchedUPT(nn.Module):
                     input_dim=spec.feature_dim.total_dim,
                     hidden_dim=self.hidden_dim,
                     output_dim=self.hidden_dim,
+                    bias=config.transformer_block_config.bias,
                 ),
             )
 

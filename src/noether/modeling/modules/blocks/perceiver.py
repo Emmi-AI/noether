@@ -34,7 +34,6 @@ class PerceiverBlock(nn.Module):
             self.modulation = None
             elementwise_affine = True
         else:
-            assert config.bias
             self._kv_dim = config.kv_dim or config.hidden_dim
             if config.modulation_linear_projection_config is not None:
                 self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
