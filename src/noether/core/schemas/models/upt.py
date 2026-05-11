@@ -37,6 +37,9 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
 
     use_rope: bool = Field(False)
 
+    bias: bool = Field(True)
+    """Whether to use bias terms in the model's linear layers."""
+
     supernode_pooling_config: Annotated[SupernodePoolingConfig, Shared]
 
     approximator_config: Annotated[TransformerBlockConfig, Shared]
@@ -53,6 +56,7 @@ class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
             input_dim=self.hidden_dim,
             output_dim=self.data_specs.total_output_dim,
             init_weights=self.decoder_config.perceiver_block_config.init_weights,
+            bias=self.bias,
         )
 
     @computed_field

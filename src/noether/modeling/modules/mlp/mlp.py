@@ -28,14 +28,17 @@ class MLP(nn.Module):
         super().__init__()
 
         # input layer and non-linearity
-        layers = [nn.Linear(config.input_dim, config.hidden_dim), Activation[config.activation].build()]
+        layers = [
+            nn.Linear(config.input_dim, config.hidden_dim, bias=config.bias),
+            Activation[config.activation].build(),
+        ]
         self.init_weights = config.init_weights
         # hidden layers and non-linearities
         for _ in range(config.num_layers):
-            layers.append(nn.Linear(config.hidden_dim, config.hidden_dim))
+            layers.append(nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias))
             layers.append(Activation[config.activation].build())
         # output layer
-        layers.append(nn.Linear(config.hidden_dim, config.output_dim))
+        layers.append(nn.Linear(config.hidden_dim, config.output_dim, bias=config.bias))
         self.mlp = nn.Sequential(*layers)
         self.reset_parameters()
 

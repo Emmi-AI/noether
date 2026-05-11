@@ -158,6 +158,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             input_dim=self.hidden_dim,
             hidden_dim=self.hidden_dim,
             output_dim=self.hidden_dim,
+            bias=self.transformer_block_config.bias,
         )
 
     @computed_field
@@ -169,6 +170,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             kv_dim=None,
             use_rope=self.transformer_block_config.use_rope,
             condition_dim=self.transformer_block_config.condition_dim,
+            bias=self.transformer_block_config.bias,
         )
 
     @computed_field
@@ -179,6 +181,7 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
                 input_dim=self.hidden_dim,
                 output_dim=spec.output_dims.total_dim,
                 init_weights="truncnormal002",
+                bias=self.transformer_block_config.bias,
             )
             for name, spec in self.data_specs.domains.items()
         }

@@ -19,6 +19,7 @@ from torch.nn.parallel import DistributedDataParallel
 
 from noether.core.callbacks import CallbackBase, PeriodicCallback, PeriodicDataIteratorCallback
 from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallback
+from noether.core.callbacks.default.training_diagnostics import TrainingDiagnosticsCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
     all_gather_nograd,
@@ -367,6 +368,16 @@ class BaseTrainer:
                     **default_kwargs,
                 ),
             ]
+
+            if self.config.monitor_training_stability:
+                default_callbacks.append(
+                    TrainingDiagnosticsCallback(
+                        callback_config=CallBackBaseConfig.model_validate(
+                            {**track_config, "every_n_updates": self.config.monitor_interval}
+                        ),
+                        **default_kwargs,
+                    )
+                )
 
         for callback in default_callbacks:
             self.logger.debug(f"added default {callback}")

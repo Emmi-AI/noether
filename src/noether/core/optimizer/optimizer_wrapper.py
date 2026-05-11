@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -96,12 +97,20 @@ class OptimizerWrapper:
         )
 
         # for grad clipping all parameters of the model are required
-        self.all_parameters = None
+        self.all_parameters: list[torch.nn.Parameter] | None = None
+        self._all_parameter_names: list[str] | None = None
         if self.config.clip_grad_value is not None or self.config.clip_grad_norm is not None:
-            self.all_parameters = list(model.parameters())
+            named = list(model.named_parameters())
+            self._all_parameter_names = [name for name, _ in named]
+            self.all_parameters = [p for _, p in named]
 
         # Pre-clip gradient norm from the most recent step() call; populated only when clip_grad_norm is set.
         self.last_grad_norm: torch.Tensor | None = None
+        # Per-parameter L2 grad norms captured during the most recent step(), stored as scalar
+        # tensors so the per-step capture doesn't force a CUDA sync. Materialized to floats only
+        # when actually inspected (e.g. on the non-finite-grad-norm warning path).
+        self.last_scaled_param_norms: list[torch.Tensor] | None = None
+        self.last_unscaled_param_norms: list[torch.Tensor] | None = None
 
         self._apply_learning_rate_scaling()
 
@@ -267,6 +276,75 @@ class OptimizerWrapper:
                     return True
         return False
 
+    def _compute_grad_param_norms(self) -> list[torch.Tensor]:
+        """Per-parameter L2 norms over ``self.all_parameters`` with a non-None gradient.
+
+        Returned tensors are scalars on the parameter's device; calling this does not force a
+        CUDA sync. Use :meth:`_materialize_grad_param_norms` to convert to Python floats.
+        """
+        if self.all_parameters is None:
+            return []
+        grads = [p.grad for p in self.all_parameters if p.grad is not None]
+        if not grads:
+            return []
+        return list(torch._foreach_norm(grads))
+
+    def _grad_param_names(self) -> list[str]:
+        """Names of parameters with a non-None gradient, ordered to match :meth:`_compute_grad_param_norms`."""
+        if self.all_parameters is None or self._all_parameter_names is None:
+            return []
+        return [
+            name for name, p in zip(self._all_parameter_names, self.all_parameters, strict=True) if p.grad is not None
+        ]
+
+    @staticmethod
+    def _materialize_grad_param_norms(norms: list[torch.Tensor]) -> list[float]:
+        """Convert a list of scalar grad-norm tensors to floats with a single device sync."""
+        if not norms:
+            return []
+        return torch.stack(norms).tolist()  # type: ignore[no-any-return]
+
+    def _log_non_finite_grad_norm_diagnostics(self, grad_scaler: GradScaler) -> None:
+        """Dump per-parameter grad-norm details when the global grad norm is non-finite.
+
+        Helps tell apart (a) NaN/Inf already present in the scaled (pre-unscale) grads vs.
+        (b) values that only become non-finite after unscaling — typically a gradient-scaler
+        underflow.
+        """
+        max_report = 20
+        lines = [
+            f"Gradient norm is {self.last_grad_norm}, which is not finite. "
+            "This can lead to instability during training."
+        ]
+        if isinstance(grad_scaler, GradScaler) and grad_scaler.is_enabled():
+            lines.append(f"  grad_scaler scale={grad_scaler.get_scale()}")
+
+        names = self._grad_param_names()
+
+        if names and self.last_unscaled_param_norms is not None:
+            unscaled = self._materialize_grad_param_norms(self.last_unscaled_param_norms)
+            bad = [(n, v) for n, v in zip(names, unscaled, strict=True) if not math.isfinite(v)]
+            if bad:
+                shown = ", ".join(f"{n}={v}" for n, v in bad[:max_report])
+                extra = f" (+{len(bad) - max_report} more)" if len(bad) > max_report else ""
+                lines.append(f"  unscaled non-finite ({len(bad)} params): {shown}{extra}")
+            else:
+                top = sorted(zip(names, unscaled, strict=True), key=lambda x: x[1], reverse=True)[:5]
+                lines.append(
+                    "  unscaled grads were all finite (likely a gradient-scaler underflow); top 5 by norm: "
+                    + ", ".join(f"{n}={v:.3g}" for n, v in top)
+                )
+
+        if names and self.last_scaled_param_norms is not None:
+            scaled = self._materialize_grad_param_norms(self.last_scaled_param_norms)
+            bad = [(n, v) for n, v in zip(names, scaled, strict=True) if not math.isfinite(v)]
+            if bad:
+                shown = ", ".join(f"{n}={v}" for n, v in bad[:max_report])
+                extra = f" (+{len(bad) - max_report} more)" if len(bad) > max_report else ""
+                lines.append(f"  scaled (pre-unscale) non-finite ({len(bad)} params): {shown}{extra}")
+
+        self.logger.warning("\n".join(lines))
+
     def step(self, grad_scaler: GradScaler | None = None) -> None:
         """Wrapper around `torch.optim.Optimizer.step` which automatically handles:
         - gradient scaling for mixed precision (including updating the GradientScaler state)
@@ -284,9 +362,15 @@ class OptimizerWrapper:
         if grad_scaler is None:
             grad_scaler = NoopGradScaler()
 
+        self.last_scaled_param_norms = None
+        self.last_unscaled_param_norms = None
+
         # NOTE: closure is not supported with GradScaler
         if self.config.clip_grad_value is not None or self.config.clip_grad_norm is not None:
+            if isinstance(grad_scaler, GradScaler) and grad_scaler.is_enabled():
+                self.last_scaled_param_norms = self._compute_grad_param_norms()
             grad_scaler.unscale_(self.torch_optim)
+            self.last_unscaled_param_norms = self._compute_grad_param_norms()
         # clip gradients
         if self.config.clip_grad_value is not None:
             if self.all_parameters is None:
@@ -296,6 +380,9 @@ class OptimizerWrapper:
             if self.all_parameters is None:
                 raise RuntimeError("all_parameters was not initialized")
             self.last_grad_norm = torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
+            if not math.isfinite(self.last_grad_norm):
+                self._log_non_finite_grad_norm_diagnostics(grad_scaler)
+
         # torch optim step with grad scaler
         grad_scaler.step(self.torch_optim)
         grad_scaler.update()

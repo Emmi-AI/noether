@@ -1,4 +1,4 @@
-kind: model.CompositeTransformer
+kind: aero_cfd.model.CompositeTransformer
 name: composite_transformer
 use_rope: true 
 hidden_dim: 192
