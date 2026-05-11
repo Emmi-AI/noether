@@ -143,9 +143,9 @@ def _inject_hp_resolved_into_argv() -> None:
     run_id = hp_data.get("run_id") or inferred_run_id
 
     injected = [
-        f"++run_id={run_id}",
+        f"++run_id='{run_id}'",
         f"++stage_name={stage_name}",
-        f"++resume_run_id={run_id}",
+        f"++resume_run_id='{run_id}'",
         f"++resume_stage_name={stage_name}",
         # Default to the latest checkpoint; user-supplied `resume_checkpoint=...` in `remaining` is applied afterwards
         # and wins.
