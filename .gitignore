@@ -153,3 +153,4 @@ dmypy.json
 .pyre/
 tests/test_files/output
 /data
+*.out

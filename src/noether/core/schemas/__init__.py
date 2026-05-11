@@ -15,6 +15,10 @@ from .callbacks import (
     TrackAdditionalOutputsCallbackConfig,
 )
 from .dataset import DatasetBaseConfig, StandardDatasetConfig
+from .diffusion import (
+    AnyDiffusionScheduleConfig,
+    FlowMatchingConfig,
+)
 from .initializers import (
     AnyInitializer,
     CheckpointInitializerConfig,
@@ -71,6 +75,8 @@ __all__ = [
     "AnyInitializer",
     "DatasetBaseConfig",
     "StandardDatasetConfig",
+    "AnyDiffusionScheduleConfig",
+    "FlowMatchingConfig",
     "CheckpointInitializerConfig",
     "InitializerConfig",
     "PreviousRunInitializerConfig",
