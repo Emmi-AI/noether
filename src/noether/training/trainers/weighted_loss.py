@@ -7,9 +7,9 @@ from collections.abc import Callable
 
 import torch
 import torch.nn.functional as F
+from pydantic import Field
 
-from noether.core.schemas.trainers import WeightedLossTrainerConfig
-from noether.training.trainers.base import BaseTrainer
+from noether.training.trainers import BaseTrainer, BaseTrainerConfig
 
 LOSS_REGISTRY: dict[str, Callable[..., torch.Tensor]] = {
     "mse": F.mse_loss,
@@ -17,6 +17,40 @@ LOSS_REGISTRY: dict[str, Callable[..., torch.Tensor]] = {
     "smooth_l1": F.smooth_l1_loss,
     "huber": F.huber_loss,
 }
+
+
+class WeightedLossTrainerConfig(BaseTrainerConfig):
+    """Config for a generic trainer that computes weighted loss per output field.
+
+    ``field_weights`` maps output field names to their loss weights. Keys must match model output dict keys.
+    Target keys in the batch are expected to follow the ``<field_name>_target`` convention.
+
+    Built-in loss example::
+
+        WeightedLossTrainerConfig(
+            kind="noether.training.trainers.WeightedLossTrainer",
+            field_weights={"surface_pressure": 1.0, "volume_velocity": 1.0},
+            loss_fn="l1",
+        )
+
+    Custom loss function from a downstream project::
+
+        WeightedLossTrainerConfig(
+            kind="noether.training.trainers.WeightedLossTrainer",
+            field_weights={"surface_pressure": 1.0},
+            loss_fn="my_project.losses.weighted_huber",
+        )
+    """
+
+    field_weights: dict[str, float] = Field(
+        ...,
+        description="Mapping from output field name to its loss weight.",
+    )
+    loss_fn: str = Field(
+        "mse",
+        description="Loss function: a built-in name ('mse', 'l1', 'smooth_l1', 'huber') "
+        "or a dotted import path to a custom callable with signature (input, target) -> Tensor.",
+    )
 
 
 def _resolve_loss_fn(loss_fn: str) -> Callable[..., torch.Tensor]:
