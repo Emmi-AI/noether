@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.trackers.base import BaseTracker
+from noether.core.trackers import BaseTracker
 
 
 class NoopTracker(BaseTracker):

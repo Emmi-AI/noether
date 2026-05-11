@@ -1,6 +1,9 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import os
+from typing import Literal
+
+from pydantic import Field
 
 try:
     import wandb
@@ -9,8 +12,18 @@ try:
 except ImportError as e:
     WANDB_IMPORT_ERROR = e
 
-from noether.core.schemas.trackers import WandBTrackerSchema
-from noether.core.trackers.base import BaseTracker
+from noether.core.trackers import BaseTracker, BaseTrackerConfig
+
+
+class WandBTrackerSchema(BaseTrackerConfig):
+    entity: str | None = Field(None)
+    """The entity name for the W&B project."""
+    project: str | None = Field(None)
+    """The project name for the W&B project."""
+    mode: Literal["disabled", "online", "offline"] | None = Field(default="online")
+    """Tracking mode. Can be 'disabled', 'online', or 'offline'."""
+    tags: list[str] | None = Field(None)
+    """Optional tags for the W&B run."""
 
 
 class WandBTracker(BaseTracker):

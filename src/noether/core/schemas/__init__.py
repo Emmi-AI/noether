@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from noether.core.trackers import WandBTrackerSchema
 from noether.training.trainers import BaseTrainerConfig
 
 from .callbacks import (
@@ -53,7 +54,6 @@ from .schedules import (
 )
 from .schema import ConfigSchema
 from .slurm import SlurmConfig
-from .trackers import WandBTrackerSchema
 
 __all__ = [
     "BestCheckpointCallbackConfig",

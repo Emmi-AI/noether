@@ -12,8 +12,19 @@ except ImportError as e:
     # Define SummaryWriter as Any to avoid NameErrors if import fails
     SummaryWriter = Any  # type: ignore
 
-from noether.core.schemas.trackers import TensorboardTrackerSchema
-from noether.core.trackers.base import BaseTracker
+from pydantic import Field
+
+from noether.core.trackers import BaseTracker, BaseTrackerConfig
+
+
+class TensorboardTrackerSchema(BaseTrackerConfig):
+    """Schema for TensorboardTracker configuration."""
+
+    log_dir: str = Field(default="runs")
+    """The base directory where TensorBoard event files will be stored."""
+
+    flush_secs: int = Field(default=60)
+    """How often, in seconds, to flush the pending events to disk."""
 
 
 class TensorboardTracker(BaseTracker):

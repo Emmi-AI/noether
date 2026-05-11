@@ -7,8 +7,19 @@ try:
 except ImportError as e:
     TRACKIO_IMPORT_ERROR = e
 
-from noether.core.schemas.trackers import TrackioTrackerSchema
-from noether.core.trackers.base import BaseTracker
+from pydantic import Field
+
+from noether.core.trackers import BaseTracker, BaseTrackerConfig
+
+
+class TrackioTrackerSchema(BaseTrackerConfig):
+    """Schema for TrackioTracker configuration."""
+
+    project: str
+    """The project name for the Trackio project."""
+
+    space_id: str | None = Field(None)
+    """The HuggingFace space ID where to store the Trackio data."""
 
 
 class TrackioTracker(BaseTracker):

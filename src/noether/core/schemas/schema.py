@@ -14,9 +14,9 @@ from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.lib import Discriminated
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.schemas.slurm import SlurmConfig
-from noether.core.schemas.trackers import BaseTrackerConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
+from noether.core.trackers import BaseTrackerConfig
 from noether.core.utils.common import validate_path
+from noether.training.trainers import BaseTrainerConfig
 
 ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]
 
