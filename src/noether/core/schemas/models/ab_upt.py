@@ -5,7 +5,7 @@ from typing import Annotated, Literal
 
 from pydantic import ConfigDict, Field, computed_field, model_validator
 
-from noether.core.schemas.dataset import ModelDataSpecs
+from noether.core.schemas.dataset import FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
 from noether.core.schemas.modules.encoders import SupernodePoolingConfig
@@ -14,6 +14,7 @@ from noether.core.schemas.modules.layers import (
     LinearProjectionConfig,
     RopeFrequencyConfig,
 )
+from noether.core.schemas.modules.layers.vectors_conditioner import VectorsConditionerConfig
 from noether.core.schemas.modules.mlp import MLPConfig
 from noether.core.types import InitWeightsMode
 
@@ -72,6 +73,8 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     hidden_dim: int = Field(..., ge=1)
     """Hidden dimension of the model."""
 
+    condition_dim: int | None = Field(None, ge=1)
+
     physics_blocks: list[
         Literal[
             "self",
@@ -107,6 +110,14 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
     drop_path_rate: float = Field(0.0)
     """Drop path rate for stochastic depth. Defaults to 0.0 (no drop path)."""
 
+    geometry_conditioning_dims: FieldDimSpec | None = None
+    """Per-named-field conditioning spec for geometry transformer blocks. When
+    left unset, defaults to ``data_specs.conditioning_dims`` so the geometry
+    branch sees the same conditioning as the rest of the model. An explicit
+    empty :class:`FieldDimSpec` (``total_dim == 0``) opts out — useful for
+    diffusion, where timestep modulation should touch physics + per-domain
+    decoders but not the geometry branch (geometry is invariant to noise level)."""
+
     data_specs: ModelDataSpecs
     """Data specifications for the model."""
 
@@ -121,18 +132,6 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
                 stacklevel=2,
             )
             self.physics_blocks = ["self" if b == "shared" else b for b in self.physics_blocks]
-        return self
-
-    @model_validator(mode="after")
-    def set_condition_dim(self) -> "AnchorBranchedUPTConfig":
-        """Set condition_dim in transformer_block_config based on data_specs."""
-
-        if self.data_specs.conditioning_dims is not None and self.data_specs.conditioning_dims.total_dim > 0:
-            condition_dim = self.data_specs.conditioning_dims.total_dim
-        else:
-            condition_dim = None
-        self.transformer_block_config.condition_dim = condition_dim
-
         return self
 
     @computed_field
@@ -185,6 +184,57 @@ class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin)
             )
             for name, spec in self.data_specs.domains.items()
         }
+
+    @computed_field
+    def conditioner_config(self) -> VectorsConditionerConfig:
+        """Configuration for the scalar conditioner module."""
+        if self.data_specs.conditioning_dims is None or self.data_specs.conditioning_dims.total_dim == 0:
+            raise ValueError(
+                "Conditioning dims must be specified in data_specs and have total_dim > 0 to use the conditioner."
+            )
+        return VectorsConditionerConfig(
+            hidden_dim=self.condition_dim,
+            conditioning_spec=self.data_specs.conditioning_dims,
+            condition_dim=self.condition_dim,  # type: ignore
+            init_weights="truncnormal002",
+        )
+
+    @model_validator(mode="after")
+    def set_condition_dim(self) -> "AnchorBranchedUPTConfig":
+        """Set condition_dim in transformer_block_config based on data_specs."""
+
+        if self.data_specs.conditioning_dims is not None and self.data_specs.conditioning_dims.total_dim > 0:
+            if self.condition_dim is None:
+                self.condition_dim = self.hidden_dim
+            self.transformer_block_config.condition_dim = self.condition_dim
+
+        if self.geometry_conditioning_dims is None and self.data_specs.conditioning_dims is not None:
+            self.geometry_conditioning_dims = self.data_specs.conditioning_dims.model_copy(deep=True)
+
+        return self
+
+    @computed_field
+    def geometry_transformer_block_config(self) -> TransformerBlockConfig:
+        """Transformer block config for geometry encoder, with condition_dim set to geometry_conditioning_dims."""
+        geo_block_config = self.transformer_block_config.model_copy(deep=True)
+        if self.condition_dim is None:
+            self.condition_dim = self.hidden_dim
+        geo_block_config.condition_dim = self.condition_dim if self.geometry_conditioning_dims is not None else None  # type: ignore
+        return geo_block_config
+
+    @computed_field
+    def geometry_conditioner_config(self) -> VectorsConditionerConfig:
+        """Configuration for the scalar conditioner module."""
+        if self.geometry_conditioning_dims is None or self.geometry_conditioning_dims.total_dim == 0:
+            raise ValueError(
+                "Geometry conditioning dims must be specified in data_specs and have total_dim > 0 to use the conditioner."
+            )
+        return VectorsConditionerConfig(
+            hidden_dim=self.condition_dim,
+            conditioning_spec=self.geometry_conditioning_dims,
+            condition_dim=self.condition_dim,  # type: ignore
+            init_weights="truncnormal002",
+        )
 
     @model_validator(mode="after")
     def validate_parameters(self) -> "AnchorBranchedUPTConfig":

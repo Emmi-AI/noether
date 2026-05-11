@@ -214,7 +214,7 @@ class SimshiftHeatsinkDataset(Dataset):
         sample_id = self._sample_ids[idx]
         row = self._metadata_df[self._metadata_df["sample_id"] == sample_id]
         cond_np = row[self._cond_columns].iloc[0].to_numpy(dtype=np.float32)
-        return torch.from_numpy(cond_np).unsqueeze(0)
+        return torch.from_numpy(cond_np)
 
     def sample_info(self, idx: int) -> dict[str, str | int | None]:
         """Get information about a sample such as its path, sample ID, etc."""

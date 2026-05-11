@@ -29,7 +29,9 @@ dataset_normalizers:
     strategy: mean_std
   simulation_parameters:
     kind: noether.data.preprocessors.normalizers.FieldNormalizer
-    strategy: mean_std
+    strategy: min_max
+    scale: 1.0
+    zero_center: true
 
 
 data_specs:

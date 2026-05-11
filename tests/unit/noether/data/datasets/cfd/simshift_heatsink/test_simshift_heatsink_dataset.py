@@ -202,8 +202,7 @@ def test_dataset_getitem_shapes(heatsink_root):
     assert sample["volume_velocity"].shape == (NUM_NODES, 3)
     assert sample["volume_temperature"].shape == (NUM_NODES, 1)
     assert sample["volume_pressure"].shape == (NUM_NODES, 1)
-    # simulation_parameters: unsqueezed to (1, num_cond_params)
-    assert sample["simulation_parameters"].shape == (1, 2)  # fins, spacing
+    assert sample["simulation_parameters"].shape == (2,)  # fins, spacing
 
 
 def test_dataset_sample_info(heatsink_root):

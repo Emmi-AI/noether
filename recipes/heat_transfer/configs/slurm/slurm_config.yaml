@@ -1,5 +1,5 @@
 cpus_per_task: 28
-folder: /home/%u/logs/${project}/%x_%j.out
+folder: /home/%u/logs/${name}
 gpus_per_node: 1
 mem_gb: 64
 name: ${name}
