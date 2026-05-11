@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+
 from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
@@ -160,6 +161,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         )
         self.volume_features = set(volume_spec.feature_dim.keys()) if volume_spec and volume_spec.feature_dim else set()
         self.conditioning_dims = pipeline_config.data_specs.conditioning_dims
+        self.use_surface_position_as_input = pipeline_config.use_surface_position_as_input
 
         self._define_items_keys()
 
@@ -255,7 +257,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
                 DefaultCollator(
                     items=self.default_collator_items,
                     optional_items=["index", "surface_normals", "surface_area"]
-                    + (["surface_position"] if self.use_anchor_points else []),
+                    + (["surface_position"] if self.use_surface_position_as_input else []),
                 )
             ]
         )

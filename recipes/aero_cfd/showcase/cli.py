@@ -9,6 +9,7 @@ from typing import Annotated
 import torch
 import typer
 from rich.console import Console
+
 from showcase.model_configs import (
     ABUPT_MODEL_KIND,
     FIELD_WEIGHTS,
@@ -144,6 +145,7 @@ def train(
     ),
 ) -> None:
     from aero_cfd.callbacks import AeroMetricsCallbackConfig
+
     from noether.core.schemas.callbacks import CheckpointCallbackConfig
     from noether.training.runners import HydraRunner
 
@@ -298,6 +300,7 @@ def evaluate(
     precomputed from the original VTP mesh.
     """
     from aero_cfd.callbacks import AeroMetricsCallbackConfig, QueryInferenceCallbackConfig
+
     from noether.inference.runners.inference_runner import InferenceRunner
 
     run_dir = Path(output_path) / run_id
@@ -339,6 +342,7 @@ def evaluate(
             model_kind=ABUPT_MODEL_KIND,
             num_surface_anchor_points=num_inference_surface_points,
             num_volume_anchor_points=num_inference_volume_points,
+            use_surface_position_as_input=True,
         )
         callback = QueryInferenceCallbackConfig(
             dataset_key=query_key,
