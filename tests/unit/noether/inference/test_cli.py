@@ -94,15 +94,16 @@ class TestInjectHpResolved:
         sanitized = injected.read_text()
         assert "!!python/tuple" not in sanitized
         assert "shape:" in sanitized  # tuple round-tripped as a list
-        # Forced overrides for run_id / stage_name / resume_* come before user args.
-        assert "++run_id=abc" in sys.argv
-        assert "++resume_run_id=abc" in sys.argv
+        # Forced overrides for run_id / stage_name / resume_* come before user args. run_id is single-quoted so
+        # Hydra/OmegaConf keeps it as a string (slurm job ids are all digits and would otherwise parse as int).
+        assert "++run_id='abc'" in sys.argv
+        assert "++resume_run_id='abc'" in sys.argv
         # The source's output_path is pinned as resume_output_path so eval can
         # safely override `output_path=...` without breaking checkpoint lookup.
         assert "++resume_output_path=/source/out" in sys.argv
         assert "tracker=disabled" in sys.argv
         # User-supplied args appear after the injected overrides.
-        assert sys.argv.index("tracker=disabled") > sys.argv.index("++resume_run_id=abc")
+        assert sys.argv.index("tracker=disabled") > sys.argv.index("++resume_run_id='abc'")
 
     def test_skips_resume_output_path_when_hp_lacks_it(self, tmp_path, monkeypatch):
         """If hp_resolved.yaml has no ``output_path`` (e.g. dumped before this
@@ -124,8 +125,8 @@ class TestInjectHpResolved:
         main_inference._inject_hp_resolved_into_argv()
 
         # run_dir.name == "2026-04-16_g5s7p" per `_make_run_dir`
-        assert "++run_id=2026-04-16_g5s7p" in sys.argv
-        assert "++resume_run_id=2026-04-16_g5s7p" in sys.argv
+        assert "++run_id='2026-04-16_g5s7p'" in sys.argv
+        assert "++resume_run_id='2026-04-16_g5s7p'" in sys.argv
         assert "++stage_name=" in sys.argv  # empty stage_name when not in config
 
     def test_infers_run_id_from_parent_when_stage_name_present(self, tmp_path, monkeypatch):
@@ -138,7 +139,7 @@ class TestInjectHpResolved:
 
         main_inference._inject_hp_resolved_into_argv()
 
-        assert "++run_id=my_run" in sys.argv
+        assert "++run_id='my_run'" in sys.argv
         assert "++stage_name=train" in sys.argv
 
     def test_no_op_when_user_supplies_hp(self, tmp_path, monkeypatch):
