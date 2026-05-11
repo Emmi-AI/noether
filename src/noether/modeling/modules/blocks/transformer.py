@@ -40,9 +40,7 @@ class TransformerBlock(nn.Module):
             self.modulation = LinearProjection(config=config.modulation_linear_projection_config)  # type: ignore[arg-type]
             elementwise_affine = False
 
-        self.norm1 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        self.norm1 = nn.RMSNorm(config.hidden_dim, eps=config.eps, elementwise_affine=elementwise_affine)
 
         try:
             if callable(config.attention_constructor):
@@ -65,10 +63,7 @@ class TransformerBlock(nn.Module):
         self.drop_path1 = UnquantizedDropPath(
             config=config.drop_path_config  # type: ignore[arg-type]
         )
-
-        self.norm2 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        self.norm2 = nn.RMSNorm(config.hidden_dim, eps=config.eps, elementwise_affine=elementwise_affine)
         self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
         self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
         self.drop_path2 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
