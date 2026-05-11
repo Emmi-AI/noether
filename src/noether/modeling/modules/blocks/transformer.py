@@ -34,7 +34,6 @@ class TransformerBlock(nn.Module):
             self.modulation = None
             elementwise_affine = True
         else:
-            assert config.bias
             if config.modulation_linear_projection_config is None:
                 raise ValueError("modulation_linear_projection_config must be provided if condition_dim is not None.")
 
