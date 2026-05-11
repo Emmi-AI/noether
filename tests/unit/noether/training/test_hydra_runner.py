@@ -1,181 +1,212 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from unittest.mock import ANY, MagicMock, patch
+import sys
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
+import yaml
 
-from noether.core.schemas.schema import ConfigSchema
-from noether.core.trackers.base import BaseTracker
-from noether.training.runners.hydra_runner import HydraRunner
-
-_MODULE_PATH = "noether.training.runners.hydra_runner"
-
-
-class _DummyDataset:
-    def __init__(self) -> None:
-        self.pipeline = None
-
-
-class TestHydraRunnerNaming:
-    @pytest.mark.parametrize(
-        ("overrides", "expected"),
-        [
-            (["model.depth=4", "lr=0.001"], ["model.depth=4", "lr=0.001"]),
-            (["+experiment=test"], ["experiment=test"]),
-            (["accelerator=gpu", "devices=4", "tracker=wandb", "model.width=10"], ["model.width=10"]),
-            (["dropout=0.5", "layers=2.0", "alpha=1."], ["dropout=0.5", "layers=2", "alpha=1"]),
-            (["clip_grad_norm=1.0"], ["gclip=1"]),
-        ],
+# We need to patch setup_hydra BEFORE importing the module to avoid running it:
+with (
+    patch("noether.training.cli.setup_hydra"),
+    patch("noether.inference.cli.main_inference._inject_hp_resolved_into_argv"),
+):
+    from noether.inference.cli import main_inference
+    from noether.inference.cli.main_inference import (
+        _build_run_dir,
+        _pop_eval_path_args,
     )
-    def test_extract_name_from_overrides(self, overrides, expected):
-        result = list(HydraRunner._extract_name_from_overrides(overrides))
-        assert result == expected
+    from noether.inference.cli.main_inference import main as inference_main
 
-    @patch(_MODULE_PATH + ".OmegaConf.to_container")
-    @patch(_MODULE_PATH + ".hydra.core.hydra_config.HydraConfig")
-    def test_derive_run_name_success(self, mock_hydra_config, mock_to_container):
-        mock_to_container.return_value = ["model.name=resnet", "lr=0.01"]
-        name = HydraRunner.derive_run_name("baseline")
-        assert name == "baseline--model.name=resnet-lr=0.01"
-
-    @patch(_MODULE_PATH + ".OmegaConf.to_container")
-    @patch(_MODULE_PATH + ".hydra.core.hydra_config.HydraConfig")
-    def test_derive_run_name_no_overrides(self, mock_hydra_config, mock_to_container):
-        mock_to_container.return_value = []
-        name = HydraRunner.derive_run_name("baseline")
-        assert name == "baseline"
+_MODULE_PATH = "noether.inference.cli.main_inference"
 
 
-class TestHydraRunnerSetup:
-    @pytest.fixture
-    def mock_config(self):
-        config = MagicMock(spec=ConfigSchema)
-        config.accelerator = "cpu"
-        config.devices = 1
-        config.debug = False
-        config.run_id = None
-        config.output_path = "/tmp/output"
-        config.stage_name = "train"
-        config.name = "test_run"
-        config.seed = 123
-        config.resume_run_id = None
-        config.resume_output_path = None
-        config.num_workers = 0
-        config.store_code_in_output = False
-        config.cudnn_benchmark = False
-        config.cudnn_deterministic = False
+class TestPopEvalPathArgs:
+    """`_pop_eval_path_args` extracts navigation args without polluting Hydra overrides."""
 
-        config.model = MagicMock()
-        config.model.name = "test_model"
+    def test_pops_run_dir(self):
+        popped, remaining = _pop_eval_path_args(["run_dir=outputs/abc/train", "tracker=disabled"])
+        assert popped == {"run_dir": "outputs/abc/train"}
+        assert remaining == ["tracker=disabled"]
 
-        config.datasets = {"train": MagicMock(pipeline=None)}
-        config.trainer = MagicMock()
-        config.tracker = MagicMock()
+    def test_pops_run_dir_with_plus_prefix(self):
+        popped, remaining = _pop_eval_path_args(["+run_dir=outputs/abc/train"])
+        assert popped == {"run_dir": "outputs/abc/train"}
+        assert remaining == []
 
-        config.model_dump.return_value = {}
-
-        return config
-
-    @patch(_MODULE_PATH + ".ModelBase", object)
-    @patch(_MODULE_PATH + ".BaseTrainer", object)
-    @patch(_MODULE_PATH + ".DatasetWrapper", object)
-    @patch(_MODULE_PATH + ".Dataset", _DummyDataset)
-    @patch(_MODULE_PATH + ".Hyperparameters")
-    @patch(_MODULE_PATH + ".add_global_handlers")
-    @patch(_MODULE_PATH + ".store_code_archive")
-    @patch(_MODULE_PATH + ".set_seed")
-    @patch(_MODULE_PATH + ".PathProvider")
-    @patch(_MODULE_PATH + ".DatasetFactory")
-    @patch(_MODULE_PATH + ".Factory")
-    def test_setup_experiment_happy_path(
-        self,
-        mock_factory_cls,
-        mock_dataset_factory_cls,
-        mock_path_provider,
-        mock_set_seed,
-        mock_store_code,
-        mock_add_handlers,
-        mock_hyperparameters,
-        mock_config,
-    ):
-        mock_factory = mock_factory_cls.return_value
-        mock_dataset_factory = mock_dataset_factory_cls.return_value
-
-        mock_dataset_factory.create.return_value = _DummyDataset()
-
-        mock_tracker = MagicMock(spec=BaseTracker)
-        mock_trainer = MagicMock()
-        mock_model = MagicMock()
-
-        mock_path_instance = mock_path_provider.return_value
-        mock_path_instance.logfile_uri = "/tmp/test.log"
-        mock_path_instance.run_output_path = MagicMock()
-
-        mock_factory.create.side_effect = [mock_tracker, mock_trainer]
-        mock_factory.instantiate.return_value = mock_model
-
-        trainer, model, tracker, _ = HydraRunner.setup_experiment(device="cpu", config=mock_config)
-
-        mock_set_seed.assert_called_with(123)
-        mock_dataset_factory.create.assert_called()
-
-        mock_factory.create.assert_any_call(
-            mock_config.tracker,
-            metric_property_provider=ANY,
-            path_provider=ANY,
+    def test_pops_legacy_trio_when_input_dir_present(self):
+        popped, remaining = _pop_eval_path_args(
+            ["input_dir=outputs", "run_id=abc", "stage_name=train", "tracker=disabled"]
         )
+        assert popped == {"input_dir": "outputs", "run_id": "abc", "stage_name": "train"}
+        assert remaining == ["tracker=disabled"]
 
-        mock_factory.create.assert_any_call(
-            mock_config.trainer,
-            data_container=ANY,
-            device="cpu",
-            tracker=mock_tracker,
-            path_provider=ANY,
-            metric_property_provider=ANY,
-        )
+    def test_does_not_pop_run_id_alone(self):
+        """Without input_dir, `run_id=foo` is a normal config override (changes the
+        eval output dir), not a path-navigation arg."""
+        popped, remaining = _pop_eval_path_args(["run_dir=outputs/abc/train", "run_id=eval_run"])
+        assert popped == {"run_dir": "outputs/abc/train"}
+        assert remaining == ["run_id=eval_run"]
 
-    @patch(_MODULE_PATH + ".ModelBase", object)
-    @patch(_MODULE_PATH + ".BaseTrainer", object)
-    @patch(_MODULE_PATH + ".DatasetWrapper", object)
-    @patch(_MODULE_PATH + ".Dataset", _DummyDataset)
-    @patch(_MODULE_PATH + ".Hyperparameters")
-    @patch(_MODULE_PATH + ".add_global_handlers")
-    @patch(_MODULE_PATH + ".PathProvider")
-    @patch(_MODULE_PATH + ".DatasetFactory")
-    @patch(_MODULE_PATH + ".Factory")
-    def test_resume_logic(
-        self,
-        mock_factory_cls,
-        mock_dataset_factory_cls,
-        mock_path_provider_cls,
-        mock_add_handlers,
-        mock_hyperparameters,
-        mock_config,
-    ):
-        mock_config.resume_run_id = "run_123"
-        mock_config.resume_stage_name = "prev_stage"
-        mock_config.resume_checkpoint = "latest"
-        mock_config.resume_output_path = None  # falls back to current run's output_path
 
-        mock_path_instance = mock_path_provider_cls.return_value
-        mock_path_instance.logfile_uri = "/tmp/test.log"
+class TestBuildRunDir:
+    def test_run_dir_takes_priority(self):
+        result = _build_run_dir({"run_dir": "/abs/path", "input_dir": "should_be_ignored"})
+        assert result == Path("/abs/path").resolve()
 
-        mock_factory = mock_factory_cls.return_value
-        mock_factory.create.side_effect = [MagicMock(spec=BaseTracker), MagicMock()]
-        mock_factory.instantiate.return_value = MagicMock()
+    def test_legacy_form_assembles_path(self):
+        result = _build_run_dir({"input_dir": "/root", "run_id": "abc", "stage_name": "train"})
+        assert result == Path("/root/abc/train").resolve()
 
-        mock_dataset_factory_cls.return_value.create.return_value = _DummyDataset()
+    def test_legacy_form_without_stage_name(self):
+        result = _build_run_dir({"input_dir": "/root", "run_id": "abc"})
+        assert result == Path("/root/abc").resolve()
 
-        HydraRunner.setup_experiment(device="cpu", config=mock_config)
+    def test_returns_none_when_no_path_args(self):
+        assert _build_run_dir({}) is None
+        assert _build_run_dir({"input_dir": "/root"}) is None  # missing run_id
 
-        # The ancestor PathProvider is now constructed directly so that
-        # `resume_output_path` can override the source root independently
-        # from the current run's output_path.
-        mock_path_provider_cls.assert_any_call(
-            output_root_path="/tmp/output",
-            run_id="run_123",
-            stage_name="prev_stage",
-            debug=False,
-        )
-        mock_path_instance.link.assert_called()
-        assert mock_config.trainer.initializer is not None
+
+class TestInjectHpResolved:
+    """`_inject_hp_resolved_into_argv` rewrites argv to point Hydra at the run's hp_resolved.yaml."""
+
+    def _make_run_dir(self, tmp_path, train_config):
+        """Create a fake run_dir with a real hp_resolved.yaml on disk."""
+        run_dir = tmp_path / "outputs" / "2026-04-16_g5s7p"
+        run_dir.mkdir(parents=True)
+        (run_dir / "hp_resolved.yaml").write_text(yaml.safe_dump(train_config))
+        return run_dir
+
+    def test_injects_hp_arg_for_run_dir(self, tmp_path, monkeypatch):
+        # Include a tuple so we can confirm sanitization strips `!!python/tuple`.
+        run_dir = self._make_run_dir(tmp_path, {"run_id": "abc", "shape": (1, 2, 3), "output_path": "/source/out"})
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "tracker=disabled"])
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert sys.argv[0] == "noether-eval"
+        assert sys.argv[1] == "--hp"
+        # The injected path is a sanitized copy in a temp dir, not the original.
+        injected = Path(sys.argv[2])
+        assert injected.name == "hp_resolved.yaml"
+        assert injected != (run_dir / "hp_resolved.yaml")
+        sanitized = injected.read_text()
+        assert "!!python/tuple" not in sanitized
+        assert "shape:" in sanitized  # tuple round-tripped as a list
+        # Forced overrides for run_id / stage_name / resume_* come before user args. run_id is single-quoted so
+        # Hydra/OmegaConf keeps it as a string (slurm job ids are all digits and would otherwise parse as int).
+        assert "++run_id='abc'" in sys.argv
+        assert "++resume_run_id='abc'" in sys.argv
+        # The source's output_path is pinned as resume_output_path so eval can
+        # safely override `output_path=...` without breaking checkpoint lookup.
+        assert "++resume_output_path=/source/out" in sys.argv
+        assert "tracker=disabled" in sys.argv
+        # User-supplied args appear after the injected overrides.
+        assert sys.argv.index("tracker=disabled") > sys.argv.index("++resume_run_id='abc'")
+
+    def test_skips_resume_output_path_when_hp_lacks_it(self, tmp_path, monkeypatch):
+        """If hp_resolved.yaml has no ``output_path`` (e.g. dumped before this
+        field was emitted), don't inject ``++resume_output_path=`` — the runner
+        falls back to ``output_path`` for the resume lookup."""
+        run_dir = self._make_run_dir(tmp_path, {"run_id": "abc"})
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}"])
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert not any(a.startswith("++resume_output_path=") for a in sys.argv)
+
+    def test_infers_run_id_from_path_when_hp_lacks_it(self, tmp_path, monkeypatch):
+        """When hp_resolved.yaml omits run_id (training-time generated), the run id
+        is inferred from the run_dir name."""
+        run_dir = self._make_run_dir(tmp_path, {})
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}"])
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        # run_dir.name == "2026-04-16_g5s7p" per `_make_run_dir`
+        assert "++run_id='2026-04-16_g5s7p'" in sys.argv
+        assert "++resume_run_id='2026-04-16_g5s7p'" in sys.argv
+        assert "++stage_name=" in sys.argv  # empty stage_name when not in config
+
+    def test_infers_run_id_from_parent_when_stage_name_present(self, tmp_path, monkeypatch):
+        """When hp_resolved.yaml has stage_name, run_dir = output_path/run_id/stage_name,
+        so run_id comes from run_dir.parent.name."""
+        run_dir = tmp_path / "outputs" / "my_run" / "train"
+        run_dir.mkdir(parents=True)
+        (run_dir / "hp_resolved.yaml").write_text(yaml.safe_dump({"stage_name": "train"}))
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}"])
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert "++run_id='my_run'" in sys.argv
+        assert "++stage_name=train" in sys.argv
+
+    def test_no_op_when_user_supplies_hp(self, tmp_path, monkeypatch):
+        original = ["noether-eval", "--hp", "configs/eval.yaml", "run_dir=outputs/abc"]
+        monkeypatch.setattr(sys, "argv", list(original))
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert sys.argv == original
+
+    def test_no_op_for_help_flag(self, monkeypatch):
+        original = ["noether-eval", "--help"]
+        monkeypatch.setattr(sys, "argv", list(original))
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert sys.argv == original
+
+    def test_raises_when_hp_resolved_missing(self, tmp_path, monkeypatch):
+        bad_dir = tmp_path / "missing_run"
+        bad_dir.mkdir()
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={bad_dir}"])
+
+        with pytest.raises(FileNotFoundError, match="hp_resolved.yaml not found"):
+            main_inference._inject_hp_resolved_into_argv()
+
+    def test_no_op_when_no_path_args(self, monkeypatch):
+        """If neither run_dir nor the legacy trio is present, leave argv alone
+        and let setup_hydra / hydra produce a clear error downstream."""
+        original = ["noether-eval", "tracker=disabled"]
+        monkeypatch.setattr(sys, "argv", list(original))
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        assert sys.argv == original
+
+
+@patch(_MODULE_PATH + ".InferenceRunner")
+@patch(_MODULE_PATH + ".OmegaConf")
+@patch(_MODULE_PATH + ".sys")
+@patch(_MODULE_PATH + ".os")
+@patch(_MODULE_PATH + ".hydra")
+class TestMain:
+    """`main()` runs after Hydra has already loaded hp_resolved.yaml as the base config."""
+
+    def test_dispatches_to_inference_runner(self, mock_hydra, mock_os, mock_sys, mock_omegaconf, mock_runner_cls):
+        mock_hydra.utils.get_original_cwd.return_value = "/cwd"
+        mock_omegaconf.to_container.return_value = {"final": "config"}
+
+        # `resume_run_id` and `resume_checkpoint` were injected into argv during
+        # `_inject_hp_resolved_into_argv`, so by the time main() runs Hydra has
+        # them on the config.
+        eval_config = MagicMock()
+        eval_config.get.side_effect = lambda key, default=None: {
+            "resume_run_id": "train_run_id_123",
+            "resume_checkpoint": "latest",
+        }.get(key, default)
+
+        inference_main.__wrapped__(eval_config)
+
+        mock_runner_cls.return_value.run.assert_called_once_with({"final": "config"})
+
+    def test_missing_resume_run_id_raises(self, mock_hydra, mock_os, mock_sys, mock_omegaconf, mock_runner_cls):
+        mock_hydra.utils.get_original_cwd.return_value = "/cwd"
+
+        eval_config = MagicMock()
+        eval_config.get.return_value = None
+
+        with pytest.raises(ValueError, match="run_dir"):
+            inference_main.__wrapped__(eval_config)
