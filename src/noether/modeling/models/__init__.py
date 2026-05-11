@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from .ab_upt import AnchoredBranchedUPT
+from .ab_upt import AnchorBranchedUPTConfig, AnchoredBranchedUPT
 from .aerodynamics import (
     AeroABUPT,
     AeroTransformer,
@@ -9,9 +9,9 @@ from .aerodynamics import (
     AeroTransolverConfig,
     AeroUPT,
 )
-from .transformer import Transformer
-from .transolver import Transolver
-from .upt import UPT
+from .transformer import Transformer, TransformerConfig
+from .transolver import Transolver, TransolverConfig, TransolverPlusPlusConfig
+from .upt import UPT, UPTConfig
 
 __all__ = [
     "AnchoredBranchedUPT",
@@ -24,4 +24,9 @@ __all__ = [
     "AeroTransolver",
     "AeroTransolverConfig",
     "AeroUPT",
+    "UPTConfig",
+    "TransolverConfig",
+    "TransolverPlusPlusConfig",
+    "TransformerConfig",
+    "AnchorBranchedUPTConfig",
 ]

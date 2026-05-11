@@ -5,7 +5,7 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from noether.core.models import Model
+from noether.core.models.model import Model
 from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.models import (
     AnchorBranchedUPTConfig,

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from noether.core.schemas import BaseTrainerConfig  # noqa: F401
+from noether.training.trainers.base import BaseTrainerConfig
+
+__all__ = ["BaseTrainerConfig", "CheckpointConfig"]
 
 
 class CheckpointConfig(BaseModel):
