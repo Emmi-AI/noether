@@ -63,7 +63,7 @@ class ReadoutLayer(nn.Module):
 
     def __init__(self, decoder_config: LinearProjectionConfig, hidden_dim: int, condition_dim: int | None = None):
         super().__init__()
-        self.norm_final = nn.LayerNorm(hidden_dim, elementwise_affine=condition_dim is None, eps=1e-6)
+        self.norm_final = nn.RMSNorm(hidden_dim, elementwise_affine=condition_dim is None, eps=1e-6)
         self.linear = LinearProjection(config=decoder_config)
         self.modulation = None
         if condition_dim is not None:

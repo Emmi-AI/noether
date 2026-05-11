@@ -1,6 +1,7 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 from aero_cfd.presets import DrivAerNetPreset
+
 from noether.core.distributed.utils import accelerator_to_device
 from noether.training.runners import HydraRunner
 

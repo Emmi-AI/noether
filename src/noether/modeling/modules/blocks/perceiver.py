@@ -43,11 +43,9 @@ class PerceiverBlock(nn.Module):
                     "If modulation is enabled, modulation_linear_projection_config must be provided. Likely condition_dim is not set."
                 )
 
-        self.norm1q = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
-        self.norm1kv = torch.nn.LayerNorm(
-            config.kv_dim or config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
+        self.norm1q = nn.RMSNorm(config.hidden_dim, eps=config.eps, elementwise_affine=elementwise_affine)
+        self.norm1kv = nn.RMSNorm(
+            config.kv_dim or config.hidden_dim, eps=config.eps, elementwise_affine=elementwise_affine
         )
 
         self.attn = PerceiverAttention(config=config.perceiver_attention_config)  # type: ignore[arg-type]
@@ -56,9 +54,7 @@ class PerceiverBlock(nn.Module):
 
         self.drop_path1 = UnquantizedDropPath(config=config.drop_path_config)  # type: ignore[arg-type]
 
-        self.norm2 = torch.nn.LayerNorm(
-            config.hidden_dim, elementwise_affine=elementwise_affine, bias=config.bias, eps=config.eps
-        )
+        self.norm2 = nn.RMSNorm(config.hidden_dim, eps=config.eps, elementwise_affine=elementwise_affine)
 
         self.mlp = UpActDownMlp(config=config.up_act_down_mlp_config)  # type: ignore[arg-type]
         self.ls2 = LayerScale(config=config.layerscale_config)  # type: ignore[arg-type]
