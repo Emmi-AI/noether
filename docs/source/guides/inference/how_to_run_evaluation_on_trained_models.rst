@@ -27,6 +27,10 @@ What this is good for
 Despite the binary name, treat ``noether-eval`` as the generic
 inference/evaluation entry point — it has no eval-only logic baked in.
 
+For **interactive** work (notebooks, prototyping, debugging) where you don't
+need callbacks, logging, or reproducibility, see :ref:`loading-a-run-in-python`
+below — that path skips Hydra and the trainer entirely.
+
 Quick start
 -----------
 
@@ -262,6 +266,73 @@ itself, or with ``PYTHONPATH`` set:
 
 Each run directory also contains a ``code.tar.gz`` snapshot of the codebase at
 training time, useful when the source tree has drifted.
+
+.. _loading-a-run-in-python:
+
+Loading a run in Python (notebooks, prototyping)
+------------------------------------------------
+
+When you want to poke at a trained model in a notebook — inspect predictions
+on a single sample, prototype a new visualization, debug a head-scratcher —
+``noether-eval`` is overkill: it stands up Hydra, the trainer, the tracker,
+and the callback loop just to give you a model and a dataset.
+
+The :mod:`noether.inference` package exposes a single :class:`Run` class
+for that case. Construction reads the run's ``hp_resolved.yaml`` and
+validates it; the model and dataset are built on demand — no Hydra, no
+trainer:
+
+.. code-block:: python
+
+   from noether.inference import Run
+
+   run = Run("/path/to/outputs/2026-01-10_abc12")
+
+   # Optional: patch the config before building artifacts —
+   # typically to point dataset paths at this machine's data.
+   for ds_cfg in run.config.datasets.values():
+       ds_cfg.root = "/local/path/to/data"
+
+   dataset = run.dataset("test")
+   model = run.model(checkpoint="latest", device="cuda")
+   # checkpoint examples: "latest", "best_model.<metric>", "E10", "latest_ema=0.9999"
+
+``Run`` exposes three lazy methods, all independent — you don't have to
+call them in order, and you don't have to call them all. Pick whichever
+fit your use case:
+
+- ``run.model(...)`` — the trained model with checkpoint weights loaded.
+  Only needs the run dir; works on **any** tensor dict you can construct.
+- ``run.normalizers(split)`` — the field normalizers (e.g. for converting
+  model predictions back to physical units). Built without instantiating
+  the dataset; the data files do not need to be present.
+- ``run.dataset(split)`` — the dataset, with the same collator the trainer
+  wired. **This** is the one that needs the original data files on disk.
+
+That separation matters in particular for the **bring-your-own-data** flow
+— applying a trained model to a CAD mesh, a custom point cloud, or any
+data that isn't packaged as a noether ``Dataset``:
+
+.. code-block:: python
+
+   run = Run("/path/to/outputs/2026-01-10_abc12")
+   model = run.model(device="cuda")
+   norms = run.normalizers()
+
+   # You build the input dict yourself, matching the model's forward signature.
+   with torch.inference_mode():
+       pred = model(**my_inputs)
+
+   # Same normalizers the training data used — denormalize the prediction.
+   pressure_phys = norms["surface_pressure"].inverse(pred["surface_pressure"])
+
+This is **not** a substitute for ``noether-eval``: there are no metrics,
+no callbacks, no run output directory, and no reproducibility guarantees.
+Use it for interactive work; use ``noether-eval`` for everything else.
+
+A worked example — load a trained AB-UPT / DrivAerML run, do both the
+"standard" and the "bring your own data" flow, and plot predictions vs.
+ground truth — lives at ``notebooks/ab_upt_drivaerml_inference.ipynb``.
 
 A note on ``--help`` and the binary name
 ----------------------------------------
