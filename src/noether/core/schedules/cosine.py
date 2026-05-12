@@ -1,7 +1,18 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schedules.base import DecreasingProgressSchedule, IncreasingProgressSchedule
+from typing import Literal
+
+from noether.core.schedules.base import (
+    DecreasingProgressSchedule,
+    DecreasingProgressScheduleConfig,
+    IncreasingProgressSchedule,
+)
 from noether.core.schedules.functional import cosine
+from noether.core.schedules.schemas import IncreasingProgressScheduleConfig
+
+
+class CosineDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.CosineDecreasingSchedule"] = "noether.core.schedules.CosineDecreasingSchedule"  # type: ignore[assignment]
 
 
 class CosineDecreasingSchedule(DecreasingProgressSchedule):
@@ -19,6 +30,10 @@ class CosineDecreasingSchedule(DecreasingProgressSchedule):
 
     def _get_progress(self, step: int, total_steps: int) -> float:
         return cosine(step, total_steps)
+
+
+class CosineIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.CosineIncreasingSchedule"] = "noether.core.schedules.CosineIncreasingSchedule"  # type: ignore[assignment]
 
 
 class CosineIncreasingSchedule(IncreasingProgressSchedule):

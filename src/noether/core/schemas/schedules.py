@@ -1,23 +1,20 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 from typing import Union
 
 from noether.core.schedules.constant import ConstantScheduleConfig
+from noether.core.schedules.cosine import CosineDecreasingScheduleConfig, CosineIncreasingScheduleConfig
 from noether.core.schedules.custom import CustomScheduleConfig
+from noether.core.schedules.linear import LinearDecreasingScheduleConfig, LinearIncreasingScheduleConfig
 from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
+from noether.core.schedules.polynomial import PolynomialDecreasingScheduleConfig, PolynomialIncreasingScheduleConfig
 from noether.core.schedules.schemas import (
-    CosineDecreasingScheduleConfig,
-    CosineIncreasingScheduleConfig,
     DecreasingProgressScheduleConfig,
     IncreasingProgressScheduleConfig,
-    LinearDecreasingScheduleConfig,
-    LinearIncreasingScheduleConfig,
-    PeriodicBoolScheduleConfig,
-    PolynomialDecreasingScheduleConfig,
-    PolynomialIncreasingScheduleConfig,
     ProgressScheduleConfig,
-    ScheduleBaseConfig,
     SchedulerConfig,
+)
+from noether.core.schedules.step import (
     StepDecreasingScheduleConfig,
     StepFixedScheduleConfig,
     StepIntervalScheduleConfig,
@@ -31,7 +28,6 @@ AnyScheduleConfig = Union[
     ConstantScheduleConfig,
     CustomScheduleConfig,
     LinearWarmupCosineDecayScheduleConfig,
-    PeriodicBoolScheduleConfig,
     PolynomialDecreasingScheduleConfig,
     PolynomialIncreasingScheduleConfig,
     StepDecreasingScheduleConfig,
@@ -41,5 +37,4 @@ AnyScheduleConfig = Union[
     CosineIncreasingScheduleConfig,
     LinearIncreasingScheduleConfig,
     LinearDecreasingScheduleConfig,
-    ScheduleBaseConfig,
 ]

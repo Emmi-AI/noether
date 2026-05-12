@@ -11,7 +11,9 @@ from typing import Any
 import yaml
 from pydantic import TypeAdapter
 
+from noether.core.optimizer.schemas import AnyOptimizerConfig, OptimizerConfig
 from noether.core.presets.model_defaults import MODEL_DEFAULTS
+from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
 from noether.core.schemas.callbacks import (
     BestCheckpointCallbackConfig,
     CheckpointCallbackConfig,
@@ -21,8 +23,6 @@ from noether.core.schemas.callbacks import (
 from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
 from noether.core.schemas.lib import resolve_config_class
 from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
-from noether.core.schemas.optimizers import AnyOptimizerConfig, OptimizerConfig
-from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
 from noether.core.schemas.schema import ConfigSchema
 
 logger = logging.getLogger(__name__)

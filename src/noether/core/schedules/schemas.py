@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
 
 class ScheduleBaseConfig(BaseModel):
@@ -105,108 +105,3 @@ class IncreasingProgressScheduleConfig(ProgressScheduleConfig):
     start_value: float = Field(0.0)
     max_value: float | None = Field(...)
     """Minimum (starting) value of the schedule."""
-
-
-class LinearIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.LinearIncreasingSchedule"] = "noether.core.schedules.LinearIncreasingSchedule"  # type: ignore[assignment]
-
-
-class LinearDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.LinearDecreasingSchedule"] = "noether.core.schedules.LinearDecreasingSchedule"  # type: ignore[assignment]
-
-
-class PeriodicBoolScheduleConfig(ScheduleBaseConfig):
-    kind: Literal["noether.core.schedules.PeriodicBoolSchedule"] = "noether.core.schedules.PeriodicBoolSchedule"
-    initial_state: bool
-    """The initial (boolean) state of the scheduler (on or off)."""
-    off_value: float = Field(0.0)
-    """The value to return when the scheduler is in the off state."""
-    on_value: float = Field(1.0)
-    """ The value to return when the scheduler is in the on state."""
-    off_duration: int = Field(1)
-    """The number of steps the scheduler is in the off state."""
-    on_duration: int = Field(1)
-    """The number of steps the scheduler is in the on state."""
-    invert: bool = Field(False)
-    """Whether to invert the scheduler, i.e. return off_value when on and vice versa."""
-
-
-class PolynomialDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.PolynomialDecreasingSchedule"] = (
-        "noether.core.schedules.PolynomialDecreasingSchedule"  # type: ignore[assignment]
-    )
-    power: float = Field(1.0)
-    """The power of the polynomial function."""
-
-
-class PolynomialIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.PolynomialIncreasingSchedule"] = (
-        "noether.core.schedules.PolynomialIncreasingSchedule"  # type: ignore[assignment]
-    )
-    power: float = Field(1.0)
-    """The power of the polynomial function."""
-
-
-class StepDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.StepDecreasingSchedule"] = "noether.core.schedules.StepDecreasingSchedule"  # type: ignore[assignment]
-    factor: float = Field(..., ge=0.0)
-    """The factor by which the value decreases."""
-    decreases_interval: float = Field(..., gt=0.0, lt=1.0)
-    """The interval in range [0, 1] at which the value decreases."""
-
-    @model_validator(mode="after")
-    def check_interval(self) -> "StepDecreasingScheduleConfig":
-        """
-        Ensures that 'interval' is a float in the range (0, 1).
-        """
-        if not (isinstance(self.decreases_interval, int | float) and 0.0 < self.decreases_interval < 1.0):
-            raise ValueError("interval must be a float in the range (0, 1)")
-        return self
-
-
-class StepFixedScheduleConfig(ScheduleBaseConfig):
-    kind: Literal["noether.core.schedules.StepFixedSchedule"] = "noether.core.schedules.StepFixedSchedule"
-    start_value: float = Field(1.0)
-    """The initial value of the scheduler."""
-    factor: float = Field(..., ge=0.0)
-    """The factor by which the value is multiplied after reaching the next step provided in steps."""
-    steps: list[float] = Field(...)
-    """The steps at which the value changes, must be a list of floats in the range (0, 1)."""
-
-    @model_validator(mode="after")
-    def validate_steps(self) -> "StepFixedScheduleConfig":
-        """
-        Ensures that 'steps' is a non-empty list of floats in the range (0, 1).
-        """
-        if not (isinstance(self.steps, list) and len(self.steps) > 0):
-            raise ValueError("steps must be a non-empty list")
-        if not all(isinstance(step, int | float) and 0.0 < step < 1.0 for step in self.steps):
-            raise ValueError("all steps must be floats in the range (0, 1)")
-        return self
-
-
-class StepIntervalScheduleConfig(ScheduleBaseConfig):
-    kind: Literal["noether.core.schedules.StepIntervalSchedule"] = "noether.core.schedules.StepIntervalSchedule"
-    start_value: float = Field(1.0)
-    """The initial value of the scheduler. I.e, the learning rate at step 0."""
-    factor: float = Field(..., ge=0.0)
-    """The factor by which the value is multiplied after reaching the next interval."""
-    update_interval: float = Field(..., gt=0.0, lt=1.0)
-    """The interval in range (0, 1) at which the value changes."""
-
-    @field_validator("update_interval")
-    def check_update_interval(cls, v: float) -> float:
-        """
-        Ensures that 'update_interval' is a float in the range (0, 1).
-        """
-        if not (isinstance(v, int | float) and 0.0 < v < 1.0):
-            raise ValueError("update_interval must be a float in the range (0, 1)")
-        return v
-
-
-class CosineDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.CosineDecreasingSchedule"] = "noether.core.schedules.CosineDecreasingSchedule"  # type: ignore[assignment]
-
-
-class CosineIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
-    kind: Literal["noether.core.schedules.CosineIncreasingSchedule"] = "noether.core.schedules.CosineIncreasingSchedule"  # type: ignore[assignment]

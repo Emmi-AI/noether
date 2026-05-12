@@ -142,6 +142,22 @@ def __dir__() -> list[str]:
 
 if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
     from noether.core.models.base import ModelBaseConfig
+    from noether.core.schedules.constant import ConstantScheduleConfig
+    from noether.core.schedules.custom import CustomScheduleConfig
+    from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
+    from noether.core.schedules.polynomial import PolynomialDecreasingScheduleConfig, PolynomialIncreasingScheduleConfig
+    from noether.core.schedules.schemas import (
+        DecreasingProgressScheduleConfig,
+        IncreasingProgressScheduleConfig,
+        ProgressScheduleConfig,
+        ScheduleBaseConfig,
+        SchedulerConfig,
+    )
+    from noether.core.schedules.step import (
+        StepDecreasingScheduleConfig,
+        StepFixedScheduleConfig,
+        StepIntervalScheduleConfig,
+    )
     from noether.core.schemas.callbacks import (
         BestCheckpointCallbackConfig,
         BestMetricCallbackConfig,
@@ -165,31 +181,6 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         ResumeInitializerConfig,
     )
     from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
-    from noether.core.schemas.optimizers import (
-        AdamOptimizerConfig,
-        AnyOptimizerConfig,
-        MuonOptimizerConfig,
-        OptimizerConfig,
-        ParamGroupModifierConfig,
-        SGDOptimizerConfig,
-    )
-    from noether.core.schemas.schedules import (
-        AnyScheduleConfig,
-        ConstantScheduleConfig,
-        CustomScheduleConfig,
-        DecreasingProgressScheduleConfig,
-        IncreasingProgressScheduleConfig,
-        LinearWarmupCosineDecayScheduleConfig,
-        PeriodicBoolScheduleConfig,
-        PolynomialDecreasingScheduleConfig,
-        PolynomialIncreasingScheduleConfig,
-        ProgressScheduleConfig,
-        ScheduleBaseConfig,
-        SchedulerConfig,
-        StepDecreasingScheduleConfig,
-        StepFixedScheduleConfig,
-        StepIntervalScheduleConfig,
-    )
     from noether.core.schemas.schema import ConfigSchema
     from noether.core.schemas.slurm import SlurmConfig
     from noether.core.trackers import WandBTrackerSchema
