@@ -4,7 +4,7 @@ import abc
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from noether.core.schemas.schedules import (
+from noether.core.schedules.schemas import (
     DecreasingProgressScheduleConfig,
     IncreasingProgressScheduleConfig,
     ProgressScheduleConfig,

@@ -1,7 +1,15 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
 from noether.core.schedules.base import ScheduleBase
-from noether.core.schemas.schedules import CustomScheduleConfig
+from noether.core.schedules.schemas import ScheduleBaseConfig
+
+
+class CustomScheduleConfig(ScheduleBaseConfig):
+    kind: Literal["noether.core.schedules.CustomSchedule"] = "noether.core.schedules.CustomSchedule"
+    values: list[float]
+    """The list of values that will be returned for each step. Values show ben as long as the number of steps."""
 
 
 class CustomSchedule(ScheduleBase):

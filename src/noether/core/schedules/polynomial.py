@@ -2,7 +2,7 @@
 
 from noether.core.schedules.base import DecreasingProgressSchedule, IncreasingProgressSchedule
 from noether.core.schedules.functional import polynomial
-from noether.core.schemas.schedules import PolynomialDecreasingScheduleConfig, PolynomialIncreasingScheduleConfig
+from noether.core.schedules.schemas import PolynomialDecreasingScheduleConfig, PolynomialIncreasingScheduleConfig
 
 
 class PolynomialDecreasingSchedule(DecreasingProgressSchedule):

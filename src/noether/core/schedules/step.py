@@ -1,7 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 from noether.core.schedules.base import DecreasingProgressSchedule, ScheduleBase
-from noether.core.schemas.schedules import (
+from noether.core.schedules.schemas import (
     StepDecreasingScheduleConfig,
     StepFixedScheduleConfig,
     StepIntervalScheduleConfig,
