@@ -42,6 +42,7 @@ class DotProductAttention(nn.Module):
         self.k = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.v = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
+        self.qk_norm = nn.RMSNorm(self.head_dim, elementwise_affine=True, eps=1e-6)
         apply_init_method(self, self.proj.weight, self.init_weights)
 
     def forward(
@@ -72,6 +73,9 @@ class DotProductAttention(nn.Module):
             num_heads=self.num_heads,
             head_dim=self.head_dim,
         ).unbind(0)
+
+        q = self.qk_norm(q)
+        k = self.qk_norm(k)
 
         if self.use_rope:
             assert freqs is not None
