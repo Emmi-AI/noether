@@ -1,32 +1,40 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Base normalizer schema, helpers, and re-exports.
 
+The base ``NormalizerConfig`` and the tensor helpers stay here because
+``noether.core.schemas.dataset`` consumes them at module load time, and
+relocating them under ``noether.data.*`` would force ``noether/data/__init__``
+to run before ``core/schemas/dataset`` can finish loading (circular import).
+
+The concrete ``*NormalizerConfig`` classes have been moved next to their
+matching classes in :mod:`noether.data.preprocessors.normalizers`. They are
+re-exported lazily here for backward compatibility.
+"""
+
+from __future__ import annotations
+
+import importlib
 from collections.abc import Sequence
-from typing import Annotated, Any, ClassVar, Literal, Self, Union
+from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Union
 
 import numpy as np
 import torch
-from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator, model_validator
+from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
 
 from noether.core.schemas.lib import _RegistryBase
 
 
-# 1. Define a function to validate the input.
-# It will accept a value and try to convert it to a torch.Tensor.
 def validate_tensor(v: Any) -> torch.Tensor:
     if isinstance(v, torch.Tensor):
         return v
-    # You can add more robust conversion logic here, e.g., from numpy
     if isinstance(v, np.ndarray):
         return torch.from_numpy(v)
     try:
-        # Assumes input is a list or similar structure
         return torch.tensor(v)
     except Exception as e:
         raise ValueError(f"Could not convert {v} to torch.Tensor: {e}") from None
 
 
-# 2. Define the custom Tensor type using Annotated.
-# This is the modern Pydantic V2 approach.
 TorchTensor = Annotated[
     torch.Tensor,
     PlainValidator(validate_tensor),
@@ -48,97 +56,53 @@ class NormalizerConfig(_RegistryBase):
     model_config = ConfigDict(extra="forbid")
 
 
-class MeanStdNormalizerConfig(NormalizerConfig):
-    kind: str | None = "noether.data.preprocessors.normalizers.MeanStdNormalization"
-    mean: TorchTensor
-    """mean to subtract from the input data. Can be a single value or a Sequence if we want to apply a different mean per dimension."""
-    std: TorchTensor
-    """standard deviation to divide the input data by. Can be a single value or a Sequence if we want to apply a different std per dimension."""
-    logscale: bool = False
-    """If true, the input data is assumed to be in log scale."""
+if TYPE_CHECKING:
+    from noether.data.preprocessors.normalizers import (
+        FieldNormalizerConfig,
+        MeanStdNormalizerConfig,
+        PositionNormalizerConfig,
+        ShiftAndScaleNormalizerConfig,
+    )
 
+    AnyNormalizer = Union[
+        MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
+    ]
 
-class PositionNormalizerConfig(NormalizerConfig):
-    kind: str | None = "noether.data.preprocessors.normalizers.PositionNormalizer"
-    raw_pos_min: TorchTensor
-    """Minimum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
-    raw_pos_max: TorchTensor
-    """Maximum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
-    scale: float = Field(default=1000.0, gt=0.0)
-    """Scaling factor, the coordinates will be scaled linearly between [0, scale] (or [-scale, scale] if ``zero_center`` is True). Defaults to 1000."""
-    zero_center: bool = False
-    """If True, coordinates are scaled to [-scale, scale] instead of [0, scale]."""
+_LAZY: dict[str, str] = {
+    "FieldNormalizerConfig": "FieldNormalizerConfig",
+    "MeanStdNormalizerConfig": "MeanStdNormalizerConfig",
+    "PositionNormalizerConfig": "PositionNormalizerConfig",
+    "ShiftAndScaleNormalizerConfig": "ShiftAndScaleNormalizerConfig",
+}
 
-    @model_validator(mode="after")
-    def check_min_max(self) -> Self:
-        if self.raw_pos_max.shape != self.raw_pos_min.shape:
-            raise ValueError("raw_pos_min and raw_pos_max must have the same shape.")
-
-        comp = self.raw_pos_max <= self.raw_pos_min
-        if torch.any(comp):
-            raise ValueError(
-                f"raw_pos_max must be element-wise greater than raw_pos_min. Errenous indices: {torch.nonzero(comp).squeeze().tolist()}"
-            )
-
-        return self
-
-
-class ShiftAndScaleNormalizerConfig(NormalizerConfig):
-    kind: str | None = "noether.data.preprocessors.normalizers.ShiftAndScaleNormalizer"
-    shift: TorchTensor
-    """Value to subtract from the input data. Can be a single value or a Sequence if we want to apply a different shift per dimension.
-    Assumed in log scale if logscale is True.
-    """
-    scale: TorchTensor
-    """Value to divide the input data by. Can be a single value or a Sequence if we want to apply a different scale per dimension.
-    Assumed in log scale if logscale is True.
-    """
-    logscale: bool = False
-    """If true, the input data is assumed to be in log scale."""
-
-    @model_validator(mode="after")
-    def check_shift_scale(self) -> Self:
-        if self.shift.shape != self.scale.shape:
-            raise ValueError("shift and scale must have the same shape.")
-
-        comp = self.scale <= 0.0
-        if torch.any(comp):
-            raise ValueError(
-                f"scale must be a positive number. Erroneous indices: {torch.nonzero(comp).squeeze().tolist()}"
-            )
-
-        return self
-
-
-class FieldNormalizerConfig(NormalizerConfig):
-    """Declarative normalizer config that references dataset statistics by convention.
-
-    Instead of embedding numeric values (mean, std, etc.) directly, this config declares
-    *how* to normalize a field. The actual statistics are resolved at runtime from the
-    dataset's statistics file.
-
-    For ``"mean_std"`` normalization, the builder looks up ``{field}_mean`` and
-    ``{field}_std`` in the dataset statistics (customizable via ``stat_keys``).
-
-    For ``"min_max"`` normalization, the builder looks up ``{field}_min`` and
-    ``{field}_max`` (customizable via ``stat_keys``).
-    """
-
-    kind: str | None = "noether.data.preprocessors.normalizers.FieldNormalizer"
-
-    strategy: Literal["mean_std", "position", "min_max"] = "mean_std"  # type: ignore[assignment]
-    """Normalization strategy. ``"mean_std"`` for mean/std normalization, ``"min_max"`` for min/max normalization.``"position"`` is an alias for min_max, """
-    logscale: bool = False
-    """If true, the input data is converted to log scale before normalization. Only used for ``"mean_std"``."""
-    stat_keys: dict[str, str] | None = None
-    """Optional overrides for statistic key lookup. For ``"mean_std"``: ``{"mean": "custom_mean_key", "std": "custom_std_key"}``.
-    For ``"min_max/position"``: ``{"min": "custom_min_key", "max": "custom_max_key"}``."""
-    scale: float = Field(default=1000.0, gt=0.0)
-    """Scaling factor for position normalization. Coordinates are scaled to [0, scale]. Only used for ``"position"``."""
-    zero_center: bool = False
-    """If True, position normalization is zero-centered (scaled to [-scale, scale]) instead of [0, scale]. Only used for ``"position"``."""
-
-
-AnyNormalizer = Union[
-    MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
+__all__ = [
+    "AnyNormalizer",
+    "FieldNormalizerConfig",
+    "FloatOrArray",
+    "MeanStdNormalizerConfig",
+    "NormalizerConfig",
+    "PositionNormalizerConfig",
+    "SequenceOrTensor",
+    "ShiftAndScaleNormalizerConfig",
+    "TorchTensor",
+    "validate_tensor",
 ]
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY:
+        module = importlib.import_module("noether.data.preprocessors.normalizers")
+        value = getattr(module, _LAZY[name])
+        globals()[name] = value
+        return value
+    if name == "AnyNormalizer":
+        module = importlib.import_module("noether.data.preprocessors.normalizers")
+        value = Union[
+            module.MeanStdNormalizerConfig,
+            module.PositionNormalizerConfig,
+            module.ShiftAndScaleNormalizerConfig,
+            module.FieldNormalizerConfig,
+        ]
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
