@@ -3,21 +3,28 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 import torch
+from pydantic import Field
 
-from noether.core.callbacks import CallbackBase
-from noether.core.initializers.checkpoint import CheckpointInitializer
-from noether.core.models import CompositeModel, Model, ModelBase
-from noether.core.utils.training.training_iteration import TrainingIteration
-
-if TYPE_CHECKING:  # import only for type checking to avoid circular imports
-    from noether.training.trainers import BaseTrainer
-
-from noether.core.schemas.initializers import ResumeInitializerConfig
+from noether.core.initializers.checkpoint import CheckpointInitializer, CheckpointInitializerConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.model import compute_model_norm
+from noether.core.utils.training.training_iteration import TrainingIteration
+
+if TYPE_CHECKING:  # imports only for type checking to avoid circular imports
+    from noether.core.callbacks import CallbackBase
+    from noether.core.models import ModelBase
+    from noether.training.trainers import BaseTrainer
+
+
+class ResumeInitializerConfig(CheckpointInitializerConfig):
+    kind: Literal["noether.core.initializers.ResumeInitializer"] = Field(
+        default="noether.core.initializers.ResumeInitializer", frozen=True
+    )  # type: ignore[assignment]
+    load_optim: bool = Field(True, frozen=True)
+    model_name: str = Field(...)
 
 
 class ResumeInitializer(CheckpointInitializer):
@@ -36,7 +43,7 @@ class ResumeInitializer(CheckpointInitializer):
     def __init__(self, initializer_config: ResumeInitializerConfig, **kwargs):
         """
         Args:
-            initializer_config: configuration for the initializer. See :class:`~noether.core.schemas.initializers.ResumeInitializerConfig` for available options.
+            initializer_config: configuration for the initializer. See :class:`~noether.core.initializers.resume.ResumeInitializerConfig` for available options.
             **kwargs: additional arguments to pass to the parent class.
         """
         super().__init__(initializer_config=initializer_config, **kwargs)
@@ -58,6 +65,8 @@ class ResumeInitializer(CheckpointInitializer):
             name: the name of the model.
             model: the model to load the weights into.
         """
+        from noether.core.models import CompositeModel, Model
+
         if isinstance(model, Model):
             model_name, checkpoint_uri = self._get_modelname_and_checkpoint_uri(
                 model=model, model_name=name, file_type="model"
@@ -94,6 +103,8 @@ class ResumeInitializer(CheckpointInitializer):
             name: the name of the model.
             model: a model to initialize the optimizer for.
         """
+        from noether.core.models import CompositeModel, Model
+
         if isinstance(model, Model):
             if model.optimizer is None:
                 # e.g. EMA target network doesn't have an optimizer
@@ -159,6 +170,8 @@ class ResumeInitializer(CheckpointInitializer):
             callbacks: the callbacks to initialize.
             model: the model to initialize the callbacks for.
         """
+        from noether.core.callbacks import CallbackBase
+
         trainer_state_dict: dict = torch.load(self._get_trainer_ckpt_file())
         callback_state_dicts = trainer_state_dict.pop(CheckpointKeys.CALLBACK_STATE_DICT)
 

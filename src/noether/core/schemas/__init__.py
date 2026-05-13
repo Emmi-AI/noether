@@ -30,12 +30,12 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # dataset
     "DatasetBaseConfig": ("noether.core.schemas.dataset", "DatasetBaseConfig"),
     "StandardDatasetConfig": ("noether.core.schemas.dataset", "StandardDatasetConfig"),
-    # initializers
-    "AnyInitializer": ("noether.core.schemas.initializers", "AnyInitializer"),
-    "CheckpointInitializerConfig": ("noether.core.schemas.initializers", "CheckpointInitializerConfig"),
-    "InitializerConfig": ("noether.core.schemas.initializers", "InitializerConfig"),
-    "PreviousRunInitializerConfig": ("noether.core.schemas.initializers", "PreviousRunInitializerConfig"),
-    "ResumeInitializerConfig": ("noether.core.schemas.initializers", "ResumeInitializerConfig"),
+    # initializers — point at canonical sources, never at the back-compat shim
+    "AnyInitializer": ("noether.core.initializers", "AnyInitializer"),
+    "CheckpointInitializerConfig": ("noether.core.initializers", "CheckpointInitializerConfig"),
+    "InitializerConfig": ("noether.core.initializers", "InitializerConfig"),
+    "PreviousRunInitializerConfig": ("noether.core.initializers", "PreviousRunInitializerConfig"),
+    "ResumeInitializerConfig": ("noether.core.initializers", "ResumeInitializerConfig"),
     # models — point at canonical sources, never at the back-compat shim package
     "ModelBaseConfig": ("noether.core.models.base", "ModelBaseConfig"),
     # normalizers
@@ -141,6 +141,13 @@ def __dir__() -> list[str]:
 
 
 if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
+    from noether.core.initializers import (
+        AnyInitializer,
+        CheckpointInitializerConfig,
+        InitializerConfig,
+        PreviousRunInitializerConfig,
+        ResumeInitializerConfig,
+    )
     from noether.core.models.base import ModelBaseConfig
     from noether.core.schedules.constant import ConstantScheduleConfig
     from noether.core.schedules.custom import CustomScheduleConfig
@@ -173,13 +180,6 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         TrackAdditionalOutputsCallbackConfig,
     )
     from noether.core.schemas.dataset import DatasetBaseConfig, StandardDatasetConfig
-    from noether.core.schemas.initializers import (
-        AnyInitializer,
-        CheckpointInitializerConfig,
-        InitializerConfig,
-        PreviousRunInitializerConfig,
-        ResumeInitializerConfig,
-    )
     from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.core.schemas.schema import ConfigSchema
     from noether.core.schemas.slurm import SlurmConfig

@@ -30,12 +30,12 @@ from noether.core.distributed import (
     is_rank0,
 )
 from noether.core.factory import Factory
+from noether.core.initializers import InitializerConfig
 from noether.core.providers import (
     MetricPropertyProvider,
     PathProvider,
 )
 from noether.core.schemas.callbacks import CallBackBaseConfig, OnlineLossCallbackConfig
-from noether.core.schemas.initializers import InitializerConfig
 from noether.core.schemas.lib import Discriminated, _RegistryBase
 from noether.core.trackers import BaseTracker
 from noether.core.types import CheckpointKeys

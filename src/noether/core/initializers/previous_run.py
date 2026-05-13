@@ -1,10 +1,34 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.callbacks.base import CallbackBase
-from noether.core.initializers import CheckpointInitializer
-from noether.core.models import CompositeModel, Model, ModelBase
-from noether.core.schemas.initializers import PreviousRunInitializerConfig
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Literal
+
+from pydantic import Field
+
+from noether.core.initializers.checkpoint import CheckpointInitializer, CheckpointInitializerConfig
 from noether.core.utils.model import compute_model_norm
+
+if TYPE_CHECKING:  # imports only for type checking to avoid circular imports
+    from noether.core.callbacks.base import CallbackBase
+    from noether.core.models import ModelBase
+
+
+class PreviousRunInitializerConfig(CheckpointInitializerConfig):
+    kind: Literal["noether.core.initializers.PreviousRunInitializer"] = Field(
+        default="noether.core.initializers.PreviousRunInitializer", frozen=True
+    )  # type: ignore[assignment]
+    load_optim: bool = Field(False, frozen=True)
+    keys_to_remove: list[str] | None = Field(
+        None,
+    )
+    """List of keys to remove from the checkpoint."""
+    patterns_to_remove: list[str] | None = Field(None)
+    """List of patterns to remove from the checkpoint."""
+    patterns_to_rename: list[dict] | None = Field(None)
+    """List of patterns to rename in the checkpoint."""
+    patterns_to_instantiate: list[str] | None = Field(None)
+    """List of patterns to instantiate in the checkpoint."""
 
 
 class PreviousRunInitializer(CheckpointInitializer):
@@ -38,7 +62,7 @@ class PreviousRunInitializer(CheckpointInitializer):
     ):
         """
         Args:
-            initializer_config: Configuration for the initializer. See :class:`~noether.core.schemas.initializers.PreviousRunInitializerConfig` for available options.
+            initializer_config: Configuration for the initializer. See :class:`~noether.core.initializers.previous_run.PreviousRunInitializerConfig` for available options.
             **kwargs: additional arguments to pass to the parent class.
         """
         super().__init__(initializer_config=initializer_config, **kwargs)
@@ -95,6 +119,8 @@ class PreviousRunInitializer(CheckpointInitializer):
         Args:
             model: the model to load the weights into.
         """
+        from noether.core.models import CompositeModel, Model
+
         if not isinstance(model, (Model | CompositeModel)):
             raise TypeError(
                 f"PreviousRunInitializer can only initialize Model or CompositeModel instances, got {type(model)}"

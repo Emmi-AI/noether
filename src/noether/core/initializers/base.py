@@ -1,12 +1,39 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 import abc
 import logging
+from typing import TYPE_CHECKING, Any
 
-from noether.core.callbacks.base import CallbackBase
-from noether.core.models.base import ModelBase
+from pydantic import BaseModel, Field
+
 from noether.core.providers import PathProvider
 from noether.core.utils.training.training_iteration import TrainingIteration
+
+if TYPE_CHECKING:
+    from noether.core.callbacks.base import CallbackBase
+    from noether.core.models.base import ModelBase
+
+
+class InitializerConfig(BaseModel):
+    kind: str = Field(default="noether.core.initializers.PreviousRunInitializer")
+    kwargs: dict[str, Any] | None = None
+    """Additional keyword arguments to pass to the initializer."""
+    run_id: str
+    """A unique identifier for the training stage. This is used to find the correct checkpoint."""
+
+    stage_name: str | None = None
+    """The name of the stage training stage if defined. When training, the stage name is usually "train"."""
+    model_name: str | None = None
+    """The name of the model to load. This is the model_name used in CheckpointCallback."""
+    checkpoint_tag: str | None | dict = None
+    """Which checkpoint to load.
+    Checkpoint is usually "latest" or "best_loss", or "E*_U*_S*", depending on which checkpoint you want to load.
+    """
+    model_info: str | None = None
+    """Optional string to provide additional info about the model weights in the checkpoint filename. E.g., the stored weights are the EMA, or in a different precision."""
+    model_config = {"extra": "forbid"}
 
 
 class InitializerBase(abc.ABC):

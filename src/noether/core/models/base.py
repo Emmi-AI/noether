@@ -11,7 +11,7 @@ from pydantic import Field
 from torch import nn
 
 from noether.core.factory import Factory
-from noether.core.schemas.initializers import AnyInitializer
+from noether.core.initializers import AnyInitializer
 from noether.core.schemas.lib import _RegistryBase
 from noether.core.schemas.optimizers import AnyOptimizerConfig
 from noether.data.container import DataContainer
@@ -19,10 +19,9 @@ from noether.data.container import DataContainer
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from torch.amp.grad_scaler import GradScaler
 
-    from noether.core.initializers import InitializerBase
+    from noether.core.initializers import InitializerBase, InitializerConfig
     from noether.core.optimizer import OptimizerWrapper
     from noether.core.providers import PathProvider
-    from noether.core.schemas.initializers import InitializerConfig
     from noether.core.utils.training.counter import UpdateCounter
 
 

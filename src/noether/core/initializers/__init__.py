@@ -1,17 +1,24 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from .base import InitializerBase
-from .checkpoint import CheckpointInitializer
-from .previous_run import PreviousRunInitializer
-from .resume import ResumeInitializer
+from typing import Union
+
+from .base import InitializerBase, InitializerConfig
+from .checkpoint import CheckpointInitializer, CheckpointInitializerConfig
+from .previous_run import PreviousRunInitializer, PreviousRunInitializerConfig
+from .resume import ResumeInitializer, ResumeInitializerConfig
+
+AnyInitializer = Union[CheckpointInitializerConfig, ResumeInitializerConfig, PreviousRunInitializerConfig]
 
 __all__ = [
-    # --- from base:
+    # --- classes:
     "InitializerBase",
-    # --- from checkpoint:
     "CheckpointInitializer",
-    # --- from previous run initializer:
     "PreviousRunInitializer",
-    # --- from resume initializer:
     "ResumeInitializer",
+    # --- configs:
+    "InitializerConfig",
+    "CheckpointInitializerConfig",
+    "PreviousRunInitializerConfig",
+    "ResumeInitializerConfig",
+    "AnyInitializer",
 ]
