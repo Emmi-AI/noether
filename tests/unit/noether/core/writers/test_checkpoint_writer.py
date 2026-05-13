@@ -209,3 +209,62 @@ class TestSave:
             writer.save(model, checkpoint_tag="E2", trainer=trainer, save_weights=True, save_optim=True)
 
         trainer.state_dict.assert_called_once()
+
+    def test_normalizer_payload_embedded_from_trainer_data_container(self, tmp_path):
+        """`save()` reads dataset_normalizers + statistics off `trainer.data_container`
+        and embeds them in the checkpoint, so single-file loaders can rebuild
+        normalizers without hp_resolved.yaml / STATS_FILE."""
+        from noether.data.container import DataContainer
+
+        writer = _make_writer(tmp_path)
+        model = _make_model("enc")
+
+        # Fake dataset that quacks like the real one for _build_normalizer_payload:
+        # config.dataset_normalizers maps str -> list of preprocessor configs, each
+        # with a .model_dump() (mirrors pydantic NormalizerConfig).
+        norm_cfg = MagicMock()
+        norm_cfg.model_dump.return_value = {"kind": "fake.Normalizer", "strategy": "mean_std"}
+        dataset = MagicMock()
+        dataset.config.dataset_normalizers = {"surface_pressure": [norm_cfg]}
+        dataset.fetch_statistics.return_value = {"surface_pressure_mean": 1.5, "surface_pressure_std": 0.5}
+
+        data_container = DataContainer(datasets={"test": dataset, "train": dataset})
+
+        trainer = MagicMock()
+        trainer.state_dict.return_value = {"cb": []}
+        trainer.data_container = data_container
+
+        with patch(_MODULE_PATH + ".is_rank0", return_value=True):
+            writer.save(model, checkpoint_tag="E2", trainer=trainer, save_weights=True, save_optim=False)
+
+        ckpt = torch.load(
+            writer.path_provider.checkpoint_path / "enc_cp=E2_model.th",
+            weights_only=False,
+        )
+        assert ckpt[CheckpointKeys.NORMALIZER_CONFIGS] == {
+            "surface_pressure": [{"kind": "fake.Normalizer", "strategy": "mean_std"}]
+        }
+        assert ckpt[CheckpointKeys.NORMALIZER_STATISTICS] == {
+            "surface_pressure_mean": 1.5,
+            "surface_pressure_std": 0.5,
+        }
+
+    def test_normalizer_payload_omitted_when_no_data_container(self, tmp_path):
+        """A trainer without a real DataContainer (e.g. tests with a MagicMock spec)
+        must not write the new keys — the loader will surface a clear error rather
+        than getting garbage."""
+        writer = _make_writer(tmp_path)
+        model = _make_model("enc")
+        trainer = MagicMock()
+        trainer.state_dict.return_value = {}
+        # trainer.data_container is a MagicMock — `isinstance(..., DataContainer)` is False.
+
+        with patch(_MODULE_PATH + ".is_rank0", return_value=True):
+            writer.save(model, checkpoint_tag="E2", trainer=trainer, save_weights=True, save_optim=False)
+
+        ckpt = torch.load(
+            writer.path_provider.checkpoint_path / "enc_cp=E2_model.th",
+            weights_only=False,
+        )
+        assert CheckpointKeys.NORMALIZER_CONFIGS not in ckpt
+        assert CheckpointKeys.NORMALIZER_STATISTICS not in ckpt

@@ -14,10 +14,42 @@ from noether.core.providers import PathProvider
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.training import UpdateCounter
+from noether.data.container import DataContainer
 
 if TYPE_CHECKING:
     from noether.core.models import ModelBase
     from noether.training.trainers import BaseTrainer
+
+
+def _build_normalizer_payload(data_container: DataContainer | None) -> tuple[dict | None, dict | None]:
+    """Pull per-field normalizer configs and resolved statistics from the trainer's
+    :class:`~noether.data.container.DataContainer`.
+
+    Sources the test split's ``dataset_normalizers`` (per-field preprocessor specs) off the dataset's own config
+    (``Dataset.config``) and the resolved statistics from :meth:`Dataset.fetch_statistics`, then embeds both
+    in the checkpoint so that :func:`~noether.inference.load_normalizers_from_checkpoint` can reconstruct field
+    normalizers without ``hp_resolved.yaml`` or the recipe's stats file on the loading machine.
+
+    Falls back to the first available split if ``test`` isn't configured.
+    Returns ``(None, None)`` if no DataContainer, no datasets, or no ``dataset_normalizers`` entry.
+    """
+    if not isinstance(data_container, DataContainer) or not data_container.datasets:
+        return None, None
+    split = "test" if "test" in data_container.datasets else next(iter(data_container.datasets))
+    dataset = data_container.datasets[split]
+    normalizer_configs = getattr(getattr(dataset, "config", None), "dataset_normalizers", None)
+    if not normalizer_configs:
+        return None, None
+
+    configs_dump: dict[str, Any] = {}
+    for key, val in normalizer_configs.items():
+        if isinstance(val, list):
+            configs_dump[key] = [c.model_dump() for c in val]
+        else:
+            configs_dump[key] = val.model_dump()
+
+    statistics = dataset.fetch_statistics() if hasattr(dataset, "fetch_statistics") else None
+    return configs_dump, statistics
 
 
 class CheckpointWriter:
@@ -65,6 +97,8 @@ class CheckpointWriter:
         state_dict: dict[str, Any],
         model_config: ModelBaseConfig | None = None,
         model_info: str | None = None,
+        normalizer_configs: dict[str, Any] | None = None,
+        normalizer_statistics: dict[str, Any] | None = None,
         **extra,
     ) -> None:
         """Save a checkpoint to disk.
@@ -99,6 +133,11 @@ class CheckpointWriter:
             except Exception as e:
                 raise RuntimeError(f"An unexpected error occurred during model_dump: {e}") from e
             output_dict[CheckpointKeys.CONFIG_KIND] = model_config.config_kind
+
+        if normalizer_configs is not None:
+            output_dict[CheckpointKeys.NORMALIZER_CONFIGS] = normalizer_configs
+        if normalizer_statistics is not None:
+            output_dict[CheckpointKeys.NORMALIZER_STATISTICS] = normalizer_statistics
 
         # Construct model URI with optional model_info; follows structure: {model_name}_{model_info}_cp={checkpoint}_model.th
         model_info = f"_{model_info}" if model_info else ""
@@ -139,6 +178,8 @@ class CheckpointWriter:
         # NOTE: this has to be called from all ranks because random states are gathered to rank0
         trainer_sd = trainer.state_dict() if trainer is not None else None
 
+        normalizer_configs, normalizer_statistics = _build_normalizer_payload(getattr(trainer, "data_container", None))
+
         if is_rank0():
             self._save_separate_models(
                 model=model,
@@ -150,6 +191,8 @@ class CheckpointWriter:
                 model_names_to_save=model_names_to_save,
                 save_frozen_weights=save_frozen_weights,
                 model_info=model_info,
+                normalizer_configs=normalizer_configs,
+                normalizer_statistics=normalizer_statistics,
             )
 
             if trainer_sd is not None:
@@ -176,6 +219,8 @@ class CheckpointWriter:
         save_frozen_weights: bool,
         model_info: str | None = None,
         model_name: str | None = None,
+        normalizer_configs: dict[str, Any] | None = None,
+        normalizer_statistics: dict[str, Any] | None = None,
     ):
         if isinstance(model, DistributedDataParallel):
             raise RuntimeError("DistributedDataParallel models should be unwrapped before saving.")
@@ -203,6 +248,8 @@ class CheckpointWriter:
                         model_info=model_info,
                         state_dict=model.state_dict(),
                         model_config=getattr(model, "model_config", None),
+                        normalizer_configs=normalizer_configs,
+                        normalizer_statistics=normalizer_statistics,
                     )
 
             # --- Save Optimizer ---
@@ -234,6 +281,8 @@ class CheckpointWriter:
                     save_latest_optim=save_latest_optim,
                     model_names_to_save=model_names_to_save,
                     save_frozen_weights=save_frozen_weights,
+                    normalizer_configs=normalizer_configs,
+                    normalizer_statistics=normalizer_statistics,
                 )
         else:
             raise NotImplementedError

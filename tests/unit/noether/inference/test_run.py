@@ -10,7 +10,12 @@ from torch import nn
 
 from noether.core.schemas.schema import ConfigSchema
 from noether.core.types import CheckpointKeys
-from noether.inference.run import Run, sanitize_hp_resolved
+from noether.inference.run import (
+    Run,
+    load_model_from_checkpoint,
+    load_normalizers_from_checkpoint,
+    sanitize_hp_resolved,
+)
 
 _MODULE_PATH = "noether.inference.run"
 
@@ -412,3 +417,194 @@ class TestRunModel:
             mock_factory_cls.return_value.instantiate.return_value = _TinyModel()
             with pytest.raises(FileNotFoundError, match=r"E5_model.th"):
                 run.model()
+
+
+# ---------------------------------------------------------------------------
+# load_model_from_checkpoint
+# ---------------------------------------------------------------------------
+
+
+def _write_full_checkpoint(
+    path: Path,
+    state_dict: dict,
+    *,
+    include_kind: bool = True,
+    include_config: bool = True,
+) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    ckpt: dict = {CheckpointKeys.STATE_DICT: state_dict}
+    if include_kind:
+        ckpt[CheckpointKeys.CONFIG_KIND] = "fake.model.kind"
+    if include_config:
+        ckpt[CheckpointKeys.MODEL_CONFIG] = {"some": "config"}
+    torch.save(ckpt, path)
+
+
+class TestLoadModelFromCheckpoint:
+    """Standalone loader that reconstructs the model from the checkpoint alone.
+
+    Uses ``resolve_config_class`` + ``Factory`` exactly like Run.model does, but
+    sourced from embedded ``model_config`` / ``config_kind`` rather than
+    ``hp_resolved.yaml``.
+    """
+
+    def _patch_resolution(self, model_to_return: nn.Module):
+        """Mock out the registry lookup and Factory so the test doesn't need a
+        real ModelBaseConfig subclass."""
+        resolved_cls = MagicMock()
+        resolved_cls.model_validate.return_value = MagicMock()
+        rcc_patch = patch(_MODULE_PATH + ".resolve_config_class", return_value=resolved_cls)
+        factory_patch = patch(_MODULE_PATH + ".Factory")
+        return rcc_patch, factory_patch, resolved_cls
+
+    def test_loads_weights_and_returns_eval_mode_model(self, tmp_path):
+        model = _TinyModel()
+        target_state = {
+            "linear.weight": torch.full_like(model.linear.weight, 0.5),
+            "linear.bias": torch.full_like(model.linear.bias, 0.5),
+        }
+        ckpt_path = tmp_path / "ab_upt_cp=latest_model.th"
+        _write_full_checkpoint(ckpt_path, target_state)
+
+        rcc_patch, factory_patch, _ = self._patch_resolution(model)
+        with rcc_patch, factory_patch as factory_mock:
+            factory_mock.return_value.instantiate.return_value = model
+            result = load_model_from_checkpoint(ckpt_path)
+
+        assert result is model
+        assert not model.training
+        assert torch.allclose(model.linear.weight, torch.full_like(model.linear.weight, 0.5))
+
+    def test_uses_kind_and_config_from_checkpoint(self, tmp_path):
+        model = _TinyModel()
+        target_state = {
+            "linear.weight": torch.full_like(model.linear.weight, 0.5),
+            "linear.bias": torch.full_like(model.linear.bias, 0.5),
+        }
+        ckpt_path = tmp_path / "model.th"
+        _write_full_checkpoint(ckpt_path, target_state)
+
+        rcc_patch, factory_patch, resolved_cls = self._patch_resolution(model)
+        with rcc_patch as rcc_mock, factory_patch as factory_mock:
+            factory_mock.return_value.instantiate.return_value = model
+            load_model_from_checkpoint(ckpt_path)
+
+        (call,) = rcc_mock.call_args_list
+        assert call.args[0] == "fake.model.kind"
+        resolved_cls.model_validate.assert_called_once_with({"some": "config"})
+
+    @pytest.mark.parametrize(
+        ("missing_kwarg", "missing_key"),
+        [
+            ({"include_kind": False}, "config_kind"),
+            ({"include_config": False}, "model_config"),
+        ],
+    )
+    def test_raises_on_missing_embedded_metadata(self, tmp_path, missing_kwarg, missing_key):
+        ckpt_path = tmp_path / "model.th"
+        _write_full_checkpoint(ckpt_path, _TinyModel().state_dict(), **missing_kwarg)
+
+        with pytest.raises(KeyError, match=missing_key):
+            load_model_from_checkpoint(ckpt_path)
+
+    def test_raises_when_weights_unchanged(self, tmp_path):
+        model = _TinyModel()
+        # Save the model's own state — load_state_dict will be a no-op, sanity check fires.
+        ckpt_path = tmp_path / "model.th"
+        _write_full_checkpoint(ckpt_path, {k: v.clone() for k, v in model.state_dict().items()})
+
+        rcc_patch, factory_patch, _ = self._patch_resolution(model)
+        with rcc_patch, factory_patch as factory_mock:
+            factory_mock.return_value.instantiate.return_value = model
+            with pytest.raises(RuntimeError, match="weights unchanged"):
+                load_model_from_checkpoint(ckpt_path)
+
+
+# ---------------------------------------------------------------------------
+# load_normalizers_from_checkpoint
+# ---------------------------------------------------------------------------
+
+
+class TestLoadNormalizersFromCheckpoint:
+    """Companion to load_model_from_checkpoint — pulls per-field normalizers from
+    the same checkpoint file using ``NORMALIZER_CONFIGS`` + ``NORMALIZER_STATISTICS``."""
+
+    def _write_checkpoint_with_normalizers(
+        self,
+        path: Path,
+        *,
+        configs: dict | None,
+        statistics: dict | None,
+    ) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ckpt: dict = {CheckpointKeys.STATE_DICT: {}}
+        if configs is not None:
+            ckpt[CheckpointKeys.NORMALIZER_CONFIGS] = configs
+        if statistics is not None:
+            ckpt[CheckpointKeys.NORMALIZER_STATISTICS] = statistics
+        torch.save(ckpt, path)
+
+    def _patch_resolve(self):
+        """Mock ``resolve_config_class`` so the loader's dict→pydantic re-validation
+        doesn't try to import the fake ``"fake.*"`` kinds used in these tests."""
+        resolved_cls = MagicMock()
+        resolved_cls.model_validate.side_effect = lambda d: d  # passthrough
+        return patch(_MODULE_PATH + ".resolve_config_class", return_value=resolved_cls)
+
+    def test_builds_one_compose_per_field_with_statistics(self, tmp_path):
+        ckpt_path = tmp_path / "model.th"
+        self._write_checkpoint_with_normalizers(
+            ckpt_path,
+            configs={"surface_pressure": [{"kind": "fake.Norm"}]},
+            statistics={"surface_pressure_mean": 1.0, "surface_pressure_std": 2.0},
+        )
+
+        sentinel_preprocessor = MagicMock()
+        with (
+            self._patch_resolve(),
+            patch(_MODULE_PATH + ".Factory") as factory_mock,
+            patch(_MODULE_PATH + ".ComposePreProcess") as compose_mock,
+        ):
+            factory_mock.return_value.instantiate.return_value = sentinel_preprocessor
+            compose_mock.return_value = "compose-instance"
+
+            result = load_normalizers_from_checkpoint(ckpt_path)
+
+        assert result == {"surface_pressure": "compose-instance"}
+        # The Factory got the field key + the statistics dict that was in the checkpoint.
+        ((kw,),) = [(c.kwargs,) for c in factory_mock.return_value.instantiate.call_args_list]
+        assert kw["normalization_key"] == "surface_pressure"
+        assert kw["statistics"] == {"surface_pressure_mean": 1.0, "surface_pressure_std": 2.0}
+        compose_mock.assert_called_once_with(
+            normalization_key="surface_pressure", preprocessors=[sentinel_preprocessor]
+        )
+
+    def test_supports_single_config_or_list(self, tmp_path):
+        """``dataset_normalizers`` can map a field to either one config or a list of them."""
+        ckpt_path = tmp_path / "model.th"
+        self._write_checkpoint_with_normalizers(
+            ckpt_path,
+            configs={
+                "pressure": {"kind": "fake.Norm"},  # single
+                "velocity": [{"kind": "fake.A"}, {"kind": "fake.B"}],  # list
+            },
+            statistics=None,
+        )
+
+        with (
+            self._patch_resolve(),
+            patch(_MODULE_PATH + ".Factory") as factory_mock,
+            patch(_MODULE_PATH + ".ComposePreProcess"),
+        ):
+            factory_mock.return_value.instantiate.return_value = MagicMock()
+            load_normalizers_from_checkpoint(ckpt_path)
+
+        # 1 call for pressure + 2 for velocity
+        assert factory_mock.return_value.instantiate.call_count == 3
+
+    def test_raises_when_configs_missing(self, tmp_path):
+        ckpt_path = tmp_path / "model.th"
+        self._write_checkpoint_with_normalizers(ckpt_path, configs=None, statistics=None)
+
+        with pytest.raises(KeyError, match="normalizer_configs"):
+            load_normalizers_from_checkpoint(ckpt_path)

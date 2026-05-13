@@ -37,13 +37,16 @@ from torch import nn
 from noether.core.factory import Factory
 from noether.core.factory.dataset import DatasetFactory
 from noether.core.factory.utils import class_constructor_from_class_path
+from noether.core.schemas.lib import resolve_config_class
+from noether.core.schemas.models import ModelBaseConfig
+from noether.core.schemas.normalizers import NormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
 from noether.core.types import CheckpointKeys
 from noether.core.utils.model import compute_model_norm
 from noether.data.base.dataset import Dataset
 from noether.data.preprocessors.compose import ComposePreProcess
 
-__all__ = ["Run", "sanitize_hp_resolved"]
+__all__ = ["Run", "load_model_from_checkpoint", "load_normalizers_from_checkpoint", "sanitize_hp_resolved"]
 
 
 def _to_plain_python(obj: Any) -> Any:
@@ -306,3 +309,113 @@ class Run:
                 f"Available model checkpoints in {self.run_dir / 'checkpoints'}: {available}"
             )
         return ckpt_path
+
+
+def load_model_from_checkpoint(
+    checkpoint_path: Path | str,
+    *,
+    device: str | torch.device = "cpu",
+) -> nn.Module:
+    """Instantiate and load a model from a single checkpoint file.
+
+    The lightweight counterpart to :class:`Run` — use it when you only have a
+    ``..._model.th`` file in hand and not the full training run directory.
+    Every checkpoint written by noether's ``CheckpointWriter`` embeds the
+    model config (:attr:`CheckpointKeys.MODEL_CONFIG`) and the discriminator
+    kind (:attr:`CheckpointKeys.CONFIG_KIND`) alongside the weights, which is
+    enough to reconstruct the model without ``hp_resolved.yaml``.
+
+    The model class itself must still be importable in the current process
+    — the kind string points at a class, not at its implementation. If the
+    checkpoint references a recipe-specific model, make sure that recipe is
+    installed (or on :data:`sys.path`) before calling.
+
+    Args:
+        checkpoint_path: Path to a ``..._model.th`` file written by noether.
+        device: Torch device (or string) to move the model to.
+
+    Returns:
+        The model in eval mode with weights loaded.
+
+    Raises:
+        KeyError: If the checkpoint is missing any of ``state_dict``,
+            ``model_config``, or ``config_kind`` (older checkpoints predate
+            the embedded config — fall back to :class:`Run` against the run
+            directory).
+        RuntimeError: If loading the state dict did not actually change the
+            model weights (same sanity check as :meth:`Run.model`).
+    """
+    checkpoint_path = Path(checkpoint_path).expanduser().resolve()
+    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=True)
+
+    for required in (CheckpointKeys.STATE_DICT, CheckpointKeys.CONFIG_KIND, CheckpointKeys.MODEL_CONFIG):
+        if required not in ckpt:
+            raise KeyError(
+                f"checkpoint at {checkpoint_path} is missing {required!r}. "
+                "Older runs predate the embedded model config — load via Run() "
+                "against the run directory instead."
+            )
+
+    config_cls = resolve_config_class(ckpt[CheckpointKeys.CONFIG_KIND], ModelBaseConfig)
+    model_config = config_cls.model_validate(ckpt[CheckpointKeys.MODEL_CONFIG])
+    model: nn.Module = Factory().instantiate(model_config)
+
+    norm_before = compute_model_norm(model).item()
+    model.load_state_dict(ckpt[CheckpointKeys.STATE_DICT])
+    if compute_model_norm(model).item() == norm_before:
+        raise RuntimeError(
+            f"model weights unchanged after loading {checkpoint_path} — "
+            "the checkpoint may be empty or the state-dict keys may not match the model."
+        )
+
+    model.to(device)
+    model.eval()
+    return model
+
+
+def load_normalizers_from_checkpoint(checkpoint_path: Path | str) -> dict[str, ComposePreProcess]:
+    """Build field normalizers from a single checkpoint file.
+
+    Companion to :func:`load_model_from_checkpoint`. Reads the per-field
+    preprocessor configs and resolved statistics that ``CheckpointWriter``
+    embeds in every checkpoint (``CheckpointKeys.NORMALIZER_CONFIGS`` /
+    ``NORMALIZER_STATISTICS``) and instantiates the same
+    :class:`~noether.data.preprocessors.compose.ComposePreProcess` per field
+    that :meth:`Run.normalizers` would produce — no run directory, no
+    ``hp_resolved.yaml``, no recipe stats file required.
+
+    Args:
+        checkpoint_path: Path to a ``..._model.th`` file written by noether.
+
+    Returns:
+        Dict mapping field name (e.g. ``"surface_pressure"``) to a
+        :class:`ComposePreProcess`. Empty dict if the checkpoint was written
+        from a config with no ``dataset_normalizers`` entry.
+
+    Raises:
+        KeyError: If the checkpoint predates the embedded normalizer keys.
+            Re-train with the current code or fall back to :class:`Run` against
+            the run directory.
+    """
+    checkpoint_path = Path(checkpoint_path).expanduser().resolve()
+    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
+
+    if CheckpointKeys.NORMALIZER_CONFIGS not in ckpt:
+        raise KeyError(
+            f"checkpoint at {checkpoint_path} is missing {CheckpointKeys.NORMALIZER_CONFIGS!r}. "
+            "Older runs predate embedded normalizer info — re-train with the current code, "
+            "or load normalizers via Run(run_dir).normalizers(split) instead."
+        )
+
+    configs_dump = ckpt[CheckpointKeys.NORMALIZER_CONFIGS]
+    statistics = ckpt.get(CheckpointKeys.NORMALIZER_STATISTICS)
+
+    normalizers: dict[str, ComposePreProcess] = {}
+    for key, configs in configs_dump.items():
+        configs_list = configs if isinstance(configs, list) else [configs]
+        # Each entry in the checkpoint is a plain dict (from `model_dump`) — re-validate
+        # back into a pydantic NormalizerConfig so Factory can read its `kind` field.
+        validated = [resolve_config_class(c["kind"], NormalizerConfig).model_validate(c) for c in configs_list]
+        preprocessors = [Factory().instantiate(cfg, normalization_key=key, statistics=statistics) for cfg in validated]
+        normalizers[key] = ComposePreProcess(normalization_key=key, preprocessors=preprocessors)
+    return normalizers
