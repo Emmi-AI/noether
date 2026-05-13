@@ -4,15 +4,23 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from copy import deepcopy
-from typing import Any
+from typing import Any, ClassVar
 
 import torch
 
 from noether.core.factory import Factory
+from noether.core.schemas.lib import _RegistryBase
 from noether.data.pipeline.collator import Collator, CollatorType
 
 SampleProcessorType = Callable[[dict[str, Any]], dict[str, Any]]
 BatchProcessorType = Callable[[dict[str, torch.Tensor]], dict[str, torch.Tensor]]
+
+
+class PipelineConfig(_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
+    kind: str
 
 
 class MultiStagePipeline(Collator):

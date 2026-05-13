@@ -2,7 +2,7 @@
 
 import torch
 
-from noether.core.schemas.dataset import DatasetSplitIDs
+from noether.data.base.dataset import DatasetSplitIDs
 
 _DEFAULT_SEED = 42
 

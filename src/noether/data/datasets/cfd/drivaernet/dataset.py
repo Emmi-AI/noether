@@ -4,9 +4,9 @@ from pathlib import Path
 
 import torch
 
-from noether.core.schemas.dataset import StandardDatasetConfig
 from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common.path import validate_path
+from noether.data.base.dataset import StandardDatasetConfig
 from noether.data.datasets.cfd.dataset import AeroDataset
 
 VALID_CATEGORIES = {

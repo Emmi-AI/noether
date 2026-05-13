@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from noether.core.factory.base import Factory
-from noether.core.schemas.dataset import DatasetBaseConfig
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import DatasetBaseConfig
 
 
 class DatasetFactory(Factory):

@@ -8,7 +8,7 @@ from pathlib import Path
 
 from huggingface_hub import hf_hub_download
 
-from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
+from noether.data.base.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.data.datasets.cfd.emmi_wing.dataset import EmmiWingDataset
 from noether.data.datasets.cfd.emmi_wing.split_hf import WingHFSplitIDs
 

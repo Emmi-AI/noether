@@ -27,9 +27,9 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "OnlineLossCallbackConfig": ("noether.core.schemas.callbacks", "OnlineLossCallbackConfig"),
     "PeriodicDataIteratorCallbackConfig": ("noether.core.schemas.callbacks", "PeriodicDataIteratorCallbackConfig"),
     "TrackAdditionalOutputsCallbackConfig": ("noether.core.schemas.callbacks", "TrackAdditionalOutputsCallbackConfig"),
-    # dataset
-    "DatasetBaseConfig": ("noether.core.schemas.dataset", "DatasetBaseConfig"),
-    "StandardDatasetConfig": ("noether.core.schemas.dataset", "StandardDatasetConfig"),
+    # dataset — point at canonical sources, never at the back-compat shim
+    "DatasetBaseConfig": ("noether.data.base.dataset", "DatasetBaseConfig"),
+    "StandardDatasetConfig": ("noether.data.base.dataset", "StandardDatasetConfig"),
     # initializers — point at canonical sources, never at the back-compat shim
     "AnyInitializer": ("noether.core.initializers", "AnyInitializer"),
     "CheckpointInitializerConfig": ("noether.core.initializers", "CheckpointInitializerConfig"),
@@ -179,9 +179,9 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         PeriodicDataIteratorCallbackConfig,
         TrackAdditionalOutputsCallbackConfig,
     )
-    from noether.core.schemas.dataset import DatasetBaseConfig, StandardDatasetConfig
     from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.core.schemas.schema import ConfigSchema
     from noether.core.schemas.slurm import SlurmConfig
     from noether.core.trackers import WandBTrackerSchema
+    from noether.data.base.dataset import DatasetBaseConfig, StandardDatasetConfig
     from noether.training.trainers.base import BaseTrainerConfig

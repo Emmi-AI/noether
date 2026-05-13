@@ -1,6 +1,6 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.dataset import DatasetSplitIDs
+from noether.data.base.dataset import DatasetSplitIDs
 
 # 248 cases (run_0 .. run_247), shuffled and split 200/24/24.
 # fmt: off

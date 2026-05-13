@@ -1,13 +1,17 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 from collections.abc import Callable, Iterator, Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
 
-from noether.data.base.dataset import Dataset
 from noether.data.base.wrapper import DatasetWrapper
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
 
 
 class Subset(DatasetWrapper):

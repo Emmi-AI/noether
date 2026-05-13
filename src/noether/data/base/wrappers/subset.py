@@ -1,11 +1,25 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
-from noether.core.schemas.dataset import SubsetWrapperConfig
-from noether.data.base import Dataset, Subset
-from noether.data.base.wrapper import DatasetWrapper
+from noether.data.base.subset import Subset
+from noether.data.base.wrapper import DatasetWrapper, DatasetWrapperConfig
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
+
+
+class SubsetWrapperConfig(DatasetWrapperConfig):
+    indices: Sequence | None = None
+    start_index: int | None = None
+    end_index: int | None = None
+    start_percent: float | None = None
+    end_percent: float | None = None
 
 
 class SubsetWrapper(Subset):

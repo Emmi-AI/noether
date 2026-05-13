@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.dataset import DatasetSplitIDs
+from noether.data.base.dataset import DatasetSplitIDs
 
 
 class ShapeNetCarDefaultSplitIDs(DatasetSplitIDs):

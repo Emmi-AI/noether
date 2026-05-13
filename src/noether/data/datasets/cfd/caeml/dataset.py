@@ -4,8 +4,8 @@ import logging
 
 import torch
 
-from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.core.utils.common import validate_path
+from noether.data.base.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.data.datasets.cfd.caeml.filemap import CAEML_FILEMAP
 from noether.data.datasets.cfd.dataset import AeroDataset
 

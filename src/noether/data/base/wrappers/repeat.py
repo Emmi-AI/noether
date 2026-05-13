@@ -1,9 +1,22 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-import numpy as np
+from __future__ import annotations
 
-from noether.core.schemas.dataset import RepeatWrapperConfig
-from noether.data.base import Dataset, Subset
+from typing import TYPE_CHECKING
+
+import numpy as np
+from pydantic import Field
+
+from noether.data.base.subset import Subset
+from noether.data.base.wrapper import DatasetWrapperConfig
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
+
+
+class RepeatWrapperConfig(DatasetWrapperConfig):
+    repetitions: int = Field(..., ge=2)
+    """The number of times to repeat the dataset."""
 
 
 class RepeatWrapper(Subset):

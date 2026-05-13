@@ -1,11 +1,14 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from noether.data.base import Dataset, DatasetWrapper
+from noether.data.base.wrapper import DatasetWrapper
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
 
 
 class PropertySubsetWrapper(DatasetWrapper):

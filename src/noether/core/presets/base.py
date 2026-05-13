@@ -20,10 +20,11 @@ from noether.core.schemas.callbacks import (
     EmaCallbackConfig,
     OfflineLossCallbackConfig,
 )
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers
 from noether.core.schemas.lib import resolve_config_class
 from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
+from noether.data.base.dataset import DatasetBaseConfig
+from noether.data.base.wrappers import DatasetWrappers
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.data.base.dataset import DatasetBaseConfig
 
 
 class SimshiftHeatsinkConfig(DatasetBaseConfig):

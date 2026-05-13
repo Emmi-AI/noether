@@ -3,7 +3,7 @@
 import logging
 from pathlib import Path
 
-from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
+from noether.data.base.dataset import DatasetSplitIDs, StandardDatasetConfig
 from noether.data.datasets.cfd.caeml.dataset import CAEMLDataset
 from noether.data.datasets.cfd.caeml.drivaerml.split import DrivAerMLDefaultSplitIDs
 

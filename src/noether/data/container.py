@@ -8,7 +8,6 @@ import torch
 from torch.utils.data import DataLoader, DistributedSampler, RandomSampler, Sampler, SequentialSampler
 
 from noether.core.distributed import is_distributed
-from noether.core.schemas.dataset import ShuffleWrapperConfig, SubsetWrapperConfig
 from noether.core.utils.common.stopwatch import Stopwatch
 from noether.core.utils.platform import get_fair_cpu_count, get_total_cpu_count
 from noether.core.utils.seed import seed_worker
@@ -18,7 +17,9 @@ from noether.data.base.wrappers import (
     META_GETITEM_TIME,
     PropertySubsetWrapper,
     ShuffleWrapper,
+    ShuffleWrapperConfig,
     SubsetWrapper,
+    SubsetWrapperConfig,
     TimingWrapper,
 )
 from noether.data.pipeline.collator import CollatorType
