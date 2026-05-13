@@ -24,7 +24,8 @@ field_weights:
 
 
 variance_regularization: 0.01
+mse_loss_weight: 0.1
 warmup_epochs_mse_only: 10
-beta_nll: 0.1
+beta_nll: 0.0
 use_physics_features: false
 monitor_training_stability: true

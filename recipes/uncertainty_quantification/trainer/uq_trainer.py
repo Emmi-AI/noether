@@ -24,6 +24,9 @@ class UQTrainerConfig(BaseTrainerConfig):
     beta_nll: float = Field(
         0.0, ge=0.0, le=1.0, description="β-NLL weighting (Seitzer 2022). 0=NLL, 1=MSE-like gradient"
     )
+    mse_loss_weight: float = Field(
+        0.1, ge=0.0, description="Weight for MSE loss component, used during warmup and if β_NLL > 0"
+    )
 
 
 class UQTrainer(BaseTrainer):
@@ -34,10 +37,9 @@ class UQTrainer(BaseTrainer):
     """
 
     def __init__(self, trainer_config: UQTrainerConfig, **kwargs):
-        
-        super().__init__(config=trainer_config, **kwargs)
         self.config: UQTrainerConfig  # type hint for self.config
-        
+        super().__init__(config=trainer_config, **kwargs)
+
     def loss_compute(self, forward_output: dict[str, Tensor], targets: dict[str, Tensor]) -> LossResult:
         current_epoch = self.update_counter.cur_iteration.epoch if self.update_counter.cur_iteration else 0
         use_nll = current_epoch >= self.config.warmup_epochs_mse_only
@@ -46,7 +48,6 @@ class UQTrainer(BaseTrainer):
 
         for field_name, weight in self.config.field_weights.items():
             if weight > 0 and f"{field_name}_mean" in forward_output and f"{field_name}_target" in targets:
-                
                 mean_key = f"{field_name}_mean"
                 log_var_key = f"{field_name}_log_var"
                 target_key = f"{field_name}_target"
@@ -54,12 +55,13 @@ class UQTrainer(BaseTrainer):
                 mean = forward_output[mean_key]
                 target = targets[target_key]
 
-                mse = torch.nn.functional.mse_loss(mean, target)
+                sq_err = (mean - target).pow(2)
+                losses[f"{field_name}_regression"] = sq_err.mean() * self.config.mse_loss_weight
 
                 if use_nll and log_var_key in forward_output:
                     # Warmup phase, or no log-variance head: train mean with MSE only.
                     log_var = forward_output[log_var_key]
-                    nll = 0.5 * (log_var + mse * torch.exp(-log_var))
+                    nll = 0.5 * (log_var + sq_err * torch.exp(-log_var))
 
                     if self.config.beta_nll > 0:
                         # σ^(2β) = exp(β · log_var), detached so it only reweights the loss
@@ -73,7 +75,5 @@ class UQTrainer(BaseTrainer):
                     if self.config.variance_regularization > 0:
                         var_reg = log_var.clamp(max=0).pow(2).mean()
                         losses[f"{field_name}_var_reg"] = var_reg * weight * self.config.variance_regularization
-                else:
-                    losses[f"{field_name}_regression"] = mse * weight
 
         return losses

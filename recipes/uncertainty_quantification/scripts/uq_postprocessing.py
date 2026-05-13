@@ -116,7 +116,7 @@ def load_model_and_data(run_dir: Path, checkpoint: str, device: str):
     pipeline_dict = copy.deepcopy(config["datasets"]["test"]["pipeline"])
     pipeline_dict["num_surface_anchor_points"] = 1_000_000_000
     pipeline_dict["num_volume_anchor_points"] = 1_000_000_000
-    from pipeline.aero_multistage import AeroCFDPipelineConfig
+    from aero_cfd.pipeline import AeroCFDPipelineConfig
 
     pipeline_config = AeroCFDPipelineConfig(**pipeline_dict)
     pipeline_cls = class_constructor_from_class_path(pipeline_dict["kind"])
