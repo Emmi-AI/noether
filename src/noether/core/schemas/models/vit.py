@@ -1,6 +1,8 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, computed_field
+
+from noether.core.schemas.modules.blocks import TransformerBlockConfig
 
 from .base import ModelBaseConfig
 
@@ -42,3 +44,17 @@ class ViTConfig(ModelBaseConfig):
 
     use_conv_output_head: bool = True
     """If True, decode via a cascaded PixelShuffle conv head; if False, decode via a linear unpatchify."""
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def transformer_block_config(self) -> TransformerBlockConfig:
+        return TransformerBlockConfig(
+            hidden_dim=self.hidden_dim,
+            num_heads=self.num_heads,
+            mlp_expansion_factor=self.mlp_ratio,
+            attention_constructor="dot_product",
+            condition_dim=self.hidden_dim if self.use_conditioning else None,
+            use_rope=True,
+            dropout=self.attn_drop,
+            init_weights="xavier",
+        )

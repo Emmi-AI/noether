@@ -1,4 +1,4 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from noether.core.schemas.models import TransformerConfig, ViTConfig
 from noether.core.schemas.modules import (
     ContinuousSincosEmbeddingConfig,
     RopeFrequencyConfig,
-    TransformerBlockConfig,
 )
 from noether.modeling.models.transformer import Transformer
 from noether.modeling.modules.layers import (
@@ -24,6 +23,15 @@ from noether.modeling.modules.layers import (
 
 
 class ViT(nn.Module):
+    """Vision Transformer for spatial regression on continuous-coordinate grids.
+
+    Based on the ViT paper (https://arxiv.org/pdf/2010.11929) with several modifications, such as:
+
+    - Continuous coordinate inputs with sincos positional embedding and RoPE (vs. learned 1D position embeddings).
+    - Optional AdaLN-Zero conditioning, à la DiT (https://arxiv.org/abs/2212.09748).
+    - RMSNorm and QK-norm in attention (vs. LayerNorm only).
+    """
+
     def __init__(self, config: ViTConfig) -> None:
         """
         Args:
@@ -55,22 +63,12 @@ class ViT(nn.Module):
             ),
         )
 
-        block_config = TransformerBlockConfig(
-            hidden_dim=config.hidden_dim,
-            num_heads=config.num_heads,
-            mlp_expansion_factor=config.mlp_ratio,
-            attention_constructor="dot_product",
-            condition_dim=config.hidden_dim if config.use_conditioning else None,
-            use_rope=True,
-            dropout=config.attn_drop,
-            init_weights="xavier",
-        )
         self.backbone = Transformer(
             config=TransformerConfig(
                 name="vit_backbone",
                 hidden_dim=config.hidden_dim,
                 depth=config.depth,
-                transformer_block_config=block_config,
+                transformer_block_config=config.transformer_block_config,
             )
         )
 
