@@ -4,9 +4,9 @@ from collections import defaultdict
 
 import torch
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd, reduce_max_nograd, reduce_mean_nograd
-from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.logging import tensor_like_to_string
 
 

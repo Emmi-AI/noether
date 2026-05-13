@@ -4,20 +4,20 @@ from __future__ import annotations
 
 import math
 import sys
-from abc import ABCMeta, abstractmethod
+from abc import ABC, ABCMeta, abstractmethod
 from collections.abc import Iterator
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 import torch
+from pydantic import Field
 from torch.utils.data import DistributedSampler, SequentialSampler
 from tqdm import tqdm
 
-from noether.core.callbacks.base import CallbackBase
+from noether.core.callbacks.base import CallbackBase, CallBackBaseConfig
 from noether.core.distributed import all_gather_nograd, all_gather_nograd_clipped
 from noether.core.distributed.config import is_distributed, is_rank0
 from noether.core.models import ModelBase
 from noether.core.providers import MetricPropertyProvider
-from noether.core.schemas.callbacks import CallBackBaseConfig, PeriodicDataIteratorCallbackConfig
 from noether.core.trackers import BaseTracker
 from noether.core.utils.common import snake_type_name
 from noether.core.utils.common.stopwatch import Stopwatch
@@ -40,6 +40,16 @@ Defines the unit of training progress used to trigger periodic callbacks:
 * "sample": Callback is triggered based on number of samples processed
 * "eval": Callback is triggered independent of schedule for post-training evaluation
 """
+
+
+class PeriodicDataIteratorCallbackConfig(CallBackBaseConfig, ABC):
+    if TYPE_CHECKING:
+        name: str
+    else:
+        name: Literal["PeriodicDataIteratorCallback"] = Field(default="PeriodicDataIteratorCallback", frozen=True)
+
+    dataset_key: str = Field(...)
+    """The key of the dataset to be used for the loss calculation. Can be any key that is registered in the `DataContainer`."""
 
 
 class PeriodicCallback(CallbackBase):

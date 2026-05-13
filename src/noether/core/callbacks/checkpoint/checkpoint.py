@@ -1,9 +1,28 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
+from pydantic import Field
+
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
-from noether.core.schemas.callbacks import CheckpointCallbackConfig
 from noether.core.utils.logging import short_number_str
 from noether.core.utils.training import UpdateCounter  # fixme: consider moving it to noether/training/?
+
+
+class CheckpointCallbackConfig(CallBackBaseConfig):
+    name: Literal["CheckpointCallback"] = Field("CheckpointCallback", frozen=True)
+
+    save_weights: bool = Field(True)
+    """Whether to save the weights of the model every time this callback is invoked. The checkpoint name will contain the training iteration (e.g., epoch/update/sample) at which the checkpoint was saved."""
+    save_optim: bool = Field(False)
+    """Whether to save the optimizer state every time this callback is invoked. The checkpoint name will contain the training iteration (e.g., epoch/update/sample) at which the checkpoint was saved."""
+    save_latest_weights: bool = Field(True)
+    """Whether to save the latest weights of the model every time this callback is invoked. Note that the latest weights are always overwritten on the next invocation of this callback."""
+    save_latest_optim: bool = Field(False)
+    """Whether to save the latest optimizer state every time this callback is invoked. Note that the latest optimizer state is always overwritten on the next invocation of this callback"""
+    model_names: list[str] | None = Field(None)
+    """The name of the model to save. If None, all models are saved."""
 
 
 class CheckpointCallback(PeriodicCallback):

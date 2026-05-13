@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 import torch
+from pydantic import Field, field_validator, model_validator
 
 from noether.core.providers.metric_property import MetricPropertyProvider
 from noether.core.providers.path import PathProvider
+from noether.core.schemas.lib import _RegistryBase
 from noether.core.trackers import BaseTracker
 from noether.core.writers import CheckpointWriter, LogWriter
 from noether.data.container import DataContainer
@@ -17,6 +19,71 @@ if TYPE_CHECKING:
     from noether.core.models import ModelBase
     from noether.core.utils.training.counter import UpdateCounter
     from noether.training.trainers import BaseTrainer
+
+
+class CallBackBaseConfig(_RegistryBase):
+    _registry: ClassVar[dict[str, type]] = {}
+    _type_field: ClassVar[str] = "kind"
+
+    kind: str | None = None
+    id: str | None = Field(None)
+    """Optional unique identifier for this callback instance. Required when multiple stateful callbacks of the same
+    type exist (e.g., two BestCheckpointCallbacks tracking different metrics). Used as the key when saving/loading
+    callback state dicts to ensure correct matching on resume."""
+    every_n_epochs: int | None = Field(None, ge=0)
+    """Epoch-based interval. Invokes the callback after every n epochs. Mutually exclusive with other intervals."""
+    every_n_updates: int | None = Field(None, ge=0)
+    """Update-based interval. Invokes the callback after every n updates. Mutually exclusive with other intervals."""
+    every_n_samples: int | None = Field(None, ge=0)
+    """Sample-based interval. Invokes the callback after every n samples. Mutually exclusive with other intervals."""
+    batch_size: int | None = None
+    """Batch size to use for this callback. Default: None (use the same batch_size as for training)."""
+
+    model_config = {"extra": "forbid"}
+
+    @model_validator(mode="after")
+    def validate_callback_frequency(self) -> CallBackBaseConfig:
+        """
+        Ensures that exactly one frequency ('every_n_*') is specified and
+        that 'batch_size' is present if 'every_n_samples' is used.
+        """
+
+        # 1. Mutual Exclusivity and Presence Validation
+        frequency_fields = [self.every_n_epochs, self.every_n_updates, self.every_n_samples]
+        num_frequency_fields_set = sum(1 for f in frequency_fields if f is not None)
+
+        if num_frequency_fields_set != 1:
+            raise ValueError(
+                "Exactly one of 'every_n_epochs', 'every_n_updates', or 'every_n_samples' must be set. Cannot have multiple or none set."
+            )
+
+        # 2. Conditional Requirement Validation
+        if self.every_n_samples is not None and self.batch_size is None:
+            raise ValueError("'batch_size' is required when 'every_n_samples' is set.")
+
+        return self
+
+    @field_validator("every_n_epochs", "every_n_updates", "every_n_samples", "batch_size")
+    @classmethod
+    def check_positive_values(cls, v: int | None) -> int | None:
+        """
+        Ensures that all integer-based frequency and batch size fields are positive.
+        """
+        # 3. Value Constraints
+        if v is not None and v <= 0:
+            raise ValueError(f"Value must be a positive integer, but got {v}")
+        return v
+
+    @field_validator("kind")
+    @classmethod
+    def check_kind_is_not_empty(cls, v: str) -> str:
+        """
+        Ensures the 'kind' field is a non-empty string.
+        """
+        # 4. Field Constraints
+        if v is not None and not v.strip():
+            raise ValueError("'kind' cannot be an empty string.")
+        return v
 
 
 class CallbackBase:

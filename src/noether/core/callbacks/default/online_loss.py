@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from typing import Literal
 
 import torch
+from pydantic import Field
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_nograd
-from noether.core.schemas.callbacks import OnlineLossCallbackConfig
+
+
+class OnlineLossCallbackConfig(CallBackBaseConfig):
+    name: Literal["OnlineLossCallback"] = Field("OnlineLossCallback", frozen=True)
+    verbose: bool = Field(True)
+    """Whether to also log to the (console) logger. If False, the loss will only logged to the experiment tracker."""
 
 
 class OnlineLossCallback(PeriodicCallback):

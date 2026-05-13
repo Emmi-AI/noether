@@ -1,8 +1,37 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
+from typing import Literal
+
+from pydantic import BaseModel, Field, model_validator
+
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.early_stoppers.base import EarlyStopperBase
-from noether.core.schemas.callbacks import CallBackBaseConfig, FixedEarlyStopperConfig
 from noether.core.utils.training import UpdateCounter
+
+
+class FixedEarlyStopperConfig(BaseModel):
+    kind: str | None = None
+    name: Literal["FixedEarlyStopper"] = Field("FixedEarlyStopper", frozen=True)
+    stop_at_sample: int | None = None
+    stop_at_update: int | None = None
+    stop_at_epoch: int | None = None
+
+    @model_validator(mode="after")
+    def validate_callback_frequency(self) -> FixedEarlyStopperConfig:
+        """
+        Ensures that exactly one stop ('stop_at_*') is specified
+        """
+        # 1. Mutual Exclusivity and Presence Validation
+        frequency_fields = [self.stop_at_epoch, self.stop_at_update, self.stop_at_sample]
+        num_frequency_fields_set = sum(1 for f in frequency_fields if f is not None)
+
+        if num_frequency_fields_set != 1:
+            raise ValueError(
+                "Exactly one of 'stop_at_epoch', 'stop_at_update', or 'stop_at_sample' must be set. Cannot have multiple or none set."
+            )
+        return self
 
 
 class FixedEarlyStopper(EarlyStopperBase):

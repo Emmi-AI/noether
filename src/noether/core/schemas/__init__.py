@@ -14,19 +14,28 @@ import importlib
 from typing import TYPE_CHECKING, Any
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
-    # callbacks
-    "BestCheckpointCallbackConfig": ("noether.core.schemas.callbacks", "BestCheckpointCallbackConfig"),
-    "BestMetricCallbackConfig": ("noether.core.schemas.callbacks", "BestMetricCallbackConfig"),
-    "CallBackBaseConfig": ("noether.core.schemas.callbacks", "CallBackBaseConfig"),
+    # callbacks — point at canonical sources, never at the back-compat shim
+    "BestCheckpointCallbackConfig": (
+        "noether.core.callbacks.checkpoint.best_checkpoint",
+        "BestCheckpointCallbackConfig",
+    ),
+    "BestMetricCallbackConfig": ("noether.core.callbacks.online.best_metric", "BestMetricCallbackConfig"),
+    "CallBackBaseConfig": ("noether.core.callbacks.base", "CallBackBaseConfig"),
     "CallbacksConfig": ("noether.core.schemas.callbacks", "CallbacksConfig"),
-    "CheckpointCallbackConfig": ("noether.core.schemas.callbacks", "CheckpointCallbackConfig"),
-    "EmaCallbackConfig": ("noether.core.schemas.callbacks", "EmaCallbackConfig"),
-    "FixedEarlyStopperConfig": ("noether.core.schemas.callbacks", "FixedEarlyStopperConfig"),
-    "MetricEarlyStopperConfig": ("noether.core.schemas.callbacks", "MetricEarlyStopperConfig"),
-    "OfflineLossCallbackConfig": ("noether.core.schemas.callbacks", "OfflineLossCallbackConfig"),
-    "OnlineLossCallbackConfig": ("noether.core.schemas.callbacks", "OnlineLossCallbackConfig"),
-    "PeriodicDataIteratorCallbackConfig": ("noether.core.schemas.callbacks", "PeriodicDataIteratorCallbackConfig"),
-    "TrackAdditionalOutputsCallbackConfig": ("noether.core.schemas.callbacks", "TrackAdditionalOutputsCallbackConfig"),
+    "CheckpointCallbackConfig": ("noether.core.callbacks.checkpoint.checkpoint", "CheckpointCallbackConfig"),
+    "EmaCallbackConfig": ("noether.core.callbacks.checkpoint.ema", "EmaCallbackConfig"),
+    "FixedEarlyStopperConfig": ("noether.core.callbacks.early_stoppers.fixed", "FixedEarlyStopperConfig"),
+    "MetricEarlyStopperConfig": ("noether.core.callbacks.early_stoppers.metric", "MetricEarlyStopperConfig"),
+    "OfflineLossCallbackConfig": ("noether.training.callbacks.offline_loss", "OfflineLossCallbackConfig"),
+    "OnlineLossCallbackConfig": ("noether.core.callbacks.default.online_loss", "OnlineLossCallbackConfig"),
+    "PeriodicDataIteratorCallbackConfig": (
+        "noether.core.callbacks.periodic",
+        "PeriodicDataIteratorCallbackConfig",
+    ),
+    "TrackAdditionalOutputsCallbackConfig": (
+        "noether.core.callbacks.online.track_outputs",
+        "TrackAdditionalOutputsCallbackConfig",
+    ),
     # dataset — point at canonical sources, never at the back-compat shim
     "DatasetBaseConfig": ("noether.data.base.dataset", "DatasetBaseConfig"),
     "StandardDatasetConfig": ("noether.data.base.dataset", "StandardDatasetConfig"),
@@ -141,6 +150,16 @@ def __dir__() -> list[str]:
 
 
 if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
+    from noether.core.callbacks.base import CallBackBaseConfig
+    from noether.core.callbacks.checkpoint.best_checkpoint import BestCheckpointCallbackConfig
+    from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallbackConfig
+    from noether.core.callbacks.checkpoint.ema import EmaCallbackConfig
+    from noether.core.callbacks.default.online_loss import OnlineLossCallbackConfig
+    from noether.core.callbacks.early_stoppers.fixed import FixedEarlyStopperConfig
+    from noether.core.callbacks.early_stoppers.metric import MetricEarlyStopperConfig
+    from noether.core.callbacks.online.best_metric import BestMetricCallbackConfig
+    from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallbackConfig
+    from noether.core.callbacks.periodic import PeriodicDataIteratorCallbackConfig
     from noether.core.initializers import (
         AnyInitializer,
         CheckpointInitializerConfig,
@@ -165,23 +184,11 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         StepFixedScheduleConfig,
         StepIntervalScheduleConfig,
     )
-    from noether.core.schemas.callbacks import (
-        BestCheckpointCallbackConfig,
-        BestMetricCallbackConfig,
-        CallBackBaseConfig,
-        CallbacksConfig,
-        CheckpointCallbackConfig,
-        EmaCallbackConfig,
-        FixedEarlyStopperConfig,
-        MetricEarlyStopperConfig,
-        OfflineLossCallbackConfig,
-        OnlineLossCallbackConfig,
-        PeriodicDataIteratorCallbackConfig,
-        TrackAdditionalOutputsCallbackConfig,
-    )
+    from noether.core.schemas.callbacks import CallbacksConfig
     from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.core.schemas.schema import ConfigSchema
     from noether.core.schemas.slurm import SlurmConfig
     from noether.core.trackers import WandBTrackerSchema
     from noether.data.base.dataset import DatasetBaseConfig, StandardDatasetConfig
+    from noether.training.callbacks.offline_loss import OfflineLossCallbackConfig
     from noether.training.trainers.base import BaseTrainerConfig

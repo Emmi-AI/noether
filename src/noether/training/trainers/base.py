@@ -19,7 +19,9 @@ from torch.amp.grad_scaler import GradScaler
 from torch.nn.parallel import DistributedDataParallel
 
 from noether.core.callbacks import CallbackBase, PeriodicCallback, PeriodicDataIteratorCallback
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallback
+from noether.core.callbacks.default.online_loss import OnlineLossCallbackConfig
 from noether.core.callbacks.default.training_diagnostics import TrainingDiagnosticsCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import (
@@ -35,7 +37,6 @@ from noether.core.providers import (
     MetricPropertyProvider,
     PathProvider,
 )
-from noether.core.schemas.callbacks import CallBackBaseConfig, OnlineLossCallbackConfig
 from noether.core.schemas.lib import Discriminated, _RegistryBase
 from noether.core.trackers import BaseTracker
 from noether.core.types import CheckpointKeys

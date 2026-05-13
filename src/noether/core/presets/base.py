@@ -11,20 +11,18 @@ from typing import Any
 import yaml
 from pydantic import TypeAdapter
 
+from noether.core.callbacks.checkpoint.best_checkpoint import BestCheckpointCallbackConfig
+from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallbackConfig
+from noether.core.callbacks.checkpoint.ema import EmaCallbackConfig
 from noether.core.optimizer.schemas import AnyOptimizerConfig, OptimizerConfig
 from noether.core.presets.model_defaults import MODEL_DEFAULTS
 from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
-from noether.core.schemas.callbacks import (
-    BestCheckpointCallbackConfig,
-    CheckpointCallbackConfig,
-    EmaCallbackConfig,
-    OfflineLossCallbackConfig,
-)
 from noether.core.schemas.lib import resolve_config_class
 from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
 from noether.data.base.dataset import DatasetBaseConfig
 from noether.data.base.wrappers import DatasetWrappers
+from noether.training.callbacks.offline_loss import OfflineLossCallbackConfig
 
 logger = logging.getLogger(__name__)
 
