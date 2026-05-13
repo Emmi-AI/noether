@@ -43,7 +43,6 @@ class UQTrainer(BaseTrainer):
     def loss_compute(self, forward_output: dict[str, Tensor], targets: dict[str, Tensor]) -> LossResult:
         current_epoch = self.update_counter.cur_iteration.epoch if self.update_counter.cur_iteration else 0
         use_nll = current_epoch >= self.config.warmup_epochs_mse_only
-
         losses: dict[str, Tensor] = {}
 
         for field_name, weight in self.config.field_weights.items():

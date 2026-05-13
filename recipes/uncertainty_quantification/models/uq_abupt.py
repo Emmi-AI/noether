@@ -8,11 +8,9 @@ import torch
 from pydantic import Field, computed_field
 from torch import Tensor
 
-from noether.core.models import Model
 from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin
 from noether.core.schemas.models import AnchorBranchedUPTConfig
-from noether.core.schemas.models.ab_upt import AnchorBranchedUPTConfig
 from noether.modeling.models.ab_upt import ModelKVCache
 from noether.modeling.models.aerodynamics import AeroABUPT
 
@@ -63,7 +61,7 @@ class UQABUPTConfig(AnchorBranchedUPTConfig, InjectSharedFieldFromParentMixin):
         )
 
 
-class UQAnchoredBranchedUPT(Model):
+class UQAnchoredBranchedUPT(AeroABUPT):
     """AB-UPT model wrapped with uncertainty quantification.
 
     Provides two UQ mechanisms:
@@ -73,8 +71,6 @@ class UQAnchoredBranchedUPT(Model):
 
     def __init__(self, model_config: UQABUPTConfig, **kwargs):
         super().__init__(model_config=model_config, **kwargs)
-
-        self.backbone = AeroABUPT(model_config=model_config.parent_config)
 
         self.enable_heteroscedastic = model_config.enable_heteroscedastic
         self.original_data_specs = model_config.data_specs  # non-doubled specs
@@ -144,7 +140,7 @@ class UQAnchoredBranchedUPT(Model):
         During training, this is the primary method called by the trainer.
         Returns a flat dict of predictions (with _mean and _log_var suffixes if heteroscedastic).
         """
-        predictions = self.backbone(
+        predictions = super().forward(
             geometry_position=geometry_position,
             geometry_supernode_idx=geometry_supernode_idx,
             geometry_batch_idx=geometry_batch_idx,
