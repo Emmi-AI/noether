@@ -44,6 +44,12 @@ class PerceiverAttention(nn.Module):
         self.proj = nn.Linear(config.hidden_dim, config.hidden_dim, bias=config.bias)
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
+        if config.qk_norm:
+            self.q_norm: nn.Module = nn.RMSNorm(self.head_dim)
+            self.k_norm: nn.Module = nn.RMSNorm(self.head_dim)
+        else:
+            self.q_norm = nn.Identity()
+            self.k_norm = nn.Identity()
 
         apply_init_method(self, self.proj.weight, self.init_weights)
 
@@ -75,11 +81,13 @@ class PerceiverAttention(nn.Module):
         """
         # Project query
         q = self.q(q)
-        q = einops.rearrange(
-            q,
-            "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
+        q = self.q_norm(
+            einops.rearrange(
+                q,
+                "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
+                num_heads=self.num_heads,
+                head_dim=self.head_dim,
+            )
         )
 
         if kv_cache is not None:
@@ -102,6 +110,7 @@ class PerceiverAttention(nn.Module):
                 num_heads=self.num_heads,
                 head_dim=self.head_dim,
             ).unbind(0)
+            k = self.k_norm(k)
 
             if self.use_rope:
                 assert k_freqs is not None

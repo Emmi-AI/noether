@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+
 from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.core.schemas.statistics import AeroStatsSchema
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
@@ -50,6 +51,10 @@ class AeroCFDPipelineConfig(PipelineConfig):
     """Number of volume anchor points to sample for AB-UPT."""
     num_surface_anchor_points: int | None = 0
     """Number of surface anchor points to sample for AB-UPT."""
+    use_surface_position_as_input: bool = False
+    """Whether to pass ``surface_position`` through as a model input. Required only when a downstream
+    callback (e.g. the showcase eval pipeline) needs it; off by default since variable-sized point clouds
+    break batch collation when ``batch_size > 1``."""
     seed: int | None = None
     """Random seed for sampling processes."""
     data_specs: ModelDataSpecs
@@ -160,6 +165,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         )
         self.volume_features = set(volume_spec.feature_dim.keys()) if volume_spec and volume_spec.feature_dim else set()
         self.conditioning_dims = pipeline_config.data_specs.conditioning_dims
+        self.use_surface_position_as_input = pipeline_config.use_surface_position_as_input
 
         self._define_items_keys()
 
@@ -255,7 +261,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
                 DefaultCollator(
                     items=self.default_collator_items,
                     optional_items=["index", "surface_normals", "surface_area"]
-                    + (["surface_position"] if self.use_anchor_points else []),
+                    + (["surface_position"] if self.use_surface_position_as_input else []),
                 )
             ]
         )

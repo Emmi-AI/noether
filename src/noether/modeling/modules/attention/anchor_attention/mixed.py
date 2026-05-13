@@ -142,6 +142,7 @@ class MixedAttention(DotProductAttention):
             q, k, v = einops.rearrange(
                 qkv, "bs s (three nh hd) -> three bs nh s hd", three=3, nh=self.num_heads
             ).unbind(0)
+            q, k = self.q_norm(q), self.k_norm(k)
             output, k_dict, v_dict = self._attend(
                 q,
                 k,

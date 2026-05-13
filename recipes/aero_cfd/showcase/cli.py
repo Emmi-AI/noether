@@ -342,6 +342,7 @@ def evaluate(
             model_kind=ABUPT_MODEL_KIND,
             num_surface_anchor_points=num_inference_surface_points,
             num_volume_anchor_points=num_inference_volume_points,
+            use_surface_position_as_input=True,
         )
         callback = QueryInferenceCallbackConfig(
             dataset_key=query_key,
