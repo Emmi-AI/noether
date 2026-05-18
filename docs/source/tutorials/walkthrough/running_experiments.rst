@@ -98,12 +98,46 @@ Example of a multi-GPU SLURM job:
        trainer.effective_batch_size=2
 
 
-Running inference
------------------
+Running inference and evaluation on a trained model
+---------------------------------------------------
 
-To run evaluation callbacks on trained models, use the ``noether-eval`` CLI tool.
+Once a training run finishes, you can re-run its callbacks against any saved
+checkpoint with ``noether-eval``. Point it at the run output directory (the
+folder that contains ``hp_resolved.yaml``):
 
-For detailed instructions on running inference with trained models, refer to
+.. code-block:: bash
+
+   uv run noether-eval run_dir=outputs/<run_id>/train
+
+That single argument is enough — ``noether-eval`` reads the original training
+config from ``hp_resolved.yaml``, restores the latest checkpoint, and re-runs
+the configured callbacks. Whether that yields metric numbers, saved
+predictions, or visualizations depends on which callbacks were configured —
+the runner is a thin post-training callback executor and doesn't care.
+
+Common overrides:
+
+.. code-block:: bash
+
+   # Use the best checkpoint instead of the latest. The tag is
+   # `best_model.<metric>` (slashes flattened to dots); the metric comes from
+   # the run's BestCheckpointCallback config — e.g. `loss/test/total`:
+   uv run noether-eval run_dir=outputs/<run_id>/train resume_checkpoint=best_model.loss.test.total
+
+   # Disable experiment tracking for a one-off run
+   uv run noether-eval run_dir=outputs/<run_id>/train tracker=disabled
+
+Any training-time config key (``trainer.*``, ``tracker.*``, ``model.*``, etc.)
+can be overridden the same way — no Hydra ``+`` prefix needed. To plug in
+extra callbacks for evaluation, prediction saving, or visualization, drop
+them into a small YAML and pass it via ``--hp``:
+
+.. code-block:: bash
+
+   uv run noether-eval run_dir=outputs/<run_id>/train --hp configs/eval_extra.yaml
+
+For the full reference (custom output directories, hardware overrides,
+prediction-saving callback examples), see
 :doc:`/guides/inference/how_to_run_evaluation_on_trained_models`.
 
 

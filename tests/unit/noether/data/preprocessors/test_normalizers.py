@@ -207,6 +207,41 @@ class TestPositionNormalizerInit:
         with pytest.raises(ValueError):
             normalizer(test_tensor)
 
+    def test_zero_center_maps_to_symmetric_range(self):
+        """Tests that zero_center maps the raw range [min, max] to [-scale, scale]."""
+        normalizer = PositionNormalizer(
+            PositionNormalizerConfig(raw_pos_min=[-10.0], raw_pos_max=[10.0], scale=1000, zero_center=True),
+            normalization_key="test_key",
+        )
+
+        test_tensor = torch.tensor([-10.0, 0.0, 10.0])
+        normalized = normalizer(test_tensor)
+        assert torch.allclose(normalized, torch.tensor([-1000.0, 0.0, 1000.0]))
+        assert torch.allclose(normalizer.denormalize(normalized), test_tensor, atol=1e-4)
+
+    def test_zero_center_with_asymmetric_min_max(self):
+        """Tests zero_center when the raw min/max are not symmetric around zero."""
+        normalizer = PositionNormalizer(
+            PositionNormalizerConfig(raw_pos_min=[0.0, -5.0], raw_pos_max=[10.0, 15.0], scale=100, zero_center=True),
+            normalization_key="test_key",
+        )
+
+        test_tensor = torch.tensor([[0.0, -5.0], [5.0, 5.0], [10.0, 15.0]])
+        normalized = normalizer(test_tensor)
+        expected = torch.tensor([[-100.0, -100.0], [0.0, 0.0], [100.0, 100.0]])
+        assert torch.allclose(normalized, expected)
+        assert torch.allclose(normalizer.denormalize(normalized), test_tensor, atol=1e-4)
+
+    def test_zero_center_raises_for_out_of_bounds(self):
+        """Tests that a ValueError is raised when input is outside the raw range with zero_center."""
+        normalizer = PositionNormalizer(
+            PositionNormalizerConfig(raw_pos_min=[-10.0], raw_pos_max=[10.0], zero_center=True),
+            normalization_key="test_key",
+        )
+
+        with pytest.raises(ValueError, match=r"\[-scale, scale\]"):
+            normalizer(torch.tensor([11.0]))
+
 
 def test_init_with_tensors():
     """Tests that the normalizer can be initialized with tensors for shift and scale."""

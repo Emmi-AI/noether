@@ -44,6 +44,9 @@ class AttentionConfig(BaseModel):
     head_dim: int | None = Field(None)
     """Dimensionality of each attention head."""
 
+    qk_norm: bool = Field(False)
+    """Whether to apply layer normalization to the query and key features before computing attention scores."""
+
     @model_validator(mode="after")
     def validate_hidden_dim_and_num_heads(self):
         if self.hidden_dim % self.num_heads != 0:

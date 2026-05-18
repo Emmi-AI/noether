@@ -1,7 +1,9 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+import logging
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 import hydra
@@ -11,84 +13,181 @@ from omegaconf import DictConfig, OmegaConf
 from noether.inference.runners.inference_runner import InferenceRunner
 from noether.training.cli import setup_hydra
 
+logger = logging.getLogger(__name__)
+
+
+_LEGACY_NAV_KEYS = ("input_dir", "run_id", "stage_name")
+
+
+def _to_plain_python(obj):
+    """Recursively convert tuples/sets to lists so the result round-trips through ``yaml.safe_dump`` (and therefore
+    Hydra's safe loader) without ``!!python/...`` tags."""
+    if isinstance(obj, dict):
+        return {k: _to_plain_python(v) for k, v in obj.items()}
+    if isinstance(obj, (tuple, set, frozenset)):
+        return [_to_plain_python(v) for v in obj]
+    if isinstance(obj, list):
+        return [_to_plain_python(v) for v in obj]
+    return obj
+
+
+def _sanitize_hp_resolved_for_hydra(hp_resolved_path: Path) -> Path:
+    """Rewrite ``hp_resolved.yaml`` to a temp file with no Python-specific tags.
+
+    Resolved configs are dumped via ``yaml.dump``, which emits ``!!python/tuple`` for tuple values (notably
+    ``dataset_statistics``). Hydra loads configs with a safe loader, so we re-serialize using ``yaml.safe_dump``
+    over a list-converted dict before handing the path to Hydra.
+    """
+    with open(hp_resolved_path) as f:
+        config = yaml.full_load(f)
+
+    tmp_dir = Path(tempfile.mkdtemp(prefix="noether_eval_"))
+    safe_path = tmp_dir / "hp_resolved.yaml"
+    with open(safe_path, "w") as f:
+        yaml.safe_dump(_to_plain_python(config), f, sort_keys=False)
+    return safe_path
+
+
+def _pop_eval_path_args(argv: list[str]) -> tuple[dict[str, str], list[str]]:
+    """Extract path-navigation args from ``argv``.
+
+    Always pops ``run_dir=...`` (and ``+run_dir=...``). The legacy trio ``input_dir``/``run_id``/``stage_name`` is only
+    popped when ``input_dir`` is supplied — otherwise plain ``run_id=foo`` is left alone so it can act as a normal
+    config override on top of the loaded training config.
+    """
+    has_input_dir = any(a.startswith(("input_dir=", "+input_dir=")) for a in argv)
+    keys_to_pop = {"run_dir", *(_LEGACY_NAV_KEYS if has_input_dir else ())}
+
+    popped: dict[str, str] = {}
+    remaining: list[str] = []
+    for arg in argv:
+        for key in keys_to_pop:
+            if arg.startswith((f"{key}=", f"+{key}=")):
+                _, value = arg.split("=", 1)
+                popped[key] = value
+                break
+        else:
+            remaining.append(arg)
+    return popped, remaining
+
+
+def _build_run_dir(path_values: dict[str, str]) -> Path | None:
+    """Pick the user-supplied run output directory and return it as an absolute path.
+
+    ``path_values`` is the dict produced by :func:`_pop_eval_path_args` — it
+    holds whichever of ``run_dir`` / ``input_dir`` / ``run_id`` / ``stage_name``
+    the user passed on the command line. This function chooses *which* of those
+    inputs to use (preferring the canonical ``run_dir``, falling back to the
+    deprecated three-part form) and assembles the final path; the returned
+    value is purely the user's choice, normalized to an absolute path via
+    :py:meth:`pathlib.Path.resolve`.
+
+    Resolution order:
+
+    1. If ``run_dir`` was supplied, use it directly.
+    2. Else, if both ``input_dir`` and ``run_id`` were supplied, reconstruct
+       ``input_dir/run_id[/stage_name]`` (logs a deprecation warning).
+    3. Otherwise return ``None`` so the caller can defer to Hydra/the runner
+       to surface a clearer error.
+    """
+    if "run_dir" in path_values:
+        return Path(path_values["run_dir"]).resolve()
+    if "input_dir" in path_values and "run_id" in path_values:
+        logger.warning(
+            "input_dir/run_id/stage_name is deprecated; pass `run_dir=<path>` instead "
+            "(the directory that contains hp_resolved.yaml)."
+        )
+        return (Path(path_values["input_dir"]) / path_values["run_id"] / path_values.get("stage_name", "")).resolve()
+    return None
+
+
+def _inject_hp_resolved_into_argv() -> None:
+    """Pre-process ``sys.argv`` so Hydra loads ``run_dir/hp_resolved.yaml`` as
+    the base config.
+
+    This lets users override any training-time key (e.g. ``tracker=disabled``,
+    ``trainer.max_epochs=1``) without the Hydra ``+`` force-add prefix, the
+    same way ``noether-train --hp <config>.yaml`` works.
+
+    A user-supplied ``--hp <other.yaml>`` takes precedence and is left alone
+    (escape hatch for power users composing their own eval config).
+    """
+    if len(sys.argv) < 2:
+        return
+    if "--help" in sys.argv or "-h" in sys.argv:
+        return
+    if "--hp" in sys.argv:
+        return
+
+    path_values, remaining = _pop_eval_path_args(sys.argv[1:])
+    run_dir = _build_run_dir(path_values)
+    if run_dir is None:
+        return  # let setup_hydra/main raise a clearer error
+
+    hp_resolved = run_dir / "hp_resolved.yaml"
+    if not hp_resolved.exists():
+        raise FileNotFoundError(
+            f"hp_resolved.yaml not found in {run_dir}. "
+            "Make sure run_dir points at a training run output directory "
+            "(typically output_path/run_id[/stage_name])."
+        )
+    safe_hp = _sanitize_hp_resolved_for_hydra(hp_resolved)
+
+    # `hp_resolved.yaml` is dumped with `exclude_unset=True`, so values that were generated at training-time
+    # (e.g. `run_id`) are absent. Infer them from the run_dir path and inject as forced overrides so the eval run
+    # writes alongside the training run and resume picks the right checkpoint.
+    with open(safe_hp) as f:
+        hp_data = yaml.safe_load(f)
+    stage_name = hp_data.get("stage_name") or ""
+    inferred_run_id = run_dir.parent.name if stage_name else run_dir.name
+    run_id = hp_data.get("run_id") or inferred_run_id
+
+    injected = [
+        f"++run_id='{run_id}'",
+        f"++stage_name={stage_name}",
+        f"++resume_run_id='{run_id}'",
+        f"++resume_stage_name={stage_name}",
+        # Default to the latest checkpoint; user-supplied `resume_checkpoint=...` in `remaining` is applied afterwards
+        # and wins.
+        "++resume_checkpoint=latest",
+    ]
+    # If the source recorded its training-time ``output_path``, pin it as the resume source root. That decouples
+    # checkpoint lookup from whatever ``output_path`` the user picks for this eval run (e.g. redirecting eval
+    # outputs to ``/scratch/...`` no longer breaks resume).
+    source_output_path = hp_data.get("output_path")
+    if source_output_path:
+        injected.append(f"++resume_output_path={source_output_path}")
+    sys.argv = [sys.argv[0], "--hp", safe_hp.as_posix(), *injected, *remaining]
+
+
+_inject_hp_resolved_into_argv()
 setup_hydra()
 
 
-def convert_sets_to_lists(obj):
-    if isinstance(obj, dict):
-        return {k: convert_sets_to_lists(v) for k, v in obj.items()}
-    elif isinstance(obj, set):
-        return list(obj)
-    elif isinstance(obj, list):
-        return [convert_sets_to_lists(v) for v in obj]
-    else:
-        return obj
+@hydra.main(config_path=None, config_name=None, version_base="1.3")
+def main(eval_config: DictConfig) -> None:
+    """Entry point for ``noether-eval``.
 
+    The training run's ``hp_resolved.yaml`` has already been wired in as the Hydra base config (see
+    :func:`_inject_hp_resolved_into_argv`), so this function only needs to set the resume fields and dispatch.
 
-@hydra.main(
-    config_path=None,
-    config_name=None,
-    version_base="1.3",
-)
-def main(inference_config: DictConfig):
-    """Main entry point for inference.
-
-    This script is wrapped in a hydra function to allow for easy configuration.
-    It supports passing the configuration file as a positional argument or via the --hp flag.
-
-    Example:
-        python main_inference.py configs/my_inference_config.yaml
-        python main_inference.py --hp configs/my_inference_config.yaml
-        python main_inference.py configs/my_inference_config.yaml input_dir=/path/to/run
+    Examples:
+        noether-eval run_dir=outputs/2026-01-10_abc12/train
+        noether-eval run_dir=outputs/2026-01-10_abc12/train resume_checkpoint=best
+        noether-eval run_dir=outputs/2026-01-10_abc12/train tracker=disabled trainer.max_epochs=1
     """
-    # disable hydra changing working directory
+    # disable hydra changing working directory and add cwd to PYTHONPATH
     os.chdir(hydra.utils.get_original_cwd())
-
-    # add working directory to PYTHONPATH
     sys.path.insert(0, hydra.utils.get_original_cwd())
 
-    if "input_dir" not in inference_config:
-        raise ValueError("input_dir must be specified in the inference configuration")
+    if eval_config.get("resume_run_id") is None:
+        raise ValueError(
+            "noether-eval requires `run_dir=<path>` (the training run output "
+            "directory containing hp_resolved.yaml). "
+            "Example: noether-eval run_dir=outputs/2026-01-10_abc12/train"
+        )
 
-    if "run_id" not in inference_config:
-        raise ValueError("run_id must be specified in the inference configuration")
-
-    input_dir = Path(inference_config.input_dir).resolve()
-    run_id = inference_config.run_id
-    stage_name = inference_config.get("stage_name", "")
-    hp_resolved_path = input_dir / str(run_id) / stage_name / "hp_resolved.yaml"
-    if not hp_resolved_path.exists():
-        raise FileNotFoundError(f"hp_resolved.yaml not found in {input_dir / str(run_id) / stage_name}")
-
-    # Load training config as base
-    with open(hp_resolved_path) as f:
-        train_config = yaml.full_load(f)
-
-    # Merge: Training config is base, Inference config overrides
-    # OmegaConf.merge handles DictConfig and dict
-    train_config["resume_run_id"] = None
-    train_config["resume_stage_name"] = None
-    train_config["resume_checkpoint"] = None
-
-    merged_config = OmegaConf.merge(convert_sets_to_lists(train_config), inference_config)
-
-    # Force resume from the specified input_dir
-    # We prioritize the training run's ID if available, otherwise use folder name
-    merged_config.resume_run_id = train_config.get("run_id") or run_id
-
-    # If no stage name is provided, use the one from training
-    if "resume_stage_name" not in merged_config or merged_config.resume_stage_name is None:
-        # assert stage_name == train_config.get("stage_name", "")
-        merged_config.resume_stage_name = stage_name
-
-    # If no checkpoint is specified in inference, default to latest
-    if "resume_checkpoint" not in inference_config:
-        merged_config.resume_checkpoint = "latest"
-
-    # resolve and convert to dict
-    config_dict = OmegaConf.to_container(merged_config, resolve=True)
-
-    # run
+    config_dict = OmegaConf.to_container(eval_config, resolve=True)
     InferenceRunner().run(config_dict)  # type: ignore[arg-type]
 
 

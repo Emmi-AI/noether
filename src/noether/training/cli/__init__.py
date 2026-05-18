@@ -34,6 +34,8 @@ def setup_hydra():
         runner_name = (
             "Training"
             if "train" in prog_name
+            else "Evaluation"
+            if "eval" in prog_name
             else "Inference"
             if "inference" in prog_name
             else "Development"

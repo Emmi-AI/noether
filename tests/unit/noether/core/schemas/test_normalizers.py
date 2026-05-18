@@ -120,6 +120,18 @@ class TestFieldNormalizer:
         result = normalizer(test_tensor)
         assert torch.allclose(result, torch.tensor([0.0, 250.0, 500.0]))
 
+    def test_position_zero_center(self):
+        config = FieldNormalizerConfig(strategy="position", scale=500.0, zero_center=True)
+        normalizer = FieldNormalizer(
+            config,
+            statistics={"volume_position_min": [0.0], "volume_position_max": [10.0]},
+            normalization_key="volume_position",
+        )
+
+        test_tensor = torch.tensor([0.0, 5.0, 10.0])
+        result = normalizer(test_tensor)
+        assert torch.allclose(result, torch.tensor([-500.0, 0.0, 500.0]))
+
     def test_missing_stat_key_raises(self):
         config = FieldNormalizerConfig(strategy="mean_std")
         with pytest.raises(KeyError):

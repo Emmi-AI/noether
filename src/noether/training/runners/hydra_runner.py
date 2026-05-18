@@ -210,11 +210,17 @@ class HydraRunner:
                 # any checkpoint (like cp=last or cp=best.accuracy1.test.main)
                 checkpoint = resume_checkpoint
 
-            ancesetor = path_provider.with_run(
+            # ``resume_output_path`` lets the source run live under a different output root than the current run
+            # (used by ``noether-eval`` when ``output_path`` is overridden so eval outputs land elsewhere).
+            # Defaults to this run's ``output_path`` for backwards compatibility.
+            resume_output_path = config.resume_output_path or output_path
+            ancestor = PathProvider(
+                output_root_path=resume_output_path,
                 run_id=resume_run_id,
                 stage_name=config.resume_stage_name,
+                debug=config.debug,
             )
-            path_provider.link(ancesetor)
+            path_provider.link(ancestor)
 
             config.trainer.initializer = initializer_config_class.model_validate(
                 dict(
@@ -222,6 +228,7 @@ class HydraRunner:
                     stage_name=config.resume_stage_name,
                     checkpoint_tag=checkpoint,
                     model_name=config.model.name,
+                    output_path=config.resume_output_path,
                 )
             )
 
@@ -255,7 +262,7 @@ class HydraRunner:
         tracker.init(
             accelerator=str(config.accelerator),
             run_name=run_name,
-            stage_hp=config.model_dump(),
+            stage_hp=config.model_dump(exclude_computed_fields=True),
             stage_name=config.stage_name,
             run_id=run_id,
             output_uri=path_provider.run_output_path.as_posix(),

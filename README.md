@@ -175,11 +175,11 @@ python -m showcase.cli train \
 
 | Recipe | Description | Quicklinks |
 |---|---|---|
-| **AB-UPT Showcase** | AB-UPT on DrivAerML with a preset-based CLI for training, evaluation, and VTK export. | [code](./recipes/aero_cfd/showcase/README.md) · [docs](https://noether-docs.emmi.ai/html/tutorials/walkthrough/showcase.html) |
-| **External Aerodynamics** | Multi-dataset aero CFD (ShapeNet-Car, AhmedML, DrivAerML, DrivAerNet++, Emmi-Wing) across AB-UPT, UPT, Transformer, and Transolver. | [code](./recipes/aero_cfd/README.MD) · [walkthrough](https://noether-docs.emmi.ai/html/tutorials/walkthrough/index.html) · [scripts](https://noether-docs.emmi.ai/html/noether/aero_cfd_python.html) |
-| **Fluid Heat Transfer** | Neural surrogates for heat transfer on the SIMSHIFT Heatsink benchmark -- predict 3D velocity, temperature, and pressure fields from heatsink geometry. | [code](./recipes/heat_transfer/README.md) · [docs](https://noether-docs.emmi.ai/html/noether/heat_transfer.html) |
+| **AB-UPT Showcase** | AB-UPT on DrivAerML with a preset-based CLI for training, evaluation, and VTK export. | [code](./recipes/aero_cfd/showcase/README.md) · [docs](https://noether-docs.emmi.ai/tutorials/walkthrough/showcase.html) |
+| **External Aerodynamics** | Multi-dataset aero CFD (ShapeNet-Car, AhmedML, DrivAerML, DrivAerNet++, Emmi-Wing) across AB-UPT, UPT, Transformer, and Transolver. | [code](./recipes/aero_cfd/README.MD) · [walkthrough](https://noether-docs.emmi.ai/tutorials/walkthrough/index.html) · [scripts](https://noether-docs.emmi.ai/noether/aero_cfd_python.html) |
+| **Fluid Heat Transfer** | Neural surrogates for heat transfer on the SIMSHIFT Heatsink benchmark -- predict 3D velocity, temperature, and pressure fields from heatsink geometry. | [code](./recipes/heat_transfer/README.md) · [docs](https://noether-docs.emmi.ai/noether/heat_transfer.html) |
 
-Browse the full list in the [Noether Recipe Zoo](https://noether-docs.emmi.ai/html/noether/recipe_zoo.html).
+Browse the full list in the [Noether Recipe Zoo](https://noether-docs.emmi.ai/noether/recipe_zoo.html).
 
 ---
 # Performance Benchmarks

@@ -7,3 +7,9 @@ from .linear_projection import LinearProjection
 from .rope_frequency import RopeFrequency
 from .scalar_conditioner import ScalarsConditioner
 from .transformer_batchnorm import TransformerBatchNorm
+from .vit_layers import (
+    AvgPool2DPatchify,
+    ConvOutputHead,
+    FinalLayer,
+    MaskPatchify,
+)

@@ -19,6 +19,13 @@ from noether.core.distributed import (
     get_world_size,
 )
 
+# macOS spawn + gloo init_process_group hangs indefinitely; skip the whole
+# distributed-primitives suite on Darwin. CI runs these on Linux.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="torch.distributed gloo + multiprocessing spawn hangs on macOS",
+)
+
 _WORLD_SIZE = 2
 
 _cuda_skip = pytest.mark.skipif(

@@ -59,6 +59,7 @@ class TestHydraRunnerSetup:
         config.name = "test_run"
         config.seed = 123
         config.resume_run_id = None
+        config.resume_output_path = None
         config.num_workers = 0
         config.store_code_in_output = False
         config.cudnn_benchmark = False
@@ -154,6 +155,7 @@ class TestHydraRunnerSetup:
         mock_config.resume_run_id = "run_123"
         mock_config.resume_stage_name = "prev_stage"
         mock_config.resume_checkpoint = "latest"
+        mock_config.resume_output_path = None  # falls back to current run's output_path
 
         mock_path_instance = mock_path_provider_cls.return_value
         mock_path_instance.logfile_uri = "/tmp/test.log"
@@ -166,6 +168,14 @@ class TestHydraRunnerSetup:
 
         HydraRunner.setup_experiment(device="cpu", config=mock_config)
 
-        mock_path_instance.with_run.assert_called_with(run_id="run_123", stage_name="prev_stage")
+        # The ancestor PathProvider is now constructed directly so that
+        # `resume_output_path` can override the source root independently
+        # from the current run's output_path.
+        mock_path_provider_cls.assert_any_call(
+            output_root_path="/tmp/output",
+            run_id="run_123",
+            stage_name="prev_stage",
+            debug=False,
+        )
         mock_path_instance.link.assert_called()
         assert mock_config.trainer.initializer is not None
