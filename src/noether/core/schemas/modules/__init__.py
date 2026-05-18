@@ -3,8 +3,7 @@
 
 Module configs have been moved next to their matching classes in
 :mod:`noether.modeling.modules`. Base configs without a matching class
-(:class:`AttentionConfig`, :class:`AttentionPattern`, :class:`TokenSpec`,
-:class:`IrregularNatAttentionConfig`) stay in :mod:`.attention`.
+(:class:`AttentionConfig`, :class:`AttentionPattern`, :class:`TokenSpec`stay in :mod:`.attention`.
 
 Concrete attention configs are loaded lazily via :pep:`562` to avoid circular
 imports between the schema package and the modeling modules that depend on
@@ -20,7 +19,6 @@ from typing import TYPE_CHECKING, Any
 from .attention import (
     AttentionConfig,
     AttentionPattern,
-    IrregularNatAttentionConfig,
     TokenSpec,
 )
 
@@ -105,7 +103,6 @@ __all__ = [
     "CrossAnchorAttentionConfig",
     "DeepPerceiverDecoderConfig",
     "DotProductAttentionConfig",
-    "IrregularNatAttentionConfig",
     "JointAnchorAttentionConfig",
     "LayerScaleConfig",
     "LinearProjectionConfig",
