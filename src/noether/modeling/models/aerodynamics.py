@@ -150,7 +150,7 @@ class AeroTransformer(Model):
 
         self.backbone = Transformer(config=model_config)
 
-        self.norm = nn.LayerNorm(hidden_dim, eps=1e-6)
+        self.norm = nn.RMSNorm(hidden_dim, eps=1e-6)
         self.out = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=hidden_dim,
@@ -258,7 +258,7 @@ class AeroTransolver(Model):
 
         self.backbone = Transformer(config=model_config)
 
-        self.norm = nn.LayerNorm(hidden_dim, eps=1e-6)
+        self.norm = nn.RMSNorm(hidden_dim, eps=1e-6)
         self.out = LinearProjection(
             config=LinearProjectionConfig(
                 input_dim=hidden_dim,

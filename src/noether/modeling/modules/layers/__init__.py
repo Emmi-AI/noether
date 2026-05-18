@@ -8,3 +8,9 @@ from .rope_frequency import RopeFrequency
 from .scalar_conditioner import ScalarsConditioner
 from .transformer_batchnorm import TransformerBatchNorm
 from .vectors_conditioner import VectorsConditioner
+from .vit_layers import (
+    AvgPool2DPatchify,
+    ConvOutputHead,
+    FinalLayer,
+    MaskPatchify,
+)

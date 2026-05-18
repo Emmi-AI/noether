@@ -20,7 +20,9 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "TransolverConfig": ("noether.modeling.models.transolver", "TransolverConfig"),
     "TransolverPlusPlusConfig": ("noether.modeling.models.transolver", "TransolverPlusPlusConfig"),
     "UPTConfig": ("noether.modeling.models.upt", "UPTConfig"),
+    "ViTConfig": ("noether.modeling.models.vit", "ViTConfig"),
 }
+
 
 __all__ = [
     "AnchorBranchedUPTConfig",
@@ -29,6 +31,7 @@ __all__ = [
     "TransolverConfig",
     "TransolverPlusPlusConfig",
     "UPTConfig",
+    "ViTConfig",
 ]
 
 
@@ -50,3 +53,4 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
     from noether.modeling.models.transformer import TransformerConfig
     from noether.modeling.models.transolver import TransolverConfig, TransolverPlusPlusConfig
     from noether.modeling.models.upt import UPTConfig
+    from noether.modeling.models.vit import ViTConfig

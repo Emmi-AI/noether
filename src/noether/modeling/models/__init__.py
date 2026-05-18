@@ -12,12 +12,14 @@ from .aerodynamics import (
 from .transformer import Transformer, TransformerConfig
 from .transolver import Transolver, TransolverConfig, TransolverPlusPlusConfig
 from .upt import UPT, UPTConfig
+from .vit import ViT, ViTConfig
 
 __all__ = [
     "AnchoredBranchedUPT",
     "Transformer",
     "Transolver",
     "UPT",
+    "ViT",
     "AeroABUPT",
     "AeroTransformer",
     "AeroTransformerConfig",
@@ -29,4 +31,5 @@ __all__ = [
     "TransolverPlusPlusConfig",
     "TransformerConfig",
     "AnchorBranchedUPTConfig",
+    "ViTConfig",
 ]

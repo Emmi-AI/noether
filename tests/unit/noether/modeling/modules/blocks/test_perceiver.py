@@ -9,7 +9,7 @@ from noether.modeling.modules.blocks.perceiver import PerceiverBlock
 from noether.modeling.modules.layers import UnquantizedDropPath
 from noether.modeling.modules.mlp import UpActDownMlp
 
-from .expected_output import DIT_PERCEIVER_BLOCK, PERCEIBER_BLOCK
+from .expected_output import DIT_PERCEIVER_BLOCK, PERCEIVER_BLOCK
 
 
 def test_perceiver_block_initialization():
@@ -18,7 +18,7 @@ def test_perceiver_block_initialization():
     kv_dim = 32
     mlp_hidden_dim = 128
     drop_path = 0.1
-    norm_ctor = nn.LayerNorm
+    norm_ctor = nn.RMSNorm
     eps = 1e-5
     init_weights = "truncnormal002"
 
@@ -35,11 +35,11 @@ def test_perceiver_block_initialization():
     block = PerceiverBlock(config=config)
 
     # Check if the attributes are correctly initialized
-    assert isinstance(block.norm1q, nn.LayerNorm)
+    assert isinstance(block.norm1q, nn.RMSNorm)
     assert block.norm1q.normalized_shape == (dim,)
     assert block.norm1q.eps == eps
 
-    assert isinstance(block.norm1kv, nn.LayerNorm)
+    assert isinstance(block.norm1kv, nn.RMSNorm)
     assert block.norm1kv.normalized_shape == (kv_dim,)
     assert block.norm1kv.eps == eps
 
@@ -48,7 +48,7 @@ def test_perceiver_block_initialization():
     assert isinstance(block.drop_path1, UnquantizedDropPath)
     assert block.drop_path1.drop_prob == drop_path
 
-    assert isinstance(block.norm2, nn.LayerNorm)
+    assert isinstance(block.norm2, nn.RMSNorm)
     assert block.norm2.normalized_shape == (dim,)
     assert block.norm2.eps == eps
 
@@ -84,7 +84,7 @@ def test_perceiver_block_forward():
     kv_dim = 8
     mlp_hidden_dim = 128
     drop_path = 0.1
-    norm_ctor = nn.LayerNorm
+    norm_ctor = nn.RMSNorm
     eps = 1e-5
     init_weights = "truncnormal002"
 
@@ -111,7 +111,7 @@ def test_perceiver_block_forward():
 
     assert output.shape == q.shape
     assert not torch.isnan(output).any()
-    assert torch.allclose(output, PERCEIBER_BLOCK, 1e-2)
+    assert torch.allclose(output, PERCEIVER_BLOCK, 1e-2)
 
 
 # @pytest.mark.skip(reason="Assertion error: config.kv_dim is None")
