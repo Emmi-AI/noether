@@ -43,6 +43,18 @@ def init_trunc_normal_zero_bias(layer_module: nn.Module, std: float = 0.02) -> N
             nn.init.constant_(layer_module.bias, 0.0)
 
 
+def init_xavier_uniform_zero_bias(layer_module: nn.Module) -> None:
+    """Initialize the weight tensor of a nn.Module instance using Xavier uniform with a zero bias vector.
+
+    Args:
+        layer_module: An nn.Module instance, either a Linear or Conv layer.
+    """
+    if isinstance(layer_module, ALL_LAYERS):
+        nn.init.xavier_uniform_(layer_module.weight)
+        if layer_module.bias is not None:
+            nn.init.constant_(layer_module.bias, 0.0)
+
+
 def apply_init_method(
     module: torch.nn.Module,
     proj_weight: torch.Tensor,
@@ -61,5 +73,7 @@ def apply_init_method(
     elif init_method == "truncnormal002-identity":
         module.apply(init_trunc_normal_zero_bias)
         torch.nn.init.zeros_(proj_weight)
+    elif init_method == "xavier":
+        module.apply(init_xavier_uniform_zero_bias)
     else:
         raise NotImplementedError(f"Weight initialization method {init_method} not implemented for DotProductAttention")

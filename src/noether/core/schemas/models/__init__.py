@@ -5,6 +5,7 @@ from .base import ModelBaseConfig
 from .transformer import TransformerConfig
 from .transolver import TransolverConfig, TransolverPlusPlusConfig
 from .upt import UPTConfig
+from .vit import ViTConfig
 
 __all__ = [
     "ModelBaseConfig",
@@ -13,4 +14,5 @@ __all__ = [
     "TransolverPlusPlusConfig",
     "TransformerConfig",
     "UPTConfig",
+    "ViTConfig",
 ]
