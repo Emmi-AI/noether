@@ -321,12 +321,12 @@ class TestAnchoredBranchedUPT:
             },
         )
 
-        # Both anchors and cache → error
-        fake_cache = {"physics": [], "surface": [], "volume": []}
+        # Both anchors and a cache that holds anchor KV → error
+        fake_cache = {"physics_blocks": [None] * len(model.physics_blocks), "decoders": {"surface": [], "volume": []}}
         with pytest.raises(ValueError, match="not both"):
             model(**anchors_kwargs, kv_cache=fake_cache)
 
-        # Neither anchors nor cache → error
+        # Neither anchors nor anchor-KV cache → error (geometry-only cache doesn't count)
         with pytest.raises(ValueError, match="not both"):
             model(domain_query_positions={"surface": torch.randn(batch_size, 5, 3)})
 

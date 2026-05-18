@@ -320,6 +320,12 @@ class UntiedMixedAttention(MixedAttention):
         self.k = UntiedLinear(config.projection_config)  # type: ignore[arg-type,assignment]
         self.v = UntiedLinear(config.projection_config)  # type: ignore[arg-type,assignment]
         self.proj = UntiedLinear(config.projection_config)  # type: ignore[arg-type,assignment]
+        if config.qk_norm:
+            self.q_norm: nn.Module = nn.RMSNorm(self.head_dim)
+            self.k_norm: nn.Module = nn.RMSNorm(self.head_dim)
+        else:
+            self.q_norm = nn.Identity()
+            self.k_norm = nn.Identity()
 
     def forward(  # type: ignore[override]
         self,
@@ -357,8 +363,8 @@ class UntiedMixedAttention(MixedAttention):
         input_specs = [s for s in token_specs if s.size is not None]
         self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs)
 
-        q = einops.rearrange(self.q(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
-        k = einops.rearrange(self.k(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
+        q = self.q_norm(einops.rearrange(self.q(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads))
+        k = self.k_norm(einops.rearrange(self.k(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads))
         v = einops.rearrange(self.v(x, token_specs), "bs s (nh hd) -> bs nh s hd", nh=self.num_heads)
 
         output, _, _ = self._attend(
@@ -443,11 +449,13 @@ class UntiedPerceiverAttention(PerceiverAttention):
         """
         # Per-type Q projection.
         q = self.q(q, token_specs)
-        q = einops.rearrange(
-            q,
-            "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
-            num_heads=self.num_heads,
-            head_dim=self.head_dim,
+        q = self.q_norm(
+            einops.rearrange(
+                q,
+                "bs seqlen_q (num_heads head_dim) -> bs num_heads seqlen_q head_dim",
+                num_heads=self.num_heads,
+                head_dim=self.head_dim,
+            )
         )
 
         if kv_cache is not None:
@@ -468,6 +476,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
                 num_heads=self.num_heads,
                 head_dim=self.head_dim,
             ).unbind(0)
+            k = self.k_norm(k)
 
             if self.use_rope:
                 assert k_freqs is not None
