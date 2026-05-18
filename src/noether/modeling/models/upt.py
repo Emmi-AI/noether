@@ -39,7 +39,7 @@ class UPT(nn.Module):
 
         self.decoder = DeepPerceiverDecoder(config=config.decoder_config)  # type: ignore[arg-type]
 
-        self.norm = nn.LayerNorm(
+        self.norm = nn.RMSNorm(
             config.decoder_config.perceiver_block_config.hidden_dim,
             eps=config.decoder_config.perceiver_block_config.eps,
         )

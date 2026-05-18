@@ -37,7 +37,6 @@ def test_transformer_block_forward():
         num_heads=num_heads,
         mlp_hidden_dim=mlp_hidden_dim,
         drop_path=drop_path,
-        normalization_constructor=torch.nn.LayerNorm,
         attention_constructor=attention_constructor,
         layerscale=layerscale,
         eps=eps,

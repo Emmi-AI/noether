@@ -34,17 +34,20 @@ class Transformer(nn.Module):
         self,
         x: torch.Tensor,
         attn_kwargs: dict[str, torch.Tensor],
+        condition: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass of the Transformer model.
 
         Args:
             x: Input tensor of shape (batch_size, seq_len, hidden_dim).
             attn_kwargs: Additional arguments for the attention mechanism.
+            condition: Optional conditioning vector of shape (batch_size, condition_dim) consumed
+                by each block's AdaLN-Zero modulation. ``None`` (default) for unconditioned models.
         Returns:
             torch.Tensor: Output tensor after processing through the Transformer model.
         """
 
         for block in self.blocks:
-            x, _ = block(x, attn_kwargs=attn_kwargs)
+            x, _ = block(x, condition=condition, attn_kwargs=attn_kwargs)
 
         return x

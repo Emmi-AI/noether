@@ -4,7 +4,7 @@ import torch
 from torch import nn
 
 from noether.core.schemas.modules.layers import LinearProjectionConfig
-from noether.modeling.functional.init import init_trunc_normal_zero_bias
+from noether.modeling.functional.init import init_trunc_normal_zero_bias, init_xavier_uniform_zero_bias
 
 
 class LinearProjection(nn.Module):
@@ -55,6 +55,8 @@ class LinearProjection(nn.Module):
             pass
         elif self.init_weights in ["truncnormal", "truncnormal002"]:
             init_trunc_normal_zero_bias(self.project)
+        elif self.init_weights == "xavier":
+            init_xavier_uniform_zero_bias(self.project)
         elif self.init_weights == "zeros":
             assert isinstance(self.project, (nn.Linear, nn.Conv1d, nn.Conv2d, nn.Conv3d))
             nn.init.zeros_(self.project.weight)

@@ -51,6 +51,10 @@ class AeroCFDPipelineConfig(PipelineConfig):
     """Number of volume anchor points to sample for AB-UPT."""
     num_surface_anchor_points: int | None = 0
     """Number of surface anchor points to sample for AB-UPT."""
+    use_surface_position_as_input: bool = False
+    """Whether to pass ``surface_position`` through as a model input. Required only when a downstream
+    callback (e.g. the showcase eval pipeline) needs it; off by default since variable-sized point clouds
+    break batch collation when ``batch_size > 1``."""
     seed: int | None = None
     """Random seed for sampling processes."""
     data_specs: ModelDataSpecs
