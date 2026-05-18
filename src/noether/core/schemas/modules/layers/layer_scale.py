@@ -1,12 +1,10 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``LayerScaleConfig``.
 
-from pydantic import BaseModel, Field
+The config has moved next to its matching class in
+:mod:`noether.modeling.modules.layers.layer_scale`.
+"""
 
+from noether.modeling.modules.layers.layer_scale import LayerScaleConfig
 
-class LayerScaleConfig(BaseModel):
-    """Configuration for Layer Scale module."""
-
-    hidden_dim: int = Field(...)
-    """ Number of dimensions of the input tensor to be scaled."""
-    init_values: float | None = Field(1e-5)
-    """ Initial gamme scale value. Defaults to 1e-5."""
+__all__ = ["LayerScaleConfig"]

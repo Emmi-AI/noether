@@ -3,11 +3,25 @@
 import einops
 import torch
 import torch.nn.functional as F
+from pydantic import Field, model_validator
 from torch import nn
 
-from noether.core.schemas.modules import AttentionConfig, PerceiverAttentionConfig
+from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
+
+
+class PerceiverAttentionConfig(AttentionConfig):
+    """Configuration for the Perceiver attention module."""
+
+    kv_dim: int | None = Field(None)
+    """Dimensionality of the key/value features. If None, use hidden_dim."""
+
+    @model_validator(mode="after")
+    def set_kv_dim(self):
+        if self.kv_dim is None:
+            self.kv_dim = self.hidden_dim
+        return self
 
 
 class PerceiverAttention(nn.Module):

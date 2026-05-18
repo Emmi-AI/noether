@@ -7,9 +7,13 @@ import einops
 import torch
 import torch.nn.functional as F
 
-from noether.core.schemas.modules.attention import AttentionPattern, MixedAttentionConfig, TokenSpec
+from noether.core.schemas.modules.attention import AttentionPattern, TokenSpec
 from noether.modeling.functional.rope import rope
-from noether.modeling.modules.attention import DotProductAttention
+from noether.modeling.modules.attention.dot_product import DotProductAttention, DotProductAttentionConfig
+
+
+class MixedAttentionConfig(DotProductAttentionConfig):
+    """Configuration for Mixed Attention module."""
 
 
 class MixedAttention(DotProductAttention):

@@ -1,9 +1,17 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import torch
+from pydantic import BaseModel, Field
 from torch import nn
 
-from noether.core.schemas.modules.layers import LayerScaleConfig
+
+class LayerScaleConfig(BaseModel):
+    """Configuration for Layer Scale module."""
+
+    hidden_dim: int = Field(...)
+    """ Number of dimensions of the input tensor to be scaled."""
+    init_values: float | None = Field(1e-5)
+    """ Initial gamme scale value. Defaults to 1e-5."""
 
 
 class LayerScale(nn.Module):

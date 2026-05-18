@@ -5,9 +5,13 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-from noether.core.schemas.modules import AttentionConfig, DotProductAttentionConfig
+from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
+
+
+class DotProductAttentionConfig(AttentionConfig):
+    """Configuration for the Dot Product attention module."""
 
 
 class DotProductAttention(nn.Module):

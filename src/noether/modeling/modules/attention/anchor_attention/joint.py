@@ -4,10 +4,16 @@ from collections.abc import Sequence
 
 from noether.core.schemas.modules.attention import (
     AttentionPattern,
-    JointAnchorAttentionConfig,
     TokenSpec,
 )
-from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
+from noether.modeling.modules.attention.anchor_attention.multi_branch import (
+    MultiBranchAnchorAttention,
+    MultiBranchAnchorAttentionConfig,
+)
+
+
+class JointAnchorAttentionConfig(MultiBranchAnchorAttentionConfig):
+    """Configuration for Joint Anchor Attention module."""
 
 
 class JointAnchorAttention(MultiBranchAnchorAttention):

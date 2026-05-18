@@ -4,10 +4,16 @@ from collections.abc import Sequence
 
 from noether.core.schemas.modules.attention import (
     AttentionPattern,
-    CrossAnchorAttentionConfig,
     TokenSpec,
 )
-from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
+from noether.modeling.modules.attention.anchor_attention.multi_branch import (
+    MultiBranchAnchorAttention,
+    MultiBranchAnchorAttentionConfig,
+)
+
+
+class CrossAnchorAttentionConfig(MultiBranchAnchorAttentionConfig):
+    """Configuration for Cross Anchor Attention module."""
 
 
 class CrossAnchorAttention(MultiBranchAnchorAttention):
