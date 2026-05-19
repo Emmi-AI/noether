@@ -12,8 +12,8 @@ from torch import nn
 
 from noether.core.factory import Factory
 from noether.core.initializers import AnyInitializer
+from noether.core.optimizer.schemas import AnyOptimizerConfig
 from noether.core.schemas.lib import _RegistryBase
-from noether.core.schemas.optimizers import AnyOptimizerConfig
 from noether.data.container import DataContainer
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports

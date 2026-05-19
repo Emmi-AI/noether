@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.data.base.dataset import DatasetBaseConfig
 
 
 class BaseDatasetConfig(DatasetBaseConfig):

@@ -5,8 +5,8 @@ from unittest.mock import Mock
 import pytest
 import torch
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
-from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.training import TrainingIteration, UpdateCounter
 
 

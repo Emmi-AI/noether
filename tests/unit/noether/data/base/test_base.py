@@ -2,9 +2,8 @@
 
 import pytest
 
-from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.data import Dataset
-from noether.data.base.dataset import with_normalizers
+from noether.data.base.dataset import DatasetBaseConfig, with_normalizers
 from noether.data.pipeline import Collator, MultiStagePipeline
 
 

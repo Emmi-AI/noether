@@ -9,19 +9,9 @@ import torch
 from pydantic import ConfigDict, Field, computed_field, model_validator
 from torch import Tensor, nn
 
+from noether.core.models.base import ModelBaseConfig
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.core.schemas.models import ModelBaseConfig
 from noether.core.schemas.modules.attention import TokenSpec
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-    RopeFrequencyConfig,
-)
-from noether.core.schemas.modules.layers.vectors_conditioner import VectorsConditionerConfig
-from noether.core.schemas.modules.mlp import MLPConfig
-from noether.core.schemas.modules.untied import UntiedPerceiverBlockConfig, UntiedTransformerBlockConfig
 from noether.core.types import InitWeightsMode
 from noether.data.schemas import FieldDimSpec, ModelDataSpecs
 from noether.modeling.functional.modulation import modulate_scale_shift
@@ -31,10 +21,22 @@ from noether.modeling.modules.attention.anchor_attention import (
     SelfAnchorAttention,
 )
 from noether.modeling.modules.blocks import PerceiverBlock, TransformerBlock
+from noether.modeling.modules.blocks.perceiver import PerceiverBlockConfig
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 from noether.modeling.modules.encoders import SupernodePooling
+from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency, VectorsConditioner
-from noether.modeling.modules.mlp import MLP
-from noether.modeling.modules.untied import UntiedPerceiverBlock, UntiedTransformerBlock
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
+from noether.modeling.modules.layers.vectors_conditioner import VectorsConditionerConfig
+from noether.modeling.modules.mlp import MLP, MLPConfig
+from noether.modeling.modules.untied import (
+    UntiedPerceiverBlock,
+    UntiedPerceiverBlockConfig,
+    UntiedTransformerBlock,
+    UntiedTransformerBlockConfig,
+)
 
 
 class AnchorBranchedUPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):

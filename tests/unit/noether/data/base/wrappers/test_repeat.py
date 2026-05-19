@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from noether.core.schemas.dataset import RepeatWrapperConfig
 from noether.data import Dataset
 from noether.data.base.wrappers import RepeatWrapper
+from noether.data.base.wrappers.repeat import RepeatWrapperConfig
 
 
 class MockDataset(Dataset):

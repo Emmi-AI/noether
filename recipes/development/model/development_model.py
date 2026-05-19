@@ -3,7 +3,7 @@
 import torch
 
 from noether.core.models import Model
-from noether.core.schemas.models import ModelBaseConfig
+from noether.core.models.base import ModelBaseConfig
 
 
 class DevelopmentModelConfig(ModelBaseConfig):

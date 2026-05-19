@@ -11,6 +11,7 @@ modules into the import graph eagerly.
 from __future__ import annotations
 
 import importlib
+import warnings
 from typing import TYPE_CHECKING, Any
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
@@ -40,6 +41,11 @@ def __getattr__(name: str) -> Any:
         module_path, attr = _LAZY_EXPORTS[name]
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return getattr(importlib.import_module(module_path), attr)
 
 

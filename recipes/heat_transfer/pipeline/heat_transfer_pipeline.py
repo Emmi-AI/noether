@@ -4,17 +4,18 @@ from __future__ import annotations
 
 from typing import Any
 
-from noether.core.schemas.dataset import ModelDataSpecs, PipelineConfig
 from noether.data.pipeline import MultiStagePipeline, SampleProcessor
 from noether.data.pipeline.collators import DefaultCollator
 from noether.data.pipeline.collators.concat_sparse_tensor import ConcatSparseTensorCollator
 from noether.data.pipeline.collators.sparse_tensor_offset import SparseTensorOffsetCollator
+from noether.data.pipeline.multistage import PipelineConfig
 from noether.data.pipeline.sample_processors import (
     DuplicateKeysSampleProcessor,
     PointSamplingSampleProcessor,
     RenameKeysSampleProcessor,
 )
 from noether.data.pipeline.sample_processors.supernode_sampling import SupernodeSamplingSampleProcessor
+from noether.data.schemas import ModelDataSpecs
 
 
 class HeatTransferPipelineConfig(PipelineConfig):

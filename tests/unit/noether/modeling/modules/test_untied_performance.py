@@ -24,9 +24,8 @@ import pytest
 import torch
 
 from noether.core.schemas.modules.attention import TokenSpec
-from noether.core.schemas.modules.layers import LinearProjectionConfig
-from noether.core.schemas.modules.untied import UntiedLinearConfig
-from noether.modeling.modules.untied import UntiedLinear, _domain_group_sizes
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+from noether.modeling.modules.untied import UntiedLinear, UntiedLinearConfig, _domain_group_sizes
 
 
 def _make_layer(num_types: int, dim: int, *, bias: bool = True) -> UntiedLinear:

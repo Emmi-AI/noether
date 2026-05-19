@@ -2,8 +2,8 @@
 
 import pytest
 
-from noether.core.schemas.modules.attention import AttentionPattern, JointAnchorAttentionConfig, TokenSpec
-from noether.modeling.modules.attention.anchor_attention.joint import JointAnchorAttention
+from noether.core.schemas.modules.attention import AttentionPattern, TokenSpec
+from noether.modeling.modules.attention.anchor_attention.joint import JointAnchorAttention, JointAnchorAttentionConfig
 
 
 @pytest.fixture

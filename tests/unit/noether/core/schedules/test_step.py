@@ -5,8 +5,12 @@ import unittest
 import numpy as np
 from pydantic import ValidationError
 
-from noether.core.schedules import StepFixedSchedule, StepIntervalSchedule
-from noether.core.schemas import StepFixedScheduleConfig, StepIntervalScheduleConfig
+from noether.core.schedules import (
+    StepFixedSchedule,
+    StepFixedScheduleConfig,
+    StepIntervalSchedule,
+    StepIntervalScheduleConfig,
+)
 
 
 class TestStepFixedSchedule(unittest.TestCase):

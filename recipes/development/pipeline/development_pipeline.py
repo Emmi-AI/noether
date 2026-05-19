@@ -2,11 +2,11 @@
 
 from pydantic import Field
 
-from noether.core.schemas.dataset import PipelineConfig
 from noether.data.pipeline import MultiStagePipeline
 from noether.data.pipeline.collators import (
     DefaultCollator,
 )
+from noether.data.pipeline.multistage import PipelineConfig
 from noether.data.pipeline.sample_processors import (
     ConcatTensorSampleProcessor,
     PointSamplingSampleProcessor,

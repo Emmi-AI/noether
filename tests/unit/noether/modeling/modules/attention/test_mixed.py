@@ -6,8 +6,8 @@ import pytest
 import torch
 from pydantic import ValidationError
 
-from noether.core.schemas.modules.attention import AttentionPattern, MixedAttentionConfig, TokenSpec
-from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention
+from noether.core.schemas.modules.attention import AttentionPattern, TokenSpec
+from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention, MixedAttentionConfig
 
 
 @pytest.fixture

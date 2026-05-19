@@ -5,9 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from aero_cfd.callbacks import AeroMetricsCallbackConfig
-from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs, RepeatWrapperConfig
-from noether.core.schemas.normalizers import FieldNormalizerConfig
 from noether.core.schemas.schema import ConfigSchema
+from noether.data.base.wrappers.repeat import RepeatWrapperConfig
+from noether.data.preprocessors.normalizers import FieldNormalizerConfig
+from noether.data.schemas import DomainDataSpec, ModelDataSpecs
 
 from .base import AeroCFDPreset, AeroPipelineParams
 

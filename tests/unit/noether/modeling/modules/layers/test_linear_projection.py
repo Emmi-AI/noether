@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.layers import LinearProjectionConfig
-from noether.modeling.modules.layers.linear_projection import LinearProjection
+from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
 
 from .expected_output import LINEAR_PROJECTION
 

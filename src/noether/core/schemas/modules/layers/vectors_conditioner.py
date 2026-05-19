@@ -1,10 +1,31 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 """Back-compat re-export for ``VectorsConditionerConfig``.
 
-The config has moved next to its matching class in
-:mod:`noether.modeling.modules.layers.vectors_conditioner`.
+The canonical home is :mod:`noether.modeling.modules.layers.vectors_conditioner`.
 """
 
-from noether.modeling.modules.layers.vectors_conditioner import VectorsConditionerConfig
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.vectors_conditioner import VectorsConditionerConfig
 
 __all__ = ["VectorsConditionerConfig"]
+
+_LAZY: dict[str, str] = {"VectorsConditionerConfig": "noether.modeling.modules.layers.vectors_conditioner"}
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

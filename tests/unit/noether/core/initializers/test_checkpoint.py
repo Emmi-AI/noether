@@ -6,13 +6,13 @@ from unittest.mock import Mock
 import pytest
 import torch.nn as nn
 
+from noether.core.initializers import CheckpointInitializerConfig, ResumeInitializerConfig
 from noether.core.initializers.checkpoint import CheckpointInitializer
 from noether.core.initializers.resume import ResumeInitializer
 from noether.core.models import Model
+from noether.core.models.base import ModelBaseConfig
+from noether.core.optimizer.schemas import SGDOptimizerConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas.initializers import CheckpointInitializerConfig, ResumeInitializerConfig
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import SGDOptimizerConfig
 from noether.core.utils.model import compute_model_norm
 from noether.core.utils.training.training_iteration import TrainingIteration
 

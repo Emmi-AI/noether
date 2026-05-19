@@ -8,11 +8,15 @@ from typing import Any
 import pytest
 import torch
 
-from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
-from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, TransolverConfig, UPTConfig
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
-from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
+from noether.data.schemas import DomainDataSpec, FieldDimSpec, ModelDataSpecs
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig
+from noether.modeling.models.transformer import TransformerConfig
+from noether.modeling.models.transolver import TransolverConfig
+from noether.modeling.models.upt import UPTConfig
+from noether.modeling.modules.blocks.perceiver import PerceiverBlockConfig
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
+from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
 
 
 @pytest.fixture

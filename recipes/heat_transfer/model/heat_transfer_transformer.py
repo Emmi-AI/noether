@@ -7,16 +7,13 @@ import torch.nn as nn
 from pydantic import computed_field
 
 from noether.core.models import Model
-from noether.core.schemas.dataset import ModelDataSpecs
-from noether.core.schemas.models.transformer import TransformerConfig
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-)
-from noether.core.schemas.modules.mlp import MLPConfig
-from noether.modeling.models.transformer import Transformer
+from noether.data.schemas import ModelDataSpecs
+from noether.modeling.models.transformer import Transformer, TransformerConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
 from noether.modeling.modules.mlp import MLP
+from noether.modeling.modules.mlp.mlp import MLPConfig
 
 
 class HeatTransferTransformerConfig(TransformerConfig):

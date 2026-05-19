@@ -11,6 +11,7 @@ imports).
 from __future__ import annotations
 
 import importlib
+import warnings
 from typing import TYPE_CHECKING, Any
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
@@ -21,7 +22,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     ),
     "BestMetricCallbackConfig": ("noether.core.callbacks.online.best_metric", "BestMetricCallbackConfig"),
     "CallBackBaseConfig": ("noether.core.callbacks.base", "CallBackBaseConfig"),
-    "CallbacksConfig": ("noether.core.schemas.callbacks", "CallbacksConfig"),
     "CheckpointCallbackConfig": ("noether.core.callbacks.checkpoint.checkpoint", "CheckpointCallbackConfig"),
     "EmaCallbackConfig": ("noether.core.callbacks.checkpoint.ema", "EmaCallbackConfig"),
     "FixedEarlyStopperConfig": ("noether.core.callbacks.early_stoppers.fixed", "FixedEarlyStopperConfig"),
@@ -48,38 +48,37 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     # models — point at canonical sources, never at the back-compat shim package
     "ModelBaseConfig": ("noether.core.models.base", "ModelBaseConfig"),
     # normalizers
-    "AnyNormalizer": ("noether.core.schemas.normalizers", "AnyNormalizer"),
-    "FieldNormalizerConfig": ("noether.core.schemas.normalizers", "FieldNormalizerConfig"),
+    "AnyNormalizer": ("noether.data.preprocessors.normalizers", "AnyNormalizer"),
+    "FieldNormalizerConfig": ("noether.data.preprocessors.normalizers", "FieldNormalizerConfig"),
     # optimizers
-    "AdamOptimizerConfig": ("noether.core.schemas.optimizers", "AdamOptimizerConfig"),
-    "AnyOptimizerConfig": ("noether.core.schemas.optimizers", "AnyOptimizerConfig"),
-    "MuonOptimizerConfig": ("noether.core.schemas.optimizers", "MuonOptimizerConfig"),
-    "OptimizerConfig": ("noether.core.schemas.optimizers", "OptimizerConfig"),
-    "ParamGroupModifierConfig": ("noether.core.schemas.optimizers", "ParamGroupModifierConfig"),
-    "SGDOptimizerConfig": ("noether.core.schemas.optimizers", "SGDOptimizerConfig"),
+    "AdamOptimizerConfig": ("noether.core.optimizer.schemas", "AdamOptimizerConfig"),
+    "AnyOptimizerConfig": ("noether.core.optimizer.schemas", "AnyOptimizerConfig"),
+    "MuonOptimizerConfig": ("noether.core.optimizer.schemas", "MuonOptimizerConfig"),
+    "OptimizerConfig": ("noether.core.optimizer.schemas", "OptimizerConfig"),
+    "ParamGroupModifierConfig": ("noether.core.optimizer.schemas", "ParamGroupModifierConfig"),
+    "SGDOptimizerConfig": ("noether.core.optimizer.schemas", "SGDOptimizerConfig"),
     # schedules
-    "AnyScheduleConfig": ("noether.core.schemas.schedules", "AnyScheduleConfig"),
-    "ConstantScheduleConfig": ("noether.core.schemas.schedules", "ConstantScheduleConfig"),
-    "CustomScheduleConfig": ("noether.core.schemas.schedules", "CustomScheduleConfig"),
-    "DecreasingProgressScheduleConfig": ("noether.core.schemas.schedules", "DecreasingProgressScheduleConfig"),
-    "IncreasingProgressScheduleConfig": ("noether.core.schemas.schedules", "IncreasingProgressScheduleConfig"),
+    "AnyScheduleConfig": ("noether.core.schedules", "AnyScheduleConfig"),
+    "ConstantScheduleConfig": ("noether.core.schedules", "ConstantScheduleConfig"),
+    "CustomScheduleConfig": ("noether.core.schedules", "CustomScheduleConfig"),
+    "DecreasingProgressScheduleConfig": ("noether.core.schedules", "DecreasingProgressScheduleConfig"),
+    "IncreasingProgressScheduleConfig": ("noether.core.schedules", "IncreasingProgressScheduleConfig"),
     "LinearWarmupCosineDecayScheduleConfig": (
-        "noether.core.schemas.schedules",
+        "noether.core.schedules",
         "LinearWarmupCosineDecayScheduleConfig",
     ),
-    "PeriodicBoolScheduleConfig": ("noether.core.schemas.schedules", "PeriodicBoolScheduleConfig"),
-    "PolynomialDecreasingScheduleConfig": ("noether.core.schemas.schedules", "PolynomialDecreasingScheduleConfig"),
-    "PolynomialIncreasingScheduleConfig": ("noether.core.schemas.schedules", "PolynomialIncreasingScheduleConfig"),
-    "ProgressScheduleConfig": ("noether.core.schemas.schedules", "ProgressScheduleConfig"),
-    "ScheduleBaseConfig": ("noether.core.schemas.schedules", "ScheduleBaseConfig"),
-    "SchedulerConfig": ("noether.core.schemas.schedules", "SchedulerConfig"),
-    "StepDecreasingScheduleConfig": ("noether.core.schemas.schedules", "StepDecreasingScheduleConfig"),
-    "StepFixedScheduleConfig": ("noether.core.schemas.schedules", "StepFixedScheduleConfig"),
-    "StepIntervalScheduleConfig": ("noether.core.schemas.schedules", "StepIntervalScheduleConfig"),
+    "PolynomialDecreasingScheduleConfig": ("noether.core.schedules", "PolynomialDecreasingScheduleConfig"),
+    "PolynomialIncreasingScheduleConfig": ("noether.core.schedules", "PolynomialIncreasingScheduleConfig"),
+    "ProgressScheduleConfig": ("noether.core.schedules", "ProgressScheduleConfig"),
+    "ScheduleBaseConfig": ("noether.core.schedules", "ScheduleBaseConfig"),
+    "SchedulerConfig": ("noether.core.schedules", "SchedulerConfig"),
+    "StepDecreasingScheduleConfig": ("noether.core.schedules", "StepDecreasingScheduleConfig"),
+    "StepFixedScheduleConfig": ("noether.core.schedules", "StepFixedScheduleConfig"),
+    "StepIntervalScheduleConfig": ("noether.core.schedules", "StepIntervalScheduleConfig"),
     # schema
     "ConfigSchema": ("noether.core.schemas.schema", "ConfigSchema"),
     # slurm
-    "SlurmConfig": ("noether.core.schemas.slurm", "SlurmConfig"),
+    "SlurmConfig": ("noether.training.cli.submit_job", "SlurmConfig"),
     # trackers
     "WandBTrackerSchema": ("noether.core.trackers", "WandBTrackerSchema"),
     # trainers
@@ -96,7 +95,6 @@ __all__ = [
     "BestCheckpointCallbackConfig",
     "BestMetricCallbackConfig",
     "CallBackBaseConfig",
-    "CallbacksConfig",
     "CheckpointCallbackConfig",
     "CheckpointInitializerConfig",
     "ConfigSchema",
@@ -117,7 +115,6 @@ __all__ = [
     "OnlineLossCallbackConfig",
     "OptimizerConfig",
     "ParamGroupModifierConfig",
-    "PeriodicBoolScheduleConfig",
     "PeriodicDataIteratorCallbackConfig",
     "PolynomialDecreasingScheduleConfig",
     "PolynomialIncreasingScheduleConfig",
@@ -142,6 +139,11 @@ def __getattr__(name: str) -> Any:
         module_path, attr = _LAZY_EXPORTS[name]
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return getattr(importlib.import_module(module_path), attr)
 
 
@@ -168,6 +170,15 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         ResumeInitializerConfig,
     )
     from noether.core.models.base import ModelBaseConfig
+    from noether.core.optimizer.schemas import (
+        AdamOptimizerConfig,
+        AnyOptimizerConfig,
+        MuonOptimizerConfig,
+        OptimizerConfig,
+        ParamGroupModifierConfig,
+        SGDOptimizerConfig,
+    )
+    from noether.core.schedules import AnyScheduleConfig
     from noether.core.schedules.constant import ConstantScheduleConfig
     from noether.core.schedules.custom import CustomScheduleConfig
     from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
@@ -184,11 +195,10 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
         StepFixedScheduleConfig,
         StepIntervalScheduleConfig,
     )
-    from noether.core.schemas.callbacks import CallbacksConfig
-    from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.core.schemas.schema import ConfigSchema
     from noether.core.trackers import WandBTrackerSchema
     from noether.data.base.dataset import DatasetBaseConfig, StandardDatasetConfig
+    from noether.data.preprocessors.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.training.callbacks.offline_loss import OfflineLossCallbackConfig
     from noether.training.cli.submit_job import SlurmConfig
     from noether.training.trainers.base import BaseTrainerConfig

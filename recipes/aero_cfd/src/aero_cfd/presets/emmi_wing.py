@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs
-from noether.core.schemas.normalizers import FieldNormalizerConfig
+from noether.data.preprocessors.normalizers import FieldNormalizerConfig
+from noether.data.schemas import DomainDataSpec, ModelDataSpecs
 
 from .base import AeroCFDPreset, AeroPipelineParams
 

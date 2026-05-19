@@ -3,11 +3,12 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
-from noether.core.schemas.modules.layers import RopeFrequencyConfig
 from noether.modeling.functional.rope import rope
 from noether.modeling.modules.blocks import PerceiverBlock, TransformerBlock
+from noether.modeling.modules.blocks.perceiver import PerceiverBlockConfig
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 from noether.modeling.modules.layers import RopeFrequency
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
 
 EXPECTED_OUTPUT_STANDALONE = torch.Tensor(
     [

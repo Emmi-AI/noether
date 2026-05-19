@@ -3,7 +3,7 @@
 
 from pydantic import ConfigDict, model_validator
 
-from noether.core.schemas.models.base import ModelBaseConfig
+from noether.core.models.base import ModelBaseConfig
 from noether.modeling.models.transformer import Transformer, TransformerConfig
 
 

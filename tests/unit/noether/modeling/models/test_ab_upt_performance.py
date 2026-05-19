@@ -19,11 +19,10 @@ from typing import Any
 import pytest
 import torch
 
-from noether.core.schemas.dataset import DomainDataSpec, FieldDimSpec, ModelDataSpecs
-from noether.core.schemas.models import AnchorBranchedUPTConfig
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
-from noether.modeling.models.ab_upt import AnchoredBranchedUPT
+from noether.data.schemas import DomainDataSpec, FieldDimSpec, ModelDataSpecs
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig, AnchoredBranchedUPT
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
 
 
 def _available_devices() -> list[str]:

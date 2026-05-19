@@ -6,8 +6,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from noether.core.models.base import ModelBase
-from noether.core.schemas.models.base import ModelBaseConfig
+from noether.core.models.base import ModelBase, ModelBaseConfig
 
 MODULE_PATH = "noether.core.models.base"
 

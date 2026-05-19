@@ -2,7 +2,7 @@
 
 import pytest
 
-from noether.core.schemas.filemap import FileMap
+from noether.data.schemas import FileMap
 
 
 @pytest.mark.parametrize(

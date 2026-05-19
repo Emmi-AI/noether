@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.layers.scalar_conditioner import ScalarsConditionerConfig
 from noether.modeling.modules.layers import ScalarsConditioner
+from noether.modeling.modules.layers.scalar_conditioner import ScalarsConditionerConfig
 
 
 def test_single():

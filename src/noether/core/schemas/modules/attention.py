@@ -111,6 +111,7 @@ class AttentionPattern(BaseModel):
 # loading those classes.
 # ---------------------------------------------------------------------------------------------------------------------
 import importlib  # noqa: E402
+import warnings  # noqa: E402
 
 _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "DotProductAttentionConfig": ("noether.modeling.modules.attention.dot_product", "DotProductAttentionConfig"),
@@ -155,6 +156,11 @@ def __getattr__(name: str) -> Any:
         module_path, attr = _LAZY_EXPORTS[name]
     except KeyError as exc:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     return getattr(importlib.import_module(module_path), attr)
 
 

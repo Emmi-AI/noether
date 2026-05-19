@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.models.transolver import TransolverConfig, TransolverPlusPlusConfig
-from noether.modeling.models.transolver import Transolver
+from noether.modeling.models.transolver import Transolver, TransolverConfig, TransolverPlusPlusConfig
 
 
 @pytest.fixture(params=[True, False], ids=["plusplus", "no_plusplus"])

@@ -2,14 +2,14 @@
 
 import pytest
 
-from noether.core.presets.base import DomainPreset
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import (
+from noether.core.models.base import ModelBaseConfig
+from noether.core.optimizer.schemas import (
     AdamOptimizerConfig,
     AnyOptimizerConfig,
     MuonOptimizerConfig,
     SGDOptimizerConfig,
 )
+from noether.core.presets.base import DomainPreset
 
 
 class _StubPreset(DomainPreset):

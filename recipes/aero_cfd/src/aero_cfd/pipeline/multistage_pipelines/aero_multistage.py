@@ -1,7 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 
-from noether.core.schemas.statistics import AeroStatsSchema
 from noether.data.pipeline import MultiStagePipeline, PipelineConfig, SampleProcessor
 from noether.data.pipeline.collators import (
     ConcatSparseTensorCollator,
@@ -15,7 +14,7 @@ from noether.data.pipeline.sample_processors import (
     RenameKeysSampleProcessor,
     SupernodeSamplingSampleProcessor,
 )
-from noether.data.schemas import ModelDataSpecs
+from noether.data.schemas import AeroStatsSchema, ModelDataSpecs
 
 from ..sample_processors import (
     AnchorPointSamplingSampleProcessor,

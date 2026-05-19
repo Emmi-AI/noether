@@ -1,10 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 """Back-compat re-export for ``UnquantizedDropPathConfig``.
 
-The config has moved next to its matching class in
-:mod:`noether.modeling.modules.layers.drop_path`.
+The canonical home is :mod:`noether.modeling.modules.layers.drop_path`.
 """
 
-from noether.modeling.modules.layers.drop_path import UnquantizedDropPathConfig
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.drop_path import UnquantizedDropPathConfig
 
 __all__ = ["UnquantizedDropPathConfig"]
+
+_LAZY: dict[str, str] = {"UnquantizedDropPathConfig": "noether.modeling.modules.layers.drop_path"}
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

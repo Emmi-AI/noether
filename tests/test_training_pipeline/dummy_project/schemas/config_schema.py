@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas import ConfigSchema
+from noether.core.schemas.schema import ConfigSchema
 
 from .datasets.base_dataset_config import BaseDatasetConfig
 from .models.base_model_config import BaseModelConfig

@@ -3,7 +3,7 @@ import pytest
 from pydantic import ValidationError
 
 from noether.core.optimizer.param_group_modifiers.lr_scale_by_name import LrScaleByNameModifier
-from noether.core.schemas.optimizers import ParamGroupModifierConfig
+from noether.core.optimizer.schemas import ParamGroupModifierConfig
 
 
 def test_lr_scale_by_name_modifier_init_raises_error_if_scale_is_none():

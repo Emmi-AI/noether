@@ -1,6 +1,6 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.models.ab_upt import AnchorBranchedUPTConfig
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig
 
 
 def test_ab_upt_config_injects_hidden_dim(base_ab_upt_config_dict):

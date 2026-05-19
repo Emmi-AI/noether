@@ -9,11 +9,10 @@ import pytest
 import torch
 
 from noether.core.factory import Factory
-from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, TransolverConfig, UPTConfig
-from noether.modeling.models.ab_upt import AnchoredBranchedUPT
-from noether.modeling.models.transformer import Transformer
-from noether.modeling.models.transolver import Transolver
-from noether.modeling.models.upt import UPT
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig, AnchoredBranchedUPT
+from noether.modeling.models.transformer import Transformer, TransformerConfig
+from noether.modeling.models.transolver import Transolver, TransolverConfig
+from noether.modeling.models.upt import UPT, UPTConfig
 from noether.modeling.modules.attention import DotProductAttention, TransolverAttention
 
 

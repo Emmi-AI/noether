@@ -4,9 +4,9 @@ import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from noether.core.schemas.dataset import ShuffleWrapperConfig
 from noether.data import Dataset
 from noether.data.base.wrappers import ShuffleWrapper
+from noether.data.base.wrappers.shuffle import ShuffleWrapperConfig
 
 
 class MockDataset(Dataset):

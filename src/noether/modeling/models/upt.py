@@ -6,18 +6,17 @@ import torch
 from pydantic import ConfigDict, Field, computed_field, model_validator
 from torch import nn
 
+from noether.core.models.base import ModelBaseConfig
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-    RopeFrequencyConfig,
-)
 from noether.data.schemas import ModelDataSpecs
 from noether.modeling.modules import DeepPerceiverDecoder, SupernodePooling, TransformerBlock
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
+from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
 
 
 class UPTConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):

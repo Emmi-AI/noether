@@ -10,8 +10,8 @@ from typing import Annotated, Any, Literal, TypeVar
 import torch
 from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
+from noether.core.models.base import ModelBaseConfig
 from noether.core.schemas.lib import Discriminated
-from noether.core.schemas.models import ModelBaseConfig
 from noether.core.trackers import BaseTrackerConfig
 from noether.core.utils.common import validate_path
 from noether.data.base.dataset import DatasetBaseConfig

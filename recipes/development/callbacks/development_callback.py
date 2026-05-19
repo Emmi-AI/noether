@@ -5,8 +5,7 @@ from typing import Literal
 import torch
 import torch.nn.functional as F
 
-from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
-from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback, PeriodicDataIteratorCallbackConfig
 
 
 class DevelopmentCallbackConfig(PeriodicDataIteratorCallbackConfig):

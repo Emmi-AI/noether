@@ -3,8 +3,7 @@
 import torch
 from pydantic import Field
 
-from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
-from noether.core.schemas.callbacks import PeriodicDataIteratorCallbackConfig
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback, PeriodicDataIteratorCallbackConfig
 
 VISUALIZATION_FIELDS = [
     "volume_velocity",

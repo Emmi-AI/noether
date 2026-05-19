@@ -10,14 +10,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from noether.core.callbacks import PeriodicCallback, PeriodicDataIteratorCallback
+from noether.core.callbacks.base import CallBackBaseConfig
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallbackConfig
 from noether.core.models.model import Model
-from noether.core.schemas import DatasetBaseConfig
-from noether.core.schemas.callbacks import CallBackBaseConfig, PeriodicDataIteratorCallbackConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
-from noether.data.base.dataset import Dataset
+from noether.data.base.dataset import Dataset, DatasetBaseConfig
 from noether.data.container import DataContainer
 from noether.data.pipeline import Collator
 from noether.training.trainers import BaseTrainer
+from noether.training.trainers.base import BaseTrainerConfig
 
 
 class DummyDataset(Dataset):

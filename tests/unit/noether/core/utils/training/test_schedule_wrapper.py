@@ -1,8 +1,12 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 import pytest
 
-from noether.core.schedules import ConstantSchedule, LinearIncreasingSchedule
-from noether.core.schemas.schedules import ConstantScheduleConfig, IncreasingProgressScheduleConfig
+from noether.core.schedules import (
+    ConstantSchedule,
+    ConstantScheduleConfig,
+    IncreasingProgressScheduleConfig,
+    LinearIncreasingSchedule,
+)
 from noether.core.utils.training import ScheduleWrapper, TrainingIteration, UpdateCounter
 
 

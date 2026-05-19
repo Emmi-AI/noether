@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.attention import TransolverAttentionConfig
-from noether.modeling.modules.attention.transolver import TransolverAttention
+from noether.modeling.modules.attention.transolver import TransolverAttention, TransolverAttentionConfig
 from noether.modeling.modules.layers import LinearProjection
 
 from .expected_outputs import TRANSOLVER_ATTENTION

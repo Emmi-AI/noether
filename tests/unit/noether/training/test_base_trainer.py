@@ -1258,11 +1258,11 @@ class TestMaxUpdatesTrainingLoop:
         max_updates: int,
     ):
         """Set up a real trainer, dataset, data container, and model for integration testing."""
-        from noether.core.schemas.models.base import ModelBaseConfig
-        from noether.core.schemas.trainers import BaseTrainerConfig
+        from noether.core.models.base import ModelBaseConfig
         from noether.data.base.dataset import Dataset
         from noether.data.container import DataContainer
         from noether.data.pipeline.collator import Collator
+        from noether.training.trainers.base import BaseTrainerConfig
 
         # -- minimal noether Dataset ---------------------------------------------------
         class StubDatasetConfig:

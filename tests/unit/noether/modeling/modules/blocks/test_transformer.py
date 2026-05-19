@@ -6,8 +6,7 @@ import pytest
 import torch
 from pydantic import ValidationError
 
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.modeling.modules.blocks.transformer import TransformerBlock
+from noether.modeling.modules.blocks.transformer import TransformerBlock, TransformerBlockConfig
 
 from .expected_output import DIT_BLOCK, TRANSFORMER_BLOCK
 

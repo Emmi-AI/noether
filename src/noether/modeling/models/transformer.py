@@ -7,10 +7,10 @@ import torch
 import torch.nn as nn
 from pydantic import ConfigDict, Field
 
+from noether.core.models.base import ModelBaseConfig
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
 from noether.modeling.modules.blocks import TransformerBlock
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 
 
 class TransformerConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):

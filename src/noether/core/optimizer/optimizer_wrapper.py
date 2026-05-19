@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 from torch.amp.grad_scaler import GradScaler
 
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.optimizer.schemas import OptimizerConfig
 from noether.core.utils.bidict import Bidict
 from noether.core.utils.logging import float_to_scientific_notation
 from noether.core.utils.torch import NoopGradScaler

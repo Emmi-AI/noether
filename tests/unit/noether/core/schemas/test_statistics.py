@@ -5,7 +5,7 @@ from collections.abc import Sequence
 import pytest
 from pydantic import ValidationError
 
-from noether.core.schemas.statistics import AeroStatsSchema
+from noether.data.schemas import AeroStatsSchema
 
 
 @pytest.mark.parametrize(

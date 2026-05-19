@@ -8,10 +8,9 @@ import pytest
 import torch
 
 from noether.core.providers import PathProvider
-from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.trackers import BaseTracker
 from noether.data.container import DataContainer
-from noether.training.trainers.base import BaseTrainer
+from noether.training.trainers.base import BaseTrainer, BaseTrainerConfig
 from noether.training.trainers.types import LossResult
 
 

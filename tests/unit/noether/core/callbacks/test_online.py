@@ -76,7 +76,7 @@ class TestOnlineLossCallback:
     ):
         """Test OnlineLossCallback tracks and logs loss during training."""
         from noether.core.callbacks.default import OnlineLossCallback
-        from noether.core.schemas.callbacks import OnlineLossCallbackConfig
+        from noether.core.callbacks.default.online_loss import OnlineLossCallbackConfig
 
         config = OnlineLossCallbackConfig.model_validate(dict(every_n_updates=1, verbose=True))
         mock_trainer.update_counter = Mock()
@@ -113,7 +113,7 @@ class TestOnlineLossCallback:
     ):
         """Test OnlineLossCallback detects NaN losses."""
         from noether.core.callbacks.default import OnlineLossCallback
-        from noether.core.schemas.callbacks import OnlineLossCallbackConfig
+        from noether.core.callbacks.default.online_loss import OnlineLossCallbackConfig
 
         config = OnlineLossCallbackConfig.model_validate(dict(every_n_updates=1, verbose=True))
         mock_trainer.update_counter = Mock()
@@ -153,8 +153,7 @@ class TestBestMetricCallback:
         mock_metric_property_provider,
     ):
         """Test BestMetricCallback instantiates correctly for higher-is-better metrics."""
-        from noether.core.callbacks.online.best_metric import BestMetricCallback
-        from noether.core.schemas.callbacks import BestMetricCallbackConfig
+        from noether.core.callbacks.online.best_metric import BestMetricCallback, BestMetricCallbackConfig
 
         mock_metric_property_provider.higher_is_better = Mock(return_value=True)
 
@@ -193,8 +192,7 @@ class TestBestMetricCallback:
         mock_metric_property_provider,
     ):
         """Test BestMetricCallback instantiates correctly for lower-is-better metrics."""
-        from noether.core.callbacks.online.best_metric import BestMetricCallback
-        from noether.core.schemas.callbacks import BestMetricCallbackConfig
+        from noether.core.callbacks.online.best_metric import BestMetricCallback, BestMetricCallbackConfig
 
         mock_metric_property_provider.higher_is_better = Mock(return_value=False)
 
@@ -231,8 +229,7 @@ class TestBestMetricCallback:
         mock_metric_property_provider,
     ):
         """Test BestMetricCallback tracks new best when metric improves (higher is better)."""
-        from noether.core.callbacks.online.best_metric import BestMetricCallback
-        from noether.core.schemas.callbacks import BestMetricCallbackConfig
+        from noether.core.callbacks.online.best_metric import BestMetricCallback, BestMetricCallbackConfig
 
         mock_metric_property_provider.higher_is_better = Mock(return_value=True)
         mock_log_writer.log_cache = {"val/accuracy": 0.9, "test/accuracy": 0.85}
@@ -272,8 +269,7 @@ class TestBestMetricCallback:
         mock_metric_property_provider,
     ):
         """Test BestMetricCallback doesn't update best when metric doesn't improve."""
-        from noether.core.callbacks.online.best_metric import BestMetricCallback
-        from noether.core.schemas.callbacks import BestMetricCallbackConfig
+        from noether.core.callbacks.online.best_metric import BestMetricCallback, BestMetricCallbackConfig
 
         mock_metric_property_provider.higher_is_better = Mock(return_value=True)
         mock_log_writer.log_cache = {"val/accuracy": 0.8, "test/accuracy": 0.75}
@@ -317,8 +313,7 @@ class TestBestMetricCallback:
         mock_metric_property_provider,
     ):
         """Test BestMetricCallback handles optional target metrics."""
-        from noether.core.callbacks.online.best_metric import BestMetricCallback
-        from noether.core.schemas.callbacks import BestMetricCallbackConfig
+        from noether.core.callbacks.online.best_metric import BestMetricCallback, BestMetricCallbackConfig
 
         mock_metric_property_provider.higher_is_better = Mock(return_value=True)
         mock_log_writer.log_cache = {
@@ -370,8 +365,10 @@ class TestTrackAdditionalOutputsCallback:
         mock_metric_property_provider,
     ):
         """Test TrackAdditionalOutputsCallback tracks outputs by exact key match."""
-        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
-        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
+        from noether.core.callbacks.online.track_outputs import (
+            TrackAdditionalOutputsCallback,
+            TrackAdditionalOutputsCallbackConfig,
+        )
 
         config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(
@@ -423,8 +420,10 @@ class TestTrackAdditionalOutputsCallback:
         mock_metric_property_provider,
     ):
         """Test TrackAdditionalOutputsCallback tracks outputs by pattern matching."""
-        from noether.core.callbacks.online.track_outputs import TrackAdditionalOutputsCallback
-        from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
+        from noether.core.callbacks.online.track_outputs import (
+            TrackAdditionalOutputsCallback,
+            TrackAdditionalOutputsCallbackConfig,
+        )
 
         config = TrackAdditionalOutputsCallbackConfig.model_validate(
             dict(

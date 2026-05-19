@@ -5,8 +5,8 @@ import unittest
 import torch
 
 from noether.core.models import CompositeModel, Model, ModelBase
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import AdamOptimizerConfig
+from noether.core.models.base import ModelBaseConfig
+from noether.core.optimizer.schemas import AdamOptimizerConfig
 
 
 class TestCompositeModel(unittest.TestCase):

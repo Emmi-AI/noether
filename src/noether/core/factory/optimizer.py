@@ -6,7 +6,7 @@ from functools import partial
 from noether.core.factory.base import Factory
 from noether.core.factory.utils import class_constructor_from_class_path
 from noether.core.optimizer import OptimizerWrapper
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.optimizer.schemas import OptimizerConfig
 
 
 class OptimizerFactory(Factory):
@@ -28,7 +28,7 @@ class OptimizerFactory(Factory):
             optimizer_config: Configuration for the optimizer to create. This config contains both the
                 :class:`torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
                 :class:`~torch.optim.Optimizer` and the :class:`~noether.core.optimizer.OptimizerWrapper` configurations.
-                See :class:`~noether.core.schemas.optimizers.OptimizerConfig` for available options.
+                See :class:`~noether.core.optimizer.schemas.OptimizerConfig` for available options.
 
         Returns:
             A callable that initializes the :class:`~noether.core.optimizer.OptimizerWrapper`.

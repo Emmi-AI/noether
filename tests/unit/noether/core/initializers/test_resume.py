@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from noether.core.initializers import ResumeInitializerConfig
 from noether.core.initializers.resume import ResumeInitializer
 from noether.core.providers.path import PathProvider
-from noether.core.schemas.initializers import ResumeInitializerConfig
 
 
 def test_resume_initializer_init():

@@ -4,8 +4,7 @@ import unittest
 
 import numpy as np
 
-from noether.core.schedules import LinearWarmupCosineDecaySchedule
-from noether.core.schemas.schedules import LinearWarmupCosineDecayScheduleConfig
+from noether.core.schedules import LinearWarmupCosineDecaySchedule, LinearWarmupCosineDecayScheduleConfig
 
 
 class TestLinearWarmupCosineDecaySchedule(unittest.TestCase):

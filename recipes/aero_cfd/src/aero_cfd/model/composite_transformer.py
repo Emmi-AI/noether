@@ -5,11 +5,12 @@ from typing import Literal
 import torch
 
 from noether.core.models import CompositeModel, Model
-from noether.core.schemas.dataset import ModelDataSpecs
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig, RopeFrequencyConfig
+from noether.core.models.base import ModelBaseConfig
+from noether.data.schemas import ModelDataSpecs
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, RopeFrequency
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
 
 from .composite_components import CompositeTransformerBlock
 from .composite_components.composite_transformer_block import CompositeTransformerBlockConfig

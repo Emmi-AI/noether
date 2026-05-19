@@ -5,8 +5,7 @@ from unittest.mock import Mock, PropertyMock, patch
 import pytest
 import torch
 
-from noether.core.schemas.callbacks import OfflineLossCallbackConfig
-from noether.training.callbacks.offline_loss import OfflineLossCallback
+from noether.training.callbacks.offline_loss import OfflineLossCallback, OfflineLossCallbackConfig
 from noether.training.trainers.types import TrainerResult
 
 _MODULE_LOGGER_PATH = "noether.training.callbacks.offline_loss.OfflineLossCallback.logger"

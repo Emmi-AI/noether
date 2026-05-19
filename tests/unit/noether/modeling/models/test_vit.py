@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from noether.core.schemas.models import ViTConfig
 from noether.modeling.models import ViT
+from noether.modeling.models.vit import ViTConfig
 
 _HIDDEN_DIM = 32
 

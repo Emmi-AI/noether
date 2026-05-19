@@ -1,12 +1,33 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
-"""Back-compat re-exports for ``noether.core.schemas.modules.decoders``.
+"""Back-compat re-exports for decoder configs.
 
-Decoder configs have moved next to their matching classes in
-:mod:`noether.modeling.modules.decoders`.
+The canonical home is :mod:`noether.modeling.modules.decoders`.
 """
 
-from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
+from __future__ import annotations
 
-__all__ = [
-    "DeepPerceiverDecoderConfig",
-]
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
+
+__all__ = ["DeepPerceiverDecoderConfig"]
+
+_LAZY: dict[str, str] = {
+    "DeepPerceiverDecoderConfig": "noether.modeling.modules.decoders.deep_perceiver",
+}
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

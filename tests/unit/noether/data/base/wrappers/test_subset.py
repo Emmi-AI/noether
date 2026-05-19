@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-from noether.core.schemas.dataset import SubsetWrapperConfig
 from noether.data import Dataset
 from noether.data.base.wrappers import SubsetWrapper
+from noether.data.base.wrappers.subset import SubsetWrapperConfig
 
 
 class MockDataset(Dataset):

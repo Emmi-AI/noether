@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.attention import TransolverPlusPlusAttentionConfig
 from noether.modeling.modules.attention import TransolverPlusPlusAttention
+from noether.modeling.modules.attention.transolver_plusplus import TransolverPlusPlusAttentionConfig
 
 
 @pytest.mark.parametrize("dim", [256])

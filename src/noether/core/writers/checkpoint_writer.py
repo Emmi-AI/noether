@@ -10,8 +10,8 @@ from torch.nn.parallel import DistributedDataParallel
 
 from noether.core.distributed import is_rank0
 from noether.core.models import CompositeModel, Model
+from noether.core.models.base import ModelBaseConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas.models import ModelBaseConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.training import UpdateCounter
 

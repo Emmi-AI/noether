@@ -8,7 +8,7 @@ import torch.nn as nn
 
 from noether.core.optimizer.muon_composite import MuonComposite
 from noether.core.optimizer.optimizer_wrapper import OptimizerWrapper
-from noether.core.schemas.optimizers import OptimizerConfig
+from noether.core.optimizer.schemas import OptimizerConfig
 from noether.core.utils.training.counter import UpdateCounter
 from noether.core.utils.training.training_iteration import TrainingIteration
 

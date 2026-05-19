@@ -4,7 +4,7 @@ from typing import ClassVar, Literal, Self, Union
 
 from pydantic import BaseModel, Field, model_validator
 
-from noether.core.schemas.schedules import AnyScheduleConfig
+from noether.core.schedules import AnyScheduleConfig
 
 
 class ParamGroupModifierConfig(BaseModel):

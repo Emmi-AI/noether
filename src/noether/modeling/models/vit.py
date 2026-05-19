@@ -7,14 +7,9 @@ from einops import rearrange
 from pydantic import ConfigDict, Field, computed_field
 from torch import Tensor, nn
 
-from noether.core.schemas.models import TransformerConfig
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.modules import (
-    ContinuousSincosEmbeddingConfig,
-    RopeFrequencyConfig,
-)
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.modeling.models.transformer import Transformer
+from noether.core.models.base import ModelBaseConfig
+from noether.modeling.models.transformer import Transformer, TransformerConfig
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 from noether.modeling.modules.layers import (
     AvgPool2DPatchify,
     ContinuousSincosEmbed,
@@ -23,6 +18,8 @@ from noether.modeling.modules.layers import (
     MaskPatchify,
     RopeFrequency,
 )
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
 
 
 class ViTConfig(ModelBaseConfig):
