@@ -4,8 +4,8 @@ import torch
 from pydantic import BaseModel, Field
 from torch import nn
 
-from noether.core.schemas.dataset import FieldDimSpec
 from noether.core.types import InitWeightsMode
+from noether.data.schemas import FieldDimSpec
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.layers.continuous_sincos_embed import (
     ContinuousSincosEmbed,

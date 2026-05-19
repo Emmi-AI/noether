@@ -14,65 +14,33 @@ re-exported lazily here for backward compatibility.
 from __future__ import annotations
 
 import importlib
-from collections.abc import Sequence
-from typing import TYPE_CHECKING, Annotated, Any, ClassVar, Union
-
-import numpy as np
-import torch
-from pydantic import BaseModel, ConfigDict, PlainSerializer, PlainValidator
-
-from noether.core.schemas.lib import _RegistryBase
-
-
-def validate_tensor(v: Any) -> torch.Tensor:
-    if isinstance(v, torch.Tensor):
-        return v
-    if isinstance(v, np.ndarray):
-        return torch.from_numpy(v)
-    try:
-        return torch.tensor(v)
-    except Exception as e:
-        raise ValueError(f"Could not convert {v} to torch.Tensor: {e}") from None
-
-
-TorchTensor = Annotated[
-    torch.Tensor,
-    PlainValidator(validate_tensor),
-    PlainSerializer(lambda x: x.tolist(), return_type=list, when_used="always"),
-]
-
-FloatOrArray = float | Sequence[float] | TorchTensor
-SequenceOrTensor = Sequence[float] | TorchTensor
-
-
-class NormalizerConfig(_RegistryBase):
-    """Base configuration for normalizers. All normalizer configs should inherit from this class."""
-
-    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
-    _type_field: ClassVar[str] = "kind"
-    kind: str | None = None
-    """Kind of normalizer to use, i.e. class path"""
-
-    model_config = ConfigDict(extra="forbid")
-
+from typing import TYPE_CHECKING, Any, Union
 
 if TYPE_CHECKING:
     from noether.data.preprocessors.normalizers import (
+        AnyNormalizer,
         FieldNormalizerConfig,
+        FloatOrArray,
         MeanStdNormalizerConfig,
+        NormalizerConfig,
         PositionNormalizerConfig,
+        SequenceOrTensor,
         ShiftAndScaleNormalizerConfig,
+        TorchTensor,
+        validate_tensor,
     )
 
-    AnyNormalizer = Union[
-        MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
-    ]
 
 _LAZY: dict[str, str] = {
     "FieldNormalizerConfig": "FieldNormalizerConfig",
     "MeanStdNormalizerConfig": "MeanStdNormalizerConfig",
     "PositionNormalizerConfig": "PositionNormalizerConfig",
     "ShiftAndScaleNormalizerConfig": "ShiftAndScaleNormalizerConfig",
+    "NormalizerConfig": "NormalizerConfig",
+    "TorchTensor": "TorchTensor",
+    "SequenceOrTensor": "SequenceOrTensor",
+    "FloatOrArray": "FloatOrArray",
+    "validate_tensor": "validate_tensor",
 }
 
 __all__ = [

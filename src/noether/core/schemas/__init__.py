@@ -187,8 +187,8 @@ if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
     from noether.core.schemas.callbacks import CallbacksConfig
     from noether.core.schemas.normalizers import AnyNormalizer, FieldNormalizerConfig
     from noether.core.schemas.schema import ConfigSchema
-    from noether.core.schemas.slurm import SlurmConfig
     from noether.core.trackers import WandBTrackerSchema
     from noether.data.base.dataset import DatasetBaseConfig, StandardDatasetConfig
     from noether.training.callbacks.offline_loss import OfflineLossCallbackConfig
+    from noether.training.cli.submit_job import SlurmConfig
     from noether.training.trainers.base import BaseTrainerConfig

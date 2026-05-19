@@ -9,7 +9,6 @@ import torch
 from pydantic import ConfigDict, Field, computed_field, model_validator
 from torch import Tensor, nn
 
-from noether.core.schemas.dataset import FieldDimSpec, ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.models import ModelBaseConfig
 from noether.core.schemas.modules.attention import TokenSpec
@@ -24,6 +23,7 @@ from noether.core.schemas.modules.layers.vectors_conditioner import VectorsCondi
 from noether.core.schemas.modules.mlp import MLPConfig
 from noether.core.schemas.modules.untied import UntiedPerceiverBlockConfig, UntiedTransformerBlockConfig
 from noether.core.types import InitWeightsMode
+from noether.data.schemas import FieldDimSpec, ModelDataSpecs
 from noether.modeling.functional.modulation import modulate_scale_shift
 from noether.modeling.modules.attention.anchor_attention import (
     CrossAnchorAttention,

@@ -6,7 +6,6 @@ import torch
 from pydantic import ConfigDict, Field, computed_field, model_validator
 from torch import nn
 
-from noether.core.schemas.dataset import ModelDataSpecs
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.core.schemas.models.base import ModelBaseConfig
 from noether.core.schemas.modules import DeepPerceiverDecoderConfig, SupernodePoolingConfig
@@ -16,6 +15,7 @@ from noether.core.schemas.modules.layers import (
     LinearProjectionConfig,
     RopeFrequencyConfig,
 )
+from noether.data.schemas import ModelDataSpecs
 from noether.modeling.modules import DeepPerceiverDecoder, SupernodePooling, TransformerBlock
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
 

@@ -12,10 +12,10 @@ from pydantic import BaseModel, Field, field_serializer, field_validator, model_
 
 from noether.core.schemas.lib import Discriminated
 from noether.core.schemas.models import ModelBaseConfig
-from noether.core.schemas.slurm import SlurmConfig
 from noether.core.trackers import BaseTrackerConfig
 from noether.core.utils.common import validate_path
 from noether.data.base.dataset import DatasetBaseConfig
+from noether.training.cli.submit_job import SlurmConfig
 from noether.training.trainers import BaseTrainerConfig
 
 ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]

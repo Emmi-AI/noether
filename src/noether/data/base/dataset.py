@@ -18,10 +18,10 @@ logger = logging.getLogger(__name__)
 
 from noether.core.factory import Factory
 from noether.core.schemas.lib import Discriminated, _RegistryBase
-from noether.core.schemas.normalizers import NormalizerConfig
 from noether.data.base.wrappers import DatasetWrappers
 from noether.data.pipeline import Collator, MultiStagePipeline, PipelineConfig
 from noether.data.preprocessors import ComposePreProcess, PreProcessor
+from noether.data.preprocessors.normalizers import NormalizerConfig
 
 TPipelineConfig = TypeVar("TPipelineConfig", bound=PipelineConfig)
 

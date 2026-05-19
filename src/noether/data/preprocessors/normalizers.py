@@ -1,13 +1,47 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any, Literal, Self
+from collections.abc import Sequence
+from typing import Annotated, Any, ClassVar, Literal, Self, Union
 
+import numpy as np
 import torch
-from pydantic import Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator, model_validator
 
-from noether.core.schemas.normalizers import NormalizerConfig, TorchTensor
+from noether.core.schemas.lib import _RegistryBase
 from noether.data.preprocessors import PreProcessor, to_tensor
 from noether.modeling.functional.logscale import from_logscale, to_logscale
+
+
+def validate_tensor(v: Any) -> torch.Tensor:
+    if isinstance(v, torch.Tensor):
+        return v
+    if isinstance(v, np.ndarray):
+        return torch.from_numpy(v)
+    try:
+        return torch.tensor(v)
+    except Exception as e:
+        raise ValueError(f"Could not convert {v} to torch.Tensor: {e}") from None
+
+
+TorchTensor = Annotated[
+    torch.Tensor,
+    PlainValidator(validate_tensor),
+    PlainSerializer(lambda x: x.tolist(), return_type=list, when_used="always"),
+]
+
+FloatOrArray = float | Sequence[float] | TorchTensor
+SequenceOrTensor = Sequence[float] | TorchTensor
+
+
+class NormalizerConfig(_RegistryBase):
+    """Base configuration for normalizers. All normalizer configs should inherit from this class."""
+
+    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
+    _type_field: ClassVar[str] = "kind"
+    kind: str | None = None
+    """Kind of normalizer to use, i.e. class path"""
+
+    model_config = ConfigDict(extra="forbid")
 
 
 class ShiftAndScaleNormalizerConfig(NormalizerConfig):
@@ -335,3 +369,8 @@ class FieldNormalizer(PreProcessor):
 
     def denormalize(self, x: torch.Tensor) -> torch.Tensor:
         return self.normalizer.denormalize(x)  # type: ignore[return-value]
+
+
+AnyNormalizer = Union[
+    MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
+]
