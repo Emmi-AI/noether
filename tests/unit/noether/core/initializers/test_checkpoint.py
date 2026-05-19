@@ -47,6 +47,7 @@ def path_provider_with_stage_name():
         run_id="test_run_id",
         stage_name="train",
         debug=False,
+        force_overwrite=True,
     )
 
 
