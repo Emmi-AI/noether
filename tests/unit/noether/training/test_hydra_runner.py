@@ -64,6 +64,7 @@ class TestHydraRunnerSetup:
         config.store_code_in_output = False
         config.cudnn_benchmark = False
         config.cudnn_deterministic = False
+        config.overwrite_output = False
 
         config.model = MagicMock()
         config.model.name = "test_model"

@@ -30,3 +30,7 @@ class CheckpointKeys:
     """ The state dicts of the callbacks. """
     GRAD_SCALER = "grad_scaler"
     """ The state dict of the grad scaler (if used). """
+    NORMALIZER_CONFIGS = "normalizer_configs"
+    """ Per-field preprocessor configs for normalization (serialized dict of the test split's ``dataset_normalizers``). """
+    NORMALIZER_STATISTICS = "normalizer_statistics"
+    """ Resolved statistics dict (means/stds/bounds) loaded from the dataset class's ``STATS_FILE`` at write time. """

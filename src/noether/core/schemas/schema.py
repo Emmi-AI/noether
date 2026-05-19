@@ -111,6 +111,8 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """Path to output directory. When omitted, defaults to ``slurm.folder`` if a
     ``slurm`` section is present. Raises a validation error when neither
     ``output_path`` nor ``slurm`` is provided."""
+    overwrite_output: bool = False
+    """Whether to overwrite the output directory if it already exists. Use with caution, as this will delete all existing outputs for the run_id/stage_name!"""
     master_port: int = Field(default_factory=master_port_from_env)
     """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
 
