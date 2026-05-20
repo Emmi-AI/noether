@@ -11,9 +11,7 @@ from typing import Any
 import yaml
 from pydantic import TypeAdapter
 
-from noether.core.callbacks.checkpoint.best_checkpoint import BestCheckpointCallbackConfig
-from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallbackConfig
-from noether.core.callbacks.checkpoint.ema import EmaCallbackConfig
+from noether.core.callbacks.checkpoint import BestCheckpointCallbackConfig, CheckpointCallbackConfig, EmaCallbackConfig
 from noether.core.optimizer.schemas import AnyOptimizerConfig, OptimizerConfig
 from noether.core.presets.model_defaults import MODEL_DEFAULTS
 from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
