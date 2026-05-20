@@ -6,7 +6,7 @@ import torch
 from torch import nn
 
 from noether.core.optimizer.param_group_modifiers.weight_decay_by_name import WeightDecayByNameModifier
-from noether.core.schemas.optimizers import ParamGroupModifierConfig
+from noether.core.optimizer.schemas import ParamGroupModifierConfig
 
 
 class SimpleModel(nn.Module):

@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.dataset import PipelineConfig
+from noether.data.pipeline.multistage import PipelineConfig
 
 
 class BasePipelineConfig(PipelineConfig):

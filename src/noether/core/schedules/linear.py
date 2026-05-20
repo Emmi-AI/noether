@@ -1,7 +1,18 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schedules.base import DecreasingProgressSchedule, IncreasingProgressSchedule
+from typing import Literal
+
+from noether.core.schedules.base import (
+    DecreasingProgressSchedule,
+    DecreasingProgressScheduleConfig,
+    IncreasingProgressSchedule,
+    IncreasingProgressScheduleConfig,
+)
 from noether.core.schedules.functional import linear
+
+
+class LinearDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.LinearDecreasingSchedule"] = "noether.core.schedules.LinearDecreasingSchedule"  # type: ignore[assignment]
 
 
 class LinearDecreasingSchedule(DecreasingProgressSchedule):
@@ -19,6 +30,10 @@ class LinearDecreasingSchedule(DecreasingProgressSchedule):
 
     def _get_progress(self, step: int, total_steps: int) -> float:
         return linear(step, total_steps)
+
+
+class LinearIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.LinearIncreasingSchedule"] = "noether.core.schedules.LinearIncreasingSchedule"  # type: ignore[assignment]
 
 
 class LinearIncreasingSchedule(IncreasingProgressSchedule):

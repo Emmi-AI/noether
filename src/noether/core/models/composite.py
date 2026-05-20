@@ -8,10 +8,9 @@ from typing import Self
 import torch
 from torch.amp.grad_scaler import GradScaler
 
-from noether.core.models.base import ModelBase
+from noether.core.models.base import ModelBase, ModelBaseConfig
 from noether.core.models.model import Model
 from noether.core.providers.path import PathProvider
-from noether.core.schemas.models import ModelBaseConfig
 from noether.core.utils.training import UpdateCounter
 from noether.data.container import DataContainer
 

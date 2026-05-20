@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from noether.core.schemas.dataset import DatasetBaseConfig, DatasetWrappers, DomainDataSpec, ModelDataSpecs
-from noether.core.schemas.normalizers import FieldNormalizerConfig
+from noether.data.base.dataset import DatasetBaseConfig
+from noether.data.base.wrappers import DatasetWrappers
+from noether.data.preprocessors.normalizers import FieldNormalizerConfig
+from noether.data.schemas import DomainDataSpec, ModelDataSpecs
 
 from .base import AeroCFDPreset, AeroPipelineParams
 

@@ -2,8 +2,8 @@
 
 import torch
 
-from noether.core.schemas.dataset import StandardDatasetConfig
 from noether.data import Dataset, with_normalizers
+from noether.data.base.dataset import StandardDatasetConfig
 
 
 class DevelopmentDatasetConfig(StandardDatasetConfig):

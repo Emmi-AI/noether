@@ -5,8 +5,7 @@ from unittest.mock import Mock
 import pytest
 from pydantic import ValidationError
 
-from noether.core.callbacks.early_stoppers.metric import MetricEarlyStopper
-from noether.core.schemas.callbacks import MetricEarlyStopperConfig
+from noether.core.callbacks.early_stoppers.metric import MetricEarlyStopper, MetricEarlyStopperConfig
 
 
 class TestMetricEarlyStopper:

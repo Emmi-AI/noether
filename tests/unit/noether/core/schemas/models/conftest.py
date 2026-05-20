@@ -2,7 +2,7 @@
 
 import pytest
 
-from noether.core.schemas.dataset import DomainDataSpec, ModelDataSpecs
+from noether.data.schemas import DomainDataSpec, ModelDataSpecs
 
 
 @pytest.fixture

@@ -1,9 +1,21 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
+from typing import Any, Literal
 
+from pydantic import Field
+
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
-from noether.core.schemas.callbacks import BestMetricCallbackConfig
+
+
+class BestMetricCallbackConfig(CallBackBaseConfig):
+    name: Literal["BestMetricCallback"] = Field("BestMetricCallback", frozen=True)
+    """The metric to use to dermine whether the current model obtained a new best (e.g., loss/valid/total)"""
+    source_metric_key: str = Field(...)
+    """The metrics to keep track of (e.g., loss/test/total)"""
+    target_metric_keys: list[str] | None = Field(None)
+    """The metrics to keep track of if they are present (useful when different model configurations log different evaluation metrics to avoid reconfiguring the callback)."""
+    optional_target_metric_keys: list[str] | None = Field(None)
 
 
 class BestMetricCallback(PeriodicCallback):

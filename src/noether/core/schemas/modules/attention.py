@@ -1,8 +1,15 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Base attention configs and back-compat re-exports for moved attention configs.
 
-import abc
+The base configs (:class:`AttentionConfig`, :class:`TokenSpec`,
+:class:`AttentionPattern`) have no
+matching class and stay here. The concrete attention configs have moved next
+to their matching classes in :mod:`noether.modeling.modules.attention`; they
+are re-exported here for backward compatibility.
+"""
+
 from collections.abc import Sequence
-from typing import Literal
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
@@ -55,86 +62,6 @@ class AttentionConfig(BaseModel):
         return self
 
 
-class DotProductAttentionConfig(AttentionConfig):
-    """Configuration for the Dot Product attention module."""
-
-
-class TransolverAttentionConfig(AttentionConfig):
-    """Configuration for the Transolver attention module."""
-
-    num_slices: int = Field(512)
-    """Number of slices to project the input tokens to."""
-
-
-class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):
-    """Configuration for the Transolver++ attention module."""
-
-    use_overparameterization: bool = Field(True)
-    """Whether to use overparameterization for the slice projection."""
-
-    use_adaptive_temperature: bool = Field(True)
-    """Whether to use an adaptive temperature for the slice selection."""
-
-    temperature_activation: Literal["sigmoid", "softplus", "exp"] | None = Field("softplus")
-    """Activation function for the adaptive temperature."""
-
-    use_gumbel_softmax: bool = Field(True)
-    """Whether to use Gumbel-Softmax for the slice selection."""
-
-
-class IrregularNatAttentionConfig(AttentionConfig):
-    """Configuration for the Irregular Neighbourhood Attention Transformer (NAT) attention module."""
-
-    input_dim: int = Field(..., ge=0)
-    """Dimensionality of the input features."""
-
-    radius: float = Field(0.1, ge=0.0)
-    """Radius for the radius graph."""
-
-    max_degree: int = Field(16, ge=1)
-    """Maximum number of neighbors per point."""
-
-    relpos_mlp_hidden_dim: int = Field(32, ge=1)
-    """Hidden dimensionality of the relative position bias MLP."""
-
-    relpos_mlp_dropout: float = Field(0.0, ge=0.0, le=1.0)
-    """Dropout rate for the relative position bias MLP."""
-
-
-class PerceiverAttentionConfig(AttentionConfig):
-    """Configuration for the Perceiver attention module."""
-
-    kv_dim: int | None = Field(None)
-    """Dimensionality of the key/value features. If None, use hidden_dim."""
-
-    @model_validator(mode="after")
-    def set_kv_dim(self):
-        if self.kv_dim is None:
-            self.kv_dim = self.hidden_dim
-        return self
-
-
-# =====================================================================================================================
-
-
-# =====================================================================================================================
-#                                                   ANCHOR ATTENTION
-# ---------------------------------------------------------------------------------------------------------------------
-class MultiBranchAnchorAttentionConfig(AttentionConfig, metaclass=abc.ABCMeta):
-    """Configuration for Multi-Branch Anchor Attention module."""
-
-    branches: list[str] = Field(..., min_length=1)
-    anchor_suffix: str = Field("_anchors")
-
-
-class CrossAnchorAttentionConfig(MultiBranchAnchorAttentionConfig):
-    """Configuration for Cross Anchor Attention module."""
-
-
-class JointAnchorAttentionConfig(MultiBranchAnchorAttentionConfig):
-    """Configuration for Joint Anchor Attention module."""
-
-
 class TokenSpec(BaseModel):
     """Specification for a token type in the attention mechanism.
 
@@ -177,8 +104,76 @@ class AttentionPattern(BaseModel):
     key_value_tokens: Sequence[str]  # The tokens that are attended to by the query tokens, e.g. ["anchors"]
 
 
-class MixedAttentionConfig(DotProductAttentionConfig):
-    """Configuration for Mixed Attention module."""
-
-
 # =====================================================================================================================
+# Lazy back-compat re-exports for configs that have moved next to their matching classes.
+# Lazy loading is required to avoid circular imports: the new homes import ``AttentionConfig``
+# from this module, so eager re-imports would cycle when this module is loaded as part of
+# loading those classes.
+# ---------------------------------------------------------------------------------------------------------------------
+import importlib  # noqa: E402
+import warnings  # noqa: E402
+
+_LAZY_EXPORTS: dict[str, tuple[str, str]] = {
+    "DotProductAttentionConfig": ("noether.modeling.modules.attention.dot_product", "DotProductAttentionConfig"),
+    "PerceiverAttentionConfig": ("noether.modeling.modules.attention.perceiver", "PerceiverAttentionConfig"),
+    "TransolverAttentionConfig": ("noether.modeling.modules.attention.transolver", "TransolverAttentionConfig"),
+    "TransolverPlusPlusAttentionConfig": (
+        "noether.modeling.modules.attention.transolver_plusplus",
+        "TransolverPlusPlusAttentionConfig",
+    ),
+    "MixedAttentionConfig": ("noether.modeling.modules.attention.anchor_attention.mixed", "MixedAttentionConfig"),
+    "MultiBranchAnchorAttentionConfig": (
+        "noether.modeling.modules.attention.anchor_attention.multi_branch",
+        "MultiBranchAnchorAttentionConfig",
+    ),
+    "CrossAnchorAttentionConfig": (
+        "noether.modeling.modules.attention.anchor_attention.cross",
+        "CrossAnchorAttentionConfig",
+    ),
+    "JointAnchorAttentionConfig": (
+        "noether.modeling.modules.attention.anchor_attention.joint",
+        "JointAnchorAttentionConfig",
+    ),
+}
+
+__all__ = [
+    "AttentionConfig",
+    "AttentionPattern",
+    "CrossAnchorAttentionConfig",
+    "DotProductAttentionConfig",
+    "JointAnchorAttentionConfig",
+    "MixedAttentionConfig",
+    "MultiBranchAnchorAttentionConfig",
+    "PerceiverAttentionConfig",
+    "TokenSpec",
+    "TransolverAttentionConfig",
+    "TransolverPlusPlusAttentionConfig",
+]
+
+
+def __getattr__(name: str) -> Any:
+    try:
+        module_path, attr = _LAZY_EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), attr)
+
+
+def __dir__() -> list[str]:
+    return sorted(set(__all__) | set(globals()))
+
+
+if TYPE_CHECKING:  # static type checkers — keep in sync with _LAZY_EXPORTS
+    from noether.modeling.modules.attention.anchor_attention.cross import CrossAnchorAttentionConfig
+    from noether.modeling.modules.attention.anchor_attention.joint import JointAnchorAttentionConfig
+    from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttentionConfig
+    from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttentionConfig
+    from noether.modeling.modules.attention.dot_product import DotProductAttentionConfig
+    from noether.modeling.modules.attention.perceiver import PerceiverAttentionConfig
+    from noether.modeling.modules.attention.transolver import TransolverAttentionConfig
+    from noether.modeling.modules.attention.transolver_plusplus import TransolverPlusPlusAttentionConfig

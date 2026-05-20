@@ -26,9 +26,9 @@ from noether.core.distributed import (
     run_unmanaged,
 )
 from noether.core.factory import DatasetFactory, Factory, class_constructor_from_class_path
+from noether.core.initializers import PreviousRunInitializerConfig, ResumeInitializerConfig
 from noether.core.models import ModelBase
 from noether.core.providers import MetricPropertyProvider, PathProvider
-from noether.core.schemas.initializers import PreviousRunInitializerConfig, ResumeInitializerConfig
 from noether.core.schemas.schema import ConfigSchema
 from noether.core.trackers import NoopTracker
 from noether.core.trackers.base import BaseTracker
@@ -193,6 +193,7 @@ class HydraRunner:
             run_id=run_id,
             stage_name=config.stage_name,
             debug=config.debug,
+            force_overwrite=config.overwrite_output,
         )
 
         resume_run_id: str | None = config.resume_run_id

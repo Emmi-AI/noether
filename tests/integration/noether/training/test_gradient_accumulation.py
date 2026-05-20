@@ -9,17 +9,16 @@ import torch
 import torch.nn as nn
 
 from noether.core.models import Model
+from noether.core.models.base import ModelBaseConfig
+from noether.core.optimizer.schemas import SGDOptimizerConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas.dataset import DatasetBaseConfig
-from noether.core.schemas.models import ModelBaseConfig
-from noether.core.schemas.optimizers import SGDOptimizerConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.core.trackers import BaseTracker
 from noether.data import Dataset
+from noether.data.base.dataset import DatasetBaseConfig
 from noether.data.container import DataContainer
 from noether.data.pipeline import MultiStagePipeline
 from noether.data.pipeline.collators import DefaultCollator
-from noether.training.trainers.base import BaseTrainer
+from noether.training.trainers.base import BaseTrainer, BaseTrainerConfig
 from noether.training.trainers.types import LossResult
 
 

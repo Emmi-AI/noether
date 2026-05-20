@@ -1,10 +1,22 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import numpy as np
+from pydantic import Field
 
-from noether.core.schemas.dataset import ShuffleWrapperConfig
-from noether.data.base import Dataset, DatasetWrapper, Subset
+from noether.data.base.subset import Subset
+from noether.data.base.wrapper import DatasetWrapper, DatasetWrapperConfig
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
+
+
+class ShuffleWrapperConfig(DatasetWrapperConfig):
+    seed: int | None = Field(None, ge=0)
+    """Random seed for shuffling. If None, a random seed is used."""
 
 
 class ShuffleWrapper(Subset):
@@ -29,6 +41,8 @@ class ShuffleWrapper(Subset):
         Raises:
             ValueError: If the dataset is not an instance of noether.data.Dataset or DatasetWrapper, or if the seed is not an integer or None.
         """
+        from noether.data.base.dataset import Dataset
+
         if not isinstance(dataset, (Dataset, DatasetWrapper)):
             raise ValueError("The dataset must be an instance of noether.data.Dataset or noether.data.DatasetWrapper.")
         self.seed = config.seed

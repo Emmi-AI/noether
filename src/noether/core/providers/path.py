@@ -21,11 +21,24 @@ class PathProvider:
         debug: If `True`, outputs are stored in a "debug" subfolder.
     """
 
-    def __init__(self, output_root_path: Path, run_id: str, stage_name: str | None = None, debug: bool = False):
+    def __init__(
+        self,
+        output_root_path: Path,
+        run_id: str,
+        stage_name: str | None = None,
+        debug: bool = False,
+        force_overwrite: bool = False,
+    ):
         self.output_root = output_root_path
         self.stage_name = stage_name
         self.run_id = run_id
         self.debug = debug
+        self.force_overwrite = force_overwrite
+
+        if not self.force_overwrite and self.run_path().exists():
+            raise FileExistsError(
+                f"Output directory for run_id='{self.run_id}' and stage_name='{self.stage_name}' already exists at {self.run_path()}. Change the stage_name or use force_overwrite=True to overwrite."
+            )
 
     @staticmethod
     def _mkdir(path: Path) -> Path:
@@ -37,7 +50,19 @@ class PathProvider:
             output_root_path=self.output_root,
             run_id=run_id if run_id is not None else self.run_id,
             stage_name=stage_name,
+            force_overwrite=True,
         )
+
+    def run_path(self) -> Path:
+        if self.debug:
+            stage_output_path = self.output_root / "debug" / self.run_id
+        else:
+            stage_output_path = self.output_root / self.run_id
+
+        if self.stage_name is not None:
+            return stage_output_path / self.stage_name
+
+        return stage_output_path
 
     @property
     def run_output_path(self) -> Path:
@@ -46,15 +71,8 @@ class PathProvider:
         Returns:
             The output path for the current run.
         """
-        if self.debug:
-            stage_output_path = self.output_root / "debug" / self.run_id
-        else:
-            stage_output_path = self.output_root / self.run_id
 
-        if self.stage_name is not None:
-            stage_output_path = stage_output_path / self.stage_name
-
-        return PathProvider._mkdir(stage_output_path)
+        return PathProvider._mkdir(self.run_path())
 
     @property
     def logfile_uri(self) -> Path:

@@ -3,7 +3,7 @@
 from .dataset_stats import DatasetStatsCallback
 from .eta import EtaCallback
 from .lr import LrCallback
-from .online_loss import OnlineLossCallback
+from .online_loss import OnlineLossCallback, OnlineLossCallbackConfig
 from .param_count import ParamCountCallback
 from .peak_memory import PeakMemoryCallback
 from .progress import ProgressCallback
@@ -14,6 +14,7 @@ __all__ = [
     "EtaCallback",
     "LrCallback",
     "OnlineLossCallback",
+    "OnlineLossCallbackConfig",
     "ParamCountCallback",
     "PeakMemoryCallback",
     "ProgressCallback",

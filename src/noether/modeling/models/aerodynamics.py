@@ -5,25 +5,17 @@ from __future__ import annotations
 import torch
 import torch.nn as nn
 
-from noether.core.models import Model
-from noether.core.schemas.dataset import ModelDataSpecs
-from noether.core.schemas.models import (
-    AnchorBranchedUPTConfig,
-    TransformerConfig,
-    TransolverConfig,
-    UPTConfig,
-)
-from noether.core.schemas.modules.layers import (
-    ContinuousSincosEmbeddingConfig,
-    LinearProjectionConfig,
-    RopeFrequencyConfig,
-)
-from noether.core.schemas.modules.mlp import MLPConfig
-from noether.modeling.models.ab_upt import AnchoredBranchedUPT
-from noether.modeling.models.transformer import Transformer
-from noether.modeling.models.upt import UPT
+from noether.core.models.model import Model
+from noether.data.schemas import ModelDataSpecs
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig, AnchoredBranchedUPT
+from noether.modeling.models.transformer import Transformer, TransformerConfig
+from noether.modeling.models.transolver import TransolverConfig
+from noether.modeling.models.upt import UPT, UPTConfig
 from noether.modeling.modules.layers import ContinuousSincosEmbed, LinearProjection, RopeFrequency
-from noether.modeling.modules.mlp import MLP
+from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
+from noether.modeling.modules.mlp import MLP, MLPConfig
 
 
 class AeroTransformerConfig(TransformerConfig):

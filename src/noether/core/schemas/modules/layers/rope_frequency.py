@@ -1,21 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``RopeFrequencyConfig``.
 
-from typing import Literal
+The canonical home is :mod:`noether.modeling.modules.layers.rope_frequency`.
+"""
 
-from pydantic import BaseModel, Field
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
+
+__all__ = ["RopeFrequencyConfig"]
+
+_LAZY: dict[str, str] = {"RopeFrequencyConfig": "noether.modeling.modules.layers.rope_frequency"}
 
 
-class RopeFrequencyConfig(BaseModel):
-    """Configuration for RoPE frequency settings."""
-
-    hidden_dim: int = Field(...)
-    """Dimensionality of frequencies (in transformers this should be the head dimension)."""
-    input_dim: int = Field(...)
-    """Dimensionality of the coordinates (e.g., 2 for 2D coordinates, 3 for 3D coordinates)."""
-    max_wavelength: int = Field(10000)
-    """ Theta parameter for the transformer sine/cosine embedding. Default: 10000.0"""
-    implementation: Literal["real", "complex"] = Field("real")
-    """
-    "real" -> basic implementation using real coordinates (this is slow and only here for backward compatibility).
-    "complex" -> fast implementation of rotation via complex multiplication. Default: "real".
-    """
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

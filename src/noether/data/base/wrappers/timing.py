@@ -1,9 +1,14 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from noether.core.utils.common.stopwatch import Stopwatch
-from noether.data.base import Dataset, DatasetWrapper
+from noether.data.base.wrapper import DatasetWrapper
+
+if TYPE_CHECKING:
+    from noether.data.base.dataset import Dataset
 
 META_GETITEM_TIME = "__meta_time_getitem"
 

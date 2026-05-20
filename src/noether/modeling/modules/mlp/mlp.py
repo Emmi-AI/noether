@@ -1,11 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
 import torch
 import torch.nn as nn
+from pydantic import BaseModel, Field
 
-from noether.core.schemas.modules.mlp import MLPConfig
+from noether.core.types import InitWeightsMode
 from noether.modeling.functional.init import init_trunc_normal_zero_bias
 from noether.modeling.modules.activations import Activation
+
+
+class MLPConfig(BaseModel):
+    input_dim: int = Field(..., ge=1)
+    """Input dimension of the MLP."""
+    output_dim: int = Field(..., ge=1)
+    """Output dimension of the MLP."""
+    hidden_dim: int = Field(..., ge=1)
+    """Hidden dimension for each layer."""
+    num_layers: int = Field(0, ge=0)
+    """Number of hidden layers in the MLP. If 0, the MLP is a two linear layer MLP from input_dim, hidden_dim, activation to output_dim."""
+    activation: Literal["RELU", "GELU", "SIGMOID", "TANH", "LEAKY_RELU", "SOFTPLUS", "ELU", "SILU"] = "GELU"
+    """Activation function to use between layers."""
+    init_weights: InitWeightsMode = "truncnormal002"
+    """Weight initialization method."""
+    bias: bool = Field(True)
+    """Whether to use bias in the linear layers."""
 
 
 class MLP(nn.Module):

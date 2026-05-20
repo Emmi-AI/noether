@@ -1,49 +1,41 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-exports for tracker schemas.
 
-from typing import ClassVar, Literal
+The canonical home is :mod:`noether.core.trackers`.
+"""
 
-from pydantic import BaseModel, Field
+from __future__ import annotations
 
-from noether.core.schemas.lib import _RegistryBase
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
 
+if TYPE_CHECKING:
+    from noether.core.trackers import (
+        AnyTracker,
+        TensorboardTrackerSchema,
+        TrackioTrackerSchema,
+        WandBTrackerSchema,
+    )
 
-class BaseTrackerConfig(_RegistryBase):
-    """Base configuration for experiment trackers. All tracker configs should inherit from this class."""
+__all__ = [
+    "AnyTracker",
+    "TensorboardTrackerSchema",
+    "TrackioTrackerSchema",
+    "WandBTrackerSchema",
+]
 
-    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
-    _type_field: ClassVar[str] = "kind"
-    kind: str | None = None
-
-
-class WandBTrackerSchema(BaseTrackerConfig):
-    entity: str | None = Field(None)
-    """The entity name for the W&B project."""
-    project: str | None = Field(None)
-    """The project name for the W&B project."""
-    mode: Literal["disabled", "online", "offline"] | None = Field(default="online")
-    """Tracking mode. Can be 'disabled', 'online', or 'offline'."""
-    tags: list[str] | None = Field(None)
-    """Optional tags for the W&B run."""
-
-
-class TrackioTrackerSchema(BaseTrackerConfig):
-    """Schema for TrackioTracker configuration."""
-
-    project: str
-    """The project name for the Trackio project."""
-
-    space_id: str | None = Field(None)
-    """The HuggingFace space ID where to store the Trackio data."""
+_LAZY: dict[str, str] = dict.fromkeys(__all__, "noether.core.trackers")
 
 
-class TensorboardTrackerSchema(BaseTrackerConfig):
-    """Schema for TensorboardTracker configuration."""
-
-    log_dir: str = Field(default="runs")
-    """The base directory where TensorBoard event files will be stored."""
-
-    flush_secs: int = Field(default=60)
-    """How often, in seconds, to flush the pending events to disk."""
-
-
-AnyTracker = WandBTrackerSchema | TrackioTrackerSchema | TensorboardTrackerSchema
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

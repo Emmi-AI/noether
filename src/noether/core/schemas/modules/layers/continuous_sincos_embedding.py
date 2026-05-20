@@ -1,37 +1,33 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``ContinuousSincosEmbeddingConfig``.
 
-from typing import Literal, Self
+The canonical home is :mod:`noether.modeling.modules.layers.continuous_sincos_embed`.
+"""
 
-from pydantic import BaseModel, Field, model_validator
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbeddingConfig
+
+__all__ = ["ContinuousSincosEmbeddingConfig"]
+
+_LAZY: dict[str, str] = {
+    "ContinuousSincosEmbeddingConfig": "noether.modeling.modules.layers.continuous_sincos_embed",
+}
 
 
-class ContinuousSincosEmbeddingConfig(BaseModel):
-    """Configuration for Continuous Sine-Cosine Embedding layer."""
-
-    hidden_dim: int = Field(...)
-    """Dimensionality of the output embedding."""
-    input_dim: int = Field(...)
-    """Dimensionality of the input coordinates."""
-    mode: Literal["wavelength", "nerf"] = Field("wavelength")
-    """Frequency schedule.
-
-    - ``"wavelength"`` (default): transformer-style geometric wavelengths from ``1`` to
-      ``max_wavelength``. Suitable for integer / unnormalized coordinates.
-    - ``"nerf"``: NeRF-style log-spaced frequencies from ``π`` to ``π * max_frequency``.
-      Suitable for coordinates normalized to ``[-1, 1]``. The ``L`` available bands
-      are distributed evenly in log-frequency across this range.
-    """
-    max_wavelength: int = Field(10000)
-    """Maximum wavelength. Only used when ``mode == "wavelength"``."""
-    max_frequency: float | None = Field(None)
-    """Highest frequency band for NeRF mode, in units of ``π``. The ``L`` frequencies
-    are log-spaced between ``π`` (wavelength 2, spans the ``[-1, 1]`` domain) and
-    ``π * max_frequency`` (wavelength ``2 / max_frequency``). Required when
-    ``mode == "nerf"``; pick based on the smallest spatial scale you need to resolve
-    in normalized coordinates (rough heuristic: ``1 / typical_point_spacing``)."""
-
-    @model_validator(mode="after")
-    def _check_mode_specific_fields(self) -> Self:
-        if self.mode == "nerf" and self.max_frequency is None:
-            raise ValueError("max_frequency is required when mode == 'nerf'")
-        return self
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

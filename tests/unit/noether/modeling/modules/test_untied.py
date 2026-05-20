@@ -13,20 +13,18 @@ import torch
 from pydantic import ValidationError
 
 from noether.core.schemas.modules.attention import AttentionPattern, TokenSpec
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.core.schemas.modules.layers import LinearProjectionConfig
-from noether.core.schemas.modules.mlp import MLPConfig
-from noether.core.schemas.modules.untied import (
-    UntiedLinearConfig,
-    UntiedMixedAttentionConfig,
-    UntiedMLPConfig,
-    UntiedTransformerBlockConfig,
-)
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+from noether.modeling.modules.mlp.mlp import MLPConfig
 from noether.modeling.modules.untied import (
     UntiedLinear,
+    UntiedLinearConfig,
     UntiedMixedAttention,
+    UntiedMixedAttentionConfig,
     UntiedMLP,
+    UntiedMLPConfig,
     UntiedTransformerBlock,
+    UntiedTransformerBlockConfig,
     _domain_group_sizes,
 )
 

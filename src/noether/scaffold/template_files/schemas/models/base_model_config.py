@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas import ModelBaseConfig
+from noether.core.models.base import ModelBaseConfig
 
 
 class BaseModelConfig(ModelBaseConfig):

@@ -1,7 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from noether.core.schedules import ConstantScheduleConfig
 from noether.core.schedules.constant import ConstantSchedule
-from noether.core.schemas.schedules import ConstantScheduleConfig
 
 
 def test_constant_schedule_initialization():

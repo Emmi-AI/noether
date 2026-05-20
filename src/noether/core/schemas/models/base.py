@@ -1,36 +1,31 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+#  Copyright © 2026 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``ModelBaseConfig``.
+
+The canonical home is :mod:`noether.core.models.base`.
+"""
+
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.core.models.base import ModelBaseConfig
+
+__all__ = ["ModelBaseConfig"]
+
+_LAZY: dict[str, str] = {"ModelBaseConfig": "noether.core.models.base"}
 
 
-from typing import Annotated, ClassVar
-
-from pydantic import Field
-
-from noether.core.schemas.initializers import AnyInitializer
-from noether.core.schemas.lib import _RegistryBase
-from noether.core.schemas.optimizers import AnyOptimizerConfig
-
-
-class ModelBaseConfig(_RegistryBase):
-    _registry: ClassVar[dict[str, type]] = {}
-    _type_field: ClassVar[str] = "kind"
-
-    kind: str | None = None
-    """Kind of model to use, i.e. class path"""
-    name: str
-    """Name of the model. Needs to be unique"""
-    optimizer_config: AnyOptimizerConfig | None = Field(None, discriminator="kind")
-    """The optimizer configuration to use for training the model. When a model is used for inference only, this can be left as None."""
-    initializers: list[Annotated[AnyInitializer, Field(discriminator="kind")]] | None = None
-    """List of initializers configs to use for the model."""
-    is_frozen: bool | None = False
-    """Whether to freeze the model parameters (i.e., not trainable)."""
-    forward_properties: list[str] | None = []
-    """List of properties to be used as inputs for the forward pass of the model. Only relevant when the train_step of the BaseTrainer is used. When overridden in a class method, this property is ignored."""
-
-    model_config = {"extra": "forbid"}
-
-    @property
-    def config_kind(self) -> str:
-        """The fully qualified import path for the configuration class."""
-        # Use __qualname__ to correctly handle nested classes
-        return f"{self.__class__.__module__}.{self.__class__.__qualname__}"
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

@@ -3,13 +3,49 @@
 from typing import Any
 
 import torch
+from pydantic import Field, computed_field, model_validator
 from torch import Tensor, nn
 
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
-from noether.modeling.modules.attention import PerceiverAttention
-from noether.modeling.modules.layers import LayerScale, LinearProjection, UnquantizedDropPath
+from noether.modeling.modules.attention import PerceiverAttention, PerceiverAttentionConfig
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+from noether.modeling.modules.layers import LayerScale, LinearProjection, LinearProjectionConfig, UnquantizedDropPath
 from noether.modeling.modules.mlp import UpActDownMlp
+
+
+class PerceiverBlockConfig(TransformerBlockConfig):
+    """Configuration for the PerceiverBlock module."""
+
+    kv_dim: int | None = Field(None)
+    """Dimensionality of the key and value representations. Defaults to None. If None, hidden_dim is used."""
+
+    @model_validator(mode="after")
+    def set_kv_dim(self) -> "PerceiverBlockConfig":
+        """Set kv_dim to hidden_dim if not provided."""
+        if self.kv_dim is None:
+            self.kv_dim = self.hidden_dim
+        return self
+
+    @computed_field
+    def perceiver_attention_config(self) -> "PerceiverAttentionConfig":
+        return PerceiverAttentionConfig(
+            hidden_dim=self.hidden_dim,
+            num_heads=self.num_heads,
+            kv_dim=self.kv_dim,
+            bias=self.bias,
+            init_weights=self.init_weights,
+            use_rope=self.use_rope,
+        )
+
+    @computed_field
+    def modulation_linear_projection_config(self) -> LinearProjectionConfig | None:
+        if self.condition_dim is not None:
+            return LinearProjectionConfig(
+                input_dim=self.condition_dim,
+                output_dim=self.hidden_dim * 6 + (self.kv_dim or self.hidden_dim) * 2,
+                init_weights="zeros",
+            )
+        return None
 
 
 class PerceiverBlock(nn.Module):

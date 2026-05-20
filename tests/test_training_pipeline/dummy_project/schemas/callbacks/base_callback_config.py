@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from noether.core.schemas.callbacks import CallBackBaseConfig
+from noether.core.callbacks.base import CallBackBaseConfig
 
 
 class BoilerplateCallbackConfig(CallBackBaseConfig):

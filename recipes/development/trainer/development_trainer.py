@@ -2,8 +2,8 @@
 
 import torch.nn.functional as F
 
-from noether.core.schemas.trainers import BaseTrainerConfig
 from noether.training.trainers import BaseTrainer
+from noether.training.trainers.base import BaseTrainerConfig
 
 
 class DevelopmentTrainerConfig(BaseTrainerConfig):

@@ -5,12 +5,11 @@ from pathlib import Path
 
 import torch
 
-from noether.core.schemas.dataset import DatasetSplitIDs, StandardDatasetConfig
-from noether.core.schemas.filemap import FileMap
 from noether.core.utils.common import validate_path
-from noether.data.base.dataset import with_normalizers
+from noether.data.base.dataset import DatasetSplitIDs, StandardDatasetConfig, with_normalizers
 from noether.data.datasets.cfd.dataset import AeroDataset
 from noether.data.datasets.cfd.emmi_wing.split import WingParametricSplitIDs
+from noether.data.schemas import FileMap
 
 logger = logging.getLogger(__name__)
 

@@ -1,38 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``FileMap``.
 
-from pydantic import BaseModel
+The canonical home is :mod:`noether.data.schemas`.
+"""
+
+from __future__ import annotations
+
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.data.schemas import FileMap
+
+__all__ = ["FileMap"]
+
+_LAZY: dict[str, str] = {"FileMap": "noether.data.schemas"}
 
 
-class FileMap(BaseModel):
-    """File mapping schema for aerodynamic datasets.
-
-    Maps field names to their corresponding file names in the dataset directory.
-    This allows different datasets to use different file naming conventions while maintaining a unified interface.
-    """
-
-    # Surface field files
-    surface_position: str | None = None
-    surface_pressure: str | None = None
-    surface_friction: str | None = None
-    surface_normals: str | None = None
-    surface_area: str | None = None
-
-    # Volume field files
-    volume_position: str | None = None
-    volume_pressure: str | None = None
-    volume_velocity: str | None = None
-    volume_vorticity: str | None = None
-    volume_normals: str | None = None
-
-    # Optional additional surface position files (dataset-specific)
-    surface_position_stl: str | None = None
-    surface_position_stl_resampled: str | None = None
-
-    # Optional volume friction
-    volume_friction: str | None = None
-
-    # Optional volume distance field
-    volume_distance_to_surface: str | None = None
-
-    # Optional design parameters file
-    design_parameters: str | None = None
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

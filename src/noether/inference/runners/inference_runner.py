@@ -2,7 +2,7 @@
 
 import logging
 
-from noether.core.schemas.initializers import PreviousRunInitializerConfig
+from noether.core.initializers import PreviousRunInitializerConfig
 from noether.core.schemas.schema import ConfigSchema
 from noether.training.runners.hydra_runner import HydraRunner
 

@@ -1,8 +1,20 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
+from pydantic import Field
+
 from noether.core.schedules.base import DecreasingProgressSchedule, IncreasingProgressSchedule
 from noether.core.schedules.functional import polynomial
-from noether.core.schemas.schedules import PolynomialDecreasingScheduleConfig, PolynomialIncreasingScheduleConfig
+from noether.core.schedules.schemas import DecreasingProgressScheduleConfig, IncreasingProgressScheduleConfig
+
+
+class PolynomialDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.PolynomialDecreasingSchedule"] = (
+        "noether.core.schedules.PolynomialDecreasingSchedule"  # type: ignore[assignment]
+    )
+    power: float = Field(1.0)
+    """The power of the polynomial function."""
 
 
 class PolynomialDecreasingSchedule(DecreasingProgressSchedule):
@@ -29,6 +41,14 @@ class PolynomialDecreasingSchedule(DecreasingProgressSchedule):
 
     def _get_progress(self, step: int, total_steps: int) -> float:
         return polynomial(step, total_steps, power=self.power)
+
+
+class PolynomialIncreasingScheduleConfig(IncreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.PolynomialIncreasingSchedule"] = (
+        "noether.core.schedules.PolynomialIncreasingSchedule"  # type: ignore[assignment]
+    )
+    power: float = Field(1.0)
+    """The power of the polynomial function."""
 
 
 class PolynomialIncreasingSchedule(IncreasingProgressSchedule):

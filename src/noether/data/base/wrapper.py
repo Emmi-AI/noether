@@ -4,8 +4,14 @@ from __future__ import annotations
 from functools import partial
 from typing import TYPE_CHECKING, Any
 
+from pydantic import BaseModel
+
 if TYPE_CHECKING:
     from noether.data.base.dataset import Dataset
+
+
+class DatasetWrapperConfig(BaseModel):
+    kind: str
 
 
 class DatasetWrapper:

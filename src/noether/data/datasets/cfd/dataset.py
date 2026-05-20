@@ -2,8 +2,8 @@
 
 import torch
 
-from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.data import Dataset, with_normalizers
+from noether.data.base.dataset import DatasetBaseConfig
 from noether.data.datasets.cfd.caeml.filemap import FileMap
 
 

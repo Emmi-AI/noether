@@ -1,11 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
+from pydantic import Field, field_validator, model_validator
+
 from noether.core.schedules.base import DecreasingProgressSchedule, ScheduleBase
-from noether.core.schemas.schedules import (
-    StepDecreasingScheduleConfig,
-    StepFixedScheduleConfig,
-    StepIntervalScheduleConfig,
+from noether.core.schedules.schemas import (
+    DecreasingProgressScheduleConfig,
+    ScheduleBaseConfig,
 )
+
+
+class StepDecreasingScheduleConfig(DecreasingProgressScheduleConfig):
+    kind: Literal["noether.core.schedules.StepDecreasingSchedule"] = "noether.core.schedules.StepDecreasingSchedule"  # type: ignore[assignment]
+    factor: float = Field(..., ge=0.0)
+    """The factor by which the value decreases."""
+    decreases_interval: float = Field(..., gt=0.0, lt=1.0)
+    """The interval in range [0, 1] at which the value decreases."""
+
+    @model_validator(mode="after")
+    def check_interval(self) -> "StepDecreasingScheduleConfig":
+        """
+        Ensures that 'interval' is a float in the range (0, 1).
+        """
+        if not (isinstance(self.decreases_interval, int | float) and 0.0 < self.decreases_interval < 1.0):
+            raise ValueError("interval must be a float in the range (0, 1)")
+        return self
 
 
 class StepDecreasingSchedule(DecreasingProgressSchedule):
@@ -40,6 +60,27 @@ class StepDecreasingSchedule(DecreasingProgressSchedule):
         # round to 10th decimal place to avoid floating point precision errors
         step_idx = int(round(progress / self.decreases_interval, 10))
         return 1 - self.factor**step_idx
+
+
+class StepFixedScheduleConfig(ScheduleBaseConfig):
+    kind: Literal["noether.core.schedules.StepFixedSchedule"] = "noether.core.schedules.StepFixedSchedule"
+    start_value: float = Field(1.0)
+    """The initial value of the scheduler."""
+    factor: float = Field(..., ge=0.0)
+    """The factor by which the value is multiplied after reaching the next step provided in steps."""
+    steps: list[float] = Field(...)
+    """The steps at which the value changes, must be a list of floats in the range (0, 1)."""
+
+    @model_validator(mode="after")
+    def validate_steps(self) -> "StepFixedScheduleConfig":
+        """
+        Ensures that 'steps' is a non-empty list of floats in the range (0, 1).
+        """
+        if not (isinstance(self.steps, list) and len(self.steps) > 0):
+            raise ValueError("steps must be a non-empty list")
+        if not all(isinstance(step, int | float) and 0.0 < step < 1.0 for step in self.steps):
+            raise ValueError("all steps must be floats in the range (0, 1)")
+        return self
 
 
 class StepFixedSchedule(ScheduleBase):
@@ -84,6 +125,25 @@ class StepFixedSchedule(ScheduleBase):
         else:
             step_idx = len(self.steps)
         return self.start_value * self.factor**step_idx
+
+
+class StepIntervalScheduleConfig(ScheduleBaseConfig):
+    kind: Literal["noether.core.schedules.StepIntervalSchedule"] = "noether.core.schedules.StepIntervalSchedule"
+    start_value: float = Field(1.0)
+    """The initial value of the scheduler. I.e, the learning rate at step 0."""
+    factor: float = Field(..., ge=0.0)
+    """The factor by which the value is multiplied after reaching the next interval."""
+    update_interval: float = Field(..., gt=0.0, lt=1.0)
+    """The interval in range (0, 1) at which the value changes."""
+
+    @field_validator("update_interval")
+    def check_update_interval(cls, v: float) -> float:
+        """
+        Ensures that 'update_interval' is a float in the range (0, 1).
+        """
+        if not (isinstance(v, int | float) and 0.0 < v < 1.0):
+            raise ValueError("update_interval must be a float in the range (0, 1)")
+        return v
 
 
 class StepIntervalSchedule(ScheduleBase):

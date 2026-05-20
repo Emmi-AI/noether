@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.layers import UnquantizedDropPathConfig
-from noether.modeling.modules.layers.drop_path import UnquantizedDropPath
+from noether.modeling.modules.layers.drop_path import UnquantizedDropPath, UnquantizedDropPathConfig
 
 
 @pytest.mark.parametrize(

@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from noether.core.schemas.initializers import PreviousRunInitializerConfig
+from noether.core.initializers import PreviousRunInitializerConfig
 from noether.inference.runners.inference_runner import InferenceRunner
 
 _MODULE_PATH = "noether.inference.runners.inference_runner.InferenceRunner"

@@ -1,16 +1,30 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``ScalarsConditionerConfig``.
 
-from pydantic import BaseModel, Field
+The config has moved next to its matching class in
+:mod:`noether.modeling.modules.layers.scalar_conditioner`.
+"""
 
-from noether.core.types import InitWeightsMode
+from __future__ import annotations
+
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.scalar_conditioner import ScalarsConditionerConfig
+
+__all__ = ["ScalarsConditionerConfig"]
 
 
-class ScalarsConditionerConfig(BaseModel):
-    hidden_dim: int = Field(ge=1)
-    """Dimension for embedding the scalars and the per-scalar MLP."""
-    num_scalars: int = Field(ge=1)
-    """How many scalars are embedded."""
-    condition_dim: int | None = Field(None, ge=1)
-    """Dimension of the final conditioning vector. Defaults to 4 * dim if condition_dim is None."""
-    init_weights: InitWeightsMode = "truncnormal002"
-    """Weight initialization for MLPs."""
+def __getattr__(name: str) -> Any:
+    if name == "ScalarsConditionerConfig":
+        warnings.warn(
+            "Importing from `noether.core.schemas.modules.layers.scalar_conditioner` is deprecated; "
+            "import from `noether.modeling.modules.layers.scalar_conditioner` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        from noether.modeling.modules.layers.scalar_conditioner import ScalarsConditionerConfig
+
+        return ScalarsConditionerConfig
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

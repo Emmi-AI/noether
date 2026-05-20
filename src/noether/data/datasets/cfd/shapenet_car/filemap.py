@@ -1,6 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.filemap import FileMap
+from noether.data.schemas import FileMap
 
 SURFACE_POINTS_FILE = "surface_points.pt"
 SURFACE_PRESSURE_FILE = "surface_pressure.pt"

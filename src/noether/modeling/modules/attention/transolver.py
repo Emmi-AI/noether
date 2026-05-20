@@ -4,9 +4,17 @@ import einops
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from pydantic import Field
 
-from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverAttentionConfig
-from noether.modeling.modules.layers import LinearProjection
+from noether.core.schemas.modules.attention import AttentionConfig
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
+
+
+class TransolverAttentionConfig(AttentionConfig):
+    """Configuration for the Transolver attention module."""
+
+    num_slices: int = Field(512)
+    """Number of slices to project the input tokens to."""
 
 
 class TransolverAttention(nn.Module):

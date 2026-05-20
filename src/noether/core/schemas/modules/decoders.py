@@ -1,21 +1,33 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-exports for decoder configs.
 
-from typing import Annotated
+The canonical home is :mod:`noether.modeling.modules.decoders`.
+"""
 
-from pydantic import BaseModel, Field
+from __future__ import annotations
 
-from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.decoders import DeepPerceiverDecoderConfig
+
+__all__ = ["DeepPerceiverDecoderConfig"]
+
+_LAZY: dict[str, str] = {
+    "DeepPerceiverDecoderConfig": "noether.modeling.modules.decoders.deep_perceiver",
+}
 
 
-class DeepPerceiverDecoderConfig(InjectSharedFieldFromParentMixin, BaseModel):
-    """Configuration for the DeepPerceiverDecoder module."""
-
-    perceiver_block_config: Annotated[PerceiverBlockConfig, Shared] = Field(...)
-    """Configuration for the Perceiver blocks used in the decoder."""
-
-    depth: int = Field(1, ge=1)
-    """Number of deep perceiver decoder layers (i.e., depth of the network). Defaults to 1."""
-
-    input_dim: int = Field(..., ge=1)
-    """Input dimension for the query positions."""
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

@@ -5,12 +5,10 @@ from collections import Counter
 import pytest
 
 from noether.core.factory.dataset import DatasetFactory
-from noether.core.schemas.dataset import (
-    RepeatWrapperConfig,
-    ShuffleWrapperConfig,
-    SubsetWrapperConfig,
-)
 from noether.data.base.wrapper import DatasetWrapper
+from noether.data.base.wrappers.repeat import RepeatWrapperConfig
+from noether.data.base.wrappers.shuffle import ShuffleWrapperConfig
+from noether.data.base.wrappers.subset import SubsetWrapperConfig
 from tests.test_training_pipeline.dummy_project.schemas.datasets.base_dataset_config import (
     BaseDatasetConfig,
 )

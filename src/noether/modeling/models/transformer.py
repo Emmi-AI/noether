@@ -1,11 +1,30 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 
+from typing import Annotated
+
 import torch
 import torch.nn as nn
+from pydantic import ConfigDict, Field
 
-from noether.core.schemas.models import TransformerConfig
+from noether.core.models.base import ModelBaseConfig
+from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
 from noether.modeling.modules.blocks import TransformerBlock
+from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
+
+
+class TransformerConfig(ModelBaseConfig, InjectSharedFieldFromParentMixin):
+    """Configuration for a Transformer model."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hidden_dim: int = Field(..., ge=1)
+    """Hidden dimension of the model. Used for all transformer blocks."""
+
+    depth: int = Field(..., ge=1)
+    """Number of transformer blocks in the model."""
+
+    transformer_block_config: Annotated[TransformerBlockConfig, Shared]
 
 
 class Transformer(nn.Module):

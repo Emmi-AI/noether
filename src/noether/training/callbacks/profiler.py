@@ -5,11 +5,59 @@ from __future__ import annotations
 from pathlib import Path
 
 import torch
+from pydantic import Field
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed.config import is_rank0
-from noether.core.schemas.callbacks import PyTorchProfilerCallbackConfig
 from noether.core.utils.training.counter import UpdateCounter
+
+
+class PyTorchProfilerCallbackConfig(CallBackBaseConfig):
+    """Configuration for the PyTorch profiler callback.
+
+    The profiler uses ``torch.profiler.profile`` with a scheduled trace. Profiling is driven off of
+    ``track_after_update_step`` hooks, i.e. the profiler is stepped once per optimizer update. The
+    resulting traces are written to ``<run_output_path>/profiler`` and can be opened in
+    TensorBoard or chrome://tracing.
+
+    Recommended usage: limit training with ``trainer.max_updates`` to a value slightly larger than
+    ``wait + warmup + active`` (times ``repeat`` if > 1).
+    """
+
+    kind: str | None = "aero_cfd.callbacks.PyTorchProfilerCallback"
+
+    wait: int = Field(1, ge=0)
+    """Number of steps to idle before warming up."""
+    warmup: int = Field(1, ge=0)
+    """Number of warmup steps (profiler runs but traces are discarded)."""
+    active: int = Field(3, ge=1)
+    """Number of active steps that are recorded in the trace."""
+    repeat: int = Field(1, ge=0)
+    """Number of times the (wait, warmup, active) cycle is repeated. 0 means repeat indefinitely."""
+
+    record_shapes: bool = Field(True)
+    """Whether to record input tensor shapes for each op."""
+    profile_memory: bool = Field(False)
+    """Whether to profile tensor memory usage (can add significant overhead)."""
+    with_stack: bool = Field(False)
+    """Whether to record Python call stacks for each op (can add significant overhead)."""
+    with_flops: bool = Field(False)
+    """Whether to record estimated FLOPs for each op."""
+    with_modules: bool = Field(True)
+    """Whether to record nn.Module hierarchy for each op."""
+
+    profile_cuda: bool = Field(True)
+    """Whether to profile CUDA operations. If False, only CPU operations are profiled."""
+    profile_cpu: bool = Field(True)
+    """Whether to profile CPU operations. If False, only CUDA operations are profiled."""
+
+    trace_subdir: str = Field("profiler")
+    """Subdirectory (relative to ``run_output_path``) where the trace files are written."""
+
+    rank0_only: bool = Field(True)
+    """If True, only rank 0 profiles (noop on other ranks). Avoids noisy/conflicting traces in
+    multi-GPU runs."""
 
 
 class PyTorchProfilerCallback(PeriodicCallback):

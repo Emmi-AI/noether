@@ -6,7 +6,7 @@ from unittest.mock import Mock, PropertyMock, patch
 import pytest
 
 from noether.core.callbacks.checkpoint import CheckpointCallback
-from noether.core.schemas.callbacks import CheckpointCallbackConfig
+from noether.core.callbacks.checkpoint.checkpoint import CheckpointCallbackConfig
 
 
 @pytest.fixture

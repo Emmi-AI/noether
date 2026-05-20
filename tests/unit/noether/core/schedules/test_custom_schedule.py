@@ -4,8 +4,7 @@ import unittest
 
 import numpy as np
 
-from noether.core.schedules import CustomSchedule
-from noether.core.schemas.schedules import CustomScheduleConfig
+from noether.core.schedules import CustomSchedule, CustomScheduleConfig
 
 
 class TestCustomSchedule(unittest.TestCase):

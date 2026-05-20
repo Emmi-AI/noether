@@ -2,9 +2,9 @@
 
 from .activations import Activation
 from .attention import DotProductAttention, PerceiverAttention, TransolverAttention
-from .blocks import PerceiverBlock, TransformerBlock
-from .decoders import DeepPerceiverDecoder
-from .encoders import SupernodePooling
+from .blocks import PerceiverBlock, PerceiverBlockConfig, TransformerBlock, TransformerBlockConfig
+from .decoders import DeepPerceiverDecoder, DeepPerceiverDecoderConfig
+from .encoders import SupernodePooling, SupernodePoolingConfig
 from .layers import ContinuousSincosEmbed, LayerScale, LinearProjection, UnquantizedDropPath
 from .mlp import MLP, UpActDownMlp
 
@@ -15,6 +15,7 @@ __all__ = [
     "TransolverAttention",
     "PerceiverBlock",
     "TransformerBlock",
+    "TransformerBlockConfig",
     "DeepPerceiverDecoder",
     "SupernodePooling",
     "ContinuousSincosEmbed",
@@ -23,4 +24,6 @@ __all__ = [
     "UnquantizedDropPath",
     "UpActDownMlp",
     "MLP",
+    "PerceiverBlockConfig",
+    "SupernodePoolingConfig",
 ]

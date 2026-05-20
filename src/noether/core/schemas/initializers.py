@@ -1,66 +1,43 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-exports for initializer configs.
 
-from pathlib import Path
-from typing import Any, Literal, Union
+The canonical home is :mod:`noether.core.initializers`.
+"""
 
-from pydantic import BaseModel, Field
+from __future__ import annotations
 
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
 
-class InitializerConfig(BaseModel):
-    kind: str = Field(default="noether.core.initializers.PreviousRunInitializer")
-    kwargs: dict[str, Any] | None = None
-    """Additional keyword arguments to pass to the initializer."""
-    run_id: str
-    """A unique identifier for the training stage. This is used to find the correct checkpoint."""
-
-    stage_name: str | None = None
-    """The name of the stage training stage if defined. When training, the stage name is usually "train"."""
-    model_name: str | None = None
-    """The name of the model to load. This is the model_name used in CheckpointCallback."""
-    checkpoint_tag: str | None | dict = None
-    """Which checkpoint to load.
-    Checkpoint is usually "latest" or "best_loss", or "E*_U*_S*", depending on which checkpoint you want to load.
-    """
-    model_info: str | None = None
-    """Optional string to provide additional info about the model weights in the checkpoint filename. E.g., the stored weights are the EMA, or in a different precision."""
-    model_config = {"extra": "forbid"}
-
-
-class CheckpointInitializerConfig(InitializerConfig):
-    kind: Literal["noether.core.initializers.CheckpointInitializer"] = Field(
-        default="noether.core.initializers.CheckpointInitializer", frozen=True
+if TYPE_CHECKING:
+    from noether.core.initializers import (
+        AnyInitializer,
+        CheckpointInitializerConfig,
+        InitializerConfig,
+        PreviousRunInitializerConfig,
+        ResumeInitializerConfig,
     )
-    load_optim: bool = Field(...)
-    """Whether or not to load the optimizer state from the checkpoint. Default is True, as this is usually used to resume a training run"""
-    pop_ckpt_kwargs_keys: list[str] | None = Field(None)
-    """which checkpoint to load. If a string is provided, must be one of ("latest", "best_loss"). If a dictionary is provided, must contain keys "epoch", "update", "sample" to identify the checkpoint."""
-    output_path: Path | None = Field(None)
-    """Output root where the source run (identified by ``run_id``/``stage_name``) lives. When ``None``, the current run's path provider is used to locate it, which assumes the source shares this run's ``output_path``. Set explicitly by ``noether-eval`` so that overriding ``output_path`` for the eval run doesn't redirect source-checkpoint lookup."""
+
+__all__ = [
+    "AnyInitializer",
+    "CheckpointInitializerConfig",
+    "InitializerConfig",
+    "PreviousRunInitializerConfig",
+    "ResumeInitializerConfig",
+]
+
+_LAZY: dict[str, str] = dict.fromkeys(__all__, "noether.core.initializers")
 
 
-class ResumeInitializerConfig(CheckpointInitializerConfig):
-    kind: Literal["noether.core.initializers.ResumeInitializer"] = Field(
-        default="noether.core.initializers.ResumeInitializer", frozen=True
-    )  # type: ignore[assignment]
-    load_optim: bool = Field(True, frozen=True)
-    model_name: str = Field(...)
-
-
-class PreviousRunInitializerConfig(CheckpointInitializerConfig):
-    kind: Literal["noether.core.initializers.PreviousRunInitializer"] = Field(
-        default="noether.core.initializers.PreviousRunInitializer", frozen=True
-    )  # type: ignore[assignment]
-    load_optim: bool = Field(False, frozen=True)
-    keys_to_remove: list[str] | None = Field(
-        None,
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
     )
-    """List of keys to remove from the checkpoint."""
-    patterns_to_remove: list[str] | None = Field(None)
-    """List of patterns to remove from the checkpoint."""
-    patterns_to_rename: list[dict] | None = Field(None)
-    """List of patterns to rename in the checkpoint."""
-    patterns_to_instantiate: list[str] | None = Field(None)
-    """List of patterns to instantiate in the checkpoint."""
-
-
-AnyInitializer = Union[CheckpointInitializerConfig, ResumeInitializerConfig, PreviousRunInitializerConfig]
+    return getattr(importlib.import_module(module_path), name)

@@ -4,7 +4,7 @@
 import pytest
 from pydantic import ValidationError
 
-from noether.core.schemas.dataset import StandardDatasetConfig
+from noether.data.base.dataset import StandardDatasetConfig
 from noether.data.datasets.cfd.caeml.ahmedml.dataset import AhmedMLDataset
 
 

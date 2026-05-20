@@ -5,8 +5,12 @@ import unittest
 import numpy as np
 from pydantic import ValidationError
 
-from noether.core.schedules import LinearDecreasingSchedule, LinearIncreasingSchedule
-from noether.core.schemas.schedules import DecreasingProgressScheduleConfig, IncreasingProgressScheduleConfig
+from noether.core.schedules import (
+    DecreasingProgressScheduleConfig,
+    IncreasingProgressScheduleConfig,
+    LinearDecreasingSchedule,
+    LinearIncreasingSchedule,
+)
 
 
 class TestLinearDecreasing(unittest.TestCase):

@@ -11,8 +11,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 from omegaconf import OmegaConf
 
-from noether.core.schemas.slurm import SlurmConfig
 from noether.training.cli.submit_job import (
+    SlurmConfig,
     _expand_sweeps,
     _format_task_preview,
     _parse_argv,

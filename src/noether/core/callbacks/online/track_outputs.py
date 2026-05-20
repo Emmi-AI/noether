@@ -2,14 +2,32 @@
 
 from collections import defaultdict
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 import torch
+from pydantic import Field
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.distributed import all_gather_nograd, all_reduce_mean_grad
-from noether.core.schemas.callbacks import TrackAdditionalOutputsCallbackConfig
 from noether.core.utils.training import UpdateCounter
+
+
+class TrackAdditionalOutputsCallbackConfig(CallBackBaseConfig):
+    name: Literal["TrackAdditionalOutputsCallback"] = Field("TrackAdditionalOutputsCallback", frozen=True)
+    keys: list[str] | None = Field(None)
+    """List of keys to track in the additional_outputs of the TrainerResult returned by the trainer's update step."""
+    patterns: list[str] | None = Field(None)
+    """List of patterns to track in the additional_outputs of the TrainerResult returned by the trainer's update step. Matched if it is contained in one of the update_outputs keys."""
+    verbose: bool = Field(False)
+    """If True uses the logger to print the tracked values otherwise uses no logger."""
+    reduce: Literal["mean", "last"] = Field("mean")
+    """The reduction method to be applied to the tracked values to reduce to scalar. Currently supports 'mean' and 'last'."""
+    log_output: bool = Field(True)
+    """Whether to log the tracked scalar values."""
+    save_output: bool = Field(False)
+    """Whether to save the tracked scalar values to disk."""
 
 
 class TrackAdditionalOutputsCallback(PeriodicCallback):

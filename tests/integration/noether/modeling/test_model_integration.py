@@ -9,11 +9,10 @@ import torch
 
 from noether.core.factory import Factory
 from noether.core.models import Model
-from noether.core.schemas.dataset import ModelDataSpecs
-from noether.core.schemas.models import AnchorBranchedUPTConfig, TransformerConfig, UPTConfig
-from noether.modeling.models.ab_upt import AnchoredBranchedUPT
-from noether.modeling.models.transformer import Transformer
-from noether.modeling.models.upt import UPT
+from noether.data.schemas import ModelDataSpecs
+from noether.modeling.models.ab_upt import AnchorBranchedUPTConfig, AnchoredBranchedUPT
+from noether.modeling.models.transformer import Transformer, TransformerConfig
+from noether.modeling.models.upt import UPT, UPTConfig
 from tests.test_training_pipeline.dummy_project.schemas.models.base_model_config import BaseModelConfig
 
 

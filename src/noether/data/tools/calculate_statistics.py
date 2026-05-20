@@ -10,9 +10,8 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from noether.core.factory.dataset import DatasetFactory
-from noether.core.schemas.dataset import DatasetBaseConfig
 from noether.core.schemas.lib import resolve_config_class
-from noether.data.base.dataset import Dataset
+from noether.data.base.dataset import Dataset, DatasetBaseConfig
 from noether.data.base.wrappers import PropertySubsetWrapper
 from noether.data.stats import RunningMoments
 

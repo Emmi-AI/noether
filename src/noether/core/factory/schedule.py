@@ -2,7 +2,7 @@
 
 
 from noether.core.factory.base import Factory
-from noether.core.schemas.schedules import AnyScheduleConfig
+from noether.core.schedules import AnyScheduleConfig
 from noether.core.utils.training import ScheduleWrapper
 
 
@@ -17,7 +17,7 @@ class ScheduleFactory(Factory):
 
         Args:
             schedule_config: The schedule config or already instantiated schedule. See
-                :class:`~noether.core.schemas.schedules.AnyScheduleConfig` for available options.
+                :class:`~noether.core.schedules.AnyScheduleConfig` for available options.
             **kwargs: Additional keyword arguments that are passed to the schedule constructor.
 
         Returns:

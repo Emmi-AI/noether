@@ -7,14 +7,14 @@ from typing import TYPE_CHECKING, Self
 import torch
 
 from noether.core.factory import OptimizerFactory
-from noether.core.models.base import ModelBase
+from noether.core.models import ModelBase
 from noether.data.container import DataContainer
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from torch.amp.grad_scaler import GradScaler
 
+    from noether.core.models import ModelBaseConfig
     from noether.core.providers import PathProvider
-    from noether.core.schemas.models import ModelBaseConfig
     from noether.core.utils.training import UpdateCounter
 
 
@@ -29,7 +29,7 @@ class Model(ModelBase):
     .. code-block:: python
 
         from noether.core.models.single import Model
-        from noether.core.schemas.models import ModelBaseConfig
+        from noether.core.models.base import ModelBaseConfig
 
         class MyModelConfig(ModelBaseConfig):
             kind: path.to.MyModel
@@ -75,7 +75,7 @@ class Model(ModelBase):
         """Base class for single models, i.e. one model with one optimizer as opposed to CompositeModel.
 
         Args:
-            model_config: Model configuration. See :class:`~noether.core.schemas.models.ModelBaseConfig` for available options.
+            model_config: Model configuration. See :class:`~noether.core.models.base.ModelBaseConfig` for available options.
             update_counter: The :class:`~noether.core.utils.training.counter.UpdateCounter` provided to the optimizer.
             is_frozen: If true, will set `requires_grad` of all parameters to false. Will also put the model into eval
                 mode (e.g., to put Dropout or BatchNorm into eval mode).

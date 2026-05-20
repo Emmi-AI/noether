@@ -6,10 +6,10 @@ from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
 from noether.core.constants import TRAINING_DATA_WAIT_TIME, TRAINING_UPDATE_TIME
 from noether.core.distributed import is_rank0
-from noether.core.schemas.callbacks import CallBackBaseConfig
 from noether.core.utils.logging import short_number_str
 from noether.core.utils.training import UpdateCounter
 

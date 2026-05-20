@@ -1,31 +1,31 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
+"""Back-compat re-export for ``LinearProjectionConfig``.
 
-from typing import Self
+The canonical home is :mod:`noether.modeling.modules.layers.linear_projection`.
+"""
 
-from pydantic import BaseModel, Field, model_validator
+from __future__ import annotations
 
-from noether.core.types import InitWeightsMode
+import importlib
+import warnings
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
+
+__all__ = ["LinearProjectionConfig"]
+
+_LAZY: dict[str, str] = {"LinearProjectionConfig": "noether.modeling.modules.layers.linear_projection"}
 
 
-class LinearProjectionConfig(BaseModel):
-    """Configuration for a LinearProjection layer."""
-
-    input_dim: int = Field(...)
-    """Input dimension of the linear projection."""
-    output_dim: int = Field(...)
-    """Output dimension of the linear projection."""
-    ndim: None | int = Field(None)
-    """Number of dimensions of the input domain. Either None (Linear projection),  1D (sequence), 2D, or 3D. Defaults to None."""
-    bias: bool = Field(True)
-    """If true, use bias term in the linear projection. Defaults to True."""
-    optional: bool = Field(False)
-    """If true and input_dim==output_dim (i.e., there is no up/down projection), then the identity mapping is used. Defaults to False."""
-    init_weights: InitWeightsMode = Field("torch")
-    """Initialization method of the weights of the MLP. Options are 'torch' (i.e., similar to the module) or 'truncnormal002', or 'zero'. Defaults to 'torch'."""
-
-    @model_validator(mode="after")
-    def validate_ndim(self) -> Self:
-        """Validate the ndim field to ensure it is either None, 1, 2, or 3."""
-        if self.ndim is not None and self.ndim not in [1, 2, 3]:
-            raise ValueError("ndim must be either None, 1, 2, or 3.")
-        return self
+def __getattr__(name: str) -> Any:
+    try:
+        module_path = _LAZY[name]
+    except KeyError as exc:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from exc
+    warnings.warn(
+        f"Importing `{name}` from `{__name__}` is deprecated; import from `{module_path}` instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return getattr(importlib.import_module(module_path), name)

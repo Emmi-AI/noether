@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.attention import PerceiverAttentionConfig
-from noether.modeling.modules.attention.perceiver import PerceiverAttention
+from noether.modeling.modules.attention.perceiver import PerceiverAttention, PerceiverAttentionConfig
 
 from .expected_outputs import PERCEIVER_ATTENTION
 

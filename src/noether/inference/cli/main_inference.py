@@ -3,13 +3,13 @@
 import logging
 import os
 import sys
-import tempfile
 from pathlib import Path
 
 import hydra
 import yaml
 from omegaconf import DictConfig, OmegaConf
 
+from noether.inference.run import sanitize_hp_resolved
 from noether.inference.runners.inference_runner import InferenceRunner
 from noether.training.cli import setup_hydra
 
@@ -17,35 +17,6 @@ logger = logging.getLogger(__name__)
 
 
 _LEGACY_NAV_KEYS = ("input_dir", "run_id", "stage_name")
-
-
-def _to_plain_python(obj):
-    """Recursively convert tuples/sets to lists so the result round-trips through ``yaml.safe_dump`` (and therefore
-    Hydra's safe loader) without ``!!python/...`` tags."""
-    if isinstance(obj, dict):
-        return {k: _to_plain_python(v) for k, v in obj.items()}
-    if isinstance(obj, (tuple, set, frozenset)):
-        return [_to_plain_python(v) for v in obj]
-    if isinstance(obj, list):
-        return [_to_plain_python(v) for v in obj]
-    return obj
-
-
-def _sanitize_hp_resolved_for_hydra(hp_resolved_path: Path) -> Path:
-    """Rewrite ``hp_resolved.yaml`` to a temp file with no Python-specific tags.
-
-    Resolved configs are dumped via ``yaml.dump``, which emits ``!!python/tuple`` for tuple values (notably
-    ``dataset_statistics``). Hydra loads configs with a safe loader, so we re-serialize using ``yaml.safe_dump``
-    over a list-converted dict before handing the path to Hydra.
-    """
-    with open(hp_resolved_path) as f:
-        config = yaml.full_load(f)
-
-    tmp_dir = Path(tempfile.mkdtemp(prefix="noether_eval_"))
-    safe_path = tmp_dir / "hp_resolved.yaml"
-    with open(safe_path, "w") as f:
-        yaml.safe_dump(_to_plain_python(config), f, sort_keys=False)
-    return safe_path
 
 
 def _pop_eval_path_args(argv: list[str]) -> tuple[dict[str, str], list[str]]:
@@ -131,7 +102,7 @@ def _inject_hp_resolved_into_argv() -> None:
             "Make sure run_dir points at a training run output directory "
             "(typically output_path/run_id[/stage_name])."
         )
-    safe_hp = _sanitize_hp_resolved_for_hydra(hp_resolved)
+    safe_hp = sanitize_hp_resolved(hp_resolved)
 
     # `hp_resolved.yaml` is dumped with `exclude_unset=True`, so values that were generated at training-time
     # (e.g. `run_id`) are absent. Infer them from the run_dir path and inject as forced overrides so the eval run

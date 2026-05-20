@@ -1,9 +1,18 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-import torch
+from typing import Literal
 
-from noether.core.callbacks.periodic import PeriodicDataIteratorCallback
-from noether.core.schemas.callbacks import OfflineLossCallbackConfig
+import torch
+from pydantic import Field
+
+from noether.core.callbacks.periodic import PeriodicDataIteratorCallback, PeriodicDataIteratorCallbackConfig
+
+
+class OfflineLossCallbackConfig(PeriodicDataIteratorCallbackConfig):
+    name: Literal["OfflineLossCallback"] = Field("OfflineLossCallback", frozen=True)
+
+    output_patterns_to_log: list[str] | None = Field(None)
+    """For instance, if the output key is 'some_loss' and the pattern is ['loss'].  **kwargs: additional arguments passed to the parent class."""
 
 
 class OfflineLossCallback(PeriodicDataIteratorCallback):

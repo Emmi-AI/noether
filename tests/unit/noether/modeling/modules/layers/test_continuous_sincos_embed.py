@@ -5,8 +5,10 @@ import math
 import pytest
 import torch
 
-from noether.core.schemas.modules.layers import ContinuousSincosEmbeddingConfig
-from noether.modeling.modules.layers.continuous_sincos_embed import ContinuousSincosEmbed
+from noether.modeling.modules.layers.continuous_sincos_embed import (
+    ContinuousSincosEmbed,
+    ContinuousSincosEmbeddingConfig,
+)
 
 from .expected_output import CONTINUOUS_SINCOS_EMBED
 

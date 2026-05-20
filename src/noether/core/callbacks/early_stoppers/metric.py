@@ -1,7 +1,29 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
+from pydantic import Field, field_validator
+
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.early_stoppers.base import EarlyStopperBase
-from noether.core.schemas.callbacks import MetricEarlyStopperConfig
+
+
+class MetricEarlyStopperConfig(CallBackBaseConfig):
+    name: Literal["MetricEarlyStopper"] = Field("MetricEarlyStopper", frozen=True)
+    metric_key: str
+    """The key of the metric to monitor"""
+    tolerance: int
+    """The number of times the metric can stagnate before stopping training"""
+
+    @field_validator("tolerance")
+    @classmethod
+    def check_tolerance_positive(cls, v: int) -> int:
+        """
+        Ensures that tolerance is at least 1.
+        """
+        if v < 1:
+            raise ValueError(f"'tolerance' must be >= 1, but got {v}")
+        return v
 
 
 class MetricEarlyStopper(EarlyStopperBase):

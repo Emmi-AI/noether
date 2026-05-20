@@ -1,17 +1,74 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
+from collections.abc import Sequence
+from typing import Annotated, Any, ClassVar, Literal, Self, Union
 
+import numpy as np
 import torch
+from pydantic import BaseModel, ConfigDict, Field, PlainSerializer, PlainValidator, model_validator
 
-from noether.core.schemas.normalizers import (
-    FieldNormalizerConfig,
-    MeanStdNormalizerConfig,
-    PositionNormalizerConfig,
-    ShiftAndScaleNormalizerConfig,
-)
+from noether.core.schemas.lib import _RegistryBase
 from noether.data.preprocessors import PreProcessor, to_tensor
 from noether.modeling.functional.logscale import from_logscale, to_logscale
+
+
+def validate_tensor(v: Any) -> torch.Tensor:
+    if isinstance(v, torch.Tensor):
+        return v
+    if isinstance(v, np.ndarray):
+        return torch.from_numpy(v)
+    try:
+        return torch.tensor(v)
+    except Exception as e:
+        raise ValueError(f"Could not convert {v} to torch.Tensor: {e}") from None
+
+
+TorchTensor = Annotated[
+    torch.Tensor,
+    PlainValidator(validate_tensor),
+    PlainSerializer(lambda x: x.tolist(), return_type=list, when_used="always"),
+]
+
+FloatOrArray = float | Sequence[float] | TorchTensor
+SequenceOrTensor = Sequence[float] | TorchTensor
+
+
+class NormalizerConfig(_RegistryBase):
+    """Base configuration for normalizers. All normalizer configs should inherit from this class."""
+
+    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
+    _type_field: ClassVar[str] = "kind"
+    kind: str | None = None
+    """Kind of normalizer to use, i.e. class path"""
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ShiftAndScaleNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.ShiftAndScaleNormalizer"
+    shift: TorchTensor
+    """Value to subtract from the input data. Can be a single value or a Sequence if we want to apply a different shift per dimension.
+    Assumed in log scale if logscale is True.
+    """
+    scale: TorchTensor
+    """Value to divide the input data by. Can be a single value or a Sequence if we want to apply a different scale per dimension.
+    Assumed in log scale if logscale is True.
+    """
+    logscale: bool = False
+    """If true, the input data is assumed to be in log scale."""
+
+    @model_validator(mode="after")
+    def check_shift_scale(self) -> Self:
+        if self.shift.shape != self.scale.shape:
+            raise ValueError("shift and scale must have the same shape.")
+
+        comp = self.scale <= 0.0
+        if torch.any(comp):
+            raise ValueError(
+                f"scale must be a positive number. Erroneous indices: {torch.nonzero(comp).squeeze().tolist()}"
+            )
+
+        return self
 
 
 class ShiftAndScaleNormalizer(PreProcessor):
@@ -72,6 +129,16 @@ class ShiftAndScaleNormalizer(PreProcessor):
         return f"ShiftAndScaleNormalizer(shift={self.shift}, scale={self.scale}, logscale={self.logscale})"
 
 
+class MeanStdNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.MeanStdNormalization"
+    mean: TorchTensor
+    """mean to subtract from the input data. Can be a single value or a Sequence if we want to apply a different mean per dimension."""
+    std: TorchTensor
+    """standard deviation to divide the input data by. Can be a single value or a Sequence if we want to apply a different std per dimension."""
+    logscale: bool = False
+    """If true, the input data is assumed to be in log scale."""
+
+
 class MeanStdNormalization(ShiftAndScaleNormalizer):
     """Normalizes data using mean and standard deviation. It shifts the data by subtracting the mean and scales it by dividing by the standard deviation."""
 
@@ -106,6 +173,31 @@ class MeanStdNormalization(ShiftAndScaleNormalizer):
         scale = torch.reciprocal(self.std.clamp(min=self.EPSILON))  # Adding a small value to avoid division by zero
         config = ShiftAndScaleNormalizerConfig(shift=shift, scale=scale, logscale=normalizer_config.logscale)
         super().__init__(normalizer_config=config, **kwargs)
+
+
+class PositionNormalizerConfig(NormalizerConfig):
+    kind: str | None = "noether.data.preprocessors.normalizers.PositionNormalizer"
+    raw_pos_min: TorchTensor
+    """Minimum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
+    raw_pos_max: TorchTensor
+    """Maximum raw position values of the entire simulation mesh. Can be a single value or a sequence of values."""
+    scale: float = Field(default=1000.0, gt=0.0)
+    """Scaling factor, the coordinates will be scaled linearly between [0, scale] (or [-scale, scale] if ``zero_center`` is True). Defaults to 1000."""
+    zero_center: bool = False
+    """If True, coordinates are scaled to [-scale, scale] instead of [0, scale]."""
+
+    @model_validator(mode="after")
+    def check_min_max(self) -> Self:
+        if self.raw_pos_max.shape != self.raw_pos_min.shape:
+            raise ValueError("raw_pos_min and raw_pos_max must have the same shape.")
+
+        comp = self.raw_pos_max <= self.raw_pos_min
+        if torch.any(comp):
+            raise ValueError(
+                f"raw_pos_max must be element-wise greater than raw_pos_min. Errenous indices: {torch.nonzero(comp).squeeze().tolist()}"
+            )
+
+        return self
 
 
 class PositionNormalizer(ShiftAndScaleNormalizer):
@@ -172,6 +264,35 @@ class PositionNormalizer(ShiftAndScaleNormalizer):
             raise ValueError(f"Normalized values are out of bounds {bounds}.")
 
         return output
+
+
+class FieldNormalizerConfig(NormalizerConfig):
+    """Declarative normalizer config that references dataset statistics by convention.
+
+    Instead of embedding numeric values (mean, std, etc.) directly, this config declares
+    *how* to normalize a field. The actual statistics are resolved at runtime from the
+    dataset's statistics file.
+
+    For ``"mean_std"`` normalization, the builder looks up ``{field}_mean`` and
+    ``{field}_std`` in the dataset statistics (customizable via ``stat_keys``).
+
+    For ``"min_max"`` normalization, the builder looks up ``{field}_min`` and
+    ``{field}_max`` (customizable via ``stat_keys``).
+    """
+
+    kind: str | None = "noether.data.preprocessors.normalizers.FieldNormalizer"
+
+    strategy: Literal["mean_std", "position", "min_max"] = "mean_std"  # type: ignore[assignment]
+    """Normalization strategy. ``"mean_std"`` for mean/std normalization, ``"min_max"`` for min/max normalization.``"position"`` is an alias for min_max, """
+    logscale: bool = False
+    """If true, the input data is converted to log scale before normalization. Only used for ``"mean_std"``."""
+    stat_keys: dict[str, str] | None = None
+    """Optional overrides for statistic key lookup. For ``"mean_std"``: ``{"mean": "custom_mean_key", "std": "custom_std_key"}``.
+    For ``"min_max/position"``: ``{"min": "custom_min_key", "max": "custom_max_key"}``."""
+    scale: float = Field(default=1000.0, gt=0.0)
+    """Scaling factor for position normalization. Coordinates are scaled to [0, scale]. Only used for ``"position"``."""
+    zero_center: bool = False
+    """If True, position normalization is zero-centered (scaled to [-scale, scale]) instead of [0, scale]. Only used for ``"position"``."""
 
 
 class FieldNormalizer(PreProcessor):
@@ -248,3 +369,8 @@ class FieldNormalizer(PreProcessor):
 
     def denormalize(self, x: torch.Tensor) -> torch.Tensor:
         return self.normalizer.denormalize(x)  # type: ignore[return-value]
+
+
+AnyNormalizer = Union[
+    MeanStdNormalizerConfig, PositionNormalizerConfig, ShiftAndScaleNormalizerConfig, FieldNormalizerConfig
+]

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import torch
 
-from noether.core.schemas.dataset import StandardDatasetConfig
+from noether.data.base.dataset import StandardDatasetConfig
 from noether.data.datasets.cfd.caeml.drivaerml.dataset import DrivAerMLDataset
 from noether.data.datasets.cfd.shapenet_car.dataset import ShapeNetCarDataset
 from noether.data.datasets.cfd.shapenet_car.filemap import SHAPENET_CAR_FILEMAP

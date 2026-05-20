@@ -146,7 +146,7 @@ def train(
 ) -> None:
     from aero_cfd.callbacks import AeroMetricsCallbackConfig
 
-    from noether.core.schemas.callbacks import CheckpointCallbackConfig
+    from noether.core.callbacks.checkpoint import CheckpointCallbackConfig
     from noether.training.runners import HydraRunner
 
     size_config = MODEL_SIZES[model_size.value]

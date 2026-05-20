@@ -2,9 +2,10 @@
 
 import pytest
 
-from noether.core.schemas.dataset import DatasetBaseConfig, RepeatWrapperConfig
 from noether.data import Dataset
+from noether.data.base.dataset import DatasetBaseConfig
 from noether.data.base.wrappers import PropertySubsetWrapper, RepeatWrapper
+from noether.data.base.wrappers.repeat import RepeatWrapperConfig
 
 
 class MockDataset(Dataset):

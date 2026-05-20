@@ -3,9 +3,9 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig
-from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
+from noether.modeling.modules.blocks.perceiver import PerceiverBlockConfig
 from noether.modeling.modules.decoders import DeepPerceiverDecoder
+from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
 
 
 @pytest.fixture

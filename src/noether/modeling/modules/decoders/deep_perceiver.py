@@ -2,13 +2,27 @@
 
 """Contains a PerceiverDecoder implementation."""
 
-from typing import Any
+from typing import Annotated, Any
 
 import torch
+from pydantic import BaseModel, Field
 from torch import nn
 
-from noether.core.schemas.modules.decoders import DeepPerceiverDecoderConfig
-from noether.modeling.modules.blocks import PerceiverBlock
+from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
+from noether.modeling.modules.blocks import PerceiverBlock, PerceiverBlockConfig
+
+
+class DeepPerceiverDecoderConfig(InjectSharedFieldFromParentMixin, BaseModel):
+    """Configuration for the DeepPerceiverDecoder module."""
+
+    perceiver_block_config: Annotated[PerceiverBlockConfig, Shared] = Field(...)
+    """Configuration for the Perceiver blocks used in the decoder."""
+
+    depth: int = Field(1, ge=1)
+    """Number of deep perceiver decoder layers (i.e., depth of the network). Defaults to 1."""
+
+    input_dim: int = Field(..., ge=1)
+    """Input dimension for the query positions."""
 
 
 class DeepPerceiverDecoder(nn.Module):

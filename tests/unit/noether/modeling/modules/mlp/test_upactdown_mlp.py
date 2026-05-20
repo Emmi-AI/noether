@@ -3,8 +3,7 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.mlp import UpActDownMLPConfig
-from noether.modeling.modules.mlp.upactdown_mlp import UpActDownMlp
+from noether.modeling.modules.mlp.upactdown_mlp import UpActDownMlp, UpActDownMLPConfig
 
 from .expected_output import UPACTDOWN_MLP
 

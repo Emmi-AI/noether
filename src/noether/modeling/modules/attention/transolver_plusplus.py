@@ -1,13 +1,33 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from einops import rearrange
+from pydantic import Field
 
-from noether.core.schemas.modules import AttentionConfig, LinearProjectionConfig, TransolverPlusPlusAttentionConfig
+from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.activations import Activation
-from noether.modeling.modules.layers import LinearProjection
+from noether.modeling.modules.attention import TransolverAttentionConfig
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
+
+
+class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):
+    """Configuration for the Transolver++ attention module."""
+
+    use_overparameterization: bool = Field(True)
+    """Whether to use overparameterization for the slice projection."""
+
+    use_adaptive_temperature: bool = Field(True)
+    """Whether to use an adaptive temperature for the slice selection."""
+
+    temperature_activation: Literal["sigmoid", "softplus", "exp"] | None = Field("softplus")
+    """Activation function for the adaptive temperature."""
+
+    use_gumbel_softmax: bool = Field(True)
+    """Whether to use Gumbel-Softmax for the slice selection."""
 
 
 def _gumbel_softmax(logits: torch.Tensor, temperature: torch.Tensor) -> torch.Tensor:

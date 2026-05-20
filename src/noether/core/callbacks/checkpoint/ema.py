@@ -6,23 +6,47 @@ import logging
 from collections import defaultdict
 from collections.abc import Iterator
 from contextlib import contextmanager
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import torch
 import torch.distributed as dist
+from pydantic import Field
 
-from noether.core.callbacks.base import CallbackBase
+from noether.core.callbacks.base import CallbackBase, CallBackBaseConfig
 from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
 from noether.core.distributed import is_distributed, is_rank0
 from noether.core.factory import Factory
 from noether.core.models.base import ModelBase
 from noether.core.providers.path import PathProvider
-from noether.core.schemas.callbacks import EmaCallbackConfig
+from noether.core.schemas.lib import Discriminated
 from noether.core.types import CheckpointKeys
 from noether.core.utils.common import select_with_path
 from noether.core.utils.training.counter import UpdateCounter
 from noether.core.utils.training.training_iteration import TrainingIteration
 from noether.core.writers import PrefixedLogWriter
+
+
+class EmaCallbackConfig(CallBackBaseConfig):
+    name: Literal["EmaCallback"] = Field("EmaCallback", frozen=True)
+
+    target_factors: list[float] = Field(...)
+    """The factors for the EMA."""
+    model_paths: list[str | None] | None = Field(None)
+    """The paths to the models to apply the EMA to (i.e., composite_model.encoder/composite_model.decoder, path of the PyTorch nn.Modules in the checkpoint). If None, the EMA is applied to the whole model. When training with a CompositeModel, the paths on the submodules (i.e., 'encoder', 'decoder', etc.) should be provided via this field, otherwise the EMA will be applied to the CompositeModel as a whole which is not possible to restore later on."""
+    save_weights: bool = Field(True)
+    """Whether to save the EMA weights."""
+    save_last_weights: bool = Field(True)
+    """Save the weights of the model when training is over (i.e., at the end of training, save the EMA weights)."""
+    save_latest_weights: bool = Field(False)
+    """Save the latest EMA weights. Note that the latest weights are always overwritten on the next invocation of this callback."""
+    eval_callbacks: list[Annotated[Any, Discriminated(CallBackBaseConfig)]] | None = Field(None)
+    """Optional nested periodic callbacks to run against EMA weights. Each child retains its own schedule
+    (``every_n_epochs`` etc.); the EMA callback swaps its stored EMA parameters into the live model around
+    eval-time hooks (``after_epoch``, ``after_update``, ``at_eval``) and restores the live weights on exit.
+    Children are dispatched once per ``target_factor`` and their metric keys are automatically prefixed with
+    ``ema=<factor>/`` to avoid collisions with live-model metrics. Note: ``before_training`` and
+    ``after_training`` are forwarded without swapping, so EMA initialization and the final save see live
+    weights."""
 
 
 class EmaCallback(PeriodicCallback):

@@ -3,9 +3,8 @@
 import torch
 from torch import nn
 
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig
 from noether.modeling.modules.attention import PerceiverAttention
-from noether.modeling.modules.blocks.perceiver import PerceiverBlock
+from noether.modeling.modules.blocks.perceiver import PerceiverBlock, PerceiverBlockConfig
 from noether.modeling.modules.layers import UnquantizedDropPath
 from noether.modeling.modules.mlp import UpActDownMlp
 

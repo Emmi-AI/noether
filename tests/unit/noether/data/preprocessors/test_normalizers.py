@@ -3,15 +3,13 @@
 import pytest
 import torch
 
-from noether.core.schemas.normalizers import (
-    MeanStdNormalizerConfig,
-    PositionNormalizerConfig,
-    ShiftAndScaleNormalizerConfig,
-)
 from noether.data.preprocessors.normalizers import (
     MeanStdNormalization,
+    MeanStdNormalizerConfig,
     PositionNormalizer,
+    PositionNormalizerConfig,
     ShiftAndScaleNormalizer,
+    ShiftAndScaleNormalizerConfig,
 )
 
 

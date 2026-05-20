@@ -1,6 +1,6 @@
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
-from noether.core.schemas.models.upt import UPTConfig
+from noether.modeling.models.upt import UPTConfig
 
 
 def test_upt_config_injects_multiple_shared_fields(base_upt_config_dict):

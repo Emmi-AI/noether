@@ -3,8 +3,8 @@
 import pytest
 import torch
 
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
 from noether.modeling.modules.encoders import SupernodePooling
+from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
 
 from .expected_output import SUPERNODE_REPRESENTATIONS
 

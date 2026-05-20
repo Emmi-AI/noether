@@ -4,8 +4,12 @@ import unittest
 
 import numpy as np
 
-from noether.core.schedules import CosineDecreasingSchedule, CosineIncreasingSchedule
-from noether.core.schemas import DecreasingProgressScheduleConfig, IncreasingProgressScheduleConfig
+from noether.core.schedules import (
+    CosineDecreasingSchedule,
+    CosineIncreasingSchedule,
+    DecreasingProgressScheduleConfig,
+    IncreasingProgressScheduleConfig,
+)
 
 
 class TestCosineDecreasingSchedule(unittest.TestCase):

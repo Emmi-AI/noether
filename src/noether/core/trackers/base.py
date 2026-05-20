@@ -4,13 +4,23 @@ import logging
 import os
 import platform
 from copy import deepcopy
-from typing import Any
+from typing import Any, ClassVar
 
 import torch
 import yaml
+from pydantic import BaseModel
 
 from noether.core.distributed import get_num_nodes, get_world_size, is_rank0
 from noether.core.providers import MetricPropertyProvider, PathProvider
+from noether.core.schemas.lib import _RegistryBase
+
+
+class BaseTrackerConfig(_RegistryBase):
+    """Base configuration for experiment trackers. All tracker configs should inherit from this class."""
+
+    _registry: ClassVar[dict[str, type[BaseModel]]] = {}
+    _type_field: ClassVar[str] = "kind"
+    kind: str | None = None
 
 
 class BaseTracker:

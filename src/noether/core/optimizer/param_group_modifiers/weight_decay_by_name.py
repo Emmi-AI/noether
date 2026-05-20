@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     import torch
     from torch import nn
 
-    from noether.core.schemas.optimizers import ParamGroupModifierConfig
+    from noether.core.optimizer.schemas import ParamGroupModifierConfig
 
 
 class WeightDecayByNameModifier(ParamGroupModifierBase):

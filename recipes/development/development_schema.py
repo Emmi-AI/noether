@@ -5,7 +5,7 @@ from development.model import DevelopmentModelConfig
 from development.trainer import DevelopmentTrainerConfig
 from pydantic import Field
 
-from noether.core.schemas import ConfigSchema
+from noether.core.schemas.schema import ConfigSchema
 
 
 class DevelopmentSchema(ConfigSchema):

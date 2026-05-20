@@ -1,17 +1,33 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import torch
+from pydantic import Field
 from torch import Tensor
 
-from noether.core.initializers.base import InitializerBase
-from noether.core.models import Model, ModelBase
+from noether.core.initializers.base import InitializerBase, InitializerConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas.initializers import CheckpointInitializerConfig
 from noether.core.types import CheckpointKeys
 from noether.core.utils.training.training_iteration import TrainingIteration
+
+if TYPE_CHECKING:
+    from noether.core.models import ModelBase
+
+
+class CheckpointInitializerConfig(InitializerConfig):
+    kind: Literal["noether.core.initializers.CheckpointInitializer"] = Field(
+        default="noether.core.initializers.CheckpointInitializer", frozen=True
+    )
+    load_optim: bool = Field(...)
+    """Whether or not to load the optimizer state from the checkpoint. Default is True, as this is usually used to resume a training run"""
+    pop_ckpt_kwargs_keys: list[str] | None = Field(None)
+    """which checkpoint to load. If a string is provided, must be one of ("latest", "best_loss"). If a dictionary is provided, must contain keys "epoch", "update", "sample" to identify the checkpoint."""
+    output_path: Path | None = Field(None)
+    """Output root where the source run (identified by ``run_id``/``stage_name``) lives. When ``None``, the current run's path provider is used to locate it, which assumes the source shares this run's ``output_path``. Set explicitly by ``noether-eval`` so that overriding ``output_path`` for the eval run doesn't redirect source-checkpoint lookup."""
 
 
 class CheckpointInitializer(InitializerBase):
@@ -29,7 +45,7 @@ class CheckpointInitializer(InitializerBase):
         """
 
         Args:
-            initializer_config: configuration for the initializer. See :class:`~noether.core.schemas.initializers.CheckpointInitializerConfig` for available options.
+            initializer_config: configuration for the initializer. See :class:`~noether.core.initializers.checkpoint.CheckpointInitializerConfig` for available options.
             **kwargs: additional arguments to pass to the parent class.
         """
         super().__init__(**kwargs)
@@ -102,6 +118,8 @@ class CheckpointInitializer(InitializerBase):
         Args:
             model: a model to initialize the optimizer for. Assumes the model has an attribute optim.
         """
+        from noether.core.models import Model
+
         if not isinstance(model, Model):
             return
         if not self.load_optim:
@@ -134,6 +152,7 @@ class CheckpointInitializer(InitializerBase):
             model_name: the name of the model to load.
             ckpt_uri: the URI of the checkpoint file.
         """
+        from noether.core.models import ModelBase
 
         if model is None and model_name is None:
             raise ValueError("Either model or model_name must be provided")

@@ -6,17 +6,16 @@ import torch
 import torch.nn as nn
 
 from noether.core.callbacks import CallbackBase
+from noether.core.initializers import ResumeInitializerConfig
+from noether.core.models.base import ModelBaseConfig
 from noether.core.models.model import Model
+from noether.core.optimizer.schemas import OptimizerConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas import DatasetBaseConfig
-from noether.core.schemas.initializers import ResumeInitializerConfig
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import OptimizerConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
-from noether.data.base.dataset import Dataset
+from noether.data.base.dataset import Dataset, DatasetBaseConfig
 from noether.data.container import DataContainer
 from noether.data.pipeline import Collator
 from noether.training.trainers import BaseTrainer
+from noether.training.trainers.base import BaseTrainerConfig
 
 
 class DummyDataset(Dataset):

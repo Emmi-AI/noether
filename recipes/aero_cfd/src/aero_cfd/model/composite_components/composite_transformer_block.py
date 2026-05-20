@@ -6,15 +6,12 @@ from typing import Literal
 import torch
 import torch.nn as nn
 
-from noether.core.models import Model
+from noether.core.models import Model, ModelBaseConfig
 from noether.core.providers import PathProvider
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.modules.blocks import TransformerBlockConfig
-from noether.core.schemas.modules.layers import LinearProjectionConfig
 from noether.core.utils.training.counter import UpdateCounter
 from noether.data.container import DataContainer
-from noether.modeling.modules.blocks import TransformerBlock
-from noether.modeling.modules.layers import LinearProjection
+from noether.modeling.modules.blocks import TransformerBlock, TransformerBlockConfig
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
 
 
 class CompositeTransformerBlockConfig(ModelBaseConfig):

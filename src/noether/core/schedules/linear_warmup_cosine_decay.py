@@ -1,5 +1,9 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+from typing import Literal
+
+from pydantic import Field, model_validator
+
 from noether.core.schedules.base import (
     ScheduleBase,
     SequentialPercentSchedule,
@@ -9,11 +13,33 @@ from noether.core.schedules.base import (
 )
 from noether.core.schedules.cosine import CosineDecreasingSchedule
 from noether.core.schedules.linear import LinearIncreasingSchedule
-from noether.core.schemas.schedules import (
+from noether.core.schedules.schemas import (
     DecreasingProgressScheduleConfig,
     IncreasingProgressScheduleConfig,
-    LinearWarmupCosineDecayScheduleConfig,
+    ScheduleBaseConfig,
 )
+
+
+class LinearWarmupCosineDecayScheduleConfig(ScheduleBaseConfig):
+    max_value: float = Field(..., ge=0.0)
+    """The maximum value of the scheduler from which to start the cosine decay phase. This should be equal to the learning rate defined in the optimizer. I.e., max value is learning rate"""
+
+    kind: Literal["noether.core.schedules.LinearWarmupCosineDecaySchedule"] = (
+        "noether.core.schedules.LinearWarmupCosineDecaySchedule"
+    )
+    warmup_steps: int | None = None
+    """The number of steps to linearly increase the value from start to max."""
+    warmup_percent: float | None = None
+    """The percentage of steps to linearly increase the value from start to max."""
+
+    @model_validator(mode="after")
+    def validate_warmup(self) -> "LinearWarmupCosineDecayScheduleConfig":
+        """
+        Ensures that exactly one of 'warmup_steps' or 'warmup_percent' is specified.
+        """
+        if (self.warmup_steps is None) == (self.warmup_percent is None):
+            raise ValueError("Define exactly one of warmup_steps or warmup_percent")
+        return self
 
 
 class LinearWarmupCosineDecaySchedule(ScheduleBase):

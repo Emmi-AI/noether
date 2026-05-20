@@ -1,9 +1,26 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from typing import Any
+from typing import Any, Literal
 
+from pydantic import Field
+
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import IntervalType, PeriodicCallback
-from noether.core.schemas.callbacks import BestCheckpointCallbackConfig
+
+
+class BestCheckpointCallbackConfig(CallBackBaseConfig):
+    name: Literal["BestCheckpointCallback"] = Field("BestCheckpointCallback", frozen=True)
+
+    metric_key: str = Field(...)
+    """"The key of the metric to be used for checking the best model."""
+    save_frozen_weights: bool = Field(True)
+    """Whether to also save the frozen weights of the model."""
+    tolerances: list[int] | None = Field(
+        None,
+    )
+    """"If provided, this callback will produce multiple best models which differ in the amount of intervals they allow the metric to not improve. For example, tolerance=[5] with every_n_epochs=1 will store a checkpoint where at most 5 epochs have passed until the metric improved. Additionally, the best checkpoint over the whole training will always be stored (i.e., tolerance=infinite). When setting different tolerances, one can evaluate different early stopping configurations with one training run."""
+    model_names: list[str] | None = Field(None)
+    """Which model name to save (e.g., if only the encoder of an autoencoder should be stored, one could pass model_name='encoder' here). This only applies when training a CompositeModel. If None, all models are saved."""
 
 
 class BestCheckpointCallback(PeriodicCallback):

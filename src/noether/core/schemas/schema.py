@@ -10,13 +10,13 @@ from typing import Annotated, Any, Literal, TypeVar
 import torch
 from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
-from noether.core.schemas.dataset import DatasetBaseConfig
+from noether.core.models.base import ModelBaseConfig
 from noether.core.schemas.lib import Discriminated
-from noether.core.schemas.models import ModelBaseConfig
-from noether.core.schemas.slurm import SlurmConfig
-from noether.core.schemas.trackers import BaseTrackerConfig
-from noether.core.schemas.trainers import BaseTrainerConfig
+from noether.core.trackers import BaseTrackerConfig
 from noether.core.utils.common import validate_path
+from noether.data.base.dataset import DatasetBaseConfig
+from noether.training.cli.submit_job import SlurmConfig
+from noether.training.trainers import BaseTrainerConfig
 
 ACCELERATOR_TYPES = Literal["cpu", "gpu", "mps"]
 
@@ -111,6 +111,8 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """Path to output directory. When omitted, defaults to ``slurm.folder`` if a
     ``slurm`` section is present. Raises a validation error when neither
     ``output_path`` nor ``slurm`` is provided."""
+    overwrite_output: bool = False
+    """Whether to overwrite the output directory if it already exists. Use with caution, as this will delete all existing outputs for the run_id/stage_name!"""
     master_port: int = Field(default_factory=master_port_from_env)
     """Port for distributed master node. If None, will be set from environment variable MASTER_PORT if available."""
 

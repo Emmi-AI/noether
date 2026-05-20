@@ -2,8 +2,8 @@
 
 import torch
 
-from noether.core.schemas.modules.layers import RopeFrequencyConfig
 from noether.modeling.modules.layers import RopeFrequency
+from noether.modeling.modules.layers.rope_frequency import RopeFrequencyConfig
 
 
 def test_3d():

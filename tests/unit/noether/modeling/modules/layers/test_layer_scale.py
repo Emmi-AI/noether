@@ -3,8 +3,7 @@
 import torch
 from torch import nn
 
-from noether.core.schemas.modules.layers import LayerScaleConfig
-from noether.modeling.modules.layers.layer_scale import LayerScale
+from noether.modeling.modules.layers.layer_scale import LayerScale, LayerScaleConfig
 
 
 def test_layer_scale_with_default_init_scale():

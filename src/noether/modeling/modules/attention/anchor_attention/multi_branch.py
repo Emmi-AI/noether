@@ -6,15 +6,21 @@ from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
+from pydantic import Field
 
 from noether.core.schemas.modules.attention import (
     AttentionConfig,
     AttentionPattern,
-    MixedAttentionConfig,
-    MultiBranchAnchorAttentionConfig,
     TokenSpec,
 )
-from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention
+from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention, MixedAttentionConfig
+
+
+class MultiBranchAnchorAttentionConfig(AttentionConfig, metaclass=abc.ABCMeta):
+    """Configuration for Multi-Branch Anchor Attention module."""
+
+    branches: list[str] = Field(..., min_length=1)
+    anchor_suffix: str = Field("_anchors")
 
 
 class MissingBranchTokensError(ValueError):

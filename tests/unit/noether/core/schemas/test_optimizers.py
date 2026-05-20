@@ -3,8 +3,8 @@
 import pytest
 from pydantic import TypeAdapter, ValidationError
 
-from noether.core.schemas.models.base import ModelBaseConfig
-from noether.core.schemas.optimizers import (
+from noether.core.models.base import ModelBaseConfig
+from noether.core.optimizer.schemas import (
     AdamOptimizerConfig,
     AnyOptimizerConfig,
     MuonOptimizerConfig,

@@ -4,8 +4,8 @@ import pytest
 import torch
 from pydantic import ValidationError
 
-from noether.core.schemas.modules.attention import AttentionConfig, DotProductAttentionConfig
-from noether.modeling.modules.attention.dot_product import DotProductAttention
+from noether.core.schemas.modules.attention import AttentionConfig
+from noether.modeling.modules.attention.dot_product import DotProductAttention, DotProductAttentionConfig
 
 from .expected_outputs import DOT_PRODUCT_ATTENTION, DOT_PRODUCT_ATTENTION_WITH_MASK
 

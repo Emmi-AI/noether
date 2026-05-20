@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
-from noether.core.schemas.modules import DeepPerceiverDecoderConfig
-from noether.core.schemas.modules.blocks import PerceiverBlockConfig, TransformerBlockConfig
-from noether.core.schemas.modules.encoders import SupernodePoolingConfig
+from noether.modeling.modules import (
+    DeepPerceiverDecoderConfig,
+    PerceiverBlockConfig,
+    SupernodePoolingConfig,
+    TransformerBlockConfig,
+)
 
 
 def _apply_abupt_defaults(data_specs: Any, model_params: dict[str, Any]) -> None:
