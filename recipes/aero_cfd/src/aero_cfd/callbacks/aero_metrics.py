@@ -9,7 +9,7 @@ from pathlib import Path
 import torch
 from pydantic import Field, model_validator
 
-from noether.core.callbacks.periodic import PeriodicDataIteratorCallback, PeriodicDataIteratorCallbackConfig
+from noether.core.callbacks import PeriodicDataIteratorCallback, PeriodicDataIteratorCallbackConfig
 from noether.core.utils.common.stopwatch import Stopwatch
 
 
