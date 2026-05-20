@@ -10,8 +10,8 @@ from pydantic import Field
 
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.activations import Activation
-from noether.modeling.modules.attention.transolver import TransolverAttentionConfig
-from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
+from noether.modeling.modules.attention import TransolverAttentionConfig
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
 
 
 class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):

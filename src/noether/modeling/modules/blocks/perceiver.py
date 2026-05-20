@@ -7,12 +7,10 @@ from pydantic import Field, computed_field, model_validator
 from torch import Tensor, nn
 
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
-from noether.modeling.modules.attention.perceiver import PerceiverAttention, PerceiverAttentionConfig
+from noether.modeling.modules.attention import PerceiverAttention, PerceiverAttentionConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
-from noether.modeling.modules.layers.drop_path import UnquantizedDropPath
-from noether.modeling.modules.layers.layer_scale import LayerScale
-from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
-from noether.modeling.modules.mlp.upactdown_mlp import UpActDownMlp
+from noether.modeling.modules.layers import LayerScale, LinearProjection, LinearProjectionConfig, UnquantizedDropPath
+from noether.modeling.modules.mlp import UpActDownMlp
 
 
 class PerceiverBlockConfig(TransformerBlockConfig):

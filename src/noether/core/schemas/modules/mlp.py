@@ -11,8 +11,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from noether.modeling.modules.mlp.mlp import MLPConfig
-    from noether.modeling.modules.mlp.upactdown_mlp import UpActDownMLPConfig
+    from noether.modeling.modules.mlp import MLPConfig, UpActDownMLPConfig
 
 __all__ = ["MLPConfig", "UpActDownMLPConfig"]
 

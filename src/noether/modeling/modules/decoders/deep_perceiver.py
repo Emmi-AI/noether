@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 from torch import nn
 
 from noether.core.schemas.mixins import InjectSharedFieldFromParentMixin, Shared
-from noether.modeling.modules.blocks.perceiver import PerceiverBlock, PerceiverBlockConfig
+from noether.modeling.modules.blocks import PerceiverBlock, PerceiverBlockConfig
 
 
 class DeepPerceiverDecoderConfig(InjectSharedFieldFromParentMixin, BaseModel):

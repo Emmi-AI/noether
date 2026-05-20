@@ -11,7 +11,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from noether.modeling.modules.encoders.supernode_pooling import SupernodePoolingConfig
+    from noether.modeling.modules.encoders import SupernodePoolingConfig
 
 __all__ = ["SupernodePoolingConfig"]
 

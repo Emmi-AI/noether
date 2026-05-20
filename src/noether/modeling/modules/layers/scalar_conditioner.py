@@ -6,11 +6,11 @@ from torch import nn
 
 from noether.core.types import InitWeightsMode
 from noether.modeling.modules.activations import Activation
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
 from noether.modeling.modules.layers.continuous_sincos_embed import (
     ContinuousSincosEmbed,
     ContinuousSincosEmbeddingConfig,
 )
-from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
 
 
 class ScalarsConditionerConfig(BaseModel):

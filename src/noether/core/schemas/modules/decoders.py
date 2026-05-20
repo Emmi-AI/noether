@@ -11,7 +11,7 @@ import warnings
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from noether.modeling.modules.decoders.deep_perceiver import DeepPerceiverDecoderConfig
+    from noether.modeling.modules.decoders import DeepPerceiverDecoderConfig
 
 __all__ = ["DeepPerceiverDecoderConfig"]
 

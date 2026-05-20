@@ -15,12 +15,12 @@ from noether.core.callbacks.checkpoint import BestCheckpointCallbackConfig, Chec
 from noether.core.optimizer.schemas import AnyOptimizerConfig, OptimizerConfig
 from noether.core.presets.model_defaults import MODEL_DEFAULTS
 from noether.core.schedules.linear_warmup_cosine_decay import LinearWarmupCosineDecayScheduleConfig
+from noether.core.schemas import ConfigSchema
 from noether.core.schemas.lib import resolve_config_class
-from noether.core.schemas.schema import ConfigSchema
 from noether.data.base.dataset import DatasetBaseConfig
 from noether.data.base.wrappers import DatasetWrappers
 from noether.data.preprocessors.normalizers import AnyNormalizer, FieldNormalizerConfig
-from noether.training.callbacks.offline_loss import OfflineLossCallbackConfig
+from noether.training.callbacks import OfflineLossCallbackConfig
 
 logger = logging.getLogger(__name__)
 

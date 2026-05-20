@@ -10,11 +10,12 @@ from torch import nn
 from noether.core.types import InitWeightsMode
 from noether.modeling.functional.geometric import knn, radius
 from noether.modeling.modules.activations import Activation
-from noether.modeling.modules.layers.continuous_sincos_embed import (
+from noether.modeling.modules.layers import (
     ContinuousSincosEmbed,
     ContinuousSincosEmbeddingConfig,
+    LinearProjection,
+    LinearProjectionConfig,
 )
-from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
 
 
 class SupernodePoolingConfig(BaseModel):

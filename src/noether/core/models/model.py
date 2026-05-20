@@ -7,13 +7,13 @@ from typing import TYPE_CHECKING, Self
 import torch
 
 from noether.core.factory import OptimizerFactory
-from noether.core.models.base import ModelBase
+from noether.core.models import ModelBase
 from noether.data.container import DataContainer
 
 if TYPE_CHECKING:  # import only for type checking to avoid circular imports
     from torch.amp.grad_scaler import GradScaler
 
-    from noether.core.models.base import ModelBaseConfig
+    from noether.core.models import ModelBaseConfig
     from noether.core.providers import PathProvider
     from noether.core.utils.training import UpdateCounter
 

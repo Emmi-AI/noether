@@ -2,10 +2,10 @@
 
 from torch import nn
 
-from .dot_product import DotProductAttention
-from .perceiver import PerceiverAttention
-from .transolver import TransolverAttention
-from .transolver_plusplus import TransolverPlusPlusAttention
+from .dot_product import DotProductAttention, DotProductAttentionConfig
+from .perceiver import PerceiverAttention, PerceiverAttentionConfig
+from .transolver import TransolverAttention, TransolverAttentionConfig
+from .transolver_plusplus import TransolverPlusPlusAttention, TransolverPlusPlusAttentionConfig
 
 ATTENTION_REGISTRY: dict[str, type[nn.Module]] = {
     "dot_product": DotProductAttention,
@@ -19,5 +19,9 @@ __all__ = [
     "PerceiverAttention",
     "TransolverAttention",
     "TransolverPlusPlusAttention",
+    "DotProductAttentionConfig",
+    "PerceiverAttentionConfig",
+    "TransolverAttentionConfig",
+    "TransolverPlusPlusAttentionConfig",
     "ATTENTION_REGISTRY",
 ]

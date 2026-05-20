@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from pydantic import Field
 
 from noether.core.schemas.modules.attention import AttentionConfig
-from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
+from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
 
 
 class TransolverAttentionConfig(AttentionConfig):
