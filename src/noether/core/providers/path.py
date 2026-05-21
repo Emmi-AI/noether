@@ -14,11 +14,19 @@ class PathProvider:
     a string that is unique for each training run. All outputs are stored in a directory defined in the configuration
     that is located in `output_path`. The outputs of a single run will be stored in `output_path/stage_name/run_id`.
 
+    When ``eval_id`` is provided, outputs are nested under an ``eval/<eval_id>`` subdirectory so that an inference run
+    does not collide with the underlying training run it loads from. ``eval_id`` should only be set on the
+    PathProvider that represents the *current* (inference) run — PathProviders constructed to locate a
+    *source* training run (e.g., ancestors or checkpoint sources) must leave it ``None``.
+
     Args:
         output_root_path: The base output directory where outputs should be stored (e.g., /save).
         run_id: Unique identifier of the training run.
         stage_name: Optional identifier for the training stage for easier categorization (e.g., "pretrain" or "finetune").
         debug: If `True`, outputs are stored in a "debug" subfolder.
+        force_overwrite: If `True`, skip the existence check on the output directory.
+        eval_id: If set, the current run's outputs are redirected to ``output_root/run_id/eval/<eval_id>``. Intended for
+            inference runs that read from an existing training run without overwriting it.
     """
 
     def __init__(
@@ -28,14 +36,17 @@ class PathProvider:
         stage_name: str | None = None,
         debug: bool = False,
         force_overwrite: bool = False,
+        eval_id: str | None = None,
     ):
         self.output_root = output_root_path
         self.stage_name = stage_name
         self.run_id = run_id
         self.debug = debug
+        self.eval_id = eval_id
         self.force_overwrite = force_overwrite
 
-        if not self.force_overwrite and self.run_path().exists():
+        # An eval_id makes the output directory unique by construction, so the existence check is unnecessary.
+        if self.eval_id is None and not self.force_overwrite and self.run_path().exists():
             raise FileExistsError(
                 f"Output directory for run_id='{self.run_id}' and stage_name='{self.stage_name}' already exists at {self.run_path()}. Change the stage_name or use force_overwrite=True to overwrite."
             )
@@ -46,16 +57,21 @@ class PathProvider:
         return path
 
     def with_run(self, run_id: str | None = None, stage_name: str | None = None) -> PathProvider:
+        # Used to locate a source training run (e.g., a checkpoint source). ``eval_id`` is intentionally not
+        # propagated — the source run lives at the base path, never under ``eval/<eval_id>``.
         return PathProvider(
             output_root_path=self.output_root,
             run_id=run_id if run_id is not None else self.run_id,
             stage_name=stage_name,
+            debug=self.debug,
             force_overwrite=True,
         )
 
     def run_path(self) -> Path:
         if self.debug:
             stage_output_path = self.output_root / "debug" / self.run_id
+        elif self.eval_id is not None:
+            stage_output_path = self.output_root / self.run_id / "eval" / self.eval_id
         else:
             stage_output_path = self.output_root / self.run_id
 
