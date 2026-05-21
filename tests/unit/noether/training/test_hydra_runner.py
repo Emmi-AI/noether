@@ -157,6 +157,9 @@ class TestHydraRunnerSetup:
         mock_config.resume_stage_name = "prev_stage"
         mock_config.resume_checkpoint = "latest"
         mock_config.resume_output_path = None  # falls back to current run's output_path
+        mock_config.resume_patterns_to_remove = None
+        mock_config.resume_patterns_to_rename = None
+        mock_config.resume_patterns_to_instantiate = None
 
         mock_path_instance = mock_path_provider_cls.return_value
         mock_path_instance.logfile_uri = "/tmp/test.log"
@@ -171,12 +174,14 @@ class TestHydraRunnerSetup:
 
         # The ancestor PathProvider is now constructed directly so that
         # `resume_output_path` can override the source root independently
-        # from the current run's output_path.
+        # from the current run's output_path. ``force_overwrite=True`` because
+        # the source directory always exists and this PathProvider is read-only.
         mock_path_provider_cls.assert_any_call(
             output_root_path="/tmp/output",
             run_id="run_123",
             stage_name="prev_stage",
             debug=False,
+            force_overwrite=True,
         )
         mock_path_instance.link.assert_called()
         assert mock_config.trainer.initializer is not None
