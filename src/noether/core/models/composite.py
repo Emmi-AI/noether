@@ -66,7 +66,7 @@ class CompositeModel(ModelBase):
     ):
         """Base class for composite models, i.e. models that consist of multiple submodels of type Model."""
         # Use the first initializer from the list if available
-        init_config = model_config.initializers if model_config.initializers else []
+        init_config = model_config.initializers or []
         super().__init__(
             model_config=model_config,
             update_counter=update_counter,
