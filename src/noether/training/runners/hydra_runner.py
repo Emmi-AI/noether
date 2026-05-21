@@ -206,6 +206,7 @@ class HydraRunner:
             stage_name=config.stage_name,
             debug=config.debug,
             eval_id=eval_id,
+            force_overwrite=config.overwrite_output,
         )
 
         resume_run_id: str | None = config.resume_run_id

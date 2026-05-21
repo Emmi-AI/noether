@@ -70,7 +70,7 @@ class UQAnchoredBranchedUPT(AeroABUPT):
     """
 
     def __init__(self, model_config: UQABUPTConfig, **kwargs):
-        super().__init__(model_config=model_config, **kwargs)
+        super().__init__(model_config=model_config.parent_config, **kwargs)
 
         self.enable_heteroscedastic = model_config.enable_heteroscedastic
         self.original_data_specs = model_config.data_specs  # non-doubled specs
