@@ -78,8 +78,10 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     tracker: Annotated[BaseTrackerConfig, Discriminated(BaseTrackerConfig)] | None = Field(None)
     """Configuration for experiment tracking. If None, no tracking is used. If "disabled", tracking is explicitly disabled.  WandB is currently the only supported tracker."""
     run_id: str | None = None
-    """Unique identifier for the run. When running under SLURM and not set explicitly,
-    defaults to the SLURM job ID (e.g. ``12345_2`` for array task 2 of job 12345).
+    """Unique identifier for the run. When running under a non-interactive SLURM job
+    and not set explicitly, defaults to the SLURM job ID (e.g. ``12345_2`` for array
+    task 2 of job 12345). Interactive sessions (``SLURM_PTY_PORT`` set, e.g.
+    ``srun --pty bash``) are excluded so each invocation gets a fresh ID.
     Otherwise a new ID is generated at runtime."""
     devices: str | None = None
     """Comma-separated list of device IDs to use. If None, all available devices will be used."""
@@ -139,9 +141,11 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
         """Apply SLURM-aware defaults for ``output_path`` and ``run_id``.
 
         * ``output_path`` defaults to ``slurm.folder`` when omitted.
-        * ``run_id`` defaults to the SLURM job ID when running inside a SLURM
-          allocation (``SLURM_JOB_ID`` env var). For array jobs this becomes
-          ``<array_job_id>_<task_id>``.
+        * ``run_id`` defaults to the SLURM job ID when running inside a
+          non-interactive SLURM allocation (``SLURM_JOB_ID`` env var). For array
+          jobs this becomes ``<array_job_id>_<task_id>``. Interactive
+          sessions (detected via ``SLURM_PTY_PORT``) are skipped so that a new
+          run ID is generated instead of reusing the shell's job ID.
         """
         # --- output_path ---
         if self.output_path is None:
@@ -154,7 +158,8 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
         self.output_path = validate_path(self.output_path, mkdir=True).absolute()
 
         # --- run_id from SLURM env ---
-        if self.run_id is None:
+        is_interactive = "SLURM_PTY_PORT" in os.environ
+        if self.run_id is None and not is_interactive:
             slurm_job_id = os.environ.get("SLURM_JOB_ID")
             slurm_array_job_id = os.environ.get("SLURM_ARRAY_JOB_ID")
             slurm_array_task_id = os.environ.get("SLURM_ARRAY_TASK_ID")
