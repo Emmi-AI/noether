@@ -602,15 +602,19 @@ class AnchoredBranchedUPT(nn.Module):
         query_position: torch.Tensor | None,
         anchor_feature: torch.Tensor | None,
         query_feature: torch.Tensor | None,
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor] | None:
         """Build the physics-block input segment and combined positions for a single domain.
 
         Concatenates ``[anchor | query]`` along the token dim. Each segment is
         ``bias(pos_embed(pos)) + (proj(features) or 0)``; the returned position
         is the concatenation of anchor and query positions in token order.
+
+        Returns ``None`` when both ``anchor_position`` and ``query_position``
+        are ``None`` — the domain contributes no new tokens this call (used when
+        anchor K/V is in the cache and there are no queries for this domain).
         """
         if anchor_position is None and query_position is None:
-            raise ValueError(f"domain {name!r} has neither anchor nor query positions")
+            return None
 
         proj: torch.nn.Module | None = (
             self.domain_feature_projs[name] if self.domain_feature_projs and name in self.domain_feature_projs else None
@@ -665,13 +669,19 @@ class AnchoredBranchedUPT(nn.Module):
         segments: list[torch.Tensor] = []
         physics_positions: dict[str, torch.Tensor] = {}
         for name in self.domain_names:
-            segment, position = self._build_domain_segment(
+            built = self._build_domain_segment(
                 name,
                 anchor_position=domain_anchor_positions.get(name),
                 query_position=domain_query_positions.get(name),
                 anchor_feature=domain_anchor_features.get(name),
                 query_feature=domain_query_features.get(name),
             )
+            if built is None:
+                # Domain contributes no new tokens. Its cached anchor K/V (if
+                # any) still participates in attention via ``kv_cache``; we
+                # just don't extend the input or emit positions for it.
+                continue
+            segment, position = built
             segments.append(segment)
             physics_positions[name] = position
         return torch.cat(segments, dim=1), physics_positions
@@ -794,6 +804,12 @@ class AnchoredBranchedUPT(nn.Module):
                     f"{name} tensor size ({x_domain.size(1)}) does not match expected size ({expected_size})."
                 )
 
+            if expected_size == 0:
+                # Domain has no new tokens this call (all anchors cached, no
+                # queries). Skip the decoder; its cached K/V is preserved by
+                # the outer forward when ``anchors_cached`` is True.
+                continue
+
             preds, new_cache = self._decode_domain(
                 x_domain,
                 name,
@@ -848,14 +864,19 @@ class AnchoredBranchedUPT(nn.Module):
             geometry_attn_kwargs["freqs"] = geometry_rope
             physics_perceiver_attn_kwargs["k_freqs"] = geometry_rope
 
-        # Per-domain rope + concatenated physics rope
-        domain_rope = {name: self.rope(physics_positions[name]) for name in self.domain_names}
-        rope_all = torch.cat([domain_rope[name] for name in self.domain_names], dim=1)
+        # Per-domain rope + concatenated physics rope. Domains absent from
+        # ``physics_positions`` contribute no new tokens this call (e.g. when
+        # their anchor K/V is cached and they have no queries), so they're
+        # skipped here too — their RoPE was baked into the cached K at the
+        # call that built the cache.
+        active_names = [name for name in self.domain_names if name in physics_positions]
+        domain_rope = {name: self.rope(physics_positions[name]) for name in active_names}
+        rope_all = torch.cat([domain_rope[name] for name in active_names], dim=1)
 
         physics_perceiver_attn_kwargs["q_freqs"] = rope_all
         physics_attn_kwargs["freqs"] = rope_all
 
-        decoder_attn_kwargs = {name: {"freqs": domain_rope[name]} for name in self.domain_names}
+        decoder_attn_kwargs = {name: {"freqs": domain_rope[name]} for name in active_names}
 
         return (
             geometry_attn_kwargs,
