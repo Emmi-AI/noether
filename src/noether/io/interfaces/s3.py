@@ -54,7 +54,7 @@ def get_s3_client() -> BaseClient:
         if value is None:
             return None
         value = str(value).strip()
-        return value if value else None
+        return value or None
 
     # Prefer AWS_DEFAULT_REGION, but allow AWS_REGION as a fallback:
     region = _clean(credentials.get(AWSSecrets.AWS_DEFAULT_REGION, None)) or _clean(

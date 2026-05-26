@@ -875,28 +875,23 @@ class BaseTrainer:
         batch_size: int,
         end_of_epoch: bool = False,
     ) -> bool:
-        iterator_callback_args = dict(
-            trainer_model=dist_model,
-            data_iter=map(BaseTrainer.drop_metadata, data_iter),
-            batch_size=batch_size,
-        )
         from noether.core.callbacks.early_stoppers import EarlyStopIteration
 
         early_exit = False
         first_error = None
         for callback in periodic_callbacks:
-            needs_iter_args = _needs_iterator_args(callback)
             try:
-                if end_of_epoch:
-                    callback.after_epoch(
-                        update_counter=self.update_counter,
-                        **(iterator_callback_args if needs_iter_args else {}),
-                    )
-                else:
-                    callback.after_update(
-                        update_counter=self.update_counter,
-                        **(iterator_callback_args if needs_iter_args else {}),
-                    )
+                callback_fn = callback.after_epoch if end_of_epoch else callback.after_update
+                callback_fn(
+                    update_counter=self.update_counter,
+                    trainer_model=dist_model,
+                    batch_size=batch_size,
+                    **(
+                        {"data_iter": map(BaseTrainer.drop_metadata, data_iter)}
+                        if _needs_iterator_args(callback)
+                        else {}
+                    ),
+                )
             except EarlyStopIteration:
                 self.logger.info(f"Callback {callback} requested early stop of training")
                 early_exit = True
@@ -1251,16 +1246,10 @@ class BaseTrainer:
                 if not isinstance(callback, PeriodicCallback):
                     continue
                 self.logger.info(f"Running periodic callback: {callback}")
-                iterator_callback_args = (
-                    dict(
-                        trainer_model=dist_model,
-                        data_iter=map(BaseTrainer.drop_metadata, data_iter),
-                        batch_size=batch_size,
-                    )
-                    if _needs_iterator_args(callback)
-                    else {}
-                )
-                callback.at_eval(self.update_counter, **iterator_callback_args)
+                extra = dict(batch_size=batch_size, trainer_model=dist_model)
+                if _needs_iterator_args(callback):
+                    extra["data_iter"] = map(BaseTrainer.drop_metadata, data_iter)
+                callback.at_eval(self.update_counter, **extra)
 
     @property
     def total_training_updates(self) -> int:
