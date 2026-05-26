@@ -2,6 +2,13 @@
 
 This recipe trains AB-UPT on the [DrivAerML](http://caemldatasets.org/drivaerml/) dataset with **aleatoric** uncertainty estimates per prediction.
 
+We published a report on baseline models on [W&B](https://wandb.ai/emmi-ai/uq_recipe_development/reports/Uncertainty-quantification-example-with-Noether).
+
+
+![Surface friction UQ](./friction_uq.png)
+
+*Figure: Visualization of the predicted surface friction, the error, and the predicted log variance.*
+
 ## Overview
 
 The recipe wraps the AB-UPT architecture from the [`aero_cfd`](../aero_cfd/) recipe with an aleatoric UQ mechanism:
