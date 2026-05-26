@@ -1,10 +1,10 @@
 # Uncertainty Quantification Recipe
 
-This recipe trains AB-UPT, on the [DrivAerML](http://caemldatasets.org/drivaerml/), with **aleatoric** uncertainty estimates per prediction.
+This recipe trains AB-UPT on the [DrivAerML](http://caemldatasets.org/drivaerml/) dataset with **aleatoric** uncertainty estimates per prediction.
 
 ## Overview
 
-The recipe wraps the AB-UPT architecture from the [`aero_cfd`](../aero_cfd/) recipe a aleatoric UQ mechanisms:
+The recipe wraps the AB-UPT architecture from the [`aero_cfd`](../aero_cfd/) recipe with an aleatoric UQ mechanism:
 
 - **Aleatoric (heteroscedastic)**: the decoder predicts both a mean and a log-variance for every output field. The model is trained with a Gaussian NLL loss (optionally β-NLL re-weighted, [Seitzer et al. 2022](https://arxiv.org/abs/2203.09168)) plus an MSE term and a one-sided log-variance regularizer.
 
@@ -13,7 +13,7 @@ The recipe includes:
 - **Model**: `UQAnchoredBranchedUPT` -- AB-UPT with doubled output heads (mean + log-variance).
 - **Trainer**: `UQTrainer` -- Gaussian NLL + MSE warmup + variance regularization + β-NLL
 - **Callbacks**: UQ-aware evaluation metrics (denormalized RMSE/MAE/L2) and a VTP visualization callback that renders mean + aleatoric σ + epistemic σ on the original surface mesh
-- **Postprocessing**: a standalone script that reproduces the chunked evaluation and writes VTP / PNG outputs for any baseline or UQ run. This script was originally used to generate the visualizations, however, we turned it into a callback to run directly after training is finished. 
+- **Postprocessing**: a standalone script that reproduces the chunked evaluation and writes VTP / PNG outputs for any baseline or UQ run. This script was originally used to generate the visualizations; however, we turned it into a callback that runs directly after training is finished.
 
 ## Running an experiment
 
@@ -54,7 +54,7 @@ Common CLI overrides:
 recipes/uncertainty_quantification/
 ├── callbacks/
 │   ├── uq_evaluation.py             # Denormalized metrics; remaps {field}_mean -> {field}
-│   └── uq_post_visualization.py     # VTP rendering of mean, aleatoric σ, for visualization purposed
+│   └── uq_post_visualization.py     # VTP rendering of mean, aleatoric σ, for visualization purposes
 ├── configs/
 │   ├── base_experiment.yaml         # Main training config
 │   ├── callbacks/uq_callback.yaml   # Callback stack (checkpoints, EMA, eval, viz)
@@ -79,5 +79,5 @@ recipes/uncertainty_quantification/
 
 Training automatically logs:
 
-- **Denormalized RMSE / MAE / relative L2** per field on `val` and chunked `test` the `UQSurfaceVolumeEvaluationMetricsCallback` serves as a remap layer on top of `AeroMetricsCallback` to take the split of mean and log variance predictions into account. 
-- **VTP visualizations** every 100 epochs on a the `test_visualization` split (which contains the first three samples of the test set) the `UQPostVisualizationCallback` renders mean prediction, aleatoric σ on the original surface mesh.
+- **Denormalized RMSE / MAE / relative L2** per field on `val` and chunked `test`. The `UQSurfaceVolumeEvaluationMetricsCallback` serves as a remap layer on top of `AeroMetricsCallback` to take the split of mean and log-variance predictions into account.
+- **VTP visualizations** every 100 epochs on the `test_visualization` split (which contains the first three samples of the test set). The `UQPostVisualizationCallback` renders the mean prediction and aleatoric σ on the original surface mesh.
