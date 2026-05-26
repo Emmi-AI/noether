@@ -177,6 +177,7 @@ class TestHydraRunnerSetup:
             run_id="run_123",
             stage_name="prev_stage",
             debug=False,
+            force_overwrite=True,
         )
         mock_path_instance.link.assert_called()
         assert mock_config.trainer.initializer is not None

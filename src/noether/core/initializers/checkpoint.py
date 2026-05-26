@@ -64,6 +64,7 @@ class CheckpointInitializer(InitializerBase):
                 run_id=self.run_id,
                 stage_name=self.stage_name,
                 debug=self.path_provider.debug,
+                force_overwrite=True,
             )
         else:
             self.init_run_path_provider = self.path_provider.with_run(

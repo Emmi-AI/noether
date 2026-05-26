@@ -220,6 +220,7 @@ class HydraRunner:
                 run_id=resume_run_id,
                 stage_name=config.resume_stage_name,
                 debug=config.debug,
+                force_overwrite=True,
             )
             path_provider.link(ancestor)
 
