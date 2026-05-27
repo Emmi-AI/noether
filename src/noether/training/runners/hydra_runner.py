@@ -152,7 +152,6 @@ class HydraRunner:
         config: ConfigSchema,
         initializer_config_class: type[ResumeInitializerConfig]
         | type[PreviousRunInitializerConfig] = ResumeInitializerConfig,
-        inference_mode: bool = False,
     ) -> tuple[BaseTrainer, ModelBase, BaseTracker, MessageCounter]:
         """Sets up the experiment objects (datasets, trainer, model, etc.)."""
         world_size = get_world_size()
@@ -184,17 +183,6 @@ class HydraRunner:
                 run_id = typing.cast("str", object_list[0])
                 assert run_id is not None, "run_id should have been broadcasted to all ranks"
 
-        # In inference mode, derive a per-eval id so outputs land in ``<run_id>/eval/<eval_id>`` and don't clobber the
-        # source training run. Broadcast it for the same reason ``run_id`` is broadcast: every rank must agree on it.
-        eval_id: str | None = None
-        if inference_mode:
-            eval_id = PathProvider.generate_run_id()
-            if is_distributed():
-                eval_object_list = [eval_id] if is_rank0() else [0]  # type: ignore
-                broadcast_object_list(eval_object_list, src=0)
-                eval_id = typing.cast("str", eval_object_list[0])
-                assert eval_id is not None, "eval_id should have been broadcasted to all ranks"
-
         # initialize path where to store logs/checkpoints/...
         output_path = config.output_path
         assert output_path is not None, "output_path must be specified in the config"
@@ -205,7 +193,6 @@ class HydraRunner:
             run_id=run_id,
             stage_name=config.stage_name,
             debug=config.debug,
-            eval_id=eval_id,
             force_overwrite=config.overwrite_output,
         )
 
@@ -228,36 +215,23 @@ class HydraRunner:
             # (used by ``noether-eval`` when ``output_path`` is overridden so eval outputs land elsewhere).
             # Defaults to this run's ``output_path`` for backwards compatibility.
             resume_output_path = config.resume_output_path or output_path
-            # The ancestor points at the source training run itself, never at an eval subdir — so no ``eval_id`` here.
-            # ``force_overwrite=True`` because the source directory always exists; this PathProvider is read-only.
             ancestor = PathProvider(
                 output_root_path=resume_output_path,
                 run_id=resume_run_id,
                 stage_name=config.resume_stage_name,
                 debug=config.debug,
-                force_overwrite=True,
             )
             path_provider.link(ancestor)
 
-            initializer_kwargs: dict[str, typing.Any] = dict(
-                run_id=resume_run_id,
-                stage_name=config.resume_stage_name,
-                checkpoint_tag=checkpoint,
-                model_name=config.model.name,
-                output_path=config.resume_output_path,
+            config.trainer.initializer = initializer_config_class.model_validate(
+                dict(
+                    run_id=resume_run_id,
+                    stage_name=config.resume_stage_name,
+                    checkpoint_tag=checkpoint,
+                    model_name=config.model.name,
+                    output_path=config.resume_output_path,
+                )
             )
-            # ``patterns_to_*`` are only accepted by ``PreviousRunInitializerConfig``. ``ResumeInitializerConfig``
-            # forbids extras, so we only forward these keys when the user set them.
-            for src_key, dst_key in (
-                ("resume_patterns_to_remove", "patterns_to_remove"),
-                ("resume_patterns_to_rename", "patterns_to_rename"),
-                ("resume_patterns_to_instantiate", "patterns_to_instantiate"),
-            ):
-                value = getattr(config, src_key)
-                if value is not None:
-                    initializer_kwargs[dst_key] = value
-
-            config.trainer.initializer = initializer_config_class.model_validate(initializer_kwargs)
 
         message_counter = add_global_handlers(log_file_uri=path_provider.logfile_uri, debug=config.debug)
 

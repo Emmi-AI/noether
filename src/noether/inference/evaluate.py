@@ -53,9 +53,6 @@ def evaluate(
     callbacks: list[CallBackBaseConfig] | None = None,
     device: str = "cuda",
     disable_tracker: bool = False,
-    patterns_to_remove: list[str] | None = None,
-    patterns_to_rename: list[dict] | None = None,
-    patterns_to_instantiate: list[str] | None = None,
 ) -> None:
     """Run evaluation against a training run directory.
 
@@ -87,16 +84,6 @@ def evaluate(
             is single-process.
         disable_tracker: If ``True``, drop the saved tracker config so eval
             doesn't create a new wandb run.
-        patterns_to_remove: Substring patterns whose matching keys are dropped
-            from the source checkpoint before loading. Forwarded to
-            :class:`~noether.core.initializers.PreviousRunInitializerConfig`.
-        patterns_to_rename: Substring rename patterns applied to source-checkpoint
-            keys before loading. Each entry is ``{"src": <substring>, "dst": <replacement>}``.
-            Forwarded to :class:`~noether.core.initializers.PreviousRunInitializerConfig`.
-        patterns_to_instantiate: Substring patterns whose matching keys are
-            taken from the freshly-initialized model rather than the source
-            checkpoint (i.e. left at their random init). Forwarded to
-            :class:`~noether.core.initializers.PreviousRunInitializerConfig`.
 
     Raises:
         FileNotFoundError: if ``run_dir`` doesn't contain ``hp_resolved.yaml``.
@@ -133,12 +120,6 @@ def evaluate(
     config = Hyperparameters.load_resolved(hp_path)
     _set_resume_from_run_dir(config, run_dir)
     config.resume_checkpoint = resume_checkpoint
-    if patterns_to_remove is not None:
-        config.resume_patterns_to_remove = patterns_to_remove
-    if patterns_to_rename is not None:
-        config.resume_patterns_to_rename = patterns_to_rename
-    if patterns_to_instantiate is not None:
-        config.resume_patterns_to_instantiate = patterns_to_instantiate
 
     if stage_name is not None:
         config.stage_name = stage_name

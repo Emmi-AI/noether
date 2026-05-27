@@ -19,7 +19,6 @@ class InferenceRunner(HydraRunner):
             device=device,
             config=config,
             initializer_config_class=PreviousRunInitializerConfig,
-            inference_mode=True,
         )
 
         trainer.eval(model)

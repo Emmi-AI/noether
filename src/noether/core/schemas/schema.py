@@ -71,12 +71,6 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """Path to checkpoint to resume from. If None, the 'latest' checkpoint will be used."""
     resume_output_path: Path | None = None
     """Output root where the resume source run lives, when different from this run's ``output_path``. Set automatically by ``noether-eval`` (read from the source ``hp_resolved.yaml``) so that overriding ``output_path`` for the eval run does not break source-checkpoint lookup. Leave unset for ordinary training resume, which keeps writing alongside the original run."""
-    resume_patterns_to_remove: list[str] | None = None
-    """Substring patterns whose matching keys are dropped from the source checkpoint before loading. Forwarded to :class:`~noether.core.initializers.PreviousRunInitializerConfig`, so only takes effect when the resume target is a previous-run initializer (e.g. ``noether-eval``). Example via CLI: ``'++resume_patterns_to_remove=[head,classifier]'``."""
-    resume_patterns_to_rename: list[dict] | None = None
-    """Substring rename patterns applied to source-checkpoint keys before loading. Each entry is ``{src: <substring>, dst: <replacement>}``. Forwarded to :class:`~noether.core.initializers.PreviousRunInitializerConfig`. Example via CLI: ``'++resume_patterns_to_rename=[{src:backbone.,dst:encoder.}]'``."""
-    resume_patterns_to_instantiate: list[str] | None = None
-    """Substring patterns whose matching keys are taken from the freshly-initialized model rather than the source checkpoint (i.e. left at their random init). Forwarded to :class:`~noether.core.initializers.PreviousRunInitializerConfig`. Example via CLI: ``'++resume_patterns_to_instantiate=[head]'``."""
     seed: int = Field(0)
     """Random seed for reproducibility."""
     dataset_statistics: dict[str, list[float | int]] | None = None

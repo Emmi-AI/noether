@@ -13,18 +13,8 @@
 +experiment/shapenet=upt tracker=dev_refactoring +seed=3
 +experiment/shapenet=upt tracker=dev_refactoring +seed=4
 +experiment/shapenet=upt tracker=dev_refactoring +seed=5
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=1 name=ab_upt_shapenet_baseline dataset_root=/nfs-gpu/research/datasets/shapenet_car/ 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=2 name=ab_upt_shapenet_baseline dataset_root=/nfs-gpu/research/datasets/shapenet_car/ 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=3 name=ab_upt_shapenet_baseline dataset_root=/nfs-gpu/research/datasets/shapenet_car/ 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=4 name=ab_upt_shapenet_baseline dataset_root=/nfs-gpu/research/datasets/shapenet_car/ 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=5 name=ab_upt_shapenet_baseline dataset_root=/nfs-gpu/research/datasets/shapenet_car/ 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=1 name=ab_upt_shapenet_wo_bias dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=2 name=ab_upt_shapenet_wo_bias dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=3 name=ab_upt_shapenet_wo_bias dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=4 name=ab_upt_shapenet_wo_bias dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=5 name=ab_upt_shapenet_wo_bias dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false 
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=1 name=ab_upt_shapenet_wo_bias-fp32 dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false trainer.precision=fp32
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=2 name=ab_upt_shapenet_wo_bias-fp32 dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false trainer.precision=fp32
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=3 name=ab_upt_shapenet_wo_bias-fp32 dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false trainer.precision=fp32
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=4 name=ab_upt_shapenet_wo_bias-fp32 dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false trainer.precision=fp32
-+experiment/shapenet=ab_upt tracker=development_tracker +seed=5 name=ab_upt_shapenet_wo_bias-fp32 dataset_root=/nfs-gpu/research/datasets/shapenet_car/ +model.transformer_block_config.bias=false +model.supernode_pooling_config.bias=false trainer.precision=fp32
++experiment/shapenet=ab_upt tracker=dev_refactoring +seed=1
++experiment/shapenet=ab_upt tracker=dev_refactoring +seed=2
++experiment/shapenet=ab_upt tracker=dev_refactoring +seed=3
++experiment/shapenet=ab_upt tracker=dev_refactoring +seed=4
++experiment/shapenet=ab_upt tracker=dev_refactoring +seed=5
