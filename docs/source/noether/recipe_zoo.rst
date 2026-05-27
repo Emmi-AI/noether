@@ -51,8 +51,21 @@ All recipe source code lives under the `recipes/ <https://github.com/Emmi-AI/noe
       - :doc:`Documentation <heat_transfer>`
       - `Source code <https://github.com/Emmi-AI/noether/tree/main/recipes/heat_transfer>`_
 
+   .. grid-item-card:: :ph:`chart-line` Uncertainty Quantification
+      :img-top: /_static/uncertainty_quantification/friction_uq.png
+      :class-card: sd-h-100 sd-shadow-sm sd-rounded-3
+      :class-title: sd-fs-5 sd-fw-bold sd-text-primary
+      :class-body: sd-p-4
+      :class-img-top: recipe-card-thumb
+
+      Aleatoric uncertainty estimates for AB-UPT on DrivAerML. 
+
+      - :doc:`Documentation <uncertainty_quantification>`
+      - `Source code <https://github.com/Emmi-AI/noether/tree/main/recipes/uncertainty_quantification>`_
+
 .. toctree::
    :hidden:
 
    aero_cfd_python
    heat_transfer
+   uncertainty_quantification
