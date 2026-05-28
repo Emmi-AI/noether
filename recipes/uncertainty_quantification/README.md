@@ -2,7 +2,7 @@
 
 This recipe trains AB-UPT on the [DrivAerML](http://caemldatasets.org/drivaerml/) dataset with **aleatoric** uncertainty estimates per prediction.
 
-We published a report on baseline models on [W&B](https://wandb.ai/emmi-ai/uq_recipe_development/reports/Uncertainty-quantification-example-with-Noether).
+We published a report on baseline models on [W&B](https://api.wandb.ai/links/emmi-ai/yg5ssupq).
 
 
 ![Surface friction UQ](./friction_uq.png)
