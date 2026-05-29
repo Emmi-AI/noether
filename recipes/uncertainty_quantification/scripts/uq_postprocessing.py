@@ -1,3 +1,4 @@
+# ruff: noqa: B905, PLW3301
 #  Copyright © 2026 Emmi AI GmbH. All rights reserved.
 
 """Post-processing script for AB-UPT models (baseline and UQ).
