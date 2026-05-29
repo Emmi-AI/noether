@@ -55,7 +55,8 @@ class UQTrainer(BaseTrainer):
                 target = targets[target_key]
 
                 sq_err = (mean - target).pow(2)
-                losses[f"{field_name}_regression"] = sq_err.mean() * self.config.mse_loss_weight
+                if self.config.mse_loss_weight > 0.0:
+                    losses[f"{field_name}_regression"] = sq_err.mean() * self.config.mse_loss_weight
 
                 if use_nll and log_var_key in forward_output:
                     # Warmup phase, or no log-variance head: train mean with MSE only.
