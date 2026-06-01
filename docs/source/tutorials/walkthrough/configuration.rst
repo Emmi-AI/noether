@@ -40,7 +40,7 @@ Let's break down its key components:
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/train_shapenet.yaml
    :language: yaml
-   :lines: 1-25
+   :end-at: - _self_
 
 Each entry like ``dataset_normalizers: shapenet_dataset_normalizers`` tells Hydra to load
 :source:`configs/dataset_normalizers/shapenet_dataset_normalizers.yaml <../../../../recipes/aero_cfd/configs/dataset_normalizers/shapenet_dataset_normalizers.yaml>`
@@ -223,7 +223,7 @@ validates configuration: checks types, ranges, and constraints before training b
 All schemas in the Noether Framework follow an inheritance pattern. For example, model schemas
 inherit from ``ModelBaseConfig``:
 
-.. literalinclude:: ../../../../src/noether/core/schemas/models/base.py
+.. literalinclude:: ../../../../src/noether/core/models/base.py
    :language: python
    :pyobject: ModelBaseConfig
    :end-before: @property
@@ -247,12 +247,12 @@ Transformer models looks like:
 
 **TransformerBlockConfig** defines individual block parameters:
 
-.. literalinclude:: ../../../../src/noether/core/schemas/modules/blocks.py
+.. literalinclude:: ../../../../src/noether/modeling/modules/blocks/transformer.py
    :pyobject: TransformerBlockConfig
 
 **TransformerConfig** extends the block config:
 
-.. literalinclude:: ../../../../src/noether/core/schemas/models/transformer.py
+.. literalinclude:: ../../../../src/noether/modeling/models/transformer.py
    :pyobject: TransformerConfig
 
 **Multiple inheritance** means ``TransformerConfig`` inherits:
@@ -301,9 +301,9 @@ Each component (model, trainer, dataset, etc.) has a corresponding config class 
 from a base schema.
 
 For example, the trainer config schema for this recipe is defined in
-:source:`trainers/aerodynamics_cfd.py <../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py>`:
+:source:`trainers/aerodynamics_cfd.py <../../../../recipes/aero_cfd/src/aero_cfd/trainers/aerodynamics_cfd.py>`:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py
+.. literalinclude:: ../../../../recipes/aero_cfd/src/aero_cfd/trainers/aerodynamics_cfd.py
    :language: python
    :pyobject: AerodynamicsCfdTrainerConfig
    :dedent:

@@ -108,7 +108,7 @@ which of these potential losses should be computed during training.
 
 This method contains the core logic of the trainer for computing the loss:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/trainers/aerodynamics_cfd.py
+.. literalinclude:: ../../../../recipes/aero_cfd/src/aero_cfd/trainers/aerodynamics_cfd.py
    :language: python
    :pyobject: AerodynamicsCFDTrainer.loss_compute
    :dedent:
