@@ -9,12 +9,13 @@ are re-exported here for backward compatibility.
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from noether.core.types import InitWeightsMode
 
+_AttnImpl = Literal["dot_product", "perceiver", "transolver", "transolver_plusplus", "flash_attn"]
 
 # =====================================================================================================================
 #                                                   REGULAR ATTENTION
@@ -54,8 +55,9 @@ class AttentionConfig(BaseModel):
     qk_norm: bool = Field(False)
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
-    use_flash_attn: bool = False
-    """Whether to use the optional FlashAttention-3 kernel when available."""
+    attn_impl: _AttnImpl | None = Field(None)
+    """The attention implementation to use (e.g., "dot_product", "perceiver", "transolver", "flash_attn")."""
+
 
     @model_validator(mode="after")
     def validate_hidden_dim_and_num_heads(self):
