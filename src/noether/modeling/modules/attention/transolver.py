@@ -8,6 +8,7 @@ from pydantic import Field
 
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
+import noether.modeling.modules.attention._flash_attention as _fa
 
 
 class TransolverAttentionConfig(AttentionConfig):
@@ -39,6 +40,7 @@ class TransolverAttention(nn.Module):
         self.num_heads = config.num_heads
         self.dropout = config.dropout
         self.temperature = nn.Parameter(torch.full(size=(1, config.num_heads, 1, 1), fill_value=0.5))
+        self.attn_impl = config.attn_impl
 
         self.in_project_x = LinearProjection(
             config=LinearProjectionConfig(
@@ -155,12 +157,22 @@ class TransolverAttention(nn.Module):
 
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        out_slice_token = F.scaled_dot_product_attention(
-            q_slice_token,
-            k_slice_token,
-            v_slice_token,
-            dropout_p=self.dropout if self.training else 0.0,
-        )
+
+        if self.attn_impl == "flash_attn":
+            q_slice_token = q_slice_token.view(q_slice_token.size(0), self.num_heads, q_slice_token.size(2), -1).contiguous()
+            k_slice_token = k_slice_token.view(k_slice_token.size(0), self.num_heads, k_slice_token.size(2), -1).contiguous()
+            v_slice_token = v_slice_token.view(v_slice_token.size(0), self.num_heads, v_slice_token.size(2), -1).contiguous()
+            out_slice_token = _fa.flash_attn_func(
+                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0,
+                causal=q_slice_token.shape[2] > 1
+            ).view(q_slice_token.size(0), self.num_heads, q_slice_token.size(2), -1).contiguous()
+        else:
+            out_slice_token = F.scaled_dot_product_attention(
+                q_slice_token,
+                k_slice_token,
+                v_slice_token,
+                dropout_p=self.dropout if self.training else 0.0,
+            )
 
         # deslice - project the slice tokens back to the original points
         out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)

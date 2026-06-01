@@ -11,42 +11,8 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
+import noether.modeling.modules.attention._flash_attention as _fa
 
-
-def _load_flash_attn3_interface() -> Any | None:
-    if not torch.cuda.is_available():
-        return None
-
-    try:
-        major, _ = torch.cuda.get_device_capability()
-    except RuntimeError:
-        return None
-
-    if major < 9:
-        return None
-
-    try:
-        import kernels
-    except ImportError:
-        return None
-
-    os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-
-    try:
-        kernel = kernels.get_kernel("varunneal/flash-attention-3")
-    except Exception:
-        return None
-
-    flash_attn_interface = getattr(kernel, "flash_attn_interface", None)
-    if flash_attn_interface is None:
-        return None
-    if not hasattr(flash_attn_interface, "flash_attn_func"):
-        return None
-
-    return flash_attn_interface
-
-
-_FLASH_ATTN3 = _load_flash_attn3_interface()
 
 
 class DotProductAttentionConfig(AttentionConfig):
@@ -79,7 +45,7 @@ class DotProductAttention(nn.Module):
         self.head_dim = config.hidden_dim // config.num_heads
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
-        self.use_flash_attn = config.use_flash_attn
+        self.attn_impl = config.attn_impl
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 
@@ -115,7 +81,6 @@ class DotProductAttention(nn.Module):
         qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
         qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
         qkv = F.linear(x, qkv_weight, qkv_bias)
-
         q, k, v = einops.rearrange(
             qkv,
             "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
@@ -132,19 +97,25 @@ class DotProductAttention(nn.Module):
         else:
             assert freqs is None
 
-        if self.use_flash_attn and attn_mask is None and _FLASH_ATTN3 is not None:
-            x = _FLASH_ATTN3.flash_attn_func(
-                q.transpose(1, 2),
-                k.transpose(1, 2),
-                v.transpose(1, 2),
+        if attn_mask is None and self.attn_impl == "flash_attn":
+            qkv = einops.rearrange(
+                torch.stack([q, k, v], dim=2), "bs num_heads three seqlen head_dim -> bs seqlen three num_heads head_dim",
+                three=3,
+                num_heads=self.num_heads,
+                head_dim=self.head_dim,
+            ) # .contiguous() ?
+            x = _fa.flash_attn_qkvpacked_func(
+                qkv,
                 dropout_p=self.dropout if self.training else 0.0,
-                causal=False,
-            ).transpose(1, 2)
+                causal=qkv.shape[1] > 1,  # Tq > 1 -> causal attention
+            ) # (batch_size, seqlen, nheads, headdim)
+            x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         else:
             x = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
             )
-        x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
+            x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
+        
         x = self.proj_dropout(self.proj(x))
 
         return x

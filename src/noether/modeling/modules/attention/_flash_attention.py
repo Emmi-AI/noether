@@ -1,4 +1,4 @@
-from gpt_lab.utils.import_utils import is_torch_cuda_available, is_flash_attn3_available_from_kernel
+#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import torch
 import torch.nn.functional as F
@@ -22,19 +22,26 @@ if is_torch_cuda_available():
 
 flash_attention_is_installed = _flash_attn is not None
 
-def _sdpa_fallback(q, k, v, 
-                   dropout_p=0.0, softmax_scale=None, window_size=(-1, -1), 
-                   alibi_slopes=None, deterministic=False, use_gqa=False):
-    """
+def _sdpa_fallback(
+        q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
+        dropout_p: float = 0.0, softmax_scale: float | None = None, window_size: tuple[int, int] = (-1, -1),
+        alibi_slopes: torch.Tensor | None = None, deterministic: bool = False, use_gqa: bool = False):
+    """Function of the scaled dot-product attention fallback.
+
     Args:
-        q: (B, Tq, H, D)
-        k: (B, Tk, Hkv, D)
-        v: (B, Tk, Hkv, D)
-        ...
+        q: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
+        k: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
+        v: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
+        dropout_p: Dropout probability for the attention weights.
+        softmax_scale: Scale factor for the softmax operation.
+        window_size: Size of the attention window.
+        alibi_slopes: Alibi slopes for the attention mechanism.
+        deterministic: Whether to use deterministic operations.
+        use_gqa: Whether to use grouped query attention.
+
     Returns:
-        output: (B, Tq, H, D)
+        Returns the output of the attention module.
     """
-    
     Tq, Tk = q.size(1), k.size(1)
     if window_size is None:
         window_size = (-1, -1)
@@ -75,16 +82,7 @@ def _sdpa_fallback(q, k, v,
 
 
 def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
-                window_size=(-1, -1), alibi_slopes=None, deterministic=False):
-    """
-    Args:
-        q: (B, Tq, H, D)
-        k: (B, Tk, H, D)
-        v: (B, Tk, H, D)
-        ... 
-    Returns:
-        output: (B, Tq, H, D)
-    """
+                window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
     if flash_attention_is_installed:
         return _flash_attn.flash_attn_func(
             q, k,v,
@@ -106,7 +104,29 @@ def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
         use_gqa=use_gqa
     )
 
+def flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False,
+                          window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
+    if flash_attention_is_installed:
+        return _flash_attn.flash_attn_qkvpacked_func(
+            qkv,
+            dropout_p=dropout_p,
+            softmax_scale=softmax_scale,
+            causal=causal,
+            window_size=window_size,
+            # alibi_slopes=alibi_slopes,
+            # deterministic=deterministic
+        )
+    assert alibi_slopes is None, "Alibi slopes are not supported when FlashAttention is not installed."
 
+    q, k, v = qkv.unbind(dim=2)
+    return _sdpa_fallback(
+        q, k, v,
+        dropout_p=dropout_p,
+        softmax_scale=softmax_scale,
+        window_size=window_size,
+        alibi_slopes=alibi_slopes,
+        # deterministic=deterministic
+    )
 
 def flash_attn_with_kvcache(
     q: torch.Tensor, # (B, Tq, H, D)
@@ -124,7 +144,7 @@ def flash_attn_with_kvcache(
     window_size=(-1, -1),  # -1 means 'infinite' context window
     rotary_interleaved=True,
     alibi_slopes=None,
-): 
+) -> torch.Tensor:
     if (k is not None) and (v is not None):
         assert q.device == k.device == v.device, "q, k and v are expected to be on the same device"
     assert q.device == k_cache.device == v_cache.device, "q, k_cache and v_cache are expected to be on the same device"

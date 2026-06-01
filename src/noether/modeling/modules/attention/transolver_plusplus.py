@@ -12,6 +12,7 @@ from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention import TransolverAttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
+import noether.modeling.modules.attention._flash_attention as _fa
 
 
 class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):
@@ -73,6 +74,7 @@ class TransolverPlusPlusAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = config.dropout
         self.bias = nn.Parameter(torch.ones([1, self.num_heads, 1, 1]) * 0.5)
+        self.attn_impl = config.attn_impl
 
         self.proj_temperature = nn.Sequential(
             LinearProjection(
@@ -170,9 +172,15 @@ class TransolverPlusPlusAttention(nn.Module):
         slice_token = slice_token / ((slice_norm + 1e-5)[:, :, :, None].repeat(1, 1, 1, self.dim_head))  # type: ignore[arg-type]
 
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        out_slice_token = F.scaled_dot_product_attention(
-            q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
-        )
+        if self.attn_impl == "flash_attn":
+            out_slice_token = _fa.flash_attn_func(
+                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0,
+                causal=q_slice_token.shape[2] > 1
+            )
+        else:
+            out_slice_token = F.scaled_dot_product_attention(
+                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
+            )
 
         out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)
         out_x = rearrange(out_x, "b h n d -> b n (h d)")
