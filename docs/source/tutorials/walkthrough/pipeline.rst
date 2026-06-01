@@ -104,7 +104,8 @@ When the multi-stage pipeline runs, the sample processors are called as follows:
 
 .. literalinclude:: ../../../../src/noether/data/pipeline/multistage.py
    :language: python
-   :lines: 103-107
+   :start-at: # pre-process on a sample level
+   :end-before: # create batch out of the samples
    :dedent:
 
 Each **sample processor** takes a sample as input and returns the (pre)processed sample.
@@ -125,7 +126,8 @@ The code for calling the collators in the multi-stage pipeline looks as follows:
 
 .. literalinclude:: ../../../../src/noether/data/pipeline/multistage.py
    :language: python
-   :lines: 109-117
+   :start-at: # create batch out of the samples
+   :end-before: # process the batch
    :dedent:
 
 Each collator defines how to merge certain keys from each sample into a batch. In most cases,
@@ -146,5 +148,6 @@ batch. Below is the code showing how batch processors are called:
 
 .. literalinclude:: ../../../../src/noether/data/pipeline/multistage.py
    :language: python
-   :lines: 119-121
+   :start-at: # process the batch
+   :end-at: return batch
    :dedent:
