@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class ShuffleWrapperConfig(DatasetWrapperConfig):
+    kind: str = "noether.data.base.wrappers.ShuffleWrapper"
+
     seed: int | None = Field(None, ge=0)
     """Random seed for shuffling. If None, a random seed is used."""
 

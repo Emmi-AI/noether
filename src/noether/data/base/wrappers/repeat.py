@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 
 class RepeatWrapperConfig(DatasetWrapperConfig):
+    kind: str = "noether.data.base.wrappers.RepeatWrapper"
+
     repetitions: int = Field(..., ge=2)
     """The number of times to repeat the dataset."""
 

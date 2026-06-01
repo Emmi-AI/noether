@@ -360,7 +360,7 @@ def _validate_all_combos(config_path: Path, combos: list[list[str]]) -> SlurmCon
     first_slurm: SlurmConfig | None = None
     for idx, combo in enumerate(combos, start=1):
         label = f"[{idx}/{len(combos)}]"
-        print(f"{label} validating overrides: {combo if combo else '(none)'}")
+        print(f"{label} validating overrides: {combo or '(none)'}")
         try:
             cfg = _compose_config(config_path, combo)
             validated = validate_config(cfg)

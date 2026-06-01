@@ -50,10 +50,15 @@ class AeroCFDPipelineConfig(PipelineConfig):
     """Number of volume anchor points to sample for AB-UPT."""
     num_surface_anchor_points: int | None = 0
     """Number of surface anchor points to sample for AB-UPT."""
+    use_query_positions: bool = False
+    """If True and query counts > 0, the anchor-sampling processor keeps a disjoint query
+    partition and emits surface_query_* / volume_query_* keys alongside the anchor keys.
+    Defaults to False to preserve the anchors-only behavior of the original AB-UPT setup."""
     use_surface_position_as_input: bool = False
     """Whether to pass ``surface_position`` through as a model input. Required only when a downstream
     callback (e.g. the showcase eval pipeline) needs it; off by default since variable-sized point clouds
     break batch collation when ``batch_size > 1``."""
+
     seed: int | None = None
     """Random seed for sampling processes."""
     data_specs: ModelDataSpecs
@@ -115,11 +120,6 @@ class AeroMultistagePipeline(MultiStagePipeline):
         """Check if any query points are specified."""
         return self.num_surface_queries + self.num_volume_queries > 0
 
-    @property
-    def use_anchor_points(self) -> bool:
-        """Check if anchor points are used instead of standard sampling."""
-        return self.num_volume_anchor_points > 0 and self.num_surface_anchor_points > 0
-
     def __init__(
         self,
         pipeline_config: AeroCFDPipelineConfig,
@@ -149,7 +149,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         self.num_surface_anchor_points = pipeline_config.num_surface_anchor_points
         self.num_geometry_points = pipeline_config.num_geometry_points
         self.num_geometry_supernodes = pipeline_config.num_geometry_supernodes
-        self.use_query_positions = False
+        self.use_query_positions = getattr(pipeline_config, "use_query_positions", False)
 
         self.use_physics_features = (
             pipeline_config.use_physics_features

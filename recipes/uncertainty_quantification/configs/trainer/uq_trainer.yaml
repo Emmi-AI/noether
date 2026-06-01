@@ -1,0 +1,31 @@
+# Based on tutorial/configs/trainer/caeml_trainer.yaml
+kind: trainer.UQTrainer
+precision: float16
+max_epochs: 500
+effective_batch_size: 1
+log_every_n_epochs: 1
+
+callbacks: ${callbacks}
+forward_properties: ${model.forward_properties}
+target_properties:
+  - surface_pressure_target
+  - surface_friction_target
+  - volume_pressure_target
+  - volume_velocity_target
+  - volume_vorticity_target
+
+# UQ loss configuration
+field_weights: 
+  surface_pressure: 1.0
+  surface_friction: 1.0
+  volume_pressure: 1.0
+  volume_velocity: 1.0
+  volume_vorticity: 1.0
+
+
+variance_regularization: 0.01
+mse_loss_weight: 0.1
+warmup_epochs_mse_only: 10
+beta_nll: 0.0
+use_physics_features: false
+monitor_training_stability: true

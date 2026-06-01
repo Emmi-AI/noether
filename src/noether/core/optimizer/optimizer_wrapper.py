@@ -380,6 +380,7 @@ class OptimizerWrapper:
             if self.all_parameters is None:
                 raise RuntimeError("all_parameters was not initialized")
             self.last_grad_norm = torch.nn.utils.clip_grad_norm_(self.all_parameters, self.config.clip_grad_norm)
+
             if not math.isfinite(self.last_grad_norm):
                 self._log_non_finite_grad_norm_diagnostics(grad_scaler)
 

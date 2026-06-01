@@ -83,6 +83,26 @@ class TestEvaluate:
         # The source run's stage_name was empty — resume should still target it.
         assert config.resume_stage_name == ""
 
+    def test_config_overrides_runs_before_dispatch(self, hp_resolved_dir: Path):
+        """``config_overrides`` is the showcase-style hook for mutating the
+        loaded config (e.g. flipping ``excluded_properties`` /
+        ``use_surface_position_as_input`` so eval-only properties land in the
+        batch) right before dispatch."""
+        captured: list[ConfigSchema] = []
+
+        def hook(config: ConfigSchema) -> None:
+            captured.append(config)
+            config.stage_name = "mutated_by_hook"
+
+        with patch(_INFERENCE_RUNNER_MAIN) as mock_main:
+            evaluate(hp_resolved_dir, config_overrides=hook)
+
+        # Hook saw the same config instance that ``main`` dispatches on.
+        assert len(captured) == 1
+        config = mock_main.call_args.kwargs["config"]
+        assert captured[0] is config
+        assert config.stage_name == "mutated_by_hook"
+
     def test_disable_tracker(self, hp_resolved_dir: Path):
         with patch(_INFERENCE_RUNNER_MAIN) as mock_main:
             evaluate(hp_resolved_dir, disable_tracker=True)

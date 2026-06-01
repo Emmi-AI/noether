@@ -1,0 +1,3 @@
++experiment/drivaerml=ab_upt_uq +seed=1 tracker=base_tracker
++experiment/drivaerml=ab_upt_uq +seed=1 trainer.beta_nll=0.1 tracker=base_tracker name=with-new-callback
++experiment/drivaerml=ab_upt_uq +seed=1 trainer.beta_nll=1.0 tracker=base_tracker

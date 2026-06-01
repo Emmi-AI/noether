@@ -1,0 +1,40 @@
+kind: models.UQAnchoredBranchedUPT
+name: uq_abupt
+hidden_dim: 192
+geometry_depth: 1
+transformer_block_config:
+  num_heads: 3
+  mlp_expansion_factor: 4
+  use_rope: true
+  bias: false 
+supernode_pooling_config:
+  input_dim: ${data_specs.position_dim}
+  radius: 1
+physics_blocks:
+  - perceiver
+  - self
+  - cross
+  - self
+  - cross
+  - self
+  - cross
+  - self
+  - cross
+  - self
+num_domain_decoder_blocks:
+  surface: 2
+  volume: 2
+optimizer_config: ${optimizer}
+forward_properties:
+  - geometry_position
+  - geometry_supernode_idx
+  - geometry_batch_idx
+  - surface_anchor_position
+  - volume_anchor_position
+data_specs: ${data_specs}
+# UQ settings
+enable_heteroscedastic: true
+num_anchor_subsamples: 10
+anchor_subsample_ratio: 0.8
+min_log_variance: -10.0
+max_log_variance: 10.0

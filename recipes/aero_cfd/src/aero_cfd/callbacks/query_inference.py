@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 from collections import defaultdict
+from typing import Any
 
 import torch
 
@@ -36,9 +37,12 @@ class QueryInferenceCallback(AeroMetricsCallback):
     - **Anchors** (first ``num_*_anchors`` positions) — same as training
     - **Queries** (the rest) — processed in chunks
 
-    Each forward pass receives fixed anchors + one chunk of queries.  The model
-    outputs anchor predictions (constant across chunks) and query predictions
-    (concatenated).  Metrics and VTK export use the combined result.
+    The first chunk runs a full forward pass against the AB-UPT backbone and
+    keeps the returned ``kv_cache`` (geometry encoding + RoPE, anchor K/V in
+    every physics and decoder block). Subsequent chunks reuse that cache and
+    pass only the new query slice, so the geometry encoder + anchor projection
+    run exactly once per sample. Anchor predictions come from the first chunk
+    only — subsequent chunks return query outputs only.
     """
 
     def __init__(self, callback_config: QueryInferenceCallbackConfig, **kwargs):
@@ -48,10 +52,11 @@ class QueryInferenceCallback(AeroMetricsCallback):
         self.query_chunk_size = callback_config.query_chunk_size
 
     def _run_model_inference(self, batch: dict[str, torch.Tensor]) -> dict[str, torch.Tensor]:
-        """Run chunked query-based inference.
+        """Run chunked query-based inference with geometry/anchor KV caching.
 
-        Splits batch positions into anchors + queries, iterates through query
-        chunks while keeping anchors fixed, and returns combined outputs.
+        Splits batch positions into anchors + queries, runs the first chunk
+        through the full backbone, then iterates remaining chunks reusing the
+        first chunk's cache. Returns combined anchor + query outputs.
         """
         # Split positions: [anchors | queries]
         surface_all = batch["surface_anchor_position"]
@@ -69,41 +74,55 @@ class QueryInferenceCallback(AeroMetricsCallback):
             # No queries — standard anchor-only inference
             return super()._run_model_inference(batch)
 
-        base_kwargs = {
-            "geometry_position": batch["geometry_position"],
-            "geometry_supernode_idx": batch["geometry_supernode_idx"],
-            "geometry_batch_idx": batch["geometry_batch_idx"],
-            "surface_anchor_position": surface_anchors,
-            "volume_anchor_position": volume_anchors,
-        }
-
         cs = self.query_chunk_size
         n_chunks = max(1, math.ceil(n_sq / cs), math.ceil(n_vq / cs))
 
+        # Bypass the AeroABUPT wrapper (which discards the kv_cache) and drive
+        # the AnchoredBranchedUPT backbone directly so the cache survives
+        # across chunks.
+        backbone = self.model.backbone
+        anchor_positions = {"surface": surface_anchors, "volume": volume_anchors}
+
         anchor_outputs: dict[str, torch.Tensor] = {}
         query_chunks: dict[str, list[torch.Tensor]] = defaultdict(list)
+        kv_cache: dict[str, Any] | None = None
 
         for i in range(n_chunks):
-            chunk_kwargs = dict(base_kwargs)
-
             s_start, s_end = i * cs, min((i + 1) * cs, n_sq)
             v_start, v_end = i * cs, min((i + 1) * cs, n_vq)
 
+            query_positions: dict[str, torch.Tensor] = {}
             if s_start < n_sq:
-                chunk_kwargs["query_surface_position"] = surface_queries[:, s_start:s_end]
+                query_positions["surface"] = surface_queries[:, s_start:s_end]
             if v_start < n_vq:
-                chunk_kwargs["query_volume_position"] = volume_queries[:, v_start:v_end]
+                query_positions["volume"] = volume_queries[:, v_start:v_end]
 
             with self.trainer.autocast_context:
-                out = self.model(**chunk_kwargs)
+                if i == 0:
+                    out, kv_cache = backbone(
+                        geometry_position=batch["geometry_position"],
+                        geometry_supernode_idx=batch["geometry_supernode_idx"],
+                        geometry_batch_idx=batch["geometry_batch_idx"],
+                        domain_anchor_positions=anchor_positions,
+                        domain_query_positions=query_positions or None,
+                    )
+                else:
+                    # Reuse cached geometry encoding + anchor K/V; the backbone
+                    # refuses geometry tensors / anchor positions when
+                    # 'physics_blocks' is in the cache, and accepts a subset of
+                    # domains in query_positions when others are exhausted.
+                    out, _ = backbone(
+                        domain_query_positions=query_positions,
+                        kv_cache=kv_cache,
+                    )
 
             for key, value in out.items():
                 if key.startswith("query_"):
                     base_key = key[len("query_") :]
                     query_chunks[base_key].append(value)
                 elif i == 0:
-                    # Anchor outputs vary slightly across chunks due to decoder
-                    # self-attention over [anchors, queries]. Keep first chunk's.
+                    # Anchor outputs come from chunk 0 only. With anchors_cached
+                    # the backbone emits query_* keys exclusively.
                     anchor_outputs[key] = value
 
         # Combine: [anchor_predictions, query_predictions]
