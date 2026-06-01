@@ -116,6 +116,7 @@ and DiT-style time conditioning on top.
 | `volume_pressure` | 0.0790 | 0.0872 | +0.0082 | +10.4% |
 | `volume_velocity` | 0.0753 | 0.0800 | +0.0047 | +6.3% |
 | `volume_vorticity` | 1.1150 | 0.4173 | -0.6977 | -62.6% |
+
 ![Diffusion vs regression baseline](./report/fm_vs_regression.png)
 
 The evaluation was on the whole-mesh of the test split of our subsampled DrivAerML testset using only anchors for inference.
@@ -197,8 +198,7 @@ diffusion_uq/
 │   ├── eval_uq.py
 │   └── report.py                        # comparison + step-sweep + UQ tables & Plotly bars
 ├── run_abupt_diffusion.sbatch
-├── run_abupt_regression.sbatch
-└── viz.py
+└── run_abupt_regression.sbatch
 ```
 
 ## References
