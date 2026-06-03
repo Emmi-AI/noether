@@ -358,7 +358,24 @@ class TestSlurmConfigToExecutorKwargs:
     def test_excludes_none_fields(self):
         folder, params = SlurmConfig(name="job", slurm_partition="gpu").to_executor_kwargs()
         assert folder == "submitit_logs"
-        assert params == {"name": "job", "slurm_partition": "gpu", "timeout_min": 0}
+        assert params == {
+            "name": "job",
+            "slurm_partition": "gpu",
+            "timeout_min": 0,
+            "slurm_srun_args": ["--cpu-bind=none"],
+        }
+
+    def test_defaults_srun_args_to_cpu_bind_none(self):
+        """By default the inner srun gets --cpu-bind=none (avoids cpu-bind failures)."""
+        _, params = SlurmConfig(name="job").to_executor_kwargs()
+        assert params["slurm_srun_args"] == ["--cpu-bind=none"]
+
+    def test_srun_args_override_is_respected(self):
+        """An explicit srun_args list (including empty) overrides the default."""
+        _, disabled = SlurmConfig(name="job", slurm_srun_args=[]).to_executor_kwargs()
+        assert disabled["slurm_srun_args"] == []
+        _, custom = SlurmConfig(name="job", slurm_srun_args=["--cpu-bind=cores"]).to_executor_kwargs()
+        assert custom["slurm_srun_args"] == ["--cpu-bind=cores"]
 
     def test_folder_is_returned_separately(self):
         folder, params = SlurmConfig(folder="/tmp/logs").to_executor_kwargs()

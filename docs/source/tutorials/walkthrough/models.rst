@@ -18,9 +18,9 @@ The ``ModelBaseConfig`` schema
 
 Each model in the Noether Framework must inherit from the :py:class:`~noether.core.models.Model`
 class. The config schema for models is defined by
-:py:class:`~noether.core.schemas.models.base.ModelBaseConfig`:
+:py:class:`~noether.core.models.base.ModelBaseConfig`:
 
-.. literalinclude:: ../../../../src/noether/core/schemas/models/base.py
+.. literalinclude:: ../../../../src/noether/core/models/base.py
    :language: python
    :pyobject: ModelBaseConfig
    :end-before: @property

@@ -5,7 +5,8 @@ from abc import ABC
 from functools import partial
 from typing import Any, ClassVar, TypeVar, get_type_hints
 
-from pydantic import BaseModel, BeforeValidator
+from pydantic import BaseModel, GetCoreSchemaHandler
+from pydantic_core import core_schema
 
 
 class _RegistryBase(BaseModel, ABC):
@@ -65,13 +66,37 @@ def resolve_config_class[T: _RegistryBase](kind: str, base_cls: type[T]) -> type
     )
 
 
-def Discriminated(registry_cls: type[_RegistryBase]):
-    """
-    Returns a BeforeValidator that instantiates components based on their registry keys.
-    Usage: field: Annotated[Any, Discriminated(MyComponent)]
+class Discriminated:
+    """Annotated-metadata marker for polymorphic registry config fields.
+
+    Usage: ``field: Annotated[Any, Discriminated(MyComponent)]``
+
+    Contributes two behaviors to the annotated field:
+
+    * **Validation** — dicts are instantiated to the concrete config class
+      resolved from their registry key (``kind``/type field), like a
+      ``BeforeValidator`` around :func:`_discriminated_validator`.
+    * **Serialization** — the value is serialized by its *runtime* class
+      (equivalent to ``pydantic.SerializeAsAny``), so subclass-only fields
+      survive ``model_dump`` even when the field is annotated with the base
+      class. Unlike a global ``model_dump(serialize_as_any=True)``, this
+      duck-types only the model boundary and still respects field-level
+      serializers nested inside the concrete config (e.g. ``TorchTensor``).
     """
 
-    return BeforeValidator(partial(_discriminated_validator, registry_cls=registry_cls))
+    def __init__(self, registry_cls: type[_RegistryBase]) -> None:
+        self.registry_cls = registry_cls
+
+    def __get_pydantic_core_schema__(self, source_type: Any, handler: GetCoreSchemaHandler) -> core_schema.CoreSchema:
+        schema = core_schema.no_info_before_validator_function(
+            partial(_discriminated_validator, registry_cls=self.registry_cls),
+            handler(source_type),
+        )
+        schema["serialization"] = core_schema.wrap_serializer_function_ser_schema(
+            lambda value, serializer: serializer(value),
+            schema=core_schema.any_schema(),
+        )
+        return schema
 
 
 def _discriminated_validator(item, registry_cls: type[_RegistryBase]) -> Any:
