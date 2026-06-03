@@ -7,17 +7,20 @@ from pathlib import Path
 from omegaconf import DictConfig, OmegaConf
 
 
-def _rewrite_hydra_args(relpath, insert_at: int):
+def _rewrite_hydra_args(relpath):
     hp = Path(os.getcwd()) / relpath
     if not hp.exists():
         raise FileNotFoundError(f"--hp file does not exist ('{hp.as_posix()}')")
 
     cn = hp.name
     cp = hp.parent.as_posix()
-    sys.argv.insert(insert_at, "-cp")
-    sys.argv.insert(insert_at + 1, cp)
-    sys.argv.insert(insert_at + 2, "-cn")
-    sys.argv.insert(insert_at + 3, cn)
+    # Insert directly after the program name so that all remaining args form a single contiguous positional group.
+    # Argparse cannot parse positionals split around optionals (e.g. `run_dir=... -cp <dir> -cn <name> overrides...`
+    # fails with "unrecognized arguments"), which happens when `--hp` is not the first argument.
+    sys.argv.insert(1, "-cp")
+    sys.argv.insert(2, cp)
+    sys.argv.insert(3, "-cn")
+    sys.argv.insert(4, cn)
 
     # backup the --hp argument to log it to the tracker (hydra operates on absolute path)
 
@@ -59,7 +62,7 @@ def setup_hydra():
 
     if sys.argv[1].endswith(".yaml"):
         relpath = sys.argv.pop(1)
-        _rewrite_hydra_args(relpath, 1)
+        _rewrite_hydra_args(relpath)
     else:
         i = 0
         while i < len(sys.argv) - 1:
@@ -68,7 +71,7 @@ def setup_hydra():
                     raise ValueError(f"invalid --hp file {sys.argv[i + 1]}")
                 sys.argv.pop(i)  # remove --hp
                 relpath = sys.argv.pop(i)
-                _rewrite_hydra_args(relpath, i)
+                _rewrite_hydra_args(relpath)
                 break
             i += 1
 

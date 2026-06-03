@@ -72,6 +72,22 @@ def _build_run_dir(path_values: dict[str, str]) -> Path | None:
     return None
 
 
+def _pop_user_hp_arg(argv: list[str]) -> tuple[str | None, list[str]]:
+    """Extract a user-supplied ``--hp <path>`` pair from ``argv``.
+
+    Returns the path (or ``None`` if ``--hp`` is absent) and the remaining args.
+
+    Raises:
+        ValueError: If ``--hp`` is the last argument or not followed by a ``.yaml`` path.
+    """
+    if "--hp" not in argv:
+        return None, argv
+    i = argv.index("--hp")
+    if i + 1 >= len(argv) or not argv[i + 1].endswith(".yaml"):
+        raise ValueError("--hp must be followed by a path to a .yaml file")
+    return argv[i + 1], argv[:i] + argv[i + 2 :]
+
+
 def _inject_hp_resolved_into_argv() -> None:
     """Pre-process ``sys.argv`` so Hydra loads ``run_dir/hp_resolved.yaml`` as
     the base config.
@@ -80,20 +96,23 @@ def _inject_hp_resolved_into_argv() -> None:
     ``trainer.max_epochs=1``) without the Hydra ``+`` force-add prefix, the
     same way ``noether-train --hp <config>.yaml`` works.
 
-    A user-supplied ``--hp <other.yaml>`` takes precedence and is left alone
-    (escape hatch for power users composing their own eval config).
+    A user-supplied ``--hp <extra.yaml>`` combined with ``run_dir=...`` is merged
+    on top of the training config (dicts merge recursively, lists are replaced) —
+    used to add post-training-only keys such as extra callbacks. ``--hp`` without
+    ``run_dir`` is left alone (escape hatch for power users composing their own
+    complete eval config).
     """
     if len(sys.argv) < 2:
         return
     if "--help" in sys.argv or "-h" in sys.argv:
         return
-    if "--hp" in sys.argv:
-        return
 
     path_values, remaining = _pop_eval_path_args(sys.argv[1:])
     run_dir = _build_run_dir(path_values)
     if run_dir is None:
-        return  # let setup_hydra/main raise a clearer error
+        return  # --hp-only escape hatch, or let setup_hydra/main raise a clearer error
+
+    user_hp, remaining = _pop_user_hp_arg(remaining)
 
     hp_resolved = run_dir / "hp_resolved.yaml"
     if not hp_resolved.exists():
@@ -109,6 +128,20 @@ def _inject_hp_resolved_into_argv() -> None:
     # writes alongside the training run and resume picks the right checkpoint.
     with open(safe_hp) as f:
         hp_data = yaml.safe_load(f)
+
+    if user_hp is not None:
+        user_hp_path = Path(user_hp)
+        if not user_hp_path.exists():
+            raise FileNotFoundError(f"--hp file does not exist ('{user_hp_path.as_posix()}')")
+        with open(user_hp_path) as f:
+            user_data = yaml.safe_load(f) or {}
+        # Merge the user's extra config on top of the training config and write it back to the sanitized temp copy
+        # that Hydra will load as the base config. Interpolations (e.g. `${model.forward_properties}`) are kept
+        # unresolved for Hydra to resolve at compose time.
+        merged = OmegaConf.merge(OmegaConf.create(hp_data), OmegaConf.create(user_data))
+        hp_data = OmegaConf.to_container(merged, resolve=False)
+        with open(safe_hp, "w") as f:
+            yaml.safe_dump(hp_data, f, sort_keys=False)
     stage_name = hp_data.get("stage_name") or ""
     inferred_run_id = run_dir.parent.name if stage_name else run_dir.name
     run_id = hp_data.get("run_id") or inferred_run_id

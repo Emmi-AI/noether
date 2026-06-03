@@ -142,13 +142,65 @@ class TestInjectHpResolved:
         assert "++run_id='my_run'" in sys.argv
         assert "++stage_name=train" in sys.argv
 
-    def test_no_op_when_user_supplies_hp(self, tmp_path, monkeypatch):
-        original = ["noether-eval", "--hp", "configs/eval.yaml", "run_dir=outputs/abc"]
+    def test_no_op_when_user_supplies_hp_without_run_dir(self, tmp_path, monkeypatch):
+        """`--hp` without `run_dir` is the power-user escape hatch: argv is left alone."""
+        original = ["noether-eval", "--hp", "configs/eval.yaml", "tracker=disabled"]
         monkeypatch.setattr(sys, "argv", list(original))
 
         main_inference._inject_hp_resolved_into_argv()
 
         assert sys.argv == original
+
+    def test_merges_user_hp_on_top_of_training_config(self, tmp_path, monkeypatch):
+        """`run_dir=... --hp extra.yaml` merges the user's yaml onto hp_resolved.yaml
+        (dicts merge recursively, lists are replaced) and Hydra loads the merged file."""
+        run_dir = self._make_run_dir(
+            tmp_path,
+            {"run_id": "abc", "trainer": {"max_epochs": 100, "callbacks": [{"kind": "TrainCallback"}]}},
+        )
+        user_hp = tmp_path / "eval_extra.yaml"
+        user_hp.write_text(yaml.safe_dump({"trainer": {"callbacks": [{"kind": "OfflineLossCallback"}]}}))
+        monkeypatch.setattr(
+            sys, "argv", ["noether-eval", f"run_dir={run_dir}", "--hp", str(user_hp), "tracker=disabled"]
+        )
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        # The user's --hp is consumed; Hydra is pointed at the merged temp copy.
+        assert sys.argv[1] == "--hp"
+        merged = yaml.safe_load(Path(sys.argv[2]).read_text())
+        assert merged["trainer"]["max_epochs"] == 100  # training key preserved
+        assert merged["trainer"]["callbacks"] == [{"kind": "OfflineLossCallback"}]  # list replaced
+        assert sys.argv.count("--hp") == 1
+        assert str(user_hp) not in sys.argv
+        assert "tracker=disabled" in sys.argv
+        assert "++resume_run_id='abc'" in sys.argv
+
+    def test_user_hp_keeps_interpolations_unresolved(self, tmp_path, monkeypatch):
+        """Interpolations in the user's --hp yaml survive the merge for Hydra to resolve."""
+        run_dir = self._make_run_dir(tmp_path, {"run_id": "abc", "model": {"forward_properties": ["p"]}})
+        user_hp = tmp_path / "extra.yaml"
+        user_hp.write_text(yaml.safe_dump({"props": "${model.forward_properties}"}))
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "--hp", str(user_hp)])
+
+        main_inference._inject_hp_resolved_into_argv()
+
+        merged = yaml.safe_load(Path(sys.argv[2]).read_text())
+        assert merged["props"] == "${model.forward_properties}"
+
+    def test_raises_when_user_hp_missing(self, tmp_path, monkeypatch):
+        run_dir = self._make_run_dir(tmp_path, {"run_id": "abc"})
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "--hp", "does/not/exist.yaml"])
+
+        with pytest.raises(FileNotFoundError, match="--hp file does not exist"):
+            main_inference._inject_hp_resolved_into_argv()
+
+    def test_raises_when_hp_flag_has_no_value(self, tmp_path, monkeypatch):
+        run_dir = self._make_run_dir(tmp_path, {"run_id": "abc"})
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "--hp"])
+
+        with pytest.raises(ValueError, match="--hp must be followed"):
+            main_inference._inject_hp_resolved_into_argv()
 
     def test_no_op_for_help_flag(self, monkeypatch):
         original = ["noether-eval", "--help"]
@@ -175,6 +227,70 @@ class TestInjectHpResolved:
         main_inference._inject_hp_resolved_into_argv()
 
         assert sys.argv == original
+
+
+class TestArgvRewriteEndToEnd:
+    """Chain `_inject_hp_resolved_into_argv` through the *real* `setup_hydra` and assert the
+    final argv parses with Hydra's actual argparse parser.
+
+    Regression guard: overrides are positional args for argparse, which can only consume them
+    as one contiguous group — `setup_hydra` inserting `-cp/-cn` mid-argv used to fail with
+    `unrecognized arguments: hydra.run.dir=. ...`.
+    """
+
+    def _make_run_dir(self, tmp_path):
+        run_dir = tmp_path / "outputs" / "abc"
+        run_dir.mkdir(parents=True)
+        (run_dir / "hp_resolved.yaml").write_text(yaml.safe_dump({"run_id": "abc"}))
+        return run_dir
+
+    def _rewrite_and_parse(self):
+        from hydra._internal.utils import get_args_parser
+        from omegaconf import OmegaConf
+
+        from noether.training.cli import setup_hydra
+
+        main_inference._inject_hp_resolved_into_argv()
+        try:
+            setup_hydra()
+        finally:
+            OmegaConf.clear_resolver("seed")  # setup_hydra registers it; clear so repeated calls don't collide
+        args = get_args_parser().parse_args(sys.argv[1:])
+        assert args.config_name == "hp_resolved.yaml"
+        return args
+
+    def test_run_dir_syntax(self, tmp_path, monkeypatch):
+        run_dir = self._make_run_dir(tmp_path)
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "tracker=disabled"])
+
+        args = self._rewrite_and_parse()
+
+        assert "tracker=disabled" in args.overrides
+        assert "++resume_run_id='abc'" in args.overrides
+        assert "hydra.run.dir=." in args.overrides
+
+    def test_run_dir_with_user_hp(self, tmp_path, monkeypatch):
+        run_dir = self._make_run_dir(tmp_path)
+        user_hp = tmp_path / "extra.yaml"
+        user_hp.write_text(yaml.safe_dump({"tracker": "disabled"}))
+        monkeypatch.setattr(sys, "argv", ["noether-eval", f"run_dir={run_dir}", "--hp", str(user_hp)])
+
+        args = self._rewrite_and_parse()
+
+        assert "hydra.run.dir=." in args.overrides
+
+    def test_legacy_trio_syntax(self, tmp_path, monkeypatch):
+        run_dir = self._make_run_dir(tmp_path)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["noether-eval", f"input_dir={run_dir.parent}", "run_id=abc", "trainer.max_epochs=1"],
+        )
+
+        args = self._rewrite_and_parse()
+
+        assert "trainer.max_epochs=1" in args.overrides
+        assert "hydra.run.dir=." in args.overrides
 
 
 @patch(_MODULE_PATH + ".InferenceRunner")
