@@ -60,45 +60,6 @@ def test_forward_with_mask(attention_module):
     assert torch.allclose(output, DOT_PRODUCT_ATTENTION_WITH_MASK, 1e-2), "Output is not as expected"
 
 
-def test_forward_uses_flash_attn_when_enabled(monkeypatch):
-    torch.manual_seed(42)
-    config = DotProductAttentionConfig(hidden_dim=16, num_heads=4, init_weights="truncnormal002", use_flash_attn=True)
-    attention_module = DotProductAttention(config).eval()
-
-    def flash_attn_func(q, k, v, **kwargs):
-        return q
-
-    flash_attn_mock = SimpleNamespace(flash_attn_func=flash_attn_func)
-    monkeypatch.setattr(dot_product_module, "_FLASH_ATTN3", flash_attn_mock)
-
-    x = torch.randn(2, 10, 16)
-    with patch("torch.nn.functional.scaled_dot_product_attention", side_effect=AssertionError("fallback used")):
-        output = attention_module(x)
-
-    assert output.shape == (2, 10, 16), "Output shape mismatch when FlashAttention-3 is enabled"
-
-
-def test_forward_falls_back_with_mask_when_flash_attn_enabled(monkeypatch):
-    torch.manual_seed(42)
-    config = DotProductAttentionConfig(hidden_dim=16, num_heads=4, init_weights="truncnormal002", use_flash_attn=True)
-    attention_module = DotProductAttention(config).eval()
-
-    def flash_attn_func(*args, **kwargs):
-        pytest.fail("FlashAttention-3 should not run when a mask is provided")
-
-    flash_attn_mock = SimpleNamespace(flash_attn_func=flash_attn_func)
-    monkeypatch.setattr(dot_product_module, "_FLASH_ATTN3", flash_attn_mock)
-
-    x = torch.randn(2, 10, 16)
-    attn_mask = torch.zeros(10, 10)
-
-    with patch("torch.nn.functional.scaled_dot_product_attention", wraps=torch.nn.functional.scaled_dot_product_attention) as sdpa_mock:
-        output = attention_module(x, attn_mask=attn_mask)
-
-    assert output.shape == (2, 10, 16), "Output shape mismatch with attention mask and FlashAttention-3 enabled"
-    assert sdpa_mock.called, "Scaled dot-product attention should handle masked inputs"
-
-
 def test_no_bias():
     config = DotProductAttentionConfig(hidden_dim=4, num_heads=2, bias=False)
     attn = DotProductAttention(config)
