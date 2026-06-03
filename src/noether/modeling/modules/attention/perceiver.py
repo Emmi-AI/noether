@@ -77,6 +77,7 @@ class PerceiverAttention(nn.Module):
         q_freqs: torch.Tensor | None = None,
         k_freqs: torch.Tensor | None = None,
         kv_cache: dict[str, torch.Tensor] | None = None,
+        is_causal: bool = False,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         """Forward function of the PerceiverAttention module.
 
@@ -91,10 +92,14 @@ class PerceiverAttention(nn.Module):
             kv_cache: Cached K/V tensors from a previous forward pass. Structure:
                 ``{"k": tensor, "v": tensor}``.
                 When provided, ``kv`` and ``k_freqs`` are ignored.
+            is_causal: Whether to apply causal attention mask. Defaults to False.
 
         Returns:
             Tuple of (output, new_kv_cache).
         """
+        if attn_mask is not None and is_causal:
+            raise ValueError("is_causal=True is not supported when attn_mask is provided, as the mask may already be causal.")
+        
         # Project query
         q = self.q(q)
         q = self.q_norm(

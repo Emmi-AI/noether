@@ -17,6 +17,7 @@ from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention, MixedAttentionConfig
 from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
 from noether.modeling.modules.attention.perceiver import PerceiverAttention
+import noether.modeling.modules.attention._flash_attention as _fa
 from noether.modeling.modules.blocks.perceiver import PerceiverBlock, PerceiverBlockConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlock, TransformerBlockConfig
 from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
@@ -488,7 +489,7 @@ class UntiedMixedAttention(MixedAttention):
         """
         if kv_cache is not None:
             raise NotImplementedError("UntiedMixedAttention does not yet support kv caching.")
-
+        
         input_specs = [s for s in token_specs if s.size is not None]
         self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs)
 
@@ -559,6 +560,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
         q_freqs: torch.Tensor | None = None,
         k_freqs: torch.Tensor | None = None,
         kv_cache: dict[str, torch.Tensor] | None = None,
+        is_causal: bool = False,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         """Forward pass with per-type Q and output projections.
 
@@ -572,6 +574,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
             q_freqs: RoPE frequencies for queries.
             k_freqs: RoPE frequencies for keys.
             kv_cache: Cached K/V tensors from a previous forward pass.
+            is_causal: Whether to apply causal attention mask.
 
         Returns:
             Tuple of (output, new_kv_cache).
@@ -586,6 +589,8 @@ class UntiedPerceiverAttention(PerceiverAttention):
                 head_dim=self.head_dim,
             )
         )
+        if attn_mask is not None and is_causal:
+            ValueError("is_causal=True is not supported when attn_mask is provided, as the mask may already be causal.")
 
         if kv_cache is not None:
             k = kv_cache["k"]
@@ -617,9 +622,13 @@ class UntiedPerceiverAttention(PerceiverAttention):
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
 
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
-        )
+        if self.config.attn_impl == "flash_attention" and attn_mask is None:
+            # Flash attention expects unnormalized q/k and applies softmax internally.
+            x = _fa.flash_attn_func(q, k, v, dropout_p=self.dropout if self.training else 0.0, causal=is_causal)
+        else:
+            x = F.scaled_dot_product_attention(
+                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+            )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
 
         # Per-type output projection.
