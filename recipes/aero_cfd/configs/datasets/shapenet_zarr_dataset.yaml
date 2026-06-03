@@ -1,0 +1,37 @@
+# Dataset config for the chunked/sharded Zarr ShapeNet-Car store.
+# `root` must point at a converted Zarr store (see noether.data.zarr_store.convert).
+# The num_* fields push subsampling into the dataset (chunked reads): they mirror the
+# AB-UPT pipeline anchor/geometry counts so the pipeline's sampling becomes a no-op.
+train:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: train
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+test:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+test_repeat:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+  dataset_wrappers:
+    - kind: noether.data.base.wrappers.RepeatWrapper
+      repetitions: 10

@@ -59,6 +59,10 @@ class AeroCFDPipelineConfig(PipelineConfig):
     callback (e.g. the showcase eval pipeline) needs it; off by default since variable-sized point clouds
     break batch collation when ``batch_size > 1``."""
 
+    geometry_position_from_dataset: bool = False
+    """If True, the dataset already provides ``geometry_position`` (e.g. the chunked Zarr dataset), so the
+    AB-UPT anchor stage skips duplicating/sampling it from ``surface_position`` and uses it directly."""
+
     seed: int | None = None
     """Random seed for sampling processes."""
     data_specs: ModelDataSpecs
@@ -154,6 +158,7 @@ class AeroMultistagePipeline(MultiStagePipeline):
         self.use_physics_features = (
             pipeline_config.use_physics_features
         )  # Whether to use physics features (i.e., SDF, normals, etc.) as input to the model.
+        self.geometry_position_from_dataset = pipeline_config.geometry_position_from_dataset
 
         surface_spec = pipeline_config.data_specs.domains.get("surface")
         volume_spec = pipeline_config.data_specs.domains.get("volume")
@@ -455,13 +460,20 @@ class AeroMultistagePipeline(MultiStagePipeline):
             "surface_anchor_position",
             "volume_anchor_position",
         ]
+        # When the dataset already supplies ``geometry_position`` (chunked Zarr dataset), use it
+        # directly; otherwise derive it from ``surface_position`` by duplicate-and-subsample.
+        geometry_processors: list[SampleProcessor] = []
+        if not self.geometry_position_from_dataset:
+            geometry_processors = [
+                DuplicateKeysSampleProcessor(key_map={"surface_position": "geometry_position"}),
+                PointSamplingSampleProcessor(
+                    items={"geometry_position"},
+                    num_points=self.num_geometry_points,
+                    seed=None if self.seed is None else self.seed + 1,
+                ),
+            ]
         processors = [
-            DuplicateKeysSampleProcessor(key_map={"surface_position": "geometry_position"}),
-            PointSamplingSampleProcessor(
-                items={"geometry_position"},
-                num_points=self.num_geometry_points,
-                seed=None if self.seed is None else self.seed + 1,
-            ),
+            *geometry_processors,
             SupernodeSamplingSampleProcessor(
                 item="geometry_position",
                 num_supernodes=self.num_geometry_supernodes,

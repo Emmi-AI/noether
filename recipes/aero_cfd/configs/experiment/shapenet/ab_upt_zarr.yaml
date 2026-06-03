@@ -1,0 +1,30 @@
+# @package _global_
+# AB-UPT on ShapeNet-Car reading from the chunked/sharded Zarr store.
+# The chunked dataset owns surface/volume anchor + geometry subsampling (via num_* on the
+# dataset config), so the pipeline's anchor/geometry sampling is inert:
+#   - geometry_position_from_dataset=true  -> pipeline uses the dataset's geometry_position
+#   - PointSampling / AnchorPointSampling skip when num_points >= available (rename only)
+defaults:
+  - override /model: ab_upt
+  - override /tracker: development_tracker
+  - override /optimizer: lion
+  - override /datasets: shapenet_zarr_dataset
+
+name: shapenet-car-ab-upt-zarr
+
+dataset_kind: noether.data.datasets.cfd.ZarrShapeNetCarDataset
+dataset_root: /nfs-gpu/research/datasets/shapenet_car/zarr_store_per_field
+
+model:
+  supernode_pooling_config:
+    radius: 9
+
+pipeline:
+  num_geometry_points: 3586
+  num_geometry_supernodes: 3586
+  num_surface_anchor_points: 3586
+  num_volume_anchor_points: 4096
+  geometry_position_from_dataset: true
+
+trainer:
+  precision: float16

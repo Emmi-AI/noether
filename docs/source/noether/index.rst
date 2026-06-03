@@ -22,3 +22,6 @@ Get started by exploring the core components and principles of the framework:
 
 * :doc:`understanding_the_data_pipeline`
   How data flows from disk to training batches: point subsampling, epoch semantics, shuffling, and performance characteristics.
+
+* :doc:`efficient_zarr_store`
+  A blob-storage-friendly chunked/sharded Zarr format that subsamples by reading only the chunks it needs, instead of loading whole samples.

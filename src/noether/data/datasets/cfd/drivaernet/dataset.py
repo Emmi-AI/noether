@@ -66,7 +66,8 @@ class DrivAerNetDataset(AeroDataset):
         all_design_ids = datasplits[self.split]
         self.design_ids = [all_design_ids[i] for i in subset_indices] if subset_indices else all_design_ids
 
-    def _parse_split_subset(self, split_spec: str) -> tuple[str, list[int] | range | None]:
+    @staticmethod
+    def _parse_split_subset(split_spec: str) -> tuple[str, list[int] | range | None]:
         """Parse a split specification with optional subset info in brackets.
 
         Examples:

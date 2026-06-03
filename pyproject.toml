@@ -36,6 +36,8 @@ dependencies = [
     "psutil>=5.9.0",
     "submitit>=1.5.2",
     # ---
+    "zarr>=3.2.1",
+    "ocifs>=1.3.4",
 ]
 
 [project.urls]

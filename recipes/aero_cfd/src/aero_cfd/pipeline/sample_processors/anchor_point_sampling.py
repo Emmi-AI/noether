@@ -67,6 +67,14 @@ class AnchorPointSamplingSampleProcessor(SampleProcessor):
             generator = None
         first_item_tensor = output_sample[any_item]
         assert torch.is_tensor(first_item_tensor)
+        # If the dataset already subsampled to (at least) the anchor count and no disjoint
+        # query split is needed, the random permutation is a redundant reshuffle: just emit
+        # the ``*_anchor_*`` keys. This lets a chunked dataset own the anchor subsampling.
+        if not self.keep_queries and self.num_points >= len(first_item_tensor):
+            for item in self.items:
+                prefix, postfix = self.to_prefix_and_postfix(item)
+                output_sample[f"{prefix}_anchor_{postfix}"] = output_sample[item]
+            return output_sample
         if self.keep_queries:
             perm = torch.randperm(len(first_item_tensor), generator=generator)
             if len(first_item_tensor) <= self.num_points:
