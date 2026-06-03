@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 # SLURM patterns that require a running job and cannot be resolved at submission time.
 _UNSUPPORTED_FOLDER_PATTERNS: frozenset[str] = frozenset({"%j", "%J", "%A", "%a", "%N", "%x"})
 
+# Default args for submitit's inner ``srun``. ``--cpu-bind=none`` disables per-task CPU
+# binding, which otherwise fails ("Unable to satisfy cpu bind request") on clusters whose
+# GPU partitions expose a non-contiguous CPU mask. Harmless where binding would succeed.
+_DEFAULT_SRUN_ARGS: list[str] = ["--cpu-bind=none"]
+
 
 class SlurmConfig(BaseModel):
     """Configuration for SLURM job submission via :mod:`submitit`.
@@ -97,6 +102,14 @@ class SlurmConfig(BaseModel):
     ``{"nice": 0, "reservation": "my_res", "chdir": "/work"}``. Keys are passed as
     ``--key=value`` to ``sbatch``."""
 
+    slurm_srun_args: list[str] | None = None
+    """Extra arguments for the inner ``srun`` launched by submitit. When left unset it
+    defaults to :data:`_DEFAULT_SRUN_ARGS` (``['--cpu-bind=none']``) to avoid SLURM
+    ``Unable to satisfy cpu bind request`` failures on clusters whose GPU-partition CPU
+    masks are non-contiguous — there ``srun``'s default per-task CPU binding cannot be
+    satisfied and the job step aborts before the program starts. Set to ``[]`` to restore
+    ``srun``'s default binding, or provide your own args."""
+
     @field_validator("folder")
     @classmethod
     def _resolve_folder_patterns(cls, value: str) -> str:
@@ -146,6 +159,8 @@ class SlurmConfig(BaseModel):
             if name == "folder" or value is None:
                 continue
             params[name] = value
+        # Default the inner srun to --cpu-bind=none unless the user set srun args explicitly.
+        params.setdefault("slurm_srun_args", list(_DEFAULT_SRUN_ARGS))
         return self.folder, params
 
 
