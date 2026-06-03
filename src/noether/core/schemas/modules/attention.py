@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from noether.core.types import InitWeightsMode
 
-_AttnImpl = Literal["dot_product", "perceiver", "transolver", "transolver_plusplus", "flash_attn"]
+_AttnImpl = Literal["sdpa", "flash_attn"]
 
 # =====================================================================================================================
 #                                                   REGULAR ATTENTION
@@ -56,7 +56,7 @@ class AttentionConfig(BaseModel):
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
     attn_impl: _AttnImpl | None = Field(None)
-    """The attention implementation to use (e.g., "dot_product", "perceiver", "transolver", "flash_attn")."""
+    """The attention implementation to use (e.g., "sdpa", "flash_attn")."""
 
 
     @model_validator(mode="after")

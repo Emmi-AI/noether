@@ -8,19 +8,19 @@ from types import SimpleNamespace
 
 import math
 
+_attn_mode = os.getenv("NOETHER_ATTN_IMPL", "fast-attn")
 _flash_attn = None
-if is_torch_cuda_available():
-    if is_flash_attn3_available_from_kernel():
-        try:
-            major, _ = torch.cuda_get_device_capability()
-            if major >= 9:
-                os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-                import kernels
-                _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
-        except:
-            pass
+if _attn_mode == "flash-attn":
+    try:
+        major, _ = torch.cuda_get_device_capability()
+        if major >= 9:
+            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+            import kernels
+            _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
+    except:
+        pass
 
-flash_attention_is_installed = _flash_attn is not None
+_flash_attention_is_installed = _flash_attn is not None
 
 def _sdpa_fallback(
         q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
@@ -83,7 +83,7 @@ def _sdpa_fallback(
 
 def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
                 window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    if flash_attention_is_installed:
+    if _flash_attention_is_installed:
         return _flash_attn.flash_attn_func(
             q, k,v,
             dropout_p=dropout_p,
@@ -106,7 +106,7 @@ def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
 
 def flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False,
                           window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    if flash_attention_is_installed:
+    if _flash_attention_is_installed:
         return _flash_attn.flash_attn_qkvpacked_func(
             qkv,
             dropout_p=dropout_p,
@@ -148,7 +148,7 @@ def flash_attn_with_kvcache(
     if (k is not None) and (v is not None):
         assert q.device == k.device == v.device, "q, k and v are expected to be on the same device"
     assert q.device == k_cache.device == v_cache.device, "q, k_cache and v_cache are expected to be on the same device"
-    if flash_attention_is_installed:
+    if _flash_attention_is_installed:
         return _flash_attn.flash_attn_with_kvcache(
             q, k_cache, v_cache,
             k=k,
