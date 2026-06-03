@@ -140,12 +140,13 @@ class TransolverAttention(nn.Module):
 
         return slice_token, slice_weights
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None, is_causal: bool = False) -> torch.Tensor:
         """Forward pass of the Transolver attention module.
 
         Args:
             x: Input tensor with shape (batch_size, seqlen, hidden_dim).
             attn_mask: Attention mask tensor with shape (batch_size). Defaults to None.
+            is_causal: Whether to use causal attention. Defaults to False.
 
         Returns:
             Tensor after applying the transolver attention mechanism.
@@ -164,7 +165,7 @@ class TransolverAttention(nn.Module):
             v_slice_token = v_slice_token.view(v_slice_token.size(0), self.num_heads, v_slice_token.size(2), -1).contiguous()
             out_slice_token = _fa.flash_attn_func(
                 q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0,
-                causal=q_slice_token.shape[2] > 1
+                causal=q_slice_token.shape[2] > 1 and is_causal
             ).view(q_slice_token.size(0), self.num_heads, q_slice_token.size(2), -1).contiguous()
         else:
             out_slice_token = F.scaled_dot_product_attention(

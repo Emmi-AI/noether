@@ -66,6 +66,7 @@ class DotProductAttention(nn.Module):
         x: torch.Tensor,
         attn_mask: torch.Tensor | None = None,
         freqs: torch.Tensor | None = None,
+        is_causal: bool = False
     ) -> torch.Tensor:
         """Forward function of the DotProductAttention module.
 
@@ -73,7 +74,7 @@ class DotProductAttention(nn.Module):
             x: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
             attn_mask: For causal attention (i.e., no attention over the future token) a attention mask should be provided. Defaults to None.
             freqs: Frequencies for Rotary Positional Embedding (RoPE) of queries/keys. None if use_rope=False.
-
+            is_causal: For causal attention (when attn_mask is not provided) for flash_attention implementations.
         Returns:
             Returns the output of the attention module.
         """
@@ -107,7 +108,7 @@ class DotProductAttention(nn.Module):
             x = _fa.flash_attn_qkvpacked_func(
                 qkv,
                 dropout_p=self.dropout if self.training else 0.0,
-                causal=qkv.shape[1] > 1,  # Tq > 1 -> causal attention
+                causal=qkv.shape[1] > 1 and is_causal,  # Tq > 1 -> causal attention
             ) # (batch_size, seqlen, nheads, headdim)
             x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         else:

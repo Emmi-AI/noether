@@ -14,6 +14,11 @@ ATTENTION_REGISTRY: dict[str, type[nn.Module]] = {
     "transolver_plusplus": TransolverPlusPlusAttention,
 }
 
+ATTN_IMPL_REGISTRY: list[str] = {
+    "sdpa",
+    "flash_attention", # flash_attention is only supported by kernels for now
+}
+
 __all__ = [
     "DotProductAttention",
     "PerceiverAttention",
@@ -24,4 +29,5 @@ __all__ = [
     "TransolverAttentionConfig",
     "TransolverPlusPlusAttentionConfig",
     "ATTENTION_REGISTRY",
+    "ATTN_IMPL_REGISTRY",
 ]
