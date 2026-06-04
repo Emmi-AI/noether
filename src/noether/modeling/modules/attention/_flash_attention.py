@@ -12,7 +12,7 @@ _attn_mode = os.getenv("NOETHER_ATTN_IMPL", "fast-attn")
 _flash_attn = None
 if _attn_mode == "flash-attn":
     try:
-        major, _ = torch.cuda_get_device_capability()
+        major, _ = torch.cuda.get_device_capability()
         if major >= 9:
             os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
             import kernels
@@ -181,5 +181,5 @@ def flash_attn_with_kvcache(
         dropout_p=0.0,
         softmax_scale=softmax_scale,
         window_size=window_size,
-        enable_gqa=use_gqa
+        use_gqa=use_gqa
     )
