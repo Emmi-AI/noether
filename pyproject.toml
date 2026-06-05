@@ -36,6 +36,10 @@ dependencies = [
     "psutil>=5.9.0",
     "submitit>=1.5.2",
     # ---
+]
+
+[project.optional-dependencies]
+kernels = [
     "kernels>=0.15.1",
 ]
 

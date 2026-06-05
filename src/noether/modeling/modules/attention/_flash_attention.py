@@ -4,23 +4,42 @@ import torch
 import torch.nn.functional as F
 import os
 from typing import Optional, Union
-from types import SimpleNamespace
 
-import math
+from functools import lru_cache
 
-_attn_mode = os.getenv("NOETHER_ATTN_IMPL", "fast-attn")
-_flash_attn = None
-if _attn_mode == "flash-attn":
-    try:
-        major, _ = torch.cuda.get_device_capability()
-        if major >= 9:
-            os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-            import kernels
-            _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
-    except:
+@lru_cache(maxsize=1)
+def _read_env_attn_mode():
+    _attn_mode = os.getenv("NOETHER_ATTN_IMPL", "flash-attention-3").lower()
+    valid_modes = {"sdpa", "kernels/flash-attn3", "flash-attention-3"}
+    if _attn_mode not in valid_modes:
+        raise ValueError(f"Invalid attention implementation specified in NOETHER_ATTN_IMPL: '{_attn_mode}'. Valid options are: {valid_modes}.")
+    return _attn_mode
+
+_attn_mode = _read_env_attn_mode()
+
+def _import_flash_attention():
+    _flash_attn = None
+    if _attn_mode == "sdpa":
         pass
+    elif _attn_mode == "kernels/flash-attn3":
+        try:
+            major, _ = torch.cuda.get_device_capability()
+            if major >= 9:
+                os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
+                import kernels
+                _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
+        except:
+            pass
+    elif _attn_mode == "flash-attention-3":
+        try:
+            import flash_attn_interface
+            _flash_attn = flash_attn_interface
+        except:
+            pass
+    
+    return _flash_attn
 
-_flash_attention_is_installed = _flash_attn is not None
+_flash_attention_is_installed = lambda: _import_flash_attention() is not None
 
 def _sdpa_fallback(
         q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
@@ -83,7 +102,9 @@ def _sdpa_fallback(
 
 def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
                 window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    if _flash_attention_is_installed:
+    _flash_attn = _import_flash_attention()
+    
+    if _flash_attention_is_installed():
         return _flash_attn.flash_attn_func(
             q, k,v,
             dropout_p=dropout_p,
@@ -106,7 +127,9 @@ def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
 
 def flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False,
                           window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    if _flash_attention_is_installed:
+    _flash_attn = _import_flash_attention()
+    
+    if _flash_attention_is_installed():
         return _flash_attn.flash_attn_qkvpacked_func(
             qkv,
             dropout_p=dropout_p,
@@ -148,7 +171,8 @@ def flash_attn_with_kvcache(
     if (k is not None) and (v is not None):
         assert q.device == k.device == v.device, "q, k and v are expected to be on the same device"
     assert q.device == k_cache.device == v_cache.device, "q, k_cache and v_cache are expected to be on the same device"
-    if _flash_attention_is_installed:
+    _flash_attn = _import_flash_attention()
+    if _flash_attention_is_installed():
         return _flash_attn.flash_attn_with_kvcache(
             q, k_cache, v_cache,
             k=k,

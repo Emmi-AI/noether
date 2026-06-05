@@ -122,6 +122,30 @@ You might be in a situation when your venv won't be configured as intended anymo
 - [Optional] If deleted, generate a new `uv.lock` file: `uv lock`
 - [Optional] If contributor: `pre-commit install`
 
+## Add optional Flash Attention 3 support
+
+If you have a compatible Hopper GPU and cuda version (>=12.3), you can optionally install Flash Attention 3 for improved attention performance. Follow the instructions in [the official documentation](https://github.com/art-test-stack/noether/tree/flash-attn) to set it up, or run the following commands.
+```bash
+git clone https://github.com/Dao-AILab/flash-attention.git
+
+echo "Installing Flash Attention 3 (Hopper)..."
+cd flash-attention/hopper
+python setup.py install
+
+echo "Cleaning up..."
+cd ../..
+rm -rf flash-attention
+
+pip install emmiai-noether
+```
+
+## Add optional Flash Attention from kernels support
+If you want to use the Flash Attention implementation from the `kernels` library, you can install it as follows:
+```bash
+pip install emmiai-noether[kernels]
+```
+Hence, specifying `flash-attention-3` in the `NOETHER_ATTN_IMPL` environment variable will prioritize the `kernels` implementation if both are installed.
+
 ---
 # Quickstart
 
