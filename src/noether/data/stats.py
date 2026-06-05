@@ -285,6 +285,11 @@ class RunningStats:
             self._n = total_n
 
     @property
+    def count(self) -> int:
+        """Number of points pushed so far."""
+        return self._n
+
+    @property
     def min(self) -> torch.Tensor:
         assert self._n > 0 and self._stats is not None
         return self._stats.min

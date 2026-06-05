@@ -40,6 +40,20 @@ dependencies = [
     "ocifs>=1.3.4",
 ]
 
+[project.optional-dependencies]
+# Extra raw-dataset preprocessing scripts (e.g. DrivAerStar EnSight -> Zarr) that need a
+# KD-tree for surface-distance fields. Install with `uv sync --extra preprocessing`.
+preprocessing = [
+    "scipy>=1.13",
+]
+# Rust-backed object store for faster s3:// Zarr reads. When installed, the zarr store's
+# make_store() transparently uses zarr.storage.ObjectStore for s3:// URLs (credentials from
+# the standard AWS_* env vars); otherwise it falls back to FsspecStore. Install with
+# `uv sync --extra obstore`.
+obstore = [
+    "obstore>=0.10",
+]
+
 [project.urls]
 Source = "https://github.com/Emmi-AI/noether"
 Docs = "https://noether-docs.emmi.ai/"

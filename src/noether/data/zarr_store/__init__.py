@@ -25,6 +25,7 @@ from noether.data.zarr_store.manifest import (
     StoreManifest,
 )
 from noether.data.zarr_store.reader import ZarrChunkReader
+from noether.data.zarr_store.statistics import calculate_store_statistics
 from noether.data.zarr_store.stores import is_remote, make_store
 from noether.data.zarr_store.writer import ZarrStoreWriter
 
@@ -40,6 +41,7 @@ __all__ = [
     "ZarrChunkReader",
     "ZarrStoreWriter",
     "build_domain_layouts",
+    "calculate_store_statistics",
     "filename_to_canonical",
     "is_remote",
     "make_store",

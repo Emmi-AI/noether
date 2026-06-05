@@ -138,6 +138,19 @@ Validate a converted store (equivalence vs ``.pt`` and read-amplification) with:
    uv run python -m noether.data.zarr_store.benchmark \
        --pt-root /path/to/dataset --zarr-root /path/to/dataset/zarr_store
 
+Compute normalization statistics (``stats.yaml`` inputs) directly from a store with
+:func:`~noether.data.zarr_store.statistics.calculate_store_statistics` — one streaming
+pass yields ``{field}_mean/std/min/max``, the logscale moments and the global
+``raw_pos_min``/``raw_pos_max`` position bounds::
+
+   uv run python -m noether.data.zarr_store.statistics \
+       --store oci://bucket@namespace/zarr_store \
+       --split-file train_design_ids.txt \
+       --workers 8 --read-concurrency 4 --output-json stats.json
+
+``--split-file`` restricts the pass to the ids listed in a file (a bare name is resolved
+against the store root); ids missing from the store are skipped with a warning.
+
 Notes and limitations
 ---------------------
 
@@ -149,3 +162,13 @@ Notes and limitations
   and the datasets built on it read directly from object storage (raise the dataset's
   ``read_concurrency`` there to hide per-request latency). The ``store_factory`` hook
   remains available for custom backends or instrumentation.
+* **Faster S3 backend (optional).** For ``s3://`` roots, installing the optional
+  ``obstore`` package (``uv sync --extra obstore``) makes
+  :func:`~noether.data.zarr_store.stores.make_store` transparently use the Rust-backed
+  :class:`zarr.storage.ObjectStore` instead of :class:`~zarr.storage.FsspecStore`;
+  credentials/region/endpoint come from the standard ``AWS_*`` environment variables.
+  It is a drop-in speedup (≈2× on the warm per-sample read path in benchmarks) and falls
+  back to fsspec automatically when obstore is absent or the URL is not ``s3://``. OCI is
+  reachable this way via its S3-compatible endpoint (``AWS_ENDPOINT_URL`` +
+  ``s3://bucket/...``) using a Customer Secret Key, but the default ``oci://`` path keeps
+  using ``ocifs``/API-key auth.

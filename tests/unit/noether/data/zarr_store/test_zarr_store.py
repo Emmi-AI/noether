@@ -552,3 +552,109 @@ def test_convert_aero_dataset_is_dataset_driven(tmp_path: Path) -> None:
         np.sort(samples[1]["volume_position"], axis=0),
     )
     assert out["surface_pressure"].shape == (NS,)
+
+
+def test_store_statistics_match_direct_computation(tmp_path: Path) -> None:
+    """Per-field running stats over the store equal a direct float64 computation."""
+    from noether.data.zarr_store.statistics import calculate_store_statistics, statistics_to_dict
+
+    writer = ZarrStoreWriter(tmp_path, FILEMAP, "stats", chunk_points=4096)
+    s0, s1 = _make_sample(0), _make_sample(1)
+    writer.write_sample("a", s0)
+    writer.write_sample("b", s1)
+    writer.save_manifest()
+
+    stats = calculate_store_statistics(tmp_path)
+    assert set(stats) == {
+        "surface_position",
+        "surface_pressure",
+        "surface_normals",
+        "volume_position",
+        "volume_velocity",
+        "volume_sdf",
+        "volume_normals",
+    }
+
+    for field, st in stats.items():
+        # Reference goes through the stored dtype (positions float32, values float16).
+        cast = np.float32 if field.endswith("_position") else np.float16
+        ref = np.concatenate([s[field].astype(cast).astype(np.float64) for s in (s0, s1)])
+        ref = ref.reshape(len(ref), -1)
+        np.testing.assert_allclose(st.mean.numpy(), ref.mean(axis=0), rtol=1e-9)
+        np.testing.assert_allclose(st.std.numpy(), ref.std(axis=0, ddof=1), rtol=1e-9)
+        np.testing.assert_allclose(st.min.numpy(), ref.min(axis=0), rtol=0)
+        np.testing.assert_allclose(st.max.numpy(), ref.max(axis=0), rtol=0)
+        logref = np.sign(ref) * np.log1p(np.abs(ref))
+        np.testing.assert_allclose(st.logmean.numpy(), logref.mean(axis=0), rtol=1e-9)
+        assert st.count == len(ref)
+
+    flat = statistics_to_dict(stats)
+    pos = np.concatenate([s[f].astype(np.float64) for s in (s0, s1) for f in ("surface_position", "volume_position")])
+    np.testing.assert_allclose(flat["raw_pos_min"], [pos.min()], rtol=1e-9)
+    np.testing.assert_allclose(flat["raw_pos_max"], [pos.max()], rtol=1e-9)
+
+
+def test_store_statistics_field_selection_and_workers(store: Path) -> None:
+    from noether.data.zarr_store.statistics import calculate_store_statistics
+
+    stats = calculate_store_statistics(store, fields={"surface_pressure", "volume_velocity"}, max_workers=4)
+    assert set(stats) == {"surface_pressure", "volume_velocity"}
+
+    stats = calculate_store_statistics(store, exclude_fields={"volume_normals", "surface_normals"})
+    assert "volume_normals" not in stats and "surface_normals" not in stats
+
+    with pytest.raises(ValueError, match="Unknown fields"):
+        calculate_store_statistics(store, fields={"nope"})
+    with pytest.raises(ValueError, match="non-existent"):
+        calculate_store_statistics(store, exclude_fields={"nope"})
+
+
+def test_store_statistics_skips_missing_sample_ids(store: Path) -> None:
+    from noether.data.zarr_store.statistics import calculate_store_statistics
+
+    with pytest.warns(UserWarning, match="not in the store"):
+        stats = calculate_store_statistics(store, sample_ids=["param0/sample", "missing"])
+    assert stats["surface_pressure"].count == NS
+
+    with pytest.raises(ValueError, match="No samples"):
+        calculate_store_statistics(store, sample_ids=["missing"])
+
+
+def test_make_store_selects_local_for_paths(tmp_path: Path) -> None:
+    from zarr.storage import LocalStore as _LocalStore
+
+    from noether.data.zarr_store import stores
+
+    assert isinstance(stores.make_store(tmp_path), _LocalStore)
+    assert isinstance(stores.make_store(f"file://{tmp_path}"), _LocalStore)
+
+
+def test_make_store_uses_fsspec_for_non_s3_urls() -> None:
+    from zarr.storage import FsspecStore
+
+    from noether.data.zarr_store import stores
+
+    assert isinstance(stores.make_store("memory://some/zarr"), FsspecStore)
+
+
+def test_make_store_uses_obstore_for_s3_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    pytest.importorskip("obstore")
+    from zarr.storage import ObjectStore
+
+    from noether.data.zarr_store import stores
+
+    monkeypatch.setattr(stores, "_obstore_available", lambda: True)
+    store = stores.make_store("s3://bucket/prefix.zarr", read_only=True)
+    assert isinstance(store, ObjectStore)
+    assert store.read_only is True
+
+
+def test_make_store_falls_back_to_fsspec_for_s3_without_obstore(monkeypatch: pytest.MonkeyPatch) -> None:
+    from noether.data.zarr_store import stores
+
+    # Assert routing only: building a real FsspecStore for s3:// would require s3fs.
+    monkeypatch.setattr(stores, "_obstore_available", lambda: False)
+    seen: dict[str, object] = {}
+    monkeypatch.setattr(stores.FsspecStore, "from_url", classmethod(lambda cls, url, **kw: seen.update(url=url, kw=kw)))
+    stores.make_store("s3://bucket/prefix.zarr", read_only=True)
+    assert seen == {"url": "s3://bucket/prefix.zarr", "kw": {"read_only": True}}
