@@ -30,6 +30,7 @@ class TransformerBlockConfig(BaseModel):
 
     attention_constructor: Literal[
         "dot_product",
+        "flare",
         "perceiver",
         "transolver",
         "transolver_plusplus",

@@ -63,6 +63,43 @@ class TransolverAttentionConfig(AttentionConfig):
     """Number of slices to project the input tokens to."""
 
 
+class FLAREAttentionConfig(AttentionConfig):
+    """Configuration for the FLARE attention module."""
+
+    num_latents: int = Field(512, ge=1)
+    """Number of learnable latent routing tokens per attention head."""
+
+    attn_scale: float = Field(1.0, gt=0.0)
+    """Scale passed to both FLARE SDPA calls. The paper uses ``1.0``."""
+
+    num_layers_k_proj: int = Field(3, ge=-1)
+    """Number of residual hidden layers in the key projection MLP. ``-1`` uses a single linear layer."""
+
+    num_layers_v_proj: int = Field(3, ge=-1)
+    """Number of residual hidden layers in the value projection MLP. ``-1`` uses a single linear layer."""
+
+    k_proj_mlp_ratio: float = Field(1.0, gt=0.0)
+    """Key projection hidden dimension multiplier relative to ``hidden_dim``."""
+
+    v_proj_mlp_ratio: float = Field(1.0, gt=0.0)
+    """Value projection hidden dimension multiplier relative to ``hidden_dim``."""
+
+    latent_init_std: float = Field(0.1, gt=0.0)
+    """Normal initialization standard deviation for learnable latent queries."""
+
+    qk_norm: bool = Field(False)
+    """Apply per-head normalization to latent queries and projected keys before SDPA."""
+
+    rmsnorm: bool = Field(False)
+    """Use RMSNorm for ``qk_norm`` instead of LayerNorm."""
+
+    activation: Literal["GELU", "SILU"] = Field("GELU")
+    """Activation used by the key/value residual MLPs."""
+
+    anchor_suffix: str = Field("_anchors")
+    """TokenSpec suffix identifying tokens that should participate in FLARE encoding."""
+
+
 class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):
     """Configuration for the Transolver++ attention module."""
 
