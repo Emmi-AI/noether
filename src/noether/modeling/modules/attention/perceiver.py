@@ -9,7 +9,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
-import noether.modeling.modules.attention._flash_attention as _fa
+from noether.modeling.modules.attention._backend import compute_attn_from_impl
 
 
 class PerceiverAttentionConfig(AttentionConfig):
@@ -53,6 +53,7 @@ class PerceiverAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
         self.attn_impl = config.attn_impl
+        self.attn_eng = _AttentionKernel(config.attn_impl)
 
         self.k = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
         self.v = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
@@ -144,15 +145,14 @@ class PerceiverAttention(nn.Module):
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
         
-        # WIP
-        # if self.attn_impl == "flash_attn" and _fa.flash_attention_is_installed:
-        #     x = _fa.flash_attn_with_kvcache(
-        #         q, k_cache=k, v_cache=v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0,
-        #         causal=q.shape[1] > 1,  # Tq > 1 -> causal attention
-        #     )
-
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+        # TODO: change earlier shapes of q/k/v to avoid so many rearranges
+        # => need to change rope
+        x = compute_attn_from_impl(
+            q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2),  # to shape (batch size, seqlen, num_heads, head_dim)
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_impl=self.attn_impl
         )
-        x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
+        x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         return self.proj_dropout(self.proj(x)), new_cache

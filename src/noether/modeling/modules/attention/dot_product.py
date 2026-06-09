@@ -1,4 +1,3 @@
-#  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
 import os
 from typing import Any
@@ -11,8 +10,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
-import noether.modeling.modules.attention._flash_attention as _fa
-
+from noether.modeling.modules.attention._backend import compute_attn_from_impl
 
 
 class DotProductAttentionConfig(AttentionConfig):
@@ -46,6 +44,7 @@ class DotProductAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
         self.attn_impl = config.attn_impl
+        self.attn_eng = _AttentionKernel(config.attn_impl)
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 
@@ -98,24 +97,14 @@ class DotProductAttention(nn.Module):
         else:
             assert freqs is None
 
-        if attn_mask is None and self.attn_impl == "flash_attn":
-            qkv = einops.rearrange(
-                torch.stack([q, k, v], dim=2), "bs num_heads three seqlen head_dim -> bs seqlen three num_heads head_dim",
-                three=3,
-                num_heads=self.num_heads,
-                head_dim=self.head_dim,
-            ) # .contiguous() ?
-            x = _fa.flash_attn_qkvpacked_func(
-                qkv,
-                dropout_p=self.dropout if self.training else 0.0,
-                causal=qkv.shape[1] > 1 and is_causal,  # Tq > 1 -> causal attention
-            ) # (batch_size, seqlen, nheads, headdim)
-            x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
-        else:
-            x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0, is_causal=is_causal
-            )
-            x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
+        x = compute_attn_from_impl(
+            q, k, v,
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_impl=self.attn_impl
+        )
+        x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         
         x = self.proj_dropout(self.proj(x))
 

@@ -11,7 +11,7 @@ import warnings, logging
 logger = logging.getLogger(__name__)
 
 _attn_impl_valid_modes = ("sdpa", "flash-attention-3", "kernels/flash-attn3")
-AttnImpl = Literal[*_attn_impl_valid_modes]
+AttnImpl = Literal["sdpa", "flash-attention-3", "kernels/flash-attn3"]
 
 ATTN_IMPL_REGISTRY: set[str] = set(_attn_impl_valid_modes)
 
@@ -39,7 +39,6 @@ def _init_attn_mode(override: Optional[str] = None):
         mode = "sdpa"
     _attn_mode = mode
 
-    # Import Flash Attention (if applicable)
     if mode == "sdpa":
         _flash_attn = None
     else:
@@ -74,37 +73,12 @@ def _flash_attention_is_installed() -> bool:
         _init_attn_mode()
     return _flash_attn is not None
 
-_attn_mode = _read_env_attn_mode()
-
-def _import_flash_attention():
-    _flash_attn = None
-    if _attn_mode == "sdpa":
-        pass
-    elif _attn_mode == "kernels/flash-attn3":
-        try:
-            major, _ = torch.cuda.get_device_capability()
-            if major >= 9:
-                os.environ["HF_HUB_DISABLE_PROGRESS_BARS"] = "1"
-                import kernels
-                _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
-        except:
-            warnings.warn("Failed to import flash_attn_interface from kernels. Falling back to SDPA.")
-    elif _attn_mode == "flash-attention-3":
-        try:
-            import flash_attn_interface
-            _flash_attn = flash_attn_interface
-        except:
-            warnings.warn("Failed to import flash_attn_interface from flash-attention-3. Falling back to SDPA.")
-    
-    return _flash_attn
-
-_flash_attention_is_installed = lambda: _import_flash_attention() is not None
-
 def _sdpa_fallback(
         q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
         dropout_p: float = 0.0, softmax_scale: float | None = None, window_size: tuple[int, int] = (-1, -1),
         alibi_slopes: torch.Tensor | None = None, deterministic: bool = False, use_gqa: bool = False):
-    """Function of the scaled dot-product attention fallback.
+    """Function of the scaled dot-product attention fallback with flash-attention signature.
+    Supports causal and non-causal attention, with flash-attention-2 by default.
 
     Args:
         q: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
@@ -161,7 +135,6 @@ def _sdpa_fallback(
 
 def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p: float = 0.0, softmax_scale: float | None = None, causal: bool = False,
         window_size: tuple[int, int] = (-1, -1), alibi_slopes: torch.Tensor | None = None, deterministic: bool = False) -> torch.Tensor:
-    _flash_attn = _import_flash_attention()
     
     if _flash_attention_is_installed():
         return _flash_attn.flash_attn_func(
@@ -186,7 +159,6 @@ def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p
 
 def flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False,
                           window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    _flash_attn = _import_flash_attention()
     
     if _flash_attention_is_installed():
         return _flash_attn.flash_attn_qkvpacked_func(
@@ -230,7 +202,7 @@ def flash_attn_with_kvcache(
     if (k is not None) and (v is not None):
         assert q.device == k.device == v.device, "q, k and v are expected to be on the same device"
     assert q.device == k_cache.device == v_cache.device, "q, k_cache and v_cache are expected to be on the same device"
-    _flash_attn = _import_flash_attention()
+
     if _flash_attention_is_installed():
         return _flash_attn.flash_attn_with_kvcache(
             q, k_cache, v_cache,

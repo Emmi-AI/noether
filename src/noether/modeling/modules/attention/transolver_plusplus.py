@@ -12,7 +12,7 @@ from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention import TransolverAttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
-import noether.modeling.modules.attention._flash_attention as _fa
+from noether.modeling.modules.attention._backend import compute_attn_from_impl
 
 
 class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):
@@ -144,12 +144,13 @@ class TransolverPlusPlusAttention(nn.Module):
             nn.Dropout(config.dropout),
         )
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None, is_causal: bool = False) -> torch.Tensor:
         """Forward pass of the Transolver attention module.
 
         Args:
             x: Input tensor with shape (batch_size, seqlen, hidden_dim).
             attn_mask: Attention mask tensor with shape (batch_size). Defaults to None.
+            is_causal: Whether to apply causal attention mask. Defaults to False.
 
         Returns:
             Tensor after applying the transolver attention mechanism.
@@ -172,15 +173,13 @@ class TransolverPlusPlusAttention(nn.Module):
         slice_token = slice_token / ((slice_norm + 1e-5)[:, :, :, None].repeat(1, 1, 1, self.dim_head))  # type: ignore[arg-type]
 
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        if self.attn_impl == "flash_attn":
-            out_slice_token = _fa.flash_attn_func(
-                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0,
-                causal=q_slice_token.shape[2] > 1
-            )
-        else:
-            out_slice_token = F.scaled_dot_product_attention(
-                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0
-            )
+        out_slice_token = compute_attn_from_impl(
+            q_slice_token, k_slice_token, v_slice_token,
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_impl=self.attn_impl
+        )
 
         out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)
         out_x = rearrange(out_x, "b h n d -> b n (h d)")

@@ -2,6 +2,7 @@
 import pytest
 import torch
 from noether.core.schemas.modules.attention import AttentionConfig
+from noether.modeling.modules.attention._flash_attention import set_attn_impl
 from noether.modeling.modules.attention.dot_product import DotProductAttention, DotProductAttentionConfig
 from .test_dot_product import (  # Reuse existing test functions
     attention_module,
@@ -122,7 +123,7 @@ def test_attention_implementation_forward_path(device):
         for _attn_impl in _attn_implentations:
             _dp_module = attention_module()
             _dp_module.attn_impl = _attn_impl  # Force SDPA for this test
-            
+            set_attn_impl(_attn_impl)
             import time
             start_time = time.time()
             y = _dp_module(x, is_causal=is_causal)
@@ -133,7 +134,7 @@ def test_attention_implementation_forward_path(device):
             }
 
     _dp_module = attention_module()
-    _dp_module.attn_impl = "sdpa"
+    set_attn_impl("sdpa")
     start_time = time.time()
     y = _dp_module(x, attn_mask=mask, is_causal=False)
     sdpa_mask_time = time.time() - start_time

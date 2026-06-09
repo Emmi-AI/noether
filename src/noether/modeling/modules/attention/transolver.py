@@ -8,7 +8,7 @@ from pydantic import Field
 
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
-import noether.modeling.modules.attention._flash_attention as _fa
+from noether.modeling.modules.attention._backend import compute_attn_from_impl
 
 
 class TransolverAttentionConfig(AttentionConfig):
@@ -136,7 +136,7 @@ class TransolverAttention(nn.Module):
             slice_weights.sum(2),
             "batch_size num_heads num_slices -> batch_size num_heads num_slices 1",
         )
-        slice_token = torch.einsum("bhnc,bhng->bhgc", fx_mid, slice_weights) / (slice_norm + 1e-5)
+        slice_token = torch.einsum("bhnc,bhng->bghc", fx_mid, slice_weights) / (slice_norm + 1e-5)
 
         return slice_token, slice_weights
 
@@ -159,26 +159,18 @@ class TransolverAttention(nn.Module):
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
 
-        if self.attn_impl == "flash_attn":
-            q_slice_token = q_slice_token.view(q_slice_token.size(0), self.num_heads, q_slice_token.size(2), -1).contiguous()
-            k_slice_token = k_slice_token.view(k_slice_token.size(0), self.num_heads, k_slice_token.size(2), -1).contiguous()
-            v_slice_token = v_slice_token.view(v_slice_token.size(0), self.num_heads, v_slice_token.size(2), -1).contiguous()
-            out_slice_token = _fa.flash_attn_func(
-                q_slice_token, k_slice_token, v_slice_token, dropout_p=self.dropout if self.training else 0.0,
-                causal=q_slice_token.shape[2] > 1 and is_causal
-            ).view(q_slice_token.size(0), self.num_heads, q_slice_token.size(2), -1).contiguous()
-        else:
-            out_slice_token = F.scaled_dot_product_attention(
-                q_slice_token,
-                k_slice_token,
-                v_slice_token,
-                dropout_p=self.dropout if self.training else 0.0,
-            )
+        out_slice_token = compute_attn_from_impl(
+            q_slice_token, k_slice_token, v_slice_token,
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_impl=self.attn_impl
+        )
 
         # deslice - project the slice tokens back to the original points
-        out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)
+        out_x = torch.einsum("bghc,bhng->bhnc", out_slice_token, slice_weights)
         out_x = einops.rearrange(
             out_x,
-            "batch_size num_heads num_points dim_head -> batch_size num_points (num_heads dim_head)",
+            "batch_size num_points num_heads dim_head -> batch_size num_points (num_heads dim_head)",
         )
         return self.proj_dropout(self.proj(out_x))
