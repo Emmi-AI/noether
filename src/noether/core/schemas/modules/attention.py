@@ -14,8 +14,7 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from noether.core.types import InitWeightsMode
-
-_AttnImpl = Literal["sdpa", "flash_attn"]
+from noether.modeling.modules.attention._flash_attention import _AttnImpl
 
 # =====================================================================================================================
 #                                                   REGULAR ATTENTION

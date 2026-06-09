@@ -113,7 +113,7 @@ class DotProductAttention(nn.Module):
             x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         else:
             x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0, is_causal=is_causal
             )
             x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         

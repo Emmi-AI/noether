@@ -1,8 +1,5 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-from types import SimpleNamespace
-from unittest.mock import patch
-
 import pytest
 import torch
 from pydantic import ValidationError

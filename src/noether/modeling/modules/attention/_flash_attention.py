@@ -3,17 +3,76 @@
 import torch
 import torch.nn.functional as F
 import os
-from typing import Optional, Union
+from typing import Optional, Union, Literal
 
-from functools import lru_cache
 
-@lru_cache(maxsize=1)
-def _read_env_attn_mode():
-    _attn_mode = os.getenv("NOETHER_ATTN_IMPL", "flash-attention-3").lower()
+import warnings, logging
+
+logger = logging.getLogger(__name__)
+
+_attn_impl_valid_modes = ("sdpa", "flash-attention-3", "kernels/flash-attn3")
+AttnImpl = Literal[*_attn_impl_valid_modes]
+
+ATTN_IMPL_REGISTRY: set[str] = set(_attn_impl_valid_modes)
+
+_attn_mode: Optional[str] = None
+_flash_attn = None
+
+def _init_attn_mode(override: Optional[str] = None):
+    """Initialize _attn_mode and _flash_attn ONCE (thread-safe)."""
+    global _attn_mode, _flash_attn
+    if _attn_mode is not None and override is None:
+        return  # Already initialized
+
+    # Priority: override > environment > default
+    mode = override or os.getenv("NOETHER_ATTN_IMPL", "sdpa").lower()
     valid_modes = {"sdpa", "kernels/flash-attn3", "flash-attention-3"}
-    if _attn_mode not in valid_modes:
-        raise ValueError(f"Invalid attention implementation specified in NOETHER_ATTN_IMPL: '{_attn_mode}'. Valid options are: {valid_modes}.")
+
+    if mode not in valid_modes and not override:
+        if override:
+            substr = "attention implementation 'override'"
+        else:
+            substr = "environment variable NOETHER_ATTN_IMPL"
+        logger.warning(
+            f"Invalid {substr}='{mode}'. Falling back to 'sdpa'. Valid options: {valid_modes}"
+        )
+        mode = "sdpa"
+    _attn_mode = mode
+
+    # Import Flash Attention (if applicable)
+    if mode == "sdpa":
+        _flash_attn = None
+    else:
+        try:
+            if mode == "kernels/flash-attn3":
+                major, _ = torch.cuda.get_device_capability()
+                if major >= 9:
+                    import kernels
+                    _flash_attn = kernels.get_kernel("varunneal/flash-attention-3").flash_attn_interface
+            elif mode == "flash-attention-3":
+                import flash_attn_interface
+                _flash_attn = flash_attn_interface
+        except Exception as e:
+            logger.warning(
+                f"Failed to load Flash Attention ({mode}): {str(e)}. Falling back to SDPA."
+            )
+            _flash_attn = None
+
+def set_attn_impl(impl: str):
+    """Programmatically override the attention implementation (for CLI/config)."""
+    _init_attn_mode(override=impl)
+
+def get_attn_impl() -> str:
+    """Get the current attention implementation (cached)."""
+    if _attn_mode is None:
+        _init_attn_mode()
     return _attn_mode
+
+def _flash_attention_is_installed() -> bool:
+    """Check if Flash Attention is available (cached)."""
+    if _attn_mode is None:
+        _init_attn_mode()
+    return _flash_attn is not None
 
 _attn_mode = _read_env_attn_mode()
 
@@ -29,13 +88,13 @@ def _import_flash_attention():
                 import kernels
                 _flash_attn = kernels.get_kernel('varunneal/flash-attention-3').flash_attn_interface
         except:
-            pass
+            warnings.warn("Failed to import flash_attn_interface from kernels. Falling back to SDPA.")
     elif _attn_mode == "flash-attention-3":
         try:
             import flash_attn_interface
             _flash_attn = flash_attn_interface
         except:
-            pass
+            warnings.warn("Failed to import flash_attn_interface from flash-attention-3. Falling back to SDPA.")
     
     return _flash_attn
 
@@ -100,8 +159,8 @@ def _sdpa_fallback(
     return output.transpose(1, 2)  # B, Tq, H, D
 
 
-def flash_attn_func(q, k, v, dropout_p=0.0, softmax_scale=None, causal=False,
-                window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
+def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p: float = 0.0, softmax_scale: float | None = None, causal: bool = False,
+        window_size: tuple[int, int] = (-1, -1), alibi_slopes: torch.Tensor | None = None, deterministic: bool = False) -> torch.Tensor:
     _flash_attn = _import_flash_attention()
     
     if _flash_attention_is_installed():

@@ -6,17 +6,13 @@ from .dot_product import DotProductAttention, DotProductAttentionConfig
 from .perceiver import PerceiverAttention, PerceiverAttentionConfig
 from .transolver import TransolverAttention, TransolverAttentionConfig
 from .transolver_plusplus import TransolverPlusPlusAttention, TransolverPlusPlusAttentionConfig
+from ._flash_attention import AttnImpl, ATTN_IMPL_REGISTRY, set_attn_impl, get_attn_impl
 
 ATTENTION_REGISTRY: dict[str, type[nn.Module]] = {
     "dot_product": DotProductAttention,
     "perceiver": PerceiverAttention,
     "transolver": TransolverAttention,
     "transolver_plusplus": TransolverPlusPlusAttention,
-}
-
-ATTN_IMPL_REGISTRY: set[str] = {
-    "sdpa",
-    "flash_attn", # flash_attention is only supported by kernels for now
 }
 
 __all__ = [
@@ -30,4 +26,7 @@ __all__ = [
     "TransolverPlusPlusAttentionConfig",
     "ATTENTION_REGISTRY",
     "ATTN_IMPL_REGISTRY",
+    "AttnImpl",
+    "set_attn_impl",
+    "get_attn_impl",
 ]
