@@ -13,7 +13,7 @@ Overview
 --------
 
 The
-``AeroMetricsCallback`` (in ``callbacks/aero_metrics.py``)
+``AeroMetricsCallback`` (in ``src/aero_cfd/callbacks/aero_metrics.py``)
 is a specific callback that runs the current model on a separate validation or test set,
 computes error metrics, and logs them. This class inherits from
 :py:class:`~noether.core.callbacks.periodic.PeriodicDataIteratorCallback`,
@@ -54,14 +54,14 @@ Weights & Biases.
 
 The ``process_data`` method of the ``AeroMetricsCallback`` simply looks like:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
+.. literalinclude:: ../../../../recipes/aero_cfd/src/aero_cfd/callbacks/aero_metrics.py
    :language: python
    :pyobject: AeroMetricsCallback.process_data
    :dedent:
 
 First, it computes the model outputs, and next, it adds the desired metrics to an output
 dictionary. All the substeps are implemented by individual methods in the callback itself.
-See the full implementation in :source:`callbacks/aero_metrics.py <../../../../recipes/aero_cfd/callbacks/aero_metrics.py>` for details.
+See the full implementation in :source:`callbacks/aero_metrics.py <../../../../recipes/aero_cfd/src/aero_cfd/callbacks/aero_metrics.py>` for details.
 
 
 Configuring callbacks
@@ -101,17 +101,18 @@ executed by the dataset, we retrieve the data normalizers via the ``DataContaine
 ``__init__`` method of the callback we implement, we use the available ``self.data_container``
 to get the correct dataset used for this callback and retrieve the normalizers:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
+.. literalinclude:: ../../../../recipes/aero_cfd/src/aero_cfd/callbacks/aero_metrics.py
    :language: python
-   :lines: 89-95
+   :start-at: self.dataset_normalizers =
+   :end-at: self.dataset_normalizers =
    :dedent:
 
-To denormalize predictions, the ``_denormalize`` method looks up the normalizer by key and
-calls ``inverse``:
+To denormalize predictions before computing metrics, ``_compute_mode_metrics`` retrieves the
+dataset and calls its ``denormalize`` method for both the prediction and the target:
 
-.. literalinclude:: ../../../../recipes/aero_cfd/callbacks/aero_metrics.py
+.. literalinclude:: ../../../../recipes/aero_cfd/src/aero_cfd/callbacks/aero_metrics.py
    :language: python
-   :pyobject: AeroMetricsCallback._denormalize
+   :pyobject: AeroMetricsCallback._compute_mode_metrics
    :dedent:
 
 

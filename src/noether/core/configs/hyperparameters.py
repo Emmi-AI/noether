@@ -98,15 +98,13 @@ class Hyperparameters:
         """
 
         with open(out_file_uri, "w") as f:
-            # ``serialize_as_any=True`` preserves subclass-specific fields when
-            # the schema annotates a polymorphic field as the base class
-            # (e.g. ``trainer.callbacks: list[CallBackBaseConfig]``) — without
-            # it, Pydantic strips fields like ``OfflineLossCallbackConfig.dataset_key``
-            # from the dump because they don't exist on the annotated base, and
-            # the saved YAML fails to re-validate.
-            config_dict = stage_hyperparameters.model_dump(
-                exclude_unset=True, exclude_computed_fields=True, serialize_as_any=True
-            )
+            # Polymorphic fields annotated with a base class (e.g.
+            # ``trainer.callbacks``) keep their subclass-specific fields
+            # because ``Discriminated`` serializes by runtime class — a global
+            # ``serialize_as_any=True`` must NOT be used here, as it would
+            # duck-type *all* values and bypass field-level serializers (e.g.
+            # ``TorchTensor``), pickling tensors as ``!!binary`` YAML blobs.
+            config_dict = stage_hyperparameters.model_dump(exclude_unset=True, exclude_computed_fields=True)
             _inject_discriminator_fields(stage_hyperparameters, config_dict)
             config_dict["config_schema_kind"] = stage_hyperparameters.config_schema_kind
             yaml.dump(config_dict, f, sort_keys=False)

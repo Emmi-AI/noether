@@ -112,7 +112,8 @@ Concrete patterns
 
 .. literalinclude:: ../../../../recipes/aero_cfd/configs/model/ab_upt.yaml
    :language: yaml
-   :lines: 12-22
+   :start-at: physics_blocks:
+   :end-before: num_domain_decoder_blocks:
 
 A single ``perceiver`` block reads geometry once, then the trunk alternates
 ``self`` (in-domain mixing) with ``cross`` (cross-domain exchange) for four cycles,
@@ -123,7 +124,8 @@ ending in a ``self`` block.
 
 .. literalinclude:: ../../../../recipes/heat_transfer/configs/model/ab_upt.yaml
    :language: yaml
-   :lines: 12-18
+   :start-at: physics_blocks:
+   :end-before: num_domain_decoder_blocks:
 
 With only one domain, ``cross`` and ``joint`` are equivalent to ``self``, so the
 trunk is a stack of ``perceiver`` + ``self`` blocks.

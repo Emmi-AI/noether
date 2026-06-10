@@ -11,8 +11,10 @@ import yaml
 from pydantic import BaseModel, Field, RootModel
 
 from noether.core.configs.hyperparameters import Hyperparameters, _inject_discriminator_fields
-from noether.core.schemas.lib import _RegistryBase
+from noether.core.schemas.lib import Discriminated, _RegistryBase
 from noether.core.schemas.schema import ConfigSchema
+from noether.data.base.dataset import DatasetBaseConfig
+from noether.data.preprocessors.normalizers import MeanStdNormalizerConfig
 
 
 class DimSpec(RootModel[OrderedDict[str, int]]):
@@ -36,6 +38,12 @@ def mock_params() -> MockHyperparameters:
         trainer=dict(kind="mock", effective_batch_size=32, callbacks=[], max_epochs=1),
         spec=DimSpec({"def": 1, "abc": 2}),
     )
+
+
+class _NormalizedDatasetConfig(DatasetBaseConfig):
+    """Dataset config stub whose ``kind`` resolves back to this class on reload."""
+
+    kind: str | None = "tests.unit.noether.core.configs.test_hyperparameters._NormalizedDatasetConfig"
 
 
 class _RegistryStub(_RegistryBase):
@@ -238,19 +246,88 @@ class TestHyperparameters:
         with pytest.raises(FileNotFoundError, match="resolved hyperparameters"):
             Hyperparameters.load_resolved(tmp_path / "does_not_exist.yaml")
 
-    def test_save_resolved_preserves_polymorphic_subclass_fields(self, tmp_path: Path):
-        """When a field is annotated with a base type but holds a subclass
-        instance, ``save_resolved`` must preserve the subclass-specific fields.
+    def test_save_resolved_serializes_tensor_stats_as_plain_lists(self, tmp_path: Path):
+        """Normalizer stats passed via the config (``TorchTensor`` fields) must be
+        written as plain YAML lists, not pickled tensors.
 
-        Without ``serialize_as_any=True``, Pydantic walks the *annotated* base
-        type when serializing and silently drops fields that exist only on the
-        subclass — e.g. ``OfflineLossCallbackConfig.dataset_key`` disappears
-        from a ``list[CallBackBaseConfig]`` dump, breaking re-validation.
+        ``model_dump(serialize_as_any=True)`` duck-types serialization from the
+        runtime value and bypasses the ``PlainSerializer`` of the ``TorchTensor``
+        annotation, leaving raw ``torch.Tensor`` objects in the dump —
+        ``yaml.dump`` then pickles them as ``!!binary`` blobs that neither
+        ``yaml.safe_load`` (noether-eval, notebooks) nor ``yaml.full_load``
+        (``load_resolved``) can read back.
+        """
+        os.environ["MASTER_PORT"] = "12345"
+
+        params = MockHyperparameters(
+            output_path="/tmp",
+            datasets={
+                "train": _NormalizedDatasetConfig(
+                    dataset_normalizers={"pressure": MeanStdNormalizerConfig(mean=[1.0, 2.0], std=[0.5, 0.25])}
+                )
+            },
+            model=dict(name="abc", kind="xyz"),
+            trainer=dict(kind="mock", effective_batch_size=32, callbacks=[], max_epochs=1),
+            spec=DimSpec({"def": 1, "abc": 2}),
+        )
+
+        out_file = tmp_path / "hp.yaml"
+        Hyperparameters.save_resolved(params, out_file)
+
+        raw = out_file.read_text()
+        assert "!!binary" not in raw
+        assert "!!python/object" not in raw
+
+        # noether-eval and notebooks load with yaml.safe_load — this must not raise.
+        with open(out_file) as f:
+            content = yaml.safe_load(f)
+
+        normalizer = content["datasets"]["train"]["dataset_normalizers"]["pressure"]
+        assert normalizer["mean"] == [1.0, 2.0]
+        assert normalizer["std"] == [0.5, 0.25]
+
+    def test_load_resolved_round_trips_tensor_stats(self, tmp_path: Path):
+        """``load_resolved`` reads back a config whose normalizer stats came from
+        the config (not a STATS_FILE) — and the tensor values survive."""
+        os.environ["MASTER_PORT"] = "12345"
+
+        params = MockHyperparameters(
+            output_path="/tmp",
+            datasets={
+                "train": _NormalizedDatasetConfig(
+                    dataset_normalizers={"pressure": MeanStdNormalizerConfig(mean=[1.0, 2.0], std=[0.5, 0.25])}
+                )
+            },
+            model=dict(name="abc", kind="xyz"),
+            trainer=dict(kind="mock", effective_batch_size=32, callbacks=[], max_epochs=1),
+            spec=DimSpec({"def": 1, "abc": 2}),
+        )
+
+        out_file = tmp_path / "hp.yaml"
+        Hyperparameters.save_resolved(params, out_file)
+
+        loaded = Hyperparameters.load_resolved(out_file)
+
+        normalizer = loaded.datasets["train"].dataset_normalizers["pressure"]
+        assert isinstance(normalizer, MeanStdNormalizerConfig)
+        assert normalizer.mean.tolist() == [1.0, 2.0]
+        assert normalizer.std.tolist() == [0.5, 0.25]
+
+    def test_save_resolved_preserves_polymorphic_subclass_fields(self, tmp_path: Path):
+        """When a ``Discriminated`` field is annotated with a base type but
+        holds a subclass instance, ``save_resolved`` must preserve the
+        subclass-specific fields.
+
+        ``Discriminated`` serializes by runtime class — without it, Pydantic
+        walks the *annotated* base type when serializing and silently drops
+        fields that exist only on the subclass — e.g.
+        ``OfflineLossCallbackConfig.dataset_key`` disappears from a
+        ``list[CallBackBaseConfig]`` dump, breaking re-validation.
         """
         os.environ["MASTER_PORT"] = "12345"
 
         class _PolymorphicHP(ConfigSchema):
-            items: list[_RegistryStub] = Field(default_factory=list)
+            items: list[Annotated[_RegistryStub, Discriminated(_RegistryStub)]] = Field(default_factory=list)
 
         params = _PolymorphicHP(
             output_path="/tmp",
