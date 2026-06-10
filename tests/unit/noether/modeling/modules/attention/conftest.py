@@ -22,24 +22,24 @@ def gpu_device():
     params=["sdpa", "flash_attn", "kernels/flash-attn3"],
     ids=["sdpa", "flash_attn", "kernels/flash-attn3"]
 )
-def attn_impl(request):
+def attn_implementation(request):
     """Parametrize over attention backends."""
     return request.param
 
 # --- Environment Setup for Backend ---
 @pytest.fixture(scope="session", autouse=True)
 def setup_attn_backend(request):
-    """Set NOETHER_ATTN_IMPL for all tests in this session.
+    """Set NOETHER_ATTN_IMPLEMENTATION for all tests in this session.
     Note: Uses session scope to avoid reloading modules repeatedly.
     """
     if "gpu" in request.fixturenames:
         # Only set backend for GPU tests
-        backend = request.getfixturevalue("attn_impl")
-        os.environ["NOETHER_ATTN_IMPL"] = backend
+        backend = request.getfixturevalue("attn_implementation")
+        os.environ["NOETHER_ATTN_IMPLEMENTATION"] = backend
         # Reload the flash attention module to pick up the new backend
         import importlib
         import noether.modeling.modules.attention._flash_attention as _fa
         importlib.reload(_fa)
     else:
         # Default to SDPA for CPU tests
-        os.environ["NOETHER_ATTN_IMPL"] = "sdpa"
+        os.environ["NOETHER_ATTN_IMPLEMENTATION"] = "sdpa"

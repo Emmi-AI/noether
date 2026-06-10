@@ -622,7 +622,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
 
-        if self.attn_impl == "flash_attn" and attn_mask is None:
+        if self.attn_implementation == "flash_attn" and attn_mask is None:
             # Flash attention expects unnormalized q/k and applies softmax internally.
             # NOTE: suppose q, k and v as contiguous tensors with shapes (B, num_heads, seqlen, head_dim). 
             # Flash attention's API requires them to be in (B, seqlen, num_heads, head_dim) order, so we transpose before calling it and transpose back afterward.

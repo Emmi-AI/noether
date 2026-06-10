@@ -73,7 +73,7 @@ jobs:
 
       - name: Run Flash Attention Tests
         env:
-          NOETHER_ATTN_IMPL: "flash-attention-3"  # Test FA3
+          NOETHER_ATTN_IMPLEMENTATION: "flash-attention-3"  # Test FA3
         run: |
           uv run --no-sync pytest \
             tests/unit/noether/modeling/modules/attention/test_dot_product.py \
@@ -84,7 +84,7 @@ jobs:
 
       - name: Run kernels Flash Attention Tests
         env:
-          NOETHER_ATTN_IMPL: "kernels/flash-attn3"  # Test kernels
+          NOETHER_ATTN_IMPLEMENTATION: "kernels/flash-attn3"  # Test kernels
         run: |
           uv run --no-sync pytest \
             tests/unit/noether/modeling/modules/attention/test_dot_product.py \
@@ -94,7 +94,7 @@ jobs:
 
       - name: Run SDPA Fallback Tests
         env:
-          NOETHER_ATTN_IMPL: "sdpa"  # Test fallback
+          NOETHER_ATTN_IMPLEMENTATION: "sdpa"  # Test fallback
         run: |
           uv run --no-sync pytest \
             tests/unit/noether/modeling/modules/attention/test_dot_product.py \

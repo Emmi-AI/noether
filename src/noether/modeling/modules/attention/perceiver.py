@@ -52,8 +52,8 @@ class PerceiverAttention(nn.Module):
         self.head_dim = config.hidden_dim // config.num_heads
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
-        self.attn_impl = config.attn_impl
-        self.attn_eng = _AttentionKernel(config.attn_impl)
+        self.attn_implementation = config.attn_implementation
+        self.attn_eng = _AttentionKernel(config.attn_implementation)
 
         self.k = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
         self.v = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
@@ -152,7 +152,7 @@ class PerceiverAttention(nn.Module):
             attn_mask=attn_mask,
             is_causal=is_causal,
             dropout_p=self.dropout if self.training else 0.0,
-            attn_impl=self.attn_impl
+            attn_implementation=self.attn_implementation
         )
         x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
         return self.proj_dropout(self.proj(x)), new_cache

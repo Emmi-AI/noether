@@ -144,7 +144,7 @@ If you want to use the Flash Attention implementation from the `kernels` library
 ```bash
 pip install emmiai-noether[kernels]
 ```
-Hence, specifying `flash-attention-3` in the `NOETHER_ATTN_IMPL` environment variable will prioritize the `kernels` implementation if both are installed.
+Hence, specifying `flash-attention-3` in the `NOETHER_ATTN_IMPLEMENTATION` environment variable will prioritize the `kernels` implementation if both are installed.
 
 ---
 # Quickstart

@@ -5,8 +5,8 @@ import logging
 import torch
 import torch.nn.functional as F
 from noether.modeling.modules.attention._flash_attention import (
-    AttnImpl, 
-    ATTN_IMPL_REGISTRY,
+    AttnImplementation, 
+    ATTN_IMPLEMENTATION_REGISTRY,
     get_attn_impl, 
     set_attn_impl, 
     flash_attn_func,
@@ -17,12 +17,12 @@ from noether.modeling.modules.attention._flash_attention import (
 logger = logging.getLogger(__name__)
 
 class _AttentionKernel:
-    def __init__(self, attn_impl: AttnImpl = "sdpa"):
-        if attn_impl not in ATTN_IMPL_REGISTRY:
-            raise ValueError(f"Invalid attention implementation '{attn_impl}'. Valid options are: {ATTN_IMPL_REGISTRY}")
-        self.attn_impl: AttnImpl = attn_impl
-        if get_attn_impl() != attn_impl:
-            set_attn_impl(attn_impl)
+    def __init__(self, attn_implementation: AttnImplementation = "sdpa"):
+        if attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+            raise ValueError(f"Invalid attention implementation '{attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
+        self.attn_implementation: AttnImplementation = attn_implementation
+        if get_attn_impl() != attn_implementation:
+            set_attn_impl(attn_implementation)
 
     def __call__(
         self,
@@ -47,11 +47,11 @@ class _AttentionKernel:
         Returns:
             output: Tensor of shape (batch_size, seq_len_q, num_heads, head_dim)
         """
-        if attn_mask is not None and self.attn_impl != "sdpa":
+        if attn_mask is not None and self.attn_implementation != "sdpa":
             # Flash attention does not support attn_mask, fallback to SDPA
             logger.warning("Using SDPA as fallback for attention mask.")
             
-        if self.attn_impl == "sdpa" or attn_mask is not None:
+        if self.attn_implementation == "sdpa" or attn_mask is not None:
             q = q.transpose(1, 2)  # (batch_size, num_heads, seq_len_q, head_dim)
             k = k.transpose(1, 2)  # (batch_size, num_heads, seq_len_k, head_dim)
             v = v.transpose(1, 2)  # (batch_size, num_heads, seq_len_v, head_dim)
@@ -71,8 +71,8 @@ def compute_attn_from_impl(
         attn_mask: Optional[torch.Tensor] = None,
         is_causal: bool = False,
         dropout_p: float = 0.0,
-        attn_impl: AttnImpl = "sdpa",
+        attn_implementation: AttnImplementation = "sdpa",
     ) -> torch.Tensor:
     """Compute attention using the specified attention implementation."""
-    kernel = _AttentionKernel(attn_impl)
+    kernel = _AttentionKernel(attn_implementation)
     return kernel(q, k, v, attn_mask=attn_mask, is_causal=is_causal, dropout_p=dropout_p)

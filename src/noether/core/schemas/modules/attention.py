@@ -54,7 +54,7 @@ class AttentionConfig(BaseModel):
     qk_norm: bool = Field(False)
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
-    attn_impl: _AttnImpl | None = Field(None)
+    attn_implementation: _AttnImpl | None = Field(None)
     """The attention implementation to use (e.g., "sdpa", "flash_attn")."""
 
 

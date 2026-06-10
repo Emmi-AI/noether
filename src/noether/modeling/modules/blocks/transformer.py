@@ -9,7 +9,7 @@ from torch import Tensor, nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.core.types import InitWeightsMode
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
-from noether.modeling.modules.attention import ATTENTION_REGISTRY, ATTN_IMPL_REGISTRY
+from noether.modeling.modules.attention import ATTENTION_REGISTRY, ATTN_IMPLEMENTATION_REGISTRY
 from noether.modeling.modules.layers.drop_path import UnquantizedDropPath, UnquantizedDropPathConfig
 from noether.modeling.modules.layers.layer_scale import LayerScale, LayerScaleConfig
 from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
@@ -91,16 +91,16 @@ class TransformerBlockConfig(BaseModel):
                 f"Unknown attention_constructor='{self.attention_constructor}'. "
                 f"Available: {sorted(ATTENTION_REGISTRY.keys())}"
             )
-        attn_impl = self.attention_arguments.get("attn_impl", None)
-        if attn_impl is None:
-            self.attention_arguments["attn_impl"] = "sdpa"  # default to sdpa if not specified
+        attn_implementation = self.attention_arguments.get("attn_implementation", None)
+        if attn_implementation is None:
+            self.attention_arguments["attn_implementation"] = "sdpa"  # default to sdpa if not specified
             return self
-        if not isinstance(attn_impl, str):
-            raise ValueError(f"attn_impl must be a string, got {type(attn_impl)}")
-        if isinstance(attn_impl, str) and attn_impl not in ATTN_IMPL_REGISTRY:
+        if not isinstance(attn_implementation, str):
+            raise ValueError(f"attn_implementation must be a string, got {type(attn_implementation)}")
+        if isinstance(attn_implementation, str) and attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
             raise ValueError(
-                f"Unknown attn_impl='{self.attention_arguments.get('attn_impl')}'. "
-                f"Available: {sorted(ATTN_IMPL_REGISTRY)}"
+                f"Unknown attn_implementation='{self.attention_arguments.get('attn_implementation')}'. "
+                f"Available: {sorted(ATTN_IMPLEMENTATION_REGISTRY)}"
             )
         return self
 

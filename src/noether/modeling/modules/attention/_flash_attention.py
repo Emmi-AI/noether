@@ -11,9 +11,9 @@ import warnings, logging
 logger = logging.getLogger(__name__)
 
 _attn_impl_valid_modes = ("sdpa", "flash-attention-3", "kernels/flash-attn3")
-AttnImpl = Literal["sdpa", "flash-attention-3", "kernels/flash-attn3"]
+AttnImplementation = Literal["sdpa", "flash-attention-3", "kernels/flash-attn3"]
 
-ATTN_IMPL_REGISTRY: set[str] = set(_attn_impl_valid_modes)
+ATTN_IMPLEMENTATION_REGISTRY: set[str] = set(_attn_impl_valid_modes)
 
 _attn_mode: Optional[str] = None
 _flash_attn = None
@@ -25,14 +25,14 @@ def _init_attn_mode(override: Optional[str] = None):
         return  # Already initialized
 
     # Priority: override > environment > default
-    mode = override or os.getenv("NOETHER_ATTN_IMPL", "sdpa").lower()
+    mode = override or os.getenv("NOETHER_ATTN_IMPLEMENTATION", "sdpa").lower()
     valid_modes = {"sdpa", "kernels/flash-attn3", "flash-attention-3"}
 
     if mode not in valid_modes and not override:
         if override:
             substr = "attention implementation 'override'"
         else:
-            substr = "environment variable NOETHER_ATTN_IMPL"
+            substr = "environment variable NOETHER_ATTN_IMPLEMENTATION"
         logger.warning(
             f"Invalid {substr}='{mode}'. Falling back to 'sdpa'. Valid options: {valid_modes}"
         )

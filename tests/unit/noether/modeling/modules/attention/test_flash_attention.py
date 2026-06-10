@@ -21,24 +21,24 @@ class TestDotProductAttentionGPU:
     """GPU tests for DotProductAttention with all backends."""
 
     @pytest.fixture
-    def attention_module(self, gpu_device, attn_impl):
+    def attention_module(self, gpu_device, attn_implementation):
         """GPU fixture for attention module, parametrized over backends."""
         torch.manual_seed(42)
         config = DotProductAttentionConfig(
             hidden_dim=16,
             num_heads=4,
             init_weights="truncnormal002",
-            attn_impl=attn_impl if attn_impl != "sdpa" else None,
+            attn_implementation=attn_implementation if attn_implementation != "sdpa" else None,
         )
         return DotProductAttention(config).to(device=gpu_device)
 
-    def test_eval_mode_gpu(self, gpu_device, attn_impl):
+    def test_eval_mode_gpu(self, gpu_device, attn_implementation):
         """Test eval mode on GPU."""
         config = AttentionConfig(
             hidden_dim=16,
             num_heads=4,
             init_weights="truncnormal002",
-            attn_impl=attn_impl if attn_impl != "sdpa" else None,
+            attn_implementation=attn_implementation if attn_implementation != "sdpa" else None,
         )
         model = DotProductAttention(config).to(device=gpu_device)
         model.eval()
@@ -69,13 +69,13 @@ class TestDotProductAttentionGPU:
         assert output.shape == (2, 10, 16), "Output shape mismatch with causal attention"
         assert output.device.type == "cuda", "Output should be on GPU"
 
-    def test_no_bias_gpu(self, gpu_device, attn_impl):
+    def test_no_bias_gpu(self, gpu_device, attn_implementation):
         """Test no bias on GPU."""
         config = DotProductAttentionConfig(
             hidden_dim=4,
             num_heads=2,
             bias=False,
-            attn_impl=attn_impl if attn_impl != "sdpa" else None,
+            attn_implementation=attn_implementation if attn_implementation != "sdpa" else None,
         )
         attn = DotProductAttention(config).to(device=gpu_device)
         assert attn.q.bias is None
@@ -83,13 +83,13 @@ class TestDotProductAttentionGPU:
         assert attn.v.bias is None
         assert attn.proj.bias is None
 
-    def test_truncnormal_init0_gpu(self, gpu_device, attn_impl):
+    def test_truncnormal_init0_gpu(self, gpu_device, attn_implementation):
         """Test truncnormal init on GPU."""
         config = DotProductAttentionConfig(
             hidden_dim=4,
             num_heads=2,
             init_weights="truncnormal002-identity",
-            attn_impl=attn_impl if attn_impl != "sdpa" else None,
+            attn_implementation=attn_implementation if attn_implementation != "sdpa" else None,
         )
         attn = DotProductAttention(config).to(device=gpu_device)
         assert torch.all(attn.proj.weight == 0)
@@ -122,7 +122,7 @@ def test_attention_implementation_forward_path(device):
         results.append((is_causal, {}))
         for _attn_impl in _attn_implentations:
             _dp_module = attention_module()
-            _dp_module.attn_impl = _attn_impl  # Force SDPA for this test
+            _dp_module.attn_implementation = _attn_impl  # Force SDPA for this test
             set_attn_impl(_attn_impl)
             import time
             start_time = time.time()

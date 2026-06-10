@@ -40,7 +40,7 @@ class TransolverAttention(nn.Module):
         self.num_heads = config.num_heads
         self.dropout = config.dropout
         self.temperature = nn.Parameter(torch.full(size=(1, config.num_heads, 1, 1), fill_value=0.5))
-        self.attn_impl = config.attn_impl
+        self.attn_implementation = config.attn_implementation
 
         self.in_project_x = LinearProjection(
             config=LinearProjectionConfig(
@@ -164,7 +164,7 @@ class TransolverAttention(nn.Module):
             attn_mask=attn_mask,
             is_causal=is_causal,
             dropout_p=self.dropout if self.training else 0.0,
-            attn_impl=self.attn_impl
+            attn_implementation=self.attn_implementation
         )
 
         # deslice - project the slice tokens back to the original points

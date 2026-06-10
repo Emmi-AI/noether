@@ -74,7 +74,7 @@ class TransolverPlusPlusAttention(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.dropout = config.dropout
         self.bias = nn.Parameter(torch.ones([1, self.num_heads, 1, 1]) * 0.5)
-        self.attn_impl = config.attn_impl
+        self.attn_implementation = config.attn_implementation
 
         self.proj_temperature = nn.Sequential(
             LinearProjection(
@@ -178,7 +178,7 @@ class TransolverPlusPlusAttention(nn.Module):
             attn_mask=attn_mask,
             is_causal=is_causal,
             dropout_p=self.dropout if self.training else 0.0,
-            attn_impl=self.attn_impl
+            attn_implementation=self.attn_implementation
         )
 
         out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)
