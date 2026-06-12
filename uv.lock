@@ -821,7 +821,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.16.0" },
     { name = "wheel" },
 ]
-provides-extras = ["flash-attention-3", "kernels"]
+provides-extras = ["kernels"]
 
 [package.metadata.requires-dev]
 dev = [

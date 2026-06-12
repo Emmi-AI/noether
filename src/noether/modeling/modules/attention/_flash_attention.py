@@ -5,15 +5,11 @@ import torch.nn.functional as F
 import os
 from typing import Optional, Union, Literal
 
+from noether.core.schemas.modules.attention import ATTN_IMPLEMENTATION_REGISTRY
 
 import warnings, logging
 
 logger = logging.getLogger(__name__)
-
-_attn_impl_valid_modes = ("sdpa", "flash-attention-3", "kernels/flash-attn3")
-AttnImplementation = Literal["sdpa", "flash-attention-3", "kernels/flash-attn3"]
-
-ATTN_IMPLEMENTATION_REGISTRY: set[str] = set(_attn_impl_valid_modes)
 
 _attn_mode: Optional[str] = None
 _flash_attn = None
@@ -26,7 +22,7 @@ def _init_attn_mode(override: Optional[str] = None):
 
     # Priority: override > environment > default
     mode = override or os.getenv("NOETHER_ATTN_IMPLEMENTATION", "sdpa").lower()
-    valid_modes = {"sdpa", "kernels/flash-attn3", "flash-attention-3"}
+    valid_modes = ATTN_IMPLEMENTATION_REGISTRY
 
     if mode not in valid_modes and not override:
         if override:
@@ -43,12 +39,17 @@ def _init_attn_mode(override: Optional[str] = None):
         _flash_attn = None
     else:
         try:
-            if mode == "kernels/flash-attn3":
+            if mode == "varunneal/flash-attention-3":
                 major, _ = torch.cuda.get_device_capability()
                 if major >= 9:
                     import kernels
                     _flash_attn = kernels.get_kernel("varunneal/flash-attention-3").flash_attn_interface
-            elif mode == "flash-attention-3":
+            elif mode == "kernels-community/flash-attn3":
+                major, _ = torch.cuda.get_device_capability()
+                if major >= 9:
+                    import kernels
+                    _flash_attn = kernels.get_kernel("kernels-community/flash-attn3").flash_attn_interface
+            elif mode == "flash_attention_3":
                 import flash_attn_interface
                 _flash_attn = flash_attn_interface
         except Exception as e:

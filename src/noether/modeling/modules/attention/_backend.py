@@ -4,9 +4,8 @@ from typing import Optional, Literal
 import logging
 import torch
 import torch.nn.functional as F
+from noether.core.schemas.modules.attention import AttnImplementation, ATTN_IMPLEMENTATION_REGISTRY
 from noether.modeling.modules.attention._flash_attention import (
-    AttnImplementation, 
-    ATTN_IMPLEMENTATION_REGISTRY,
     get_attn_impl, 
     set_attn_impl, 
     flash_attn_func,

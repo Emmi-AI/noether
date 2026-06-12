@@ -44,7 +44,6 @@ class DotProductAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
         self.attn_implementation = config.attn_implementation
-        self.attn_eng = _AttentionKernel(config.attn_implementation)
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 

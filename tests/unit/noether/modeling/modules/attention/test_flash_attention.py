@@ -115,7 +115,7 @@ def test_attention_implementation_forward_path(device):
     mask = torch.zeros((T, T), device=device, dtype=torch.bool)
     mask = mask.masked_fill(torch.tril(torch.ones((T, T), device=device), diagonal=0) == 1, True)
 
-    _attn_implentations = ["sdpa", "flash-attention-3", "kernels/flash-attn3"]
+    _attn_implentations = ["sdpa", "flash_attention_3", "varunneal/flash-attention-3"]
 
     results = []
     for is_causal in [False, True]:
@@ -141,8 +141,8 @@ def test_attention_implementation_forward_path(device):
 
     for is_causal, data in results:
         sdpa_time = data["sdpa"]["fwd_time"]
-        flash_time = data["flash-attention-3"]["fwd_time"]
-        kernels_time = data["kernels/flash-attn3"]["fwd_time"]
+        flash_time = data["flash_attention_3"]["fwd_time"]
+        kernels_time = data["varunneal/flash-attention-3"]["fwd_time"]
 
         assert flash_time < sdpa_time, f"Flash Attention should be faster than SDPA (got {flash_time:.4f}s vs {sdpa_time:.4f}s)"
         assert kernels_time < sdpa_time, f"Kernels Flash Attention should be faster than SDPA (got {kernels_time:.4f}s vs {sdpa_time:.4f}s)"
@@ -152,8 +152,8 @@ def test_attention_implementation_forward_path(device):
             assert kernels_time < sdpa_mask_time, f"Kernels Flash Attention should be faster than SDPA with mask (got {kernels_time:.4f}s vs {sdpa_mask_time:.4f}s)"
 
         sdpa_out = data["sdpa"]["output"]
-        flash_out = data["flash-attention-3"]["output"]
-        kernels_out = data["kernels/flash-attn3"]["output"]
+        flash_out = data["flash_attention_3"]["output"]
+        kernels_out = data["varunneal/flash-attention-3"]["output"]
 
         assert torch.allclose(sdpa_out, flash_out, atol=1e-5), f"Flash Attention output should match SDPA (max diff: {(sdpa_out - flash_out).abs().max():.4e})"
         assert torch.allclose(sdpa_out, kernels_out, atol=1e-5), f"Kernels Flash Attention output should match SDPA (max diff: {(sdpa_out - kernels_out).abs().max():.4e})"

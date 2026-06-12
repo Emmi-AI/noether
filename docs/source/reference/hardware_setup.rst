@@ -77,3 +77,32 @@ control which GPUs are visible to the training job using the ``devices`` flag.
 .. note::
     **Note on escaping:** When passing list-like strings in Hydra/CLI, you often need to escape the quotes (e.g.,
     ``\"0,1\"``) to prevent your shell from interpreting them.
+
+
+Faster Attention Implementations
+--------------------------------
+
+For Hopper GPUs users, you can run faster attention operations by using the ``attn_implementation`` flag. By default, **Noether** uses 
+Pytorch ``scaled_dot_product_attention`` (`'sdpa'` mode), but you can switch to Flash Attention 3 or the implementation from the `kernels` 
+library if your hardware supports it.
+
+**Key Configuration:**
+
+- ``model.attn_implementation=flash_attention_3`` (Use Flash Attention 3)
+- ``model.attn_implementation=kernels-community/flash-attn3`` (Use the Flash Attention 3 implementation from the `kernels` library)
+
+**Example Command:**
+
+.. code-block:: bash
+
+   uv run noether-train --hp configs/train_shapenet.yaml \
+       +experiment/shapenet=upt \
+       dataset_root=/home/user/data/shapenet_car \
+       +accelerator=gpu \
+       +devices=\"0\" \
+       model.attn_implementation=flash_attention_3 \
+       tracker=disabled
+
+.. note::
+    The availability of these implementations depends on your hardware and software stack. If you select an implementation that is not supported, 
+    **Noether** will automatically fall back to the default SDPA implementation and log a warning message.

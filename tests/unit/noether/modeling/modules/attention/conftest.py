@@ -19,8 +19,8 @@ def gpu_device():
 # --- Backend Parametrization ---
 @pytest.fixture(
     scope="session",
-    params=["sdpa", "flash_attn", "kernels/flash-attn3"],
-    ids=["sdpa", "flash_attn", "kernels/flash-attn3"]
+    params=["sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"],
+    ids=["sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"]
 )
 def attn_implementation(request):
     """Parametrize over attention backends."""

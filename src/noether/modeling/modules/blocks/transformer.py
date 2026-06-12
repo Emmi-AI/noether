@@ -6,10 +6,10 @@ import torch
 from pydantic import BaseModel, Field, computed_field, model_validator
 from torch import Tensor, nn
 
-from noether.core.schemas.modules.attention import AttentionConfig
+from noether.core.schemas.modules.attention import AttentionConfig, ATTN_IMPLEMENTATION_REGISTRY
 from noether.core.types import InitWeightsMode
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
-from noether.modeling.modules.attention import ATTENTION_REGISTRY, ATTN_IMPLEMENTATION_REGISTRY
+from noether.modeling.modules.attention import ATTENTION_REGISTRY
 from noether.modeling.modules.layers.drop_path import UnquantizedDropPath, UnquantizedDropPathConfig
 from noether.modeling.modules.layers.layer_scale import LayerScale, LayerScaleConfig
 from noether.modeling.modules.layers.linear_projection import LinearProjection, LinearProjectionConfig
@@ -89,7 +89,7 @@ class TransformerBlockConfig(BaseModel):
         if isinstance(self.attention_constructor, str) and self.attention_constructor not in ATTENTION_REGISTRY:
             raise ValueError(
                 f"Unknown attention_constructor='{self.attention_constructor}'. "
-                f"Available: {sorted(ATTENTION_REGISTRY.keys())}"
+                f"Available: {sorted(ATTN_IMPLEMENTATION_REGISTRY)}"
             )
         attn_implementation = self.attention_arguments.get("attn_implementation", None)
         if attn_implementation is None:

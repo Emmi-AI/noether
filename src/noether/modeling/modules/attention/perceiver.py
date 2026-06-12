@@ -53,7 +53,6 @@ class PerceiverAttention(nn.Module):
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
         self.attn_implementation = config.attn_implementation
-        self.attn_eng = _AttentionKernel(config.attn_implementation)
 
         self.k = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
         self.v = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]

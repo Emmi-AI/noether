@@ -14,7 +14,15 @@ from typing import TYPE_CHECKING, Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 from noether.core.types import InitWeightsMode
-from noether.modeling.modules.attention._flash_attention import _AttnImpl
+
+
+# =====================================================================================================================
+#                                          FLASH ATTENTION CONFIG EXPORTS
+# ---------------------------------------------------------------------------------------------------------------------
+
+AttnImplementation = Literal["sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"]
+ATTN_IMPLEMENTATION_REGISTRY: set[str] = {"sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"}
+
 
 # =====================================================================================================================
 #                                                   REGULAR ATTENTION
@@ -54,7 +62,7 @@ class AttentionConfig(BaseModel):
     qk_norm: bool = Field(False)
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
-    attn_implementation: _AttnImpl | None = Field(None)
+    attn_implementation: AttnImplementation | None = Field(None)
     """The attention implementation to use (e.g., "sdpa", "flash_attn")."""
 
 
@@ -143,6 +151,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
 __all__ = [
     "AttentionConfig",
     "AttentionPattern",
+    "ATTN_IMPLEMENTATION_REGISTRY",
+    "AttnImplementation",
     "CrossAnchorAttentionConfig",
     "DotProductAttentionConfig",
     "JointAnchorAttentionConfig",

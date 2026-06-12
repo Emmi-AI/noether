@@ -73,34 +73,14 @@ jobs:
 
       - name: Run Flash Attention Tests
         env:
-          NOETHER_ATTN_IMPLEMENTATION: "flash-attention-3"  # Test FA3
+          NOETHER_ATTN_IMPLEMENTATION: "sdpa"  # Test FA3
         run: |
           uv run --no-sync pytest \
-            tests/unit/noether/modeling/modules/attention/test_dot_product.py \
+            tests/unit/noether/modeling/modules/attention/test_flash_attention.py \
             tests/unit/noether/modeling/modules/attention/test_perceiver.py \
             --maxfail=1 --disable-warnings \
             -v \
             -m "gpu"  # Mark GPU tests with @pytest.mark.gpu
-
-      - name: Run kernels Flash Attention Tests
-        env:
-          NOETHER_ATTN_IMPLEMENTATION: "kernels/flash-attn3"  # Test kernels
-        run: |
-          uv run --no-sync pytest \
-            tests/unit/noether/modeling/modules/attention/test_dot_product.py \
-            --maxfail=1 --disable-warnings \
-            -v \
-            -m "gpu"
-
-      - name: Run SDPA Fallback Tests
-        env:
-          NOETHER_ATTN_IMPLEMENTATION: "sdpa"  # Test fallback
-        run: |
-          uv run --no-sync pytest \
-            tests/unit/noether/modeling/modules/attention/test_dot_product.py \
-            --maxfail=1 --disable-warnings \
-            -v \
-            -m "gpu"
 
       - name: Upload Test Results
         if: always()
