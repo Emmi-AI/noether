@@ -76,7 +76,6 @@ class DotProductAttention(nn.Module):
         Returns:
             Returns the output of the attention module.
         """
-
         qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
         qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
         qkv = F.linear(x, qkv_weight, qkv_bias)
@@ -95,7 +94,6 @@ class DotProductAttention(nn.Module):
             k = rope(k, freqs=freqs)
         else:
             assert freqs is None
-
         x = compute_attn_from_impl(
             q, k, v,
             attn_mask=attn_mask,
@@ -103,8 +101,7 @@ class DotProductAttention(nn.Module):
             dropout_p=self.dropout if self.training else 0.0,
             attn_implementation=self.attn_implementation
         )
-        x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
-        
+        x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         x = self.proj_dropout(self.proj(x))
 
         return x

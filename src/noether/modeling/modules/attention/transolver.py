@@ -136,7 +136,7 @@ class TransolverAttention(nn.Module):
             slice_weights.sum(2),
             "batch_size num_heads num_slices -> batch_size num_heads num_slices 1",
         )
-        slice_token = torch.einsum("bhnc,bhng->bghc", fx_mid, slice_weights) / (slice_norm + 1e-5)
+        slice_token = torch.einsum("bhnc,bhng->bhgc", fx_mid, slice_weights) / (slice_norm + 1e-5)
 
         return slice_token, slice_weights
 
@@ -168,9 +168,9 @@ class TransolverAttention(nn.Module):
         )
 
         # deslice - project the slice tokens back to the original points
-        out_x = torch.einsum("bghc,bhng->bhnc", out_slice_token, slice_weights)
+        out_x = torch.einsum("bhgc,bhng->bhnc", out_slice_token, slice_weights)
         out_x = einops.rearrange(
             out_x,
-            "batch_size num_points num_heads dim_head -> batch_size num_points (num_heads dim_head)",
+            "batch_size num_heads num_points dim_head -> batch_size num_points (num_heads dim_head)",
         )
         return self.proj_dropout(self.proj(out_x))

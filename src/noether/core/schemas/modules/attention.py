@@ -72,6 +72,14 @@ class AttentionConfig(BaseModel):
             raise ValueError("The 'hidden_dim' must be divisible by 'num_heads'.")
         self.head_dim = self.hidden_dim // self.num_heads
         return self
+    
+    @model_validator(mode="after")
+    def validate_attn_implementation(self):
+        if self.attn_implementation is None:
+            self.attn_implementation = "sdpa"  # default to SDPA if not specified
+        if self.attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+            raise ValueError(f"Invalid attention implementation '{self.attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
+        return self
 
 
 class TokenSpec(BaseModel):

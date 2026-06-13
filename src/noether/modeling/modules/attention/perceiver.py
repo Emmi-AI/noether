@@ -147,11 +147,11 @@ class PerceiverAttention(nn.Module):
         # TODO: change earlier shapes of q/k/v to avoid so many rearranges
         # => need to change rope
         x = compute_attn_from_impl(
-            q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2),  # to shape (batch size, seqlen, num_heads, head_dim)
+            q, k, v, 
             attn_mask=attn_mask,
             is_causal=is_causal,
             dropout_p=self.dropout if self.training else 0.0,
             attn_implementation=self.attn_implementation
         )
-        x = einops.rearrange(x, "bs seqlen num_heads head_dim -> bs seqlen (num_heads head_dim)")
+        x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         return self.proj_dropout(self.proj(x)), new_cache
