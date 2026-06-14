@@ -12,7 +12,7 @@ from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention import TransolverAttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
-from noether.modeling.modules.attention._backend import compute_attn_from_impl
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 
 
 class TransolverPlusPlusAttentionConfig(TransolverAttentionConfig):

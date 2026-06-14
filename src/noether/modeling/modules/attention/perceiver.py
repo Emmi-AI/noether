@@ -9,7 +9,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
-from noether.modeling.modules.attention._backend import compute_attn_from_impl
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 
 
 class PerceiverAttentionConfig(AttentionConfig):

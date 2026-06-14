@@ -121,9 +121,9 @@ def _sdpa_fallback(
     Supports causal and non-causal attention, with flash-attention-2 by default.
 
     Args:
-        q: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
-        k: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
-        v: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
+        q: Tensor to apply self-attention over, shape (batch size, seq_len_q, n_heads_q, hidden_dim).
+        k: Tensor to apply self-attention over, shape (batch size, seq_len_k, n_heads_kv, hidden_dim).
+        v: Tensor to apply self-attention over, shape (batch size, seq_len_v, n_heads_kv, hidden_dim).
         is_causal: Whether to apply causal masking (default: False).
         dropout_p: Dropout probability for the attention weights.
         softmax_scale: Scale factor for the softmax operation.

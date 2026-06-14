@@ -51,7 +51,7 @@ def compute_attn_from_impl(
             )
             return attn_out # (batch_size, num_heads, seq_len_q, head_dim)
         else:
-            assert q.ndim() == 4 and k.ndim() == 4 and v.ndim() == 4, "Flash attention requires q, k, v to be 4D tensors."
+            assert q.ndim == 4 and k.ndim == 4 and v.ndim == 4, "Flash attention requires q, k, v to be 4D tensors."
             # TODO: change the interface to accept shape (batch_size, seq_len, num_heads, head_dim) for q, k, v -> Would probably run 
             q = q.transpose(1, 2)  # (batch_size, seq_len_q, num_heads, head_dim)
             k = k.transpose(1, 2)  # (batch_size, seq_len_k, num_heads, head_dim)

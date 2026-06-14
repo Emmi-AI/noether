@@ -17,7 +17,7 @@ from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention, MixedAttentionConfig
 from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
 from noether.modeling.modules.attention.perceiver import PerceiverAttention
-import noether.modeling.modules.attention._flash_attention as _fa
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 from noether.modeling.modules.blocks.perceiver import PerceiverBlock, PerceiverBlockConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlock, TransformerBlockConfig
 from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
@@ -489,7 +489,7 @@ class UntiedMixedAttention(MixedAttention):
         """
         if kv_cache is not None:
             raise NotImplementedError("UntiedMixedAttention does not yet support kv caching.")
-        
+
         input_specs = [s for s in token_specs if s.size is not None]
         self._validate_inputs(x, input_specs, attention_patterns, key_padding_mask, freqs)
 
@@ -621,7 +621,14 @@ class UntiedPerceiverAttention(PerceiverAttention):
         if self.use_rope:
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
-
+        
+        x = compute_attn_from_impl(
+            q, k, v, 
+            attn_mask=attn_mask, 
+            dropout=self.dropout if self.training else 0.0, 
+            is_causal=is_causal, 
+            attn_implementation=self.attn_implementation
+        )
         if self.attn_implementation == "flash_attn" and attn_mask is None:
             # Flash attention expects unnormalized q/k and applies softmax internally.
             # NOTE: suppose q, k and v as contiguous tensors with shapes (B, num_heads, seqlen, head_dim). 
@@ -637,7 +644,6 @@ class UntiedPerceiverAttention(PerceiverAttention):
             )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
 
-        # Per-type output projection.
         return self.proj_dropout(self.proj(x, token_specs)), new_cache
 
 
