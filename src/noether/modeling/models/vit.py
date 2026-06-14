@@ -57,6 +57,9 @@ class ViTConfig(ModelBaseConfig):
     attn_drop: float = Field(0.0, ge=0.0, le=1.0)
     """Dropout probability inside attention."""
 
+    attn_implementation: str | None = Field(None)
+    """The attention implementation to use (e.g., "sdpa", "flash_attention_3"). If None, will use the default specified by the environment variable NOETHER_ATTN_IMPLEMENTATION or "sdpa" if the variable is not set."""
+
     use_conv_output_head: bool = True
     """If True, decode via a cascaded PixelShuffle conv head; if False, decode via a linear unpatchify."""
 
@@ -72,6 +75,7 @@ class ViTConfig(ModelBaseConfig):
             use_rope=True,
             dropout=self.attn_drop,
             init_weights="xavier",
+            attention_arguments={"attn_implementation": self.attn_implementation},
         )
 
 

@@ -1,5 +1,6 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
+
 import einops
 import torch
 import torch.nn.functional as F
@@ -8,6 +9,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 
 
 class DotProductAttentionConfig(AttentionConfig):
@@ -39,6 +41,7 @@ class DotProductAttention(nn.Module):
         self.head_dim = config.hidden_dim // config.num_heads
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
+        self.attn_implementation = config.attn_implementation
         self.dropout = config.dropout
         self.proj_dropout = nn.Dropout(config.dropout)
 
@@ -59,6 +62,7 @@ class DotProductAttention(nn.Module):
         x: torch.Tensor,
         attn_mask: torch.Tensor | None = None,
         freqs: torch.Tensor | None = None,
+        is_causal: bool = False
     ) -> torch.Tensor:
         """Forward function of the DotProductAttention module.
 
@@ -66,7 +70,7 @@ class DotProductAttention(nn.Module):
             x: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
             attn_mask: For causal attention (i.e., no attention over the future token) a attention mask should be provided. Defaults to None.
             freqs: Frequencies for Rotary Positional Embedding (RoPE) of queries/keys. None if use_rope=False.
-
+            is_causal: For causal attention (when attn_mask is not provided) for flash_attention implementations.
         Returns:
             Returns the output of the attention module.
         """
@@ -74,7 +78,7 @@ class DotProductAttention(nn.Module):
         qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
         qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
         qkv = F.linear(x, qkv_weight, qkv_bias)
-
+        
         q, k, v = einops.rearrange(
             qkv,
             "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
@@ -90,9 +94,13 @@ class DotProductAttention(nn.Module):
             k = rope(k, freqs=freqs)
         else:
             assert freqs is None
-
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+        
+        x = compute_attn_from_impl(
+            q, k, v,
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_implementation=self.attn_implementation
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         x = self.proj_dropout(self.proj(x))

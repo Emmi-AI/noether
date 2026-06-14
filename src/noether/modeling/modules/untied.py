@@ -17,6 +17,7 @@ from noether.modeling.modules.activations import Activation
 from noether.modeling.modules.attention.anchor_attention.mixed import MixedAttention, MixedAttentionConfig
 from noether.modeling.modules.attention.anchor_attention.multi_branch import MultiBranchAnchorAttention
 from noether.modeling.modules.attention.perceiver import PerceiverAttention
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 from noether.modeling.modules.blocks.perceiver import PerceiverBlock, PerceiverBlockConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlock, TransformerBlockConfig
 from noether.modeling.modules.layers.linear_projection import LinearProjectionConfig
@@ -559,6 +560,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
         q_freqs: torch.Tensor | None = None,
         k_freqs: torch.Tensor | None = None,
         kv_cache: dict[str, torch.Tensor] | None = None,
+        is_causal: bool = False,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         """Forward pass with per-type Q and output projections.
 
@@ -572,6 +574,7 @@ class UntiedPerceiverAttention(PerceiverAttention):
             q_freqs: RoPE frequencies for queries.
             k_freqs: RoPE frequencies for keys.
             kv_cache: Cached K/V tensors from a previous forward pass.
+            is_causal: Whether to apply causal attention mask.
 
         Returns:
             Tuple of (output, new_kv_cache).
@@ -586,6 +589,8 @@ class UntiedPerceiverAttention(PerceiverAttention):
                 head_dim=self.head_dim,
             )
         )
+        if attn_mask is not None and is_causal:
+            raise ValueError("is_causal=True is not supported when attn_mask is provided, as the mask may already be causal.")
 
         if kv_cache is not None:
             k = kv_cache["k"]
@@ -616,13 +621,16 @@ class UntiedPerceiverAttention(PerceiverAttention):
         if self.use_rope:
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
-
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+        
+        x = compute_attn_from_impl(
+            q, k, v, 
+            attn_mask=attn_mask, 
+            dropout=self.dropout if self.training else 0.0, 
+            is_causal=is_causal, 
+            attn_implementation=self.attn_implementation
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
 
-        # Per-type output projection.
         return self.proj_dropout(self.proj(x, token_specs)), new_cache
 
 

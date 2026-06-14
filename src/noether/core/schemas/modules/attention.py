@@ -9,11 +9,18 @@ are re-exported here for backward compatibility.
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
-from noether.core.types import InitWeightsMode
+from noether.core.types import InitWeightsMode, AttnImplementation
+
+
+# =====================================================================================================================
+#                                          FLASH ATTENTION CONFIG EXPORTS
+# ---------------------------------------------------------------------------------------------------------------------
+
+ATTN_IMPLEMENTATION_REGISTRY: set[str] = {"sdpa", "flash_attention_3"}
 
 
 # =====================================================================================================================
@@ -54,11 +61,31 @@ class AttentionConfig(BaseModel):
     qk_norm: bool = Field(False)
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
+    attn_implementation: AttnImplementation | str | None = Field(None)
+    """The attention implementation to use (e.g., "sdpa", "flash_attn") or kernel path as '<org>/<kernel_name>' (eg: 'kernels-community/flash-attn3')."""
+
+
     @model_validator(mode="after")
     def validate_hidden_dim_and_num_heads(self):
         if self.hidden_dim % self.num_heads != 0:
             raise ValueError("The 'hidden_dim' must be divisible by 'num_heads'.")
         self.head_dim = self.hidden_dim // self.num_heads
+        return self
+    
+    @model_validator(mode="after")
+    def validate_attn_implementation(self):
+        if self.attn_implementation is None:
+            self.attn_implementation = "sdpa"
+        elif not isinstance(self.attn_implementation, str):
+            raise ValueError(f"Invalid type for 'attn_implementation': {type(self.attn_implementation)}. Must be a string.")
+        elif "/" in self.attn_implementation:
+            # Handle kernels implementations with a "/"
+            # Should try to load the kernel and check if it is available? 
+            pass
+        elif self.attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+            raise ValueError(f"Invalid attention implementation '{self.attn_implementation}'." 
+                    f"Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}, or a kernel path from `huggingface/kernels`"
+                    " named as '<org>/<kernel_name>' (eg: 'kernels-community/flash-attn3').")
         return self
 
 
@@ -139,6 +166,8 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
 __all__ = [
     "AttentionConfig",
     "AttentionPattern",
+    "ATTN_IMPLEMENTATION_REGISTRY",
+    "AttnImplementation",
     "CrossAnchorAttentionConfig",
     "DotProductAttentionConfig",
     "JointAnchorAttentionConfig",

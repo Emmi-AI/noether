@@ -8,6 +8,7 @@ from pydantic import Field
 
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.modules.layers import LinearProjection, LinearProjectionConfig
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 
 
 class TransolverAttentionConfig(AttentionConfig):
@@ -39,6 +40,7 @@ class TransolverAttention(nn.Module):
         self.num_heads = config.num_heads
         self.dropout = config.dropout
         self.temperature = nn.Parameter(torch.full(size=(1, config.num_heads, 1, 1), fill_value=0.5))
+        self.attn_implementation = config.attn_implementation
 
         self.in_project_x = LinearProjection(
             config=LinearProjectionConfig(
@@ -138,12 +140,13 @@ class TransolverAttention(nn.Module):
 
         return slice_token, slice_weights
 
-    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None):
+    def forward(self, x: torch.Tensor, attn_mask: torch.Tensor | None = None, is_causal: bool = False) -> torch.Tensor:
         """Forward pass of the Transolver attention module.
 
         Args:
             x: Input tensor with shape (batch_size, seqlen, hidden_dim).
             attn_mask: Attention mask tensor with shape (batch_size). Defaults to None.
+            is_causal: Whether to use causal attention. Defaults to False.
 
         Returns:
             Tensor after applying the transolver attention mechanism.
@@ -155,11 +158,12 @@ class TransolverAttention(nn.Module):
 
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-        out_slice_token = F.scaled_dot_product_attention(
-            q_slice_token,
-            k_slice_token,
-            v_slice_token,
+        out_slice_token = compute_attn_from_impl(
+            q_slice_token, k_slice_token, v_slice_token,
+            attn_mask=attn_mask,
+            is_causal=is_causal,
             dropout_p=self.dropout if self.training else 0.0,
+            attn_implementation=self.attn_implementation
         )
 
         # deslice - project the slice tokens back to the original points

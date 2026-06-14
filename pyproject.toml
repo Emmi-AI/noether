@@ -38,6 +38,11 @@ dependencies = [
     # ---
 ]
 
+[project.optional-dependencies]
+kernels = [
+    "kernels>=0.15.1",
+]
+
 [project.urls]
 Source = "https://github.com/Emmi-AI/noether"
 Docs = "https://noether-docs.emmi.ai/"

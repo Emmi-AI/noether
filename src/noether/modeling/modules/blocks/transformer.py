@@ -6,7 +6,7 @@ import torch
 from pydantic import BaseModel, Field, computed_field, model_validator
 from torch import Tensor, nn
 
-from noether.core.schemas.modules.attention import AttentionConfig
+from noether.core.schemas.modules.attention import AttentionConfig, ATTN_IMPLEMENTATION_REGISTRY
 from noether.core.types import InitWeightsMode
 from noether.modeling.functional.modulation import modulate_gate, modulate_scale_shift
 from noether.modeling.modules.attention import ATTENTION_REGISTRY
@@ -82,6 +82,26 @@ class TransformerBlockConfig(BaseModel):
     def set_wavelength_for_rope(self):
         if self.use_rope and self.max_wavelength is None:
             raise ValueError("max_wavelength must be provided when use_rope is True.")
+        return self
+    
+    @model_validator(mode="after")
+    def validate_attention_constructor(self):
+        if isinstance(self.attention_constructor, str) and self.attention_constructor not in ATTENTION_REGISTRY:
+            raise ValueError(
+                f"Unknown attention_constructor='{self.attention_constructor}'. "
+                f"Available: {sorted(ATTN_IMPLEMENTATION_REGISTRY)}"
+            )
+        attn_implementation = self.attention_arguments.get("attn_implementation", None)
+        if attn_implementation is None:
+            self.attention_arguments["attn_implementation"] = "sdpa"  # default to sdpa if not specified
+            return self
+        if not isinstance(attn_implementation, str):
+            raise ValueError(f"attn_implementation must be a string, got {type(attn_implementation)}")
+        if isinstance(attn_implementation, str) and attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+            raise ValueError(
+                f"Unknown attn_implementation='{self.attention_arguments.get('attn_implementation')}'. "
+                f"Available: {sorted(ATTN_IMPLEMENTATION_REGISTRY)}"
+            )
         return self
 
     @computed_field

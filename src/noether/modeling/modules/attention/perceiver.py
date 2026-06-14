@@ -9,6 +9,7 @@ from torch import nn
 from noether.core.schemas.modules.attention import AttentionConfig
 from noether.modeling.functional.init import apply_init_method
 from noether.modeling.functional.rope import rope
+from noether.modeling.modules.attention._compute_attn import compute_attn_from_impl
 
 
 class PerceiverAttentionConfig(AttentionConfig):
@@ -51,6 +52,7 @@ class PerceiverAttention(nn.Module):
         self.head_dim = config.hidden_dim // config.num_heads
         self.init_weights = config.init_weights
         self.use_rope = config.use_rope
+        self.attn_implementation = config.attn_implementation
 
         self.k = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
         self.v = nn.Linear(config.kv_dim, config.hidden_dim, bias=config.bias)  # type: ignore[arg-type]
@@ -75,6 +77,7 @@ class PerceiverAttention(nn.Module):
         q_freqs: torch.Tensor | None = None,
         k_freqs: torch.Tensor | None = None,
         kv_cache: dict[str, torch.Tensor] | None = None,
+        is_causal: bool = False,
     ) -> tuple[torch.Tensor, dict[str, torch.Tensor] | None]:
         """Forward function of the PerceiverAttention module.
 
@@ -89,10 +92,14 @@ class PerceiverAttention(nn.Module):
             kv_cache: Cached K/V tensors from a previous forward pass. Structure:
                 ``{"k": tensor, "v": tensor}``.
                 When provided, ``kv`` and ``k_freqs`` are ignored.
+            is_causal: Whether to apply causal attention mask. Defaults to False.
 
         Returns:
             Tuple of (output, new_kv_cache).
         """
+        if attn_mask is not None and is_causal:
+            raise ValueError("is_causal=True is not supported when attn_mask is provided, as the mask may already be causal.")
+        
         # Project query
         q = self.q(q)
         q = self.q_norm(
@@ -136,9 +143,13 @@ class PerceiverAttention(nn.Module):
         if self.use_rope:
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
-
-        x = F.scaled_dot_product_attention(
-            q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
+        
+        x = compute_attn_from_impl(
+            q, k, v, 
+            attn_mask=attn_mask,
+            is_causal=is_causal,
+            dropout_p=self.dropout if self.training else 0.0,
+            attn_implementation=self.attn_implementation
         )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
         return self.proj_dropout(self.proj(x)), new_cache

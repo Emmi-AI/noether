@@ -35,6 +35,7 @@ the examples of the **Noether Framework** to your needs. To do so you have three
 
 - Go deeper with config changes (for example, change model size).
 - Do basic code customization: create custom attention blocks, transformer blocks, etc., and use them from configs.
+- Some attention blocks, such as ``DotProductAttention``, also expose optional backend flags like ``attn_implementation`` to enable accelerated kernels when the hardware and dependency stack support them.
 - Focus on code only: create a custom training step (a ``trainer``) for your domain.
 
 Code customization is usually the most flexible option, but it can feel overwhelming if you are new to programming.
