@@ -36,7 +36,7 @@ def compute_attn_from_impl(
         Returns:
             output: Tensor of shape (batch_size, num_heads, seq_len_q, head_dim)
         """
-        if (attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY) or (not "/" in attn_implementation):
+        if (attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY) and (not "/" in attn_implementation):
             raise ValueError(f"Invalid attention implementation '{attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
         if get_attn_impl() != attn_implementation:
             set_attn_impl(attn_implementation)
