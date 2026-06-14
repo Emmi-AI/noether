@@ -162,7 +162,6 @@ def _sdpa_fallback(
             )
     else:
         prefix_len = Tk - Tq
-        mask = torch.zeros((Tq, Tk), device=device)
         mask = torch.zeros((Tq, Tk), device=device, dtype=torch.bool)
         mask = mask.masked_fill(torch.tril(torch.ones((Tq, Tk), device=device), diagonal=-prefix_len-1) == 1, True)
         output = F.scaled_dot_product_attention(

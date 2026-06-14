@@ -36,11 +36,13 @@ def compute_attn_from_impl(
         Returns:
             output: Tensor of shape (batch_size, num_heads, seq_len_q, head_dim)
         """
-        if attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY or ("/" in attn_implementation):
+        if (attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY) or (not "/" in attn_implementation):
             raise ValueError(f"Invalid attention implementation '{attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
-        attn_implementation: str = attn_implementation
         if get_attn_impl() != attn_implementation:
             set_attn_impl(attn_implementation)
+            if attn_implementation != get_attn_impl():
+                logger.warning(f"Attention implementation switched to {attn_implementation!r}.")
+                attn_implementation = get_attn_impl()
 
         if attn_mask is not None and attn_implementation != "sdpa":
             # Flash attention does not support attn_mask, fallback to SDPA
