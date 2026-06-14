@@ -144,8 +144,6 @@ class PerceiverAttention(nn.Module):
             assert q_freqs is not None
             q = rope(q, freqs=q_freqs)
         
-        # TODO: change earlier shapes of q/k/v to avoid so many rearranges
-        # => need to change rope
         x = compute_attn_from_impl(
             q, k, v, 
             attn_mask=attn_mask,

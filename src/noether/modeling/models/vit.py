@@ -8,7 +8,6 @@ from pydantic import ConfigDict, Field, computed_field
 from torch import Tensor, nn
 
 from noether.core.models.base import ModelBaseConfig
-
 from noether.modeling.models.transformer import Transformer, TransformerConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
 from noether.modeling.modules.layers import (

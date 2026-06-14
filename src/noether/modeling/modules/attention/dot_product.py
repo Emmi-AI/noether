@@ -1,7 +1,5 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 
-import os
-from typing import Any
 
 import einops
 import torch
@@ -16,7 +14,6 @@ from noether.modeling.modules.attention._compute_attn import compute_attn_from_i
 
 class DotProductAttentionConfig(AttentionConfig):
     """Configuration for the Dot Product attention module."""
-
 
 
 class DotProductAttention(nn.Module):
@@ -77,9 +74,11 @@ class DotProductAttention(nn.Module):
         Returns:
             Returns the output of the attention module.
         """
+
         qkv_weight = torch.cat([self.q.weight, self.k.weight, self.v.weight], dim=0)
         qkv_bias = torch.cat([self.q.bias, self.k.bias, self.v.bias], dim=0) if self.q.bias is not None else None
         qkv = F.linear(x, qkv_weight, qkv_bias)
+        
         q, k, v = einops.rearrange(
             qkv,
             "bs seqlen (three num_heads head_dim) -> three bs num_heads seqlen head_dim",
@@ -95,6 +94,7 @@ class DotProductAttention(nn.Module):
             k = rope(k, freqs=freqs)
         else:
             assert freqs is None
+        
         x = compute_attn_from_impl(
             q, k, v,
             attn_mask=attn_mask,

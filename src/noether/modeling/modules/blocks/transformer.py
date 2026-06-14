@@ -63,7 +63,7 @@ class TransformerBlockConfig(BaseModel):
     max_wavelength: int | None = Field(10_000)
     """Theta parameter for the transformer sine/cosine embedding. Default: 10_000"""
 
-    attention_arguments: dict = {} # NOTE: fast-attn impl called here?
+    attention_arguments: dict = {}
     """Additional arguments for the attention module that are only needed for a specific attention implementation."""
 
     @model_validator(mode="after")

@@ -158,7 +158,6 @@ class TransolverAttention(nn.Module):
 
         # attention among slice tokens
         q_slice_token, k_slice_token, v_slice_token = self.q(slice_token), self.k(slice_token), self.v(slice_token)
-
         out_slice_token = compute_attn_from_impl(
             q_slice_token, k_slice_token, v_slice_token,
             attn_mask=attn_mask,

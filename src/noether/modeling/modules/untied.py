@@ -629,19 +629,6 @@ class UntiedPerceiverAttention(PerceiverAttention):
             is_causal=is_causal, 
             attn_implementation=self.attn_implementation
         )
-        if self.attn_implementation == "flash_attn" and attn_mask is None:
-            # Flash attention expects unnormalized q/k and applies softmax internally.
-            # NOTE: suppose q, k and v as contiguous tensors with shapes (B, num_heads, seqlen, head_dim). 
-            # Flash attention's API requires them to be in (B, seqlen, num_heads, head_dim) order, so we transpose before calling it and transpose back afterward.
-            q = q.transpose(1, 2)  # (B, seqlen_q, num_heads, head_dim)
-            k = k.transpose(1, 2)  # (B, seqlen_kv, num_heads, head_dim)
-            v = v.transpose(1, 2)  # (B, seqlen_kv, num_heads, head_dim)
-            x = _fa.flash_attn_func(q, k, v, dropout_p=self.dropout if self.training else 0.0, causal=is_causal)
-            x = x.transpose(1, 2)  # (B, num_heads, seqlen_q, head_dim)
-        else:
-            x = F.scaled_dot_product_attention(
-                q, k, v, attn_mask=attn_mask, dropout_p=self.dropout if self.training else 0.0
-            )
         x = einops.rearrange(x, "bs num_heads seqlen head_dim -> bs seqlen (num_heads head_dim)")
 
         return self.proj_dropout(self.proj(x, token_specs)), new_cache
