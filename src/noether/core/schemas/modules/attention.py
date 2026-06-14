@@ -13,15 +13,14 @@ from typing import TYPE_CHECKING, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
-from noether.core.types import InitWeightsMode
+from noether.core.types import InitWeightsMode, AttnImplementation
 
 
 # =====================================================================================================================
 #                                          FLASH ATTENTION CONFIG EXPORTS
 # ---------------------------------------------------------------------------------------------------------------------
 
-AttnImplementation = Literal["sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"]
-ATTN_IMPLEMENTATION_REGISTRY: set[str] = {"sdpa", "flash_attention_3", "kernels-community/flash-attn3", "varunneal/flash-attention-3"}
+ATTN_IMPLEMENTATION_REGISTRY: set[str] = {"sdpa", "flash_attention_3"}
 
 
 # =====================================================================================================================
@@ -62,8 +61,8 @@ class AttentionConfig(BaseModel):
     qk_norm: bool = Field(False)
     """Whether to apply layer normalization to the query and key features before computing attention scores."""
 
-    attn_implementation: AttnImplementation | None = Field(None)
-    """The attention implementation to use (e.g., "sdpa", "flash_attn")."""
+    attn_implementation: AttnImplementation | str | None = Field(None)
+    """The attention implementation to use (e.g., "sdpa", "flash_attn") or kernel path as '<org>/<kernel_name>' (eg: 'kernels-community/flash-attn3')."""
 
 
     @model_validator(mode="after")
@@ -76,9 +75,17 @@ class AttentionConfig(BaseModel):
     @model_validator(mode="after")
     def validate_attn_implementation(self):
         if self.attn_implementation is None:
-            self.attn_implementation = "sdpa"  # default to SDPA if not specified
-        if self.attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
-            raise ValueError(f"Invalid attention implementation '{self.attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
+            self.attn_implementation = "sdpa"
+        elif not isinstance(self.attn_implementation, str):
+            raise ValueError(f"Invalid type for 'attn_implementation': {type(self.attn_implementation)}. Must be a string.")
+        elif "/" in self.attn_implementation:
+            # Handle kernels implementations with a "/"
+            # Should try to load the kernel and check if it is available? 
+            pass
+        elif self.attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+            raise ValueError(f"Invalid attention implementation '{self.attn_implementation}'." 
+                    f"Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}, or a kernel path from `huggingface/kernels`"
+                    " named as '<org>/<kernel_name>' (eg: 'kernels-community/flash-attn3').")
         return self
 
 

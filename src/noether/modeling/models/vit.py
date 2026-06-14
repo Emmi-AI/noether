@@ -8,7 +8,6 @@ from pydantic import ConfigDict, Field, computed_field
 from torch import Tensor, nn
 
 from noether.core.models.base import ModelBaseConfig
-from noether.core.schemas.modules.attention import AttnImplementation
 
 from noether.modeling.models.transformer import Transformer, TransformerConfig
 from noether.modeling.modules.blocks.transformer import TransformerBlockConfig
@@ -59,7 +58,7 @@ class ViTConfig(ModelBaseConfig):
     attn_drop: float = Field(0.0, ge=0.0, le=1.0)
     """Dropout probability inside attention."""
 
-    attn_implementation: AttnImplementation | None = Field(None)
+    attn_implementation: str | None = Field(None)
     """The attention implementation to use (e.g., "sdpa", "flash_attention_3"). If None, will use the default specified by the environment variable NOETHER_ATTN_IMPLEMENTATION or "sdpa" if the variable is not set."""
 
     use_conv_output_head: bool = True

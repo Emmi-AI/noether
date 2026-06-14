@@ -4,13 +4,11 @@ from typing import Optional, Literal
 import logging
 import torch
 import torch.nn.functional as F
-from noether.core.schemas.modules.attention import AttnImplementation, ATTN_IMPLEMENTATION_REGISTRY
+from noether.core.schemas.modules.attention import ATTN_IMPLEMENTATION_REGISTRY
 from noether.modeling.modules.attention._flash_attention import (
     get_attn_impl, 
     set_attn_impl, 
-    flash_attn_func,
-    flash_attn_qkvpacked_func,
-    flash_attn_with_kvcache
+    flash_attn_func
 )
 
 logger = logging.getLogger(__name__)
@@ -22,7 +20,7 @@ def compute_attn_from_impl(
         attn_mask: Optional[torch.Tensor] = None,
         is_causal: bool = False,
         dropout_p: float = 0.0,
-        attn_implementation: AttnImplementation = "sdpa",
+        attn_implementation: str = "sdpa",
     ) -> torch.Tensor:
         """
         Compute attention using the configured attention implementation.
@@ -38,9 +36,9 @@ def compute_attn_from_impl(
         Returns:
             output: Tensor of shape (batch_size, num_heads, seq_len_q, head_dim)
         """
-        if attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY:
+        if attn_implementation not in ATTN_IMPLEMENTATION_REGISTRY or ("/" in attn_implementation):
             raise ValueError(f"Invalid attention implementation '{attn_implementation}'. Valid options are: {ATTN_IMPLEMENTATION_REGISTRY}")
-        attn_implementation: AttnImplementation = attn_implementation
+        attn_implementation: str = attn_implementation
         if get_attn_impl() != attn_implementation:
             set_attn_impl(attn_implementation)
 
@@ -53,6 +51,7 @@ def compute_attn_from_impl(
             )
             return attn_out # (batch_size, num_heads, seq_len_q, head_dim)
         else:
+            assert q.ndim() == 4 and k.ndim() == 4 and v.ndim() == 4, "Flash attention requires q, k, v to be 4D tensors."
             # TODO: change the interface to accept shape (batch_size, seq_len, num_heads, head_dim) for q, k, v -> Would probably run 
             q = q.transpose(1, 2)  # (batch_size, seq_len_q, num_heads, head_dim)
             k = k.transpose(1, 2)  # (batch_size, seq_len_k, num_heads, head_dim)

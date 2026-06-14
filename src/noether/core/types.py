@@ -34,3 +34,5 @@ class CheckpointKeys:
     """ Per-field preprocessor configs for normalization (serialized dict of the test split's ``dataset_normalizers``). """
     NORMALIZER_STATISTICS = "normalizer_statistics"
     """ Resolved statistics dict (means/stds/bounds) loaded from the dataset class's ``STATS_FILE`` at write time. """
+
+AttnImplementation = Literal["sdpa", "flash_attention_3"]

@@ -7,9 +7,30 @@ from typing import Optional, Union, Literal
 
 from noether.core.schemas.modules.attention import ATTN_IMPLEMENTATION_REGISTRY
 
-import warnings, logging
+import logging
 
 logger = logging.getLogger(__name__)
+
+if torch.cuda.is_available():
+    try:
+        import flash_attn_interface
+        _is_flash_attn_3_available = True
+    except ImportError:
+        _is_flash_attn_3_available = False
+
+    try:
+        major, _ = torch.cuda.get_device_capability()
+        if major >= 9:
+            import kernels
+            _is_kernels_available = True
+        else:
+            _is_kernels_available = False
+    except ImportError:
+        _is_kernels_available = False
+else:
+    _is_flash_attn_3_available = False
+    _is_kernels_available = False
+
 
 _attn_mode: Optional[str] = None
 _flash_attn = None
@@ -24,7 +45,7 @@ def _init_attn_mode(override: Optional[str] = None):
     mode = override or os.getenv("NOETHER_ATTN_IMPLEMENTATION", "sdpa").lower()
     valid_modes = ATTN_IMPLEMENTATION_REGISTRY
 
-    if mode not in valid_modes and not override:
+    if (mode not in valid_modes) and ("/" not in mode):
         if override:
             substr = "attention implementation 'override'"
         else:
@@ -35,30 +56,48 @@ def _init_attn_mode(override: Optional[str] = None):
         mode = "sdpa"
     _attn_mode = mode
 
+    _flash_attn = None
     if mode == "sdpa":
-        _flash_attn = None
-    else:
+        return
+    if mode == "flash_attention_3":
+        if not _is_flash_attn_3_available:
+            logger.warning(
+                "Flash Attention (flash_attention_3) is not available. Falling back to 'sdpa'."
+            )
+            _attn_mode = "sdpa"
+            return
         try:
-            if mode == "varunneal/flash-attention-3":
-                major, _ = torch.cuda.get_device_capability()
-                if major >= 9:
-                    import kernels
-                    _flash_attn = kernels.get_kernel("varunneal/flash-attention-3").flash_attn_interface
-            elif mode == "kernels-community/flash-attn3":
-                major, _ = torch.cuda.get_device_capability()
-                if major >= 9:
-                    import kernels
-                    _flash_attn = kernels.get_kernel("kernels-community/flash-attn3").flash_attn_interface
-            elif mode == "flash_attention_3":
-                import flash_attn_interface
-                _flash_attn = flash_attn_interface
+            import flash_attn_interface
+            _flash_attn = flash_attn_interface
         except Exception as e:
             logger.warning(
-                f"Failed to load Flash Attention ({mode}): {str(e)}. Falling back to SDPA."
+                f"Failed to load Flash Attention (flash_attention_3): {str(e)}. Falling back to 'sdpa'."
             )
-            _flash_attn = None
+            _attn_mode = "sdpa"
+    elif "/" in mode:
+        if not _is_kernels_available:
+            logger.warning(
+                f"Custom kernel implementation '{mode}' is not available. Falling back to 'sdpa'."
+            )
+            _attn_mode = "sdpa"
+            return
+        try:
+            major, _ = torch.cuda.get_device_capability()
+            if major >= 9:
+                import kernels
+                _flash_attn = kernels.get_kernel(mode).flash_attn_interface
+        except Exception as e:
+            logger.warning(
+                f"Failed to load Flash Attention kernel {mode!r}: {str(e)}. Falling back to 'sdpa'."
+            )
+            _attn_mode = "sdpa"
+    else:
+        logger.warning(
+            f"Invalid attention implementation '{mode}'. Falling back to 'sdpa'. Valid options: {valid_modes} or a kernel path from `huggingface/kernels` named as '<org>/<kernel_name>' (eg: 'kernels-community/flash-attn3')."
+        )
+        
 
-def set_attn_impl(impl: str):
+def set_attn_impl(impl: Optional[str] = None):
     """Programmatically override the attention implementation (for CLI/config)."""
     _init_attn_mode(override=impl)
 
@@ -68,16 +107,16 @@ def get_attn_impl() -> str:
         _init_attn_mode()
     return _attn_mode
 
-def _flash_attention_is_installed() -> bool:
+def _is_flash_attention_installed() -> bool:
     """Check if Flash Attention is available (cached)."""
     if _attn_mode is None:
         _init_attn_mode()
     return _flash_attn is not None
 
 def _sdpa_fallback(
-        q: torch.Tensor, k: torch.Tensor, v: torch.Tensor,
+        q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, is_causal: bool = False,
         dropout_p: float = 0.0, softmax_scale: float | None = None, window_size: tuple[int, int] = (-1, -1),
-        alibi_slopes: torch.Tensor | None = None, deterministic: bool = False, use_gqa: bool = False):
+        use_gqa: bool = False):
     """Function of the scaled dot-product attention fallback with flash-attention signature.
     Supports causal and non-causal attention, with flash-attention-2 by default.
 
@@ -85,11 +124,10 @@ def _sdpa_fallback(
         q: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
         k: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
         v: Tensor to apply self-attention over, shape (batch size, sequence length, hidden_dim).
+        is_causal: Whether to apply causal masking (default: False).
         dropout_p: Dropout probability for the attention weights.
         softmax_scale: Scale factor for the softmax operation.
         window_size: Size of the attention window.
-        alibi_slopes: Alibi slopes for the attention mechanism.
-        deterministic: Whether to use deterministic operations.
         use_gqa: Whether to use grouped query attention.
 
     Returns:
@@ -113,7 +151,7 @@ def _sdpa_fallback(
         if window < 0 or window >= Tq:
             output = F.scaled_dot_product_attention(
                 q, k, v, attn_mask=None, dropout_p=dropout_p,
-                is_causal=True, scale=softmax_scale, enable_gqa=use_gqa
+                is_causal=is_causal, scale=softmax_scale, enable_gqa=use_gqa
             )
         else:
             mask = torch.triu(torch.ones((Tq, Tq), device=device), diagonal=1)
@@ -134,18 +172,17 @@ def _sdpa_fallback(
     return output.transpose(1, 2)  # B, Tq, H, D
 
 
-def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p: float = 0.0, softmax_scale: float | None = None, causal: bool = False,
-        window_size: tuple[int, int] = (-1, -1), alibi_slopes: torch.Tensor | None = None, deterministic: bool = False) -> torch.Tensor:
+def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, 
+        dropout_p: float = 0.0, softmax_scale: float | None = None, 
+        causal: bool = False, window_size: tuple[int, int] = (-1, -1)) -> torch.Tensor:
     
-    if _flash_attention_is_installed():
+    if _is_flash_attention_installed():
         return _flash_attn.flash_attn_func(
             q, k,v,
             dropout_p=dropout_p,
             softmax_scale=softmax_scale,
             causal=causal,
             window_size=window_size,
-            alibi_slopes=alibi_slopes,
-            deterministic=deterministic
         )
     use_gqa = (k.size(-2) != q.size(-2)) # GQA if Hq != Hkv
     return _sdpa_fallback(
@@ -153,89 +190,6 @@ def flash_attn_func(q: torch.Tensor, k: torch.Tensor, v: torch.Tensor, dropout_p
         dropout_p=dropout_p,
         softmax_scale=softmax_scale,
         window_size=window_size,
-        alibi_slopes=alibi_slopes,
-        deterministic=deterministic,
-        use_gqa=use_gqa
-    )
-
-def flash_attn_qkvpacked_func(qkv, dropout_p=0.0, softmax_scale=None, causal=False,
-                          window_size=(-1, -1), alibi_slopes=None, deterministic=False) -> torch.Tensor:
-    
-    if _flash_attention_is_installed():
-        return _flash_attn.flash_attn_qkvpacked_func(
-            qkv,
-            dropout_p=dropout_p,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            window_size=window_size,
-            # alibi_slopes=alibi_slopes,
-            # deterministic=deterministic
-        )
-    assert alibi_slopes is None, "Alibi slopes are not supported when FlashAttention is not installed."
-
-    q, k, v = qkv.unbind(dim=2)
-    return _sdpa_fallback(
-        q, k, v,
-        dropout_p=dropout_p,
-        softmax_scale=softmax_scale,
-        window_size=window_size,
-        alibi_slopes=alibi_slopes,
-        # deterministic=deterministic
-    )
-
-def flash_attn_with_kvcache(
-    q: torch.Tensor, # (B, Tq, H, D)
-    k_cache: torch.Tensor, # (Bc, Tc, Hkv, D)
-    v_cache: torch.Tensor, # (Bc, Tc, Hkv, D)
-    k: Optional[torch.Tensor] = None, # (B, Tk, Hkv, D)
-    v: Optional[torch.Tensor] = None, # (B, Tk, Hkv, D)
-    rotary_cos=None, # ignored. handled outside
-    rotary_sin=None,
-    cache_seqlens: Optional[Union[(int, torch.Tensor)]] = None,
-    cache_batch_idx: Optional[torch.Tensor] = None,
-    block_table: Optional[torch.Tensor] = None,
-    softmax_scale=None,
-    causal=True,
-    window_size=(-1, -1),  # -1 means 'infinite' context window
-    rotary_interleaved=True,
-    alibi_slopes=None,
-) -> torch.Tensor:
-    if (k is not None) and (v is not None):
-        assert q.device == k.device == v.device, "q, k and v are expected to be on the same device"
-    assert q.device == k_cache.device == v_cache.device, "q, k_cache and v_cache are expected to be on the same device"
-
-    if _flash_attention_is_installed():
-        return _flash_attn.flash_attn_with_kvcache(
-            q, k_cache, v_cache,
-            k=k,
-            v=v,
-            # rotary_cos=rotary_cos,
-            # rotary_sin=rotary_sin,
-            cache_seqlens=cache_seqlens,
-            cache_batch_idx=cache_batch_idx,
-            # block_table=block_table,
-            softmax_scale=softmax_scale,
-            causal=causal,
-            window_size=window_size,
-            # rotary_interleaved=rotary_interleaved,
-            # alibi_slopes=alibi_slopes
-        )
-    Tq = q.size(1)
-    
-    cur_pos = cache_seqlens[0].item() # TODO: change for batch support -> efficiently get max cur_pos
-    end_pos = cur_pos + Tq
-
-    if k is not None and v is not None:
-        k_cache[:,cur_pos:end_pos,:,:] = k
-        v_cache[:,cur_pos:end_pos,:,:] = v
-    
-    k = k_cache[:,:end_pos,:,:]
-    v = v_cache[:,:end_pos,:,:]
-    use_gqa = (k.size(-2) != q.size(-2)) # GQA if Hq != Hkv
-    return _sdpa_fallback(
-        q, k, v,
-        dropout_p=0.0,
-        softmax_scale=softmax_scale,
-        window_size=window_size,
-        use_gqa=use_gqa
+        use_gqa=use_gqa,
+        is_causal=causal
     )
