@@ -1,5 +1,5 @@
 raw_pos_min:  [-12.01]
-raw_pos_max: [6.41,]
+raw_pos_max: [32.0032,]
 surface_domain_min: [-1.15154e00, -1.19442e00, 0.00000e00]
 surface_domain_max: [4.20453e00, 1.19442e00, 1.76205e00]
 surface_pos_mean: [1.53702e00, -8.12572e-03, 5.93542e-01]

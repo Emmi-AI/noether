@@ -1,0 +1,53 @@
+# Dataset config for the chunked/sharded Zarr DrivAerNet store.
+# `root` points at a converted Zarr store (local path or fsspec URL such as
+# oci://bucket@namespace/zarr_store) holding manifest.json plus the split/blacklist files.
+# The num_* fields push subsampling into the dataset (chunked reads): they mirror the
+# AB-UPT pipeline anchor/geometry counts so the pipeline's sampling becomes a no-op.
+train:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: train
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+  read_concurrency: 8
+val:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: val
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+  read_concurrency: 8
+test:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  num_surface_points: ${pipeline.num_surface_anchor_points}
+  num_volume_points: ${pipeline.num_volume_anchor_points}
+  num_geometry_points: ${pipeline.num_geometry_points}
+  read_concurrency: 8
+chunked_test:
+  root: ${dataset_root}
+  kind: ${dataset_kind}
+  split: test
+  pipeline: ${inference_pipeline}
+  dataset_normalizers: ${dataset_normalizers}
+  excluded_properties: ${excluded_properties}
+  # inference anchors are effectively "all points" -> full-sample reads
+  num_surface_points: ${inference_pipeline.num_surface_anchor_points}
+  num_volume_points: ${inference_pipeline.num_volume_anchor_points}
+  num_geometry_points: ${inference_pipeline.num_geometry_points}
+  read_concurrency: 8
+  dataset_wrappers:
+    - kind: noether.data.base.wrappers.RepeatWrapper
+      repetitions: 10

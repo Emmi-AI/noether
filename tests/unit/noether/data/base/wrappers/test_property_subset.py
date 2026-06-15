@@ -230,6 +230,7 @@ class PreGetItemDataset(Dataset):
         super().__init__(dataset_config=DatasetBaseConfig(kind="pre"))
         self._length = length
         self.pre_getitem_call_count = 0
+        self.post_getitem_call_count = 0
 
     def __len__(self) -> int:
         return self._length
@@ -238,6 +239,9 @@ class PreGetItemDataset(Dataset):
         self.pre_getitem_call_count += 1
         return {"shared": f"shared_{idx}"}
 
+    def post_getitem(self, idx: int, pre: dict | None) -> None:
+        self.post_getitem_call_count += 1
+
     def getitem_plain(self, idx: int) -> str:
         return f"plain_{idx}"
 
@@ -245,25 +249,27 @@ class PreGetItemDataset(Dataset):
         return f"fancy_{shared}"
 
 
-def test_property_subset_bypasses_pre_getitem():
-    """PropertySubsetWrapper calls getitem methods directly, skipping pre_getitem."""
+def test_property_subset_runs_pre_and_post_getitem():
+    """PropertySubsetWrapper runs pre_getitem/post_getitem once, like Dataset.__getitem__."""
     ds = PreGetItemDataset(length=5)
     wrapper = PropertySubsetWrapper(dataset=ds, properties={"plain"})
 
     sample = wrapper[2]
     assert sample == {"plain": "plain_2"}
-    assert ds.pre_getitem_call_count == 0
+    assert ds.pre_getitem_call_count == 1
+    assert ds.post_getitem_call_count == 1
 
 
-def test_property_subset_getitem_with_kwargs_uses_defaults():
-    """When PropertySubsetWrapper bypasses pre_getitem, getitem methods fall back to defaults."""
+def test_property_subset_forwards_pre_getitem_kwargs():
+    """getitem methods that accept the pre_getitem payload receive it through the wrapper."""
     ds = PreGetItemDataset(length=5)
     wrapper = PropertySubsetWrapper(dataset=ds, properties={"fancy"})
 
     sample = wrapper[3]
-    # fancy gets default shared="" because pre_getitem is not called
-    assert sample == {"fancy": "fancy_"}
-    assert ds.pre_getitem_call_count == 0
+    # fancy receives shared=... forwarded from pre_getitem
+    assert sample == {"fancy": "fancy_shared_3"}
+    assert ds.pre_getitem_call_count == 1
+    assert ds.post_getitem_call_count == 1
 
 
 def test_direct_dataset_calls_pre_getitem():

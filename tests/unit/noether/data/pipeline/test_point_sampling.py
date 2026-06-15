@@ -80,6 +80,19 @@ def test_point_sampling_precollator_deterministic():
     assert torch.equal(processed1["pos"], processed2["pos"])
 
 
+def test_point_sampling_skips_when_num_points_at_least_total():
+    """num_points >= available points is a redundant reshuffle, so the sample is returned as-is."""
+    sample = {"pos": torch.rand(8, 3), "feat": torch.rand(8, 2)}
+    items = {"pos", "feat"}
+
+    for num_points in (8, 16):  # equal to and greater than the 8 available points
+        processed = PointSamplingSampleProcessor(items, num_points)(sample)
+        for item in items:
+            assert processed[item].shape[0] == 8
+            # No subsampling and no reshuffle: identical to the input.
+            assert torch.equal(processed[item], sample[item])
+
+
 def test_point_sampling_precollator_invalid_num_points(sample_data):
     items = {"input_position", "output_position"}
     num_points = 0

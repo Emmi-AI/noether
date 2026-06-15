@@ -1,0 +1,44 @@
+# @package _global_
+# AB-UPT on DrivAerNet++ reading from the chunked/sharded Zarr store on OCI.
+# The chunked dataset owns surface/volume anchor + geometry subsampling (via num_* on the
+# dataset config), so the pipeline's anchor/geometry sampling is inert:
+#   - geometry_position_from_dataset=true  -> pipeline uses the dataset's geometry_position
+#   - PointSampling / AnchorPointSampling skip when num_points >= available (rename only)
+# Requires OCIFS_IAM_TYPE=api_key (ocifs reads ~/.oci/config) in the job environment.
+defaults:
+  - override /model: ab_upt
+  - override /tracker: development_tracker
+  - override /optimizer: lion
+  - override /datasets: drivaernet_zarr_dataset
+
+name: drivaernet-ab-upt-zarr
+
+dataset_kind: noether.data.datasets.cfd.ZarrDrivAerNetDataset
+dataset_root: oci://emmi-drivaernet@frwnorq7ern2/zarr_store
+
+pipeline:
+  num_geometry_points: 65536
+  num_geometry_supernodes: 16384
+  num_surface_anchor_points: 16384
+  num_volume_anchor_points: 16384
+  geometry_position_from_dataset: true
+
+inference_pipeline:
+  num_geometry_points: 65536
+  num_geometry_supernodes: 16384
+  num_surface_anchor_points: 1000000000
+  num_volume_anchor_points: 1000000000
+  geometry_position_from_dataset: true
+
+trainer:
+  precision: float16
+
+model:
+  supernode_pooling_config:
+    radius: 0.25
+
+sample_size_property: surface_anchor_position
+chunk_size: ${pipeline.num_surface_anchor_points}
+chunk_properties:
+  - surface_anchor_position
+  - volume_anchor_position

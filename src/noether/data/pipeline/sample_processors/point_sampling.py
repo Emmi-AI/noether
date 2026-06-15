@@ -66,6 +66,13 @@ class PointSamplingSampleProcessor(SampleProcessor):
         first_item_tensor = output_sample[any_item]
         if not torch.is_tensor(first_item_tensor):
             raise ValueError(f"Item {any_item} in is not a tensor.")
+        # Skip subsampling when we would keep every point: ``randperm(N)[:num_points]`` with
+        # ``num_points >= N`` is a full permutation, i.e. a redundant reshuffle that leaves the
+        # point *set* unchanged (a no-op for permutation-invariant point models). This makes the
+        # processor inert when the dataset already subsampled to ``num_points`` (e.g. the chunked
+        # Zarr dataset), so no pipeline flag is needed to disable it.
+        if self.num_points >= len(first_item_tensor):
+            return output_sample
         if self.seed is not None:
             if "index" not in output_sample:
                 raise ValueError("Sample index is required for deterministic sampling with a seed.")

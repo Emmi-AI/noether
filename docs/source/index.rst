@@ -30,6 +30,7 @@ Welcome to the Noether Framework documentation. Here you will find available API
    noether/dataset_zoo
    noether/recipe_zoo
    noether/understanding_the_data_pipeline
+   noether/efficient_zarr_store
 
 
 .. toctree::

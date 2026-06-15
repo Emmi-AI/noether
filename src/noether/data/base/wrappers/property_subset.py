@@ -1,6 +1,7 @@
 #  Copyright © 2025 Emmi AI GmbH. All rights reserved.
 from __future__ import annotations
 
+import inspect
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -65,6 +66,8 @@ class PropertySubsetWrapper(DatasetWrapper):
         if not isinstance(properties, set):
             raise TypeError("Properties must be a set.")
         self.properties = properties
+        # cache: does a getitem fn accept the pre_getitem kwargs (more than just idx)?
+        self._accepts_kwargs_cache: dict[str, bool] = {}
 
         # split properties into _getitem_fns
         self._getitem_functions = {}
@@ -88,9 +91,25 @@ class PropertySubsetWrapper(DatasetWrapper):
         """Generic implementation that allows "index" to be contained in mode without implementing getitem_index."""
         return idx
 
+    def _accepts_kwargs(self, key: str, getitem_fn: Any) -> bool:
+        """Whether *getitem_fn* takes the ``pre_getitem`` payload as kwargs (more than just ``idx``)."""
+        cached = self._accepts_kwargs_cache.get(key)
+        if cached is None:
+            try:
+                cached = len(inspect.signature(getitem_fn).parameters) > 1
+            except (TypeError, ValueError):
+                cached = False
+            self._accepts_kwargs_cache[key] = cached
+        return cached
+
     def __getitem__(self, idx: int) -> dict[str, Any]:
         """Iterates over all items contained in self.mode and calls the getitem_<ITEM> method to load the specified
         property. The result of all getitem methods is returned as dictionary.
+
+        Mirrors :meth:`Dataset.__getitem__`: the wrapped dataset's :meth:`pre_getitem` hook is run once before the
+        getitem methods (and its return value forwarded as kwargs to getitems that accept them), and
+        :meth:`post_getitem` is always run afterwards. This keeps datasets that share per-sample state across their
+        getitem_* methods (e.g. an open file handle or a single chunk read) working when wrapped.
 
         Args:
             idx: Index of the sample that should be loaded.
@@ -110,9 +129,18 @@ class PropertySubsetWrapper(DatasetWrapper):
         if idx >= len(self.dataset):
             raise IndexError(f"Index {idx} is out of bounds for dataset of size {len(self.dataset)}.")
 
-        items: dict[str, Any] = {}
-        for key, getitem_fn in self._getitem_functions.items():
-            items[key] = getitem_fn(idx)
+        pre = self.dataset.pre_getitem(idx)
+        if not isinstance(pre, dict):
+            raise TypeError(f"Expected dict from pre_getitem, got {type(pre)}.")
+        try:
+            items: dict[str, Any] = {}
+            for key, getitem_fn in self._getitem_functions.items():
+                if pre and self._accepts_kwargs(key, getitem_fn):
+                    items[key] = getitem_fn(idx, **pre)
+                else:
+                    items[key] = getitem_fn(idx)
+        finally:
+            self.dataset.post_getitem(idx, pre)
         return items
 
     def __getattr__(self, item: str) -> Any:
