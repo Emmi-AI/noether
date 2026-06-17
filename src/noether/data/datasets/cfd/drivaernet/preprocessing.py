@@ -249,11 +249,11 @@ def main(unzipped_root: Path, output_dir: Path, subsample_factor_volume: int):
     # Use a multiprocessing Pool to process files in parallel.
     # The number of processes will default to os.cpu_count().
     with Pool(processes=140) as pool:
-        # Use starmap to apply process_single_case to each set of arguments.
-        # Wrap with tqdm for a progress bar. list() consumes the iterator from starmap.
+        # Use map to apply process_single_case to each file.
+        # Wrap with tqdm for a progress bar. list() consumes the iterator.
         list(
             tqdm.tqdm(
-                pool.starmap(
+                pool.map(
                     functools.partial(
                         process_single_case,
                         pressure_root=pressure_path,

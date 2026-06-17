@@ -303,8 +303,8 @@ class LRUCacheFileSystem(CachingFileSystem):
 
                 files.sort(key=lambda x: x[1])
 
-                difference = (cache_size * self.cache_cleanup_high_watermark) - (
-                    self.cache_storage_size * self.cache_cleanup_high_watermark
+                difference = cache_size - (
+                    self.cache_storage_size * self.cache_cleanup_low_watermark
                 )
                 logger.info(
                     "Cache size %d exceeds limit of %d, removing old files", cache_size, self.cache_storage_size
@@ -484,8 +484,8 @@ class SqliteLRUCacheFileSystem(LRUCacheFileSystem):
                 if cache_size <= (self.cache_storage_size * self.cache_cleanup_high_watermark):
                     return
 
-                difference = (cache_size * self.cache_cleanup_low_watermark) - (
-                    self.cache_storage_size * self.cache_cleanup_high_watermark
+                difference = cache_size - (
+                    self.cache_storage_size * self.cache_cleanup_low_watermark
                 )
 
                 cursor = self._conn.cursor()

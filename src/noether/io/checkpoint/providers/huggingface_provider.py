@@ -70,7 +70,7 @@ class HFProvider(Provider):
             - None: If no size is available.
         """
         try:
-            repo, revision, filename = self.parse_uri(uri)
+            repo, filename, revision = self.parse_uri(uri)
             token = get_credentials(CredentialsProvider.HUGGINGFACE).get("HF_TOKEN")
             api = HfApi()
             # Use model_info/dataset_info heuristics: first try model, then dataset:
