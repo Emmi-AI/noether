@@ -5,7 +5,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from noether.core.distributed.run.managed import _run_managed_multiprocess, run_managed
+from noether.core.distributed.run.managed import (
+    _run_managed_multiprocess,
+    first_hostname_from_nodelist,
+    run_managed,
+)
 
 _MODULE_PATH = "noether.core.distributed.run.managed"
 
@@ -165,6 +169,44 @@ class TestMultiProcessExecution:
             mock_main.assert_called_once()
             mock_destroy.assert_called_once()
 
+    def test_master_addr_expands_compressed_nodelist(
+        self,
+        mock_acc,
+        mock_backend,
+        mock_nodes,
+        mock_local_rank,
+        mock_world_size,
+        mock_rank,
+        mock_barrier,
+        mock_destroy,
+        mock_init,
+    ):
+        """A multi-node SLURM_JOB_NODELIST is compressed (e.g. node-[01,02]); MASTER_ADDR must
+        be the first *expanded* hostname, not the broken `node-[01` from a naive comma split.
+
+        This is the regression test for the multi-node rendezvous timeout bug.
+        """
+        mock_world_size.return_value = 2
+        mock_rank.return_value = 0
+        mock_backend.return_value = "nccl"
+
+        env_vars = {"SLURM_JOB_NODELIST": "node-[01,02]", "SLURM_JOB_ID": "1234"}
+        scontrol_result = MagicMock(stdout="node-01\nnode-02\n")
+
+        with (
+            patch.dict(os.environ, env_vars, clear=True),
+            patch(_MODULE_PATH + ".subprocess.run", return_value=scontrol_result) as mock_run,
+        ):
+            _run_managed_multiprocess(accelerator="gpu", main=MagicMock())
+
+            mock_run.assert_called_once_with(
+                ["scontrol", "show", "hostnames", "node-[01,02]"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            assert os.environ["MASTER_ADDR"] == "node-01"
+
     def test_missing_slurm_nodelist_raises(self, *mocks):
         with patch.dict(os.environ, {}, clear=True):
             with pytest.raises(RuntimeError, match="SLURM_JOB_NODELIST not found"):
@@ -201,3 +243,23 @@ class TestMultiProcessExecution:
 
             assert os.environ["MASTER_ADDR"] == "existing-master"
             assert os.environ["MASTER_PORT"] == "9999"
+
+
+class TestFirstHostnameFromNodelist:
+    def test_expands_compressed_nodelist_via_scontrol(self):
+        scontrol_result = MagicMock(stdout="slurm-h100-rno-199-079\nslurm-h100-rno-199-081\n")
+        with patch(_MODULE_PATH + ".subprocess.run", return_value=scontrol_result) as mock_run:
+            assert first_hostname_from_nodelist("slurm-h100-rno-199-[079,081]") == "slurm-h100-rno-199-079"
+            mock_run.assert_called_once()
+
+    def test_fallback_to_plain_list_when_scontrol_missing(self):
+        """If `scontrol` is unavailable, a plain comma-separated list still resolves."""
+        with patch(_MODULE_PATH + ".subprocess.run", side_effect=FileNotFoundError):
+            assert first_hostname_from_nodelist("node-01,node-02") == "node-01"
+
+    def test_compressed_without_scontrol_raises(self):
+        """A compressed list cannot be expanded without scontrol -- fail loudly, never return
+        a bogus `node-[01` address."""
+        with patch(_MODULE_PATH + ".subprocess.run", side_effect=FileNotFoundError):
+            with pytest.raises(RuntimeError, match="compressed SLURM_JOB_NODELIST"):
+                first_hostname_from_nodelist("node-[01-04]")
