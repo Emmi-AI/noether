@@ -317,6 +317,8 @@ class HydraRunner:
             num_workers=config.num_workers,
             pin_memory=device == "cuda",
             seed=seed,
+            multiprocessing_context=config.dataloader_multiprocessing_context,
+            persistent_workers=config.dataloader_persistent_workers,
         )
 
         # init trainer
