@@ -225,7 +225,13 @@ def main(hydra_config: DictConfig):
         log_batch(out, title="MODEL OUTPUT CONTENTS")
 
         if config.trainer is not None:
-            data_container = DataContainer(datasets=datasets, num_workers=config.num_workers, pin_memory=False)
+            data_container = DataContainer(
+                datasets=datasets,
+                num_workers=config.num_workers,
+                pin_memory=False,
+                multiprocessing_context=config.dataloader_multiprocessing_context,
+                persistent_workers=config.dataloader_persistent_workers,
+            )
 
             trainer = Factory().create(
                 config.trainer,
