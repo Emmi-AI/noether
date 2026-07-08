@@ -58,6 +58,8 @@ class CheckpointInitializer(InitializerBase):
         # When ``output_path`` is set, the source run lives under a different
         # output root than this run — use it directly instead of inheriting
         # this run's path provider (which would look in the wrong place).
+        # The source run is read-only and never lives under an ``eval/<eval_id>`` subdir, so we omit ``eval_id`` and
+        # set ``force_overwrite=True`` to bypass the existence check.
         if initializer_config.output_path is not None:
             self.init_run_path_provider = PathProvider(
                 output_root_path=initializer_config.output_path,
