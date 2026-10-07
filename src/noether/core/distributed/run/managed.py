@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 import platform
+import subprocess
 
 import torch
 from torch.distributed import barrier, destroy_process_group, init_process_group
@@ -19,6 +20,52 @@ from noether.core.distributed.config import (
 from noether.core.distributed.utils import accelerator_to_device, get_backend
 
 logger = logging.getLogger(__name__)
+
+
+def first_hostname_from_nodelist(nodelist: str) -> str:
+    """Return the first concrete hostname from a (possibly compressed) SLURM nodelist.
+
+    ``SLURM_JOB_NODELIST`` uses SLURM's *compressed* notation for multi-node jobs, e.g.
+    ``node-[079,081]`` or ``node[01-04]``. A naive ``nodelist.split(",")[0]`` therefore
+    yields a broken hostname such as ``node-[079`` that does not resolve, which makes the
+    ``torch.distributed`` rendezvous time out. ``scontrol show hostnames`` expands the list
+    to one real hostname per line; the first is used as the rendezvous master.
+
+    Args:
+        nodelist: The value of ``SLURM_JOB_NODELIST`` (compressed or plain).
+
+    Returns:
+        The first hostname in the (expanded) nodelist.
+
+    Raises:
+        RuntimeError: If the nodelist is compressed but ``scontrol`` is unavailable, so no
+            concrete hostname can be derived.
+    """
+    try:
+        result = subprocess.run(
+            ["scontrol", "show", "hostnames", nodelist],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        hostnames = result.stdout.split()
+        if hostnames:
+            return hostnames[0]
+    except (FileNotFoundError, subprocess.CalledProcessError) as exc:
+        logger.warning(
+            f"`scontrol show hostnames {nodelist}` failed ({exc}); falling back to parsing SLURM_JOB_NODELIST directly."
+        )
+
+    # Fallback: a plain, uncompressed list ("nodeA,nodeB") has its first host before the
+    # first comma. A compressed list still contains '[' here, which we cannot expand
+    # without scontrol -- fail loudly rather than return a bogus address.
+    first = nodelist.split(",")[0]
+    if "[" in first:
+        raise RuntimeError(
+            f"Cannot derive MASTER_ADDR from compressed SLURM_JOB_NODELIST={nodelist!r} "
+            "because `scontrol` is unavailable. Set MASTER_ADDR explicitly in the environment."
+        )
+    return first
 
 
 def run_managed(main, accelerator="gpu", devices=None):
@@ -69,7 +116,7 @@ def _run_managed_multiprocess(accelerator, main, device_id=None):
     # setup MASTER_ADDR & MASTER_PORT
     if not os.environ.get("MASTER_ADDR", ""):
         if "SLURM_JOB_NODELIST" in os.environ:
-            os.environ["MASTER_ADDR"] = os.environ["SLURM_JOB_NODELIST"].split(",")[0]
+            os.environ["MASTER_ADDR"] = first_hostname_from_nodelist(os.environ["SLURM_JOB_NODELIST"])
         else:
             raise RuntimeError("SLURM_JOB_NODELIST not found in environment, cannot set MASTER_ADDR")
     if not os.environ.get("MASTER_PORT", ""):

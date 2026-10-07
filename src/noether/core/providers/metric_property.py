@@ -35,8 +35,15 @@ class MetricPropertyProvider:
 
     @staticmethod
     def register_pattern(pattern: str, ordinality: Ordinality):
-        """Allows users (Trainers/Callbacks) to add new patterns easily."""
-        MetricPropertyProvider._PATTERNS.append((pattern, ordinality))
+        """Allows users (Trainers/Callbacks) to add new patterns easily.
+
+        Registering the same ``(pattern, ordinality)`` pair more than once is a no-op, so a
+        callback that registers its metric namespace on construction can be instantiated
+        repeatedly (e.g. across stages) without accumulating duplicate entries.
+        """
+        entry = (pattern, ordinality)
+        if entry not in MetricPropertyProvider._PATTERNS:
+            MetricPropertyProvider._PATTERNS.append(entry)
 
     @staticmethod
     def _register_defaults():

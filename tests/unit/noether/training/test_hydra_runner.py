@@ -61,6 +61,8 @@ class TestHydraRunnerSetup:
         config.resume_run_id = None
         config.resume_output_path = None
         config.num_workers = 0
+        config.dataloader_multiprocessing_context = None
+        config.dataloader_persistent_workers = False
         config.store_code_in_output = False
         config.cudnn_benchmark = False
         config.cudnn_deterministic = False

@@ -87,6 +87,16 @@ class ConfigSchema[TModelConfig: ModelBaseConfig, TDatasetConfig: DatasetBaseCon
     """Comma-separated list of device IDs to use. If None, all available devices will be used."""
     num_workers: int | None = None
     """Number of worker threads for data loading. If None,  will use (#CPUs / #GPUs - 1) workers"""
+    dataloader_multiprocessing_context: str | None = None
+    """Start method for ``DataLoader`` worker processes (``"spawn"``, ``"forkserver"`` or ``"fork"``).
+    If None, uses PyTorch's platform default (``fork`` on Linux). Use ``"spawn"`` to avoid worker
+    deadlocks caused by forking a process that has already initialized CUDA or another non-fork-safe
+    library. Only takes effect when ``num_workers > 0``; with ``spawn``/``forkserver`` the dataset and
+    collator must be picklable (they are sent to each worker instead of inherited via fork)."""
+    dataloader_persistent_workers: bool = False
+    """Keep ``DataLoader`` workers alive between iterations instead of respawning them each epoch.
+    Recommended together with ``dataloader_multiprocessing_context="spawn"`` since spawn has a higher
+    per-worker startup cost. Only takes effect when ``num_workers > 0``."""
     cudnn_benchmark: bool = True
     """Whether to enable cudnn benchmark mode for this run."""
     cudnn_deterministic: bool = False

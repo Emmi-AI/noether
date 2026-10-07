@@ -3,20 +3,49 @@
 import math
 from typing import Any
 
+from noether.core.callbacks.base import CallBackBaseConfig
 from noether.core.callbacks.periodic import PeriodicCallback
+from noether.core.providers.metric_property import MetricPropertyProvider, Ordinality
+from noether.core.schemas.lib import ConfiguredBy
 from noether.core.utils.model import compute_model_norm
 
 
+@ConfiguredBy(CallBackBaseConfig)
 class TrainingDiagnosticsCallback(PeriodicCallback):
-    """
-    A callback that logs the norm of the gradients, the grad scaler scale and the model norm, additionally all the losses after the accumulation step are logged. This can be useful for monitoring
-    training and diagnosing issues with exploding or vanishing gradients.
-    This callback is not added is added by default to the trainer
+    """Logs gradient norms, the grad-scaler scale and the model norm, plus all losses after
+    each accumulation step.
+
+    Useful for monitoring training and diagnosing exploding or vanishing gradients
+    (i.e. convergence speed / training dynamics).
+
+    This callback is *not* added by default. Enable it via the ``callbacks`` config with::
+
+        - kind: noether.core.callbacks.default.training_diagnostics.TrainingDiagnosticsCallback
+          every_n_updates: 50
+
+    using exactly one of ``every_n_updates`` / ``every_n_epochs`` / ``every_n_samples``.
     """
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._last_logged_grad_scaler_scale: float | None = None
+        self._register_metric_patterns()
+
+    @staticmethod
+    def _register_metric_patterns() -> None:
+        """Register this callback's ``optim`` metric namespace as neutral.
+
+        Without this, ``training_diagnostics/optim/{grad_scaler_scale,grad_norm/*,model_norm}``
+        match no pattern in :class:`MetricPropertyProvider` (the default ``optim/*`` is anchored at
+        the start of the key) and fall through to ``higher_is_better=True`` with a warning. The
+        accumulation-step losses already match the default ``*loss*`` pattern, so only the ``optim``
+        namespace needs registering here.
+        """
+        # Instantiating the provider triggers lazy registration of the default patterns if it has
+        # not happened yet, so our pattern is appended *after* the defaults (FIFO match order means
+        # defaults win on any overlap).
+        MetricPropertyProvider()
+        MetricPropertyProvider.register_pattern("training_diagnostics/optim/*", Ordinality.NEUTRAL)
 
     # noinspection PyMethodOverriding
     def periodic_callback(self, **_) -> None:

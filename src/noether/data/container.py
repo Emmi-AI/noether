@@ -51,6 +51,8 @@ class DataContainer:
         num_workers: int | None = None,
         pin_memory: bool = True,
         seed: int | None = None,
+        multiprocessing_context: str | None = None,
+        persistent_workers: bool = False,
     ):
         """
         Args:
@@ -62,6 +64,13 @@ class DataContainer:
                 to reseed ``random``/``numpy`` inside each worker via ``worker_init_fn``. When None,
                 no generator is attached and workers are not explicitly reseeded (matches legacy behavior).
                 Typically the training seed (already rank-offset) should be passed here.
+            multiprocessing_context: Start method for worker processes (``"spawn"``, ``"forkserver"``
+                or ``"fork"``), forwarded to ``torch.utils.data.DataLoader``. When None, PyTorch's
+                platform default (``fork`` on Linux) is used. ``"spawn"`` avoids deadlocks from forking
+                a CUDA-initialized process, at the cost of pickling the dataset/collator to each worker.
+                Only applied when ``num_workers > 0``. Defaults to None.
+            persistent_workers: Keep workers alive across iterations instead of respawning them each
+                epoch. Only applied when ``num_workers > 0``. Defaults to False.
         """
         self.logger = logging.getLogger(type(self).__name__)
         if len(datasets) == 0:
@@ -70,6 +79,8 @@ class DataContainer:
         self.num_workers = num_workers
         self.pin_memory = pin_memory
         self.seed = seed
+        self.multiprocessing_context = multiprocessing_context
+        self.persistent_workers = persistent_workers
 
         # set first dataset as "train" dataset in place of an actual dataset
         # the "train" dataset is used to propagate shapes, so in evaluation runs if no train dataset is present,
@@ -209,6 +220,15 @@ class DataContainer:
             generator = None
             worker_init_fn = None
 
+        # multiprocessing_context / persistent_workers are only valid for multi-process loading;
+        # torch raises if either is passed with num_workers=0, so only forward them when workers > 0.
+        worker_kwargs: dict = {}
+        if num_workers > 0:
+            if self.multiprocessing_context is not None:
+                worker_kwargs["multiprocessing_context"] = self.multiprocessing_context
+            if self.persistent_workers:
+                worker_kwargs["persistent_workers"] = True
+
         loader = DataLoader(
             dataset=sampler.dataset,
             batch_sampler=sampler.batch_sampler,
@@ -218,11 +238,14 @@ class DataContainer:
             prefetch_factor=prefetch_factor,
             worker_init_fn=worker_init_fn,
             generator=generator,
+            **worker_kwargs,
         )
 
         self.logger.info(
             f"Created dataloader (batch_size={batch_size} num_workers={loader.num_workers} "
             f"pin_memory={loader.pin_memory} total_cpu_count={get_total_cpu_count()} "
-            f"prefetch_factor={loader.prefetch_factor} seeded={self.seed is not None})"
+            f"prefetch_factor={loader.prefetch_factor} seeded={self.seed is not None} "
+            f"multiprocessing_context={self.multiprocessing_context} "
+            f"persistent_workers={loader.persistent_workers})"
         )
         return loader

@@ -199,9 +199,12 @@ Run with either:
    noether-eval run_dir=outputs/2026-01-10_abc12 --hp configs/eval_extra.yaml
    noether-eval run_dir=outputs/2026-01-10_abc12 --hp configs/save_predictions.yaml
 
-When ``--hp`` is supplied, that file becomes the Hydra base config — use this
-escape hatch for power users composing their own inference/eval pipeline. The
-``run_dir`` argument and CLI overrides above still work the same way.
+When ``--hp`` is supplied together with ``run_dir``, the file is merged on top
+of the training config: dict keys merge recursively, while lists (such as
+``trainer.callbacks``) are **replaced** — so the YAMLs above run *only* the
+listed callback. The ``run_dir`` argument and CLI overrides above still work
+the same way. Supplying ``--hp`` *without* ``run_dir`` is an escape hatch for
+power users composing their own complete inference/eval config.
 
 **Flipping a flag on an existing callback (no YAML)** — when the change is
 just enabling a feature already supported by a configured callback (e.g.
